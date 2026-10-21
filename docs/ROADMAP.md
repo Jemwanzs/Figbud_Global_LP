@@ -18,7 +18,7 @@
 | 3     | Corporate pages                      | 🔄 In progress | 3 / 14 tasks                            | Company profile, legal texts                 |
 | 4     | Product websites                     | ⬜ Not started | 0 / 20 tasks                            | Product capability sign-off, payroll rules   |
 | 5     | Integrations & administration        | 🔄 In progress | 6 / 16 tasks                            | Resend credentials, recipient addresses      |
-| 6     | Production deployment                | 🔄 In progress | 6 / 17 tasks                            | Railway project ID, Resend, domains          |
+| 6     | Production deployment                | 🔄 In progress | 7 / 18 tasks                            | Railway project ID, Resend, domains          |
 
 **Where we are:** the monorepo, shared design system, multilingual architecture, Rust enquiry API with PostgreSQL and a retrying email outbox, and the first complete FigBud Global homepage are built and verified locally. Everything runs without any external service. The next steps that need decisions from FigBud are listed in **§5 Open questions**.
 
@@ -30,7 +30,7 @@
 | ---------------------------------- | --------------------------------------- | --------------------------------------------------------------------------------------- |
 | GitHub repository                  | ✅ Available                             | `Jemwanzs/Figbud_Global_LP` (public)                                                     |
 | GitHub connection & initial push   | ✅ Completed                             | Remote verified empty before pushing; `main` holds the full project                     |
-| Continuous integration             | 🔄 In progress                          | Workflow added (`.github/workflows/ci.yml`); confirm the first run is green on GitHub    |
+| Continuous integration             | ✅ Completed                             | First run green: website and API (with PostgreSQL) jobs pass on every push to `main`     |
 | Railway project ID                 | ⛔ Awaiting details                      | Inspect the existing project before configuring; never create a duplicate (Q17)          |
 | Frontend deployment (`figbud-web`) | ⬜ Pending                               | Dockerfile, `railway.toml`, health check and variables ready — see `docs/DEPLOYMENT.md`  |
 | Rust backend deployment (`figbud-api`) | ⬜ Pending                           | Dockerfile, `railway.toml`, `/health/ready`, migrations on boot                          |
@@ -353,7 +353,8 @@ Items marked **Blocking** stop the listed tasks; everything else proceeds with t
 | P6-04  | Staging never indexable (robots + `noindex` unless explicitly enabled)                      | ✅ |
 | P6-05  | GitHub repository connected; initial push to `main`                                        | ✅ |
 | P6-05b | Branch protection on `main` (require CI), PR template                                      | ⬜ |
-| P6-06  | CI: format, lint, typecheck, unit, Rust (with PostgreSQL), build, e2e; Lighthouse budgets later | 🔄 |
+| P6-06  | CI: format, lint, typecheck, unit, Rust (with PostgreSQL), build, e2e                       | ✅ |
+| P6-06b | Lighthouse performance budgets in CI                                                        | ⬜ |
 | P6-07  | Dependency and vulnerability scanning (Dependabot / cargo-audit / npm audit)                | ⬜ |
 | P6-08  | Railway: inspect existing project, then configure web, API, PostgreSQL (staging + production) | ⛔ Q17 |
 | P6-09  | Domains, DNS, SSL for corporate and product subdomains                                      | ⛔ Q1 |
@@ -378,7 +379,7 @@ Items marked **Blocking** stop the listed tasks; everything else proceeds with t
 | M6 — Jasiri LMS site               | P4-J*                                        | Demos and verified capabilities                       | ⬜ |
 | M7 — Expense Now site              | P4-E*                                        | Waitlist live, roadmap content approved               | ⬜ |
 | M8 — Integrations live             | Phase 5                                      | Real email, admin, CMS                                | ⬜ |
-| M8b — Repository live              | P1-25, P6-05, P6-06                          | Code on GitHub `main`, CI green                       | 🔄 |
+| M8b — Repository live              | P1-25, P6-05, P6-06                          | Code on GitHub `main`, CI green                       | ✅ 22 Oct 2026 |
 | M9 — Production launch             | Phase 6                                      | Launch checklist signed                               | ⬜ |
 
 ---
@@ -401,5 +402,5 @@ Items marked **Blocking** stop the listed tasks; everything else proceeds with t
 
 | Date        | Change                                                                                                   |
 | ----------- | -------------------------------------------------------------------------------------------------------- |
-| 22 Oct 2026 | GitHub repository connected and initial push to `main`. CI workflow, deployment runbook (`docs/DEPLOYMENT.md`) and Railway watch paths added; both Docker images build. `draft_designs/` kept local only (third-party references, public repo). Deployment-readiness tracker and Q17 (Railway project) added. |
+| 22 Oct 2026 | GitHub repository connected and initial push to `main`. CI workflow (first run green), deployment runbook (`docs/DEPLOYMENT.md`) and Railway watch paths added; both Docker images build. `draft_designs/` kept local only (third-party references, public repo). Deployment-readiness tracker and Q17 (Railway project) added. |
 | 22 Oct 2026 | Roadmap created. Scope from five briefs consolidated; D1–D13 recorded; Q1–Q16 raised. Phase 1 completed; Phase 2 homepage built and verified; contact and products pages, enquiry API and email outbox delivered. |
