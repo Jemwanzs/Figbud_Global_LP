@@ -1,0 +1,112 @@
+import { expect, test } from "@playwright/test";
+
+test.describe("homepage", () => {
+  test("renders the hero, platforms and footer without horizontal scroll", async ({ page }) => {
+    await page.goto("/en");
+    await expect(page.getByRole("heading", { level: 1 })).toContainText("Built for complexity.");
+    await expect(page.locator("#platforms")).toBeVisible();
+    await expect(page.getByRole("contentinfo")).toBeVisible();
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+    expect(overflow).toBeLessThanOrEqual(0);
+  });
+
+  test("redirects the bare domain to a locale", async ({ page }) => {
+    await page.goto("/");
+    await expect(page).toHaveURL(/\/en$/);
+  });
+
+  test("is not indexable outside production", async ({ page }) => {
+    await page.goto("/en");
+    await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", /noindex/);
+  });
+
+  test("platform tabs support keyboard navigation", async ({ page }) => {
+    await page.goto("/en#platforms");
+    const zira = page.getByRole("tab", { name: /ZiraHR/ });
+    await zira.focus();
+    await page.keyboard.press("ArrowRight");
+    const jasiri = page.getByRole("tab", { name: /Jasiri LMS/ });
+    await expect(jasiri).toHaveAttribute("aria-selected", "true");
+    await expect(jasiri).toBeFocused();
+    await page.keyboard.press("End");
+    await expect(page.getByRole("tab", { name: /Expense Now/ })).toHaveAttribute("aria-selected", "true");
+    await expect(page.getByRole("tabpanel").getByRole("link", { name: /Join the waitlist/ })).toBeVisible();
+  });
+});
+
+test.describe("theme and language", () => {
+  test("defaults to dark and remembers light mode", async ({ page }) => {
+    await page.goto("/en");
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+    await page.getByRole("button", { name: "Switch to light theme" }).click();
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+    await page.reload();
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+  });
+
+  test("Arabic renders right-to-left with a review notice", async ({ page }) => {
+    await page.goto("/ar");
+    await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
+    await expect(page.locator("html")).toHaveAttribute("lang", "ar");
+    await expect(page.getByText("هذه الترجمة قيد المراجعة")).toBeVisible();
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+    expect(overflow).toBeLessThanOrEqual(0);
+  });
+});
+
+test.describe("navigation", () => {
+  test("mobile menu opens, traps focus and closes with Escape", async ({ page, isMobile }) => {
+    test.skip(!isMobile, "mobile only");
+    await page.goto("/en");
+    await page.getByRole("button", { name: "Open menu" }).click();
+    const dialog = page.getByRole("dialog");
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByRole("link", { name: "Contact" })).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(dialog).toBeHidden();
+  });
+
+  test("unknown URLs return a branded 404", async ({ page }) => {
+    const response = await page.goto("/en/does-not-exist");
+    expect(response?.status()).toBe(404);
+    await expect(page.getByRole("heading", { level: 1 })).toContainText("different route");
+  });
+});
+
+test.describe("contact form", () => {
+  test("validates on the client before calling the API", async ({ page }) => {
+    let called = false;
+    await page.route("**/v1/enquiries", (route) => {
+      called = true;
+      return route.abort();
+    });
+    await page.goto("/en/contact");
+    await page.getByRole("button", { name: "Send enquiry" }).click();
+    await expect(page.getByText("Please correct the highlighted fields.")).toBeVisible();
+    await expect(page.getByLabel("Full name")).toHaveAttribute("aria-invalid", "true");
+    expect(called).toBe(false);
+  });
+
+  test("submits once with an idempotency key and shows the reference", async ({ page }) => {
+    const keys: string[] = [];
+    await page.route("**/v1/enquiries", async (route) => {
+      keys.push(route.request().headers()["idempotency-key"] ?? "");
+      await route.fulfill({
+        status: 201,
+        contentType: "application/json",
+        headers: { "access-control-allow-origin": "*" },
+        body: JSON.stringify({ reference: "FBG-2610-TEST42", status: "received" }),
+      });
+    });
+    await page.goto("/en/contact?kind=waitlist&product=expense_now");
+    await expect(page.getByRole("radio", { name: "Join a waitlist" })).toBeChecked();
+    await expect(page.getByLabel("Product")).toHaveValue("expense_now");
+    await page.getByLabel("Full name").fill("Amina Wanjiru");
+    await page.getByLabel("Work email").fill("amina@example.co.ke");
+    await page.getByRole("checkbox").check();
+    await page.getByRole("button", { name: "Send enquiry" }).click();
+    await expect(page.getByText("FBG-2610-TEST42")).toBeVisible();
+    expect(keys).toHaveLength(1);
+    expect(keys[0]).toMatch(/^[0-9a-f-]{36}$/);
+  });
+});

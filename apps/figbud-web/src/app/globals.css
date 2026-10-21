@@ -1,0 +1,145 @@
+@import "tailwindcss";
+@import "@figbud/brand/tokens.css";
+
+@source "../../../../packages/ui/src";
+
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-rendering: optimizeLegibility;
+    scroll-padding-top: 5.5rem;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    html {
+      scroll-behavior: smooth;
+    }
+  }
+
+  body {
+    background-color: var(--bg);
+    color: var(--text);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow-x: clip;
+  }
+
+  /* Outfit has no Arabic glyphs: use a dedicated Arabic face for RTL. */
+  html[lang="ar"] body {
+    font-family: var(--font-arabic), var(--font-sans);
+  }
+
+  /* In RTL pages, text still awaiting translation falls back to English.
+     Resolve each block's direction from its own content so punctuation
+     stays where it belongs, while layout remains right-to-left. */
+  [dir="rtl"] :is(p, h1, h2, h3, li, dt, dd, label, legend) {
+    unicode-bidi: plaintext;
+  }
+
+  ::selection {
+    background: var(--accent);
+    color: var(--accent-ink);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 3px;
+    border-radius: 6px;
+  }
+
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+}
+
+@layer components {
+  /* Subtle engineered-grid backdrop used behind product compositions. */
+  .fb-grid {
+    background-image:
+      linear-gradient(to right, var(--line) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--line) 1px, transparent 1px);
+    background-size: 44px 44px;
+  }
+
+  .fb-text-gradient {
+    background: linear-gradient(100deg, var(--fb-amber) 0%, #f6bd82 40%, var(--fb-copper) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  [data-theme="light"] .fb-text-gradient {
+    background: linear-gradient(100deg, #b4651f 0%, var(--fb-copper) 55%, #7e4521 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+  }
+
+  .fb-panel {
+    background: color-mix(in oklab, var(--surface) 82%, transparent);
+    border: 1px solid var(--line);
+    box-shadow: var(--shadow-elevated);
+  }
+}
+
+@keyframes fb-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@keyframes fb-rise {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 16px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes fb-dash {
+  to {
+    stroke-dashoffset: -200;
+  }
+}
+
+@keyframes fb-orbit-glow {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.55;
+  }
+  50% {
+    transform: scale(1.08);
+    opacity: 0.85;
+  }
+}
+
+/* Entrance animation for above-the-fold content that should not wait for JS. */
+.fb-rise {
+  animation: fb-rise 0.9s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}

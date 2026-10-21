@@ -1,0 +1,9 @@
+**/node_modules
+**/.next
+**/target
+**/.env
+**/.env.local
+draft_designs
+docs
+services/api/target
+.git

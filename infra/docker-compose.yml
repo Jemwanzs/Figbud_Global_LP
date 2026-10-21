@@ -1,0 +1,42 @@
+# Local development services. Not used in production (Railway provisions
+# managed PostgreSQL). Credentials below are local-only defaults.
+name: figbud-local
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: figbud
+      POSTGRES_PASSWORD: figbud_local_dev
+      POSTGRES_DB: figbud
+    ports:
+      - "5433:5432"
+    volumes:
+      - figbud-pg:/var/lib/postgresql/data
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U figbud -d figbud"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # Optional: run the API in a container instead of `npm run api:dev`.
+  #   docker compose -f infra/docker-compose.yml --profile api up --build
+  api:
+    profiles: ["api"]
+    build:
+      context: ../services/api
+    environment:
+      APP_ENV: development
+      DATABASE_URL: postgres://figbud:figbud_local_dev@postgres:5432/figbud
+      CORS_ALLOWED_ORIGINS: http://localhost:3000
+      EMAIL_MODE: log
+      PORT: "8080"
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  figbud-pg:

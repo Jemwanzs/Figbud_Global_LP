@@ -1,0 +1,7 @@
+node_modules
+.next
+services/api/target
+package-lock.json
+draft_designs
+**/*.md
+.artifacts

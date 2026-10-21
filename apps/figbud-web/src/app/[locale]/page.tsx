@@ -1,0 +1,40 @@
+import { isLocale } from "@figbud/i18n";
+import type { Metadata } from "next";
+import { notFound } from "next/navigation";
+
+import { Hero } from "@/components/home/hero";
+import {
+  AfricaSection,
+  CompanySection,
+  EngineerSection,
+  FinalCtaSection,
+  PhilosophySection,
+  PlatformsSection,
+} from "@/components/home/sections";
+import { getDictionary } from "@/i18n/get-dictionary";
+import { pageMetadata } from "@/lib/site";
+
+export async function generateMetadata({ params }: PageProps<"/[locale]">): Promise<Metadata> {
+  const { locale } = await params;
+  if (!isLocale(locale)) return {};
+  const dict = await getDictionary(locale);
+  return pageMetadata({ locale, path: "/", description: dict.meta.description });
+}
+
+export default async function HomePage({ params }: PageProps<"/[locale]">) {
+  const { locale } = await params;
+  if (!isLocale(locale)) notFound();
+  const dict = await getDictionary(locale);
+
+  return (
+    <>
+      <Hero locale={locale} dict={dict} />
+      <PlatformsSection locale={locale} dict={dict} />
+      <PhilosophySection locale={locale} dict={dict} />
+      <AfricaSection locale={locale} dict={dict} />
+      <EngineerSection locale={locale} dict={dict} />
+      <CompanySection locale={locale} dict={dict} />
+      <FinalCtaSection locale={locale} dict={dict} />
+    </>
+  );
+}
