@@ -88,6 +88,62 @@ const challenges = new Map(); // id -> { kind, challenge, email, name }
 const usedInvites = new Set();
 const audit = [];
 
+const drafts = new Map(); // editorial articles by id
+
+function validateArticle(b) {
+  const errors = [];
+  if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(b.slug ?? ""))
+    errors.push({ field: "slug", code: "invalid", message: "Use lowercase letters, numbers and hyphens." });
+  if (!String(b.title ?? "").trim())
+    errors.push({ field: "title", code: "length", message: "Enter a title of up to 200 characters." });
+  if (!String(b.excerpt ?? "").trim())
+    errors.push({ field: "excerpt", code: "length", message: "Enter a summary of up to 400 characters." });
+  if (!String(b.body_markdown ?? "").trim())
+    errors.push({
+      field: "body_markdown",
+      code: "length",
+      message: "Write the article (up to 100,000 characters).",
+    });
+  return errors;
+}
+
+const articleFields = (b) => ({
+  slug: b.slug,
+  locale: b.locale ?? "en",
+  title: b.title.trim(),
+  excerpt: b.excerpt.trim(),
+  body_markdown: b.body_markdown,
+  category: b.category ?? null,
+  author: b.author ?? null,
+  tags: b.tags ?? [],
+  cover_image_url: b.cover_image_url || null,
+  cover_image_alt: b.cover_image_alt || null,
+  seo_title: b.seo_title || null,
+  seo_description: b.seo_description || null,
+});
+
+const isScheduled = (a) => a.status === "published" && new Date(a.published_at) > new Date();
+const detail = (a) => ({
+  ...Object.fromEntries(Object.entries(a).filter(([key]) => key !== "versions")),
+  updated_at: new Date().toISOString(),
+  scheduled: isScheduled(a),
+});
+const listRow = (a) => ({
+  id: a.id,
+  slug: a.slug,
+  locale: a.locale,
+  title: a.title,
+  status: a.status,
+  version: a.version,
+  published_at: a.published_at ?? null,
+  updated_at: new Date().toISOString(),
+  category: a.category,
+  last_edited_by: a.last_edited_by,
+  scheduled: isScheduled(a),
+});
+
+const publicUser = (u) => ({ id: u.id, email: u.email, name: u.name, role: u.role });
+
 function readCookie(req) {
   return /(?:^|;\s*)figbud_admin=([0-9a-f]{64})/.exec(req.headers.cookie ?? "")?.[1];
 }
@@ -117,8 +173,7 @@ function admin(req, res, url, body, send) {
       created_at: new Date().toISOString(),
     });
     res.setHeader("set-cookie", `figbud_admin=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=3600`);
-    const { credentialId, ...publicUser } = user;
-    return send(200, { user: publicUser });
+    return send(200, { user: publicUser(user) });
   };
   const ceremony = (kind, fields) => {
     const id = randomBytes(16).toString("hex");
@@ -217,10 +272,7 @@ function admin(req, res, url, body, send) {
   }
   const user = userOf();
   if (!user) return send(401, { error: { code: "unauthorized", message: "Please sign in." } });
-  if (path === "me") {
-    const { credentialId, ...publicUser } = user;
-    return send(200, { user: publicUser });
-  }
+  if (path === "me") return send(200, { user: publicUser(user) });
   if (path === "logout") {
     sessions.delete(readCookie(req));
     res.setHeader("set-cookie", "figbud_admin=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0");
@@ -242,6 +294,121 @@ function admin(req, res, url, body, send) {
     });
   }
   if (path === "audit") return send(200, audit.slice(0, 200));
+
+  // --- Editorial (services/api/src/cms/editorial.rs) ---
+  if (path === "cms/taxonomy") {
+    return send(200, {
+      categories: [payroll, lending].map((c) => ({ ...c, detail: null })),
+      authors: [{ slug: "editorial", name: "FigBud Editorial", detail: "Editorial team" }],
+      tags: [],
+    });
+  }
+  if (path === "cms/preview") {
+    const escaped = String(body.body_markdown ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;");
+    return send(200, { html: `<p>${escaped}</p>`, headings: [], reading_minutes: 1 });
+  }
+  if (path === "cms/articles" && req.method === "GET") {
+    return send(200, [...drafts.values()].map(listRow).reverse());
+  }
+  if (path === "cms/articles" && req.method === "POST") {
+    const errors = validateArticle(body);
+    if (errors.length)
+      return send(422, {
+        error: { code: "validation_failed", message: "Some fields need attention.", fields: errors },
+      });
+    if ([...drafts.values()].some((d) => d.slug === body.slug && d.locale === (body.locale ?? "en"))) {
+      return send(422, {
+        error: {
+          code: "validation_failed",
+          message: "Some fields need attention.",
+          fields: [
+            {
+              field: "slug",
+              code: "taken",
+              message: "Another article in this language already uses this address.",
+            },
+          ],
+        },
+      });
+    }
+    const id = crypto.randomUUID();
+    const article = {
+      ...articleFields(body),
+      id,
+      status: "draft",
+      version: 1,
+      versions: [],
+      last_edited_by: user.name,
+      last_edited_by_id: user.id,
+    };
+    article.versions.push({
+      version: 1,
+      title: article.title,
+      edited_by: user.email,
+      created_at: new Date().toISOString(),
+    });
+    drafts.set(id, article);
+    return send(201, detail(article));
+  }
+  const cms = /^cms\/articles\/([0-9a-f-]{36})(?:\/(submit|publish|archive|restore|versions))?$/.exec(path);
+  if (cms) {
+    const article = drafts.get(cms[1]);
+    if (!article) return send(404, { error: { code: "not_found", message: "Not found." } });
+    const conflict = (message) => send(409, { error: { code: "conflict", message } });
+    switch (cms[2]) {
+      case undefined:
+        if (req.method === "GET") return send(200, detail(article));
+        if (body.version !== article.version) {
+          return conflict(
+            "Someone saved this article after you opened it. Reload to see the latest version, then reapply your changes.",
+          );
+        }
+        {
+          const errors = validateArticle(body);
+          if (errors.length)
+            return send(422, {
+              error: { code: "validation_failed", message: "Some fields need attention.", fields: errors },
+            });
+        }
+        Object.assign(article, articleFields(body), {
+          version: article.version + 1,
+          last_edited_by: user.name,
+          last_edited_by_id: user.id,
+        });
+        article.versions.unshift({
+          version: article.version,
+          title: article.title,
+          edited_by: user.email,
+          created_at: new Date().toISOString(),
+        });
+        return send(200, detail(article));
+      case "versions":
+        return send(200, article.versions);
+      case "submit":
+        if (article.status !== "draft") return conflict("Only drafts can be submitted for review.");
+        article.status = "in_review";
+        return send(200, detail(article));
+      case "publish":
+        if (!["draft", "in_review"].includes(article.status))
+          return conflict("Only drafts and articles in review can be published.");
+        Object.assign(article, {
+          status: "published",
+          approved_by: user.email,
+          published_at: body.published_at ?? new Date().toISOString(),
+        });
+        return send(200, detail(article));
+      case "archive":
+        if (article.status === "archived") return conflict("This article is already archived.");
+        article.status = "archived";
+        return send(200, detail(article));
+      case "restore":
+        if (article.status !== "archived") return conflict("Only archived articles can be restored.");
+        Object.assign(article, { status: "draft", approved_by: null, published_at: null });
+        return send(200, detail(article));
+    }
+  }
   return send(404, { error: { code: "not_found", message: "Not found." } });
 }
 

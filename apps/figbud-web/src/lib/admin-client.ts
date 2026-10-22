@@ -12,10 +12,17 @@ export interface AdminUser {
   last_login_at?: string;
 }
 
+export interface FieldError {
+  field: string;
+  code: string;
+  message: string;
+}
+
 export class AdminError extends Error {
   constructor(
     message: string,
     readonly status: number,
+    readonly fields: FieldError[] = [],
   ) {
     super(message);
   }
@@ -31,7 +38,11 @@ export async function adminFetch<T>(path: string, body?: unknown): Promise<T> {
   if (response.status === 204) return undefined as T;
   const data = await response.json().catch(() => null);
   if (!response.ok) {
-    throw new AdminError(data?.error?.message ?? "Something went wrong. Please try again.", response.status);
+    throw new AdminError(
+      data?.error?.message ?? "Something went wrong. Please try again.",
+      response.status,
+      data?.error?.fields ?? [],
+    );
   }
   return data as T;
 }
@@ -127,3 +138,17 @@ export function describePasskeyError(error: unknown): string {
   }
   return "Something went wrong. Please try again.";
 }
+
+const RANK: Record<AdminUser["role"], number> = { viewer: 0, editor: 1, reviewer: 2, owner: 3 };
+
+/** Mirrors the API's role order (owner > reviewer > editor > viewer) for showing controls. */
+export function hasRole(user: Pick<AdminUser, "role">, minimum: AdminUser["role"]): boolean {
+  return RANK[user.role] >= RANK[minimum];
+}
+
+export const ROLE_LABELS: Record<AdminUser["role"], string> = {
+  owner: "Owner",
+  reviewer: "Reviewer",
+  editor: "Editor",
+  viewer: "Viewer",
+};

@@ -215,6 +215,8 @@ struct ArticleRow {
     category: Option<String>,
     author: Option<String>,
     last_edited_by: Option<String>,
+    /// Published with a publication time still in the future (database clock).
+    scheduled: bool,
 }
 
 #[derive(Deserialize)]
@@ -240,7 +242,8 @@ async fn list(
     let rows: Vec<ArticleRow> = sqlx::query_as(
         "SELECT * FROM (
             SELECT a.id, a.slug, a.locale, a.title, a.status, a.version, a.published_at, a.submitted_at, a.updated_at,
-                   c.name AS category, au.name AS author, ed.name AS last_edited_by
+                   c.name AS category, au.name AS author, ed.name AS last_edited_by,
+                   (a.status = 'published' AND a.published_at > now()) AS scheduled
               FROM cms_articles a
               LEFT JOIN cms_categories c ON c.id = a.category_id
               LEFT JOIN cms_authors au ON au.id = a.author_id
@@ -282,6 +285,7 @@ struct ArticleDetail {
     created_by: Option<String>,
     last_edited_by: Option<String>,
     last_edited_by_id: Option<Uuid>,
+    scheduled: bool,
 }
 
 async fn load(state: &SharedState, id: Uuid) -> Result<ArticleDetail, ApiError> {
@@ -292,7 +296,8 @@ async fn load(state: &SharedState, id: Uuid) -> Result<ArticleDetail, ApiError> 
                 COALESCE(ARRAY(SELECT t.name FROM cms_article_tags at JOIN cms_tags t ON t.id = at.tag_id
                                 WHERE at.article_id = a.id ORDER BY t.name), '{}') AS tags,
                 a.published_at, a.submitted_at, a.approved_by, a.approved_at, a.created_at, a.updated_at,
-                cb.name AS created_by, ed.name AS last_edited_by, a.last_edited_by AS last_edited_by_id
+                cb.name AS created_by, ed.name AS last_edited_by, a.last_edited_by AS last_edited_by_id,
+                (a.status = 'published' AND a.published_at > now()) AS scheduled
            FROM cms_articles a
            LEFT JOIN cms_categories c ON c.id = a.category_id
            LEFT JOIN cms_authors au ON au.id = a.author_id

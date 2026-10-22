@@ -1,6 +1,7 @@
 import "server-only";
 
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 
 import type { AdminUser } from "./admin-client";
 import { apiOrigin } from "./site";
@@ -27,4 +28,11 @@ export async function currentAdmin(): Promise<AdminUser | null | "unavailable"> 
   const { status, data } = await adminGet<{ user: AdminUser }>("me");
   if (data) return data.user;
   return status === 401 || status === 404 ? null : "unavailable";
+}
+
+/** The signed-in admin; redirects to sign-in when there is no session. */
+export async function requireAdmin(): Promise<AdminUser | "unavailable"> {
+  const user = await currentAdmin();
+  if (user === null) redirect("/admin/login");
+  return user;
 }
