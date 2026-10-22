@@ -21,6 +21,7 @@ use tower_http::{
 use uuid::Uuid;
 
 use crate::{
+    cms,
     config::{Config, EmailMode},
     email::{self, outbox, templates},
     enquiry::{EnquiryInput, new_reference},
@@ -55,6 +56,7 @@ pub fn router(state: SharedState) -> Router {
         .route("/health", get(health))
         .route("/health/ready", get(ready))
         .route("/v1/enquiries", post(create_enquiry))
+        .merge(cms::router())
         .with_state(state)
         .layer(RequestBodyLimitLayer::new(16 * 1024))
         .layer(cors)
@@ -67,7 +69,8 @@ pub fn router(state: SharedState) -> Router {
             header::X_CONTENT_TYPE_OPTIONS,
             HeaderValue::from_static("nosniff"),
         ))
-        .layer(SetResponseHeaderLayer::overriding(
+        // Never cached unless a handler opts in (published CMS content does).
+        .layer(SetResponseHeaderLayer::if_not_present(
             header::CACHE_CONTROL,
             HeaderValue::from_static("no-store"),
         ))

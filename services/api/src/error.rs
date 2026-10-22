@@ -19,6 +19,8 @@ pub enum ApiError {
     Validation(Vec<FieldError>),
     #[error("bad request: {0}")]
     BadRequest(&'static str),
+    #[error("not found")]
+    NotFound,
     #[error("rate limited")]
     RateLimited { retry_after_secs: u64 },
     #[error("database error: {0}")]
@@ -50,6 +52,7 @@ impl IntoResponse for ApiError {
                 Some(fields.as_slice()),
             ),
             ApiError::BadRequest(message) => (StatusCode::BAD_REQUEST, "bad_request", *message, None),
+            ApiError::NotFound => (StatusCode::NOT_FOUND, "not_found", "Not found.", None),
             ApiError::RateLimited { .. } => (
                 StatusCode::TOO_MANY_REQUESTS,
                 "rate_limited",

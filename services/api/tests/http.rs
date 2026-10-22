@@ -2,70 +2,21 @@
 //! lazily). Database-backed tests run only when `TEST_DATABASE_URL` is set,
 //! e.g. against the Docker Compose Postgres: `npm run db:up`.
 
-use std::{net::SocketAddr, sync::Arc, time::Duration};
+mod common;
 
 use axum::{
-    Router,
     body::Body,
-    extract::connect_info::MockConnectInfo,
     http::{Request, StatusCode},
 };
+use common::{app_with, config, database, json_body, lazy_app};
 use figbud_api::{
-    config::{AppEnv, Config, EmailConfig, EmailMode},
+    config::EmailMode,
     email::{EmailSender, LogSender, OutgoingEmail, SendError, outbox},
-    rate_limit::RateLimiter,
-    routes::{AppState, router},
 };
-use http_body_util::BodyExt;
 use serde_json::{Value, json};
 use sqlx::postgres::PgPoolOptions;
 use tower::ServiceExt;
 use uuid::Uuid;
-
-fn config(database_url: &str) -> Config {
-    Config {
-        app_env: AppEnv::Development,
-        bind_addr: "127.0.0.1:0".parse().unwrap(),
-        database_url: database_url.into(),
-        database_max_connections: 2,
-        cors_allowed_origins: vec!["http://localhost:3000".into()],
-        trust_proxy: false,
-        ip_hash_salt: "test".into(),
-        enquiry_rate_limit: 100,
-        enquiry_rate_window: Duration::from_secs(60),
-        min_form_fill: Duration::from_millis(2500),
-        email: EmailConfig {
-            mode: EmailMode::Log,
-            from: "FigBud <no-reply@localhost>".into(),
-            reply_to: None,
-            team_recipients: vec!["team@example.com".into()],
-            zirahr_recipients: vec![],
-            jasiri_recipients: vec![],
-            expense_now_recipients: vec![],
-            partnership_recipients: vec![],
-            send_acknowledgements: true,
-            worker_interval: Duration::from_secs(5),
-        },
-    }
-}
-
-fn app_with(pool: sqlx::PgPool, config: Config) -> Router {
-    let state = Arc::new(AppState {
-        enquiry_limiter: RateLimiter::new(config.enquiry_rate_limit, config.enquiry_rate_window),
-        config,
-        pool,
-    });
-    router(state).layer(MockConnectInfo(SocketAddr::from(([203, 0, 113, 9], 4000))))
-}
-
-fn lazy_app() -> Router {
-    let url = "postgres://nobody:nothing@127.0.0.1:1/none";
-    let pool = PgPoolOptions::new()
-        .acquire_timeout(Duration::from_millis(300))
-        .connect_lazy(url)
-        .unwrap();
-    app_with(pool, config(url))
-}
 
 fn post_enquiry(body: &Value, key: Option<Uuid>) -> Request<Body> {
     let mut builder = Request::post("/v1/enquiries").header("content-type", "application/json");
@@ -73,11 +24,6 @@ fn post_enquiry(body: &Value, key: Option<Uuid>) -> Request<Body> {
         builder = builder.header("idempotency-key", key.to_string());
     }
     builder.body(Body::from(body.to_string())).unwrap()
-}
-
-async fn json_body(response: axum::response::Response) -> Value {
-    let bytes = response.into_body().collect().await.unwrap().to_bytes();
-    serde_json::from_slice(&bytes).unwrap()
 }
 
 fn valid_demo_request() -> Value {
@@ -197,13 +143,6 @@ async fn rate_limit_returns_retry_after() {
 /// Tests that drain the shared outbox run one at a time, so neither delivers
 /// the other's messages with the wrong sender.
 static OUTBOX: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
-
-async fn database() -> Option<sqlx::PgPool> {
-    let url = std::env::var("TEST_DATABASE_URL").ok()?;
-    let pool = PgPoolOptions::new().max_connections(4).connect(&url).await.ok()?;
-    sqlx::migrate!("./migrations").run(&pool).await.ok()?;
-    Some(pool)
-}
 
 #[tokio::test]
 async fn stores_enquiries_idempotently_and_delivers_email() {
