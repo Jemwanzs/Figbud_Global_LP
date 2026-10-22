@@ -4,7 +4,7 @@ import { type ProductSlug, publicProducts } from "@figbud/brand";
 import type { Locale } from "@figbud/i18n";
 import { StatusBadge, buttonClasses, cn } from "@figbud/ui";
 import { ArrowRight, ArrowUpRight, Check } from "lucide-react";
-import { m } from "motion/react";
+import { AnimatePresence, m } from "motion/react";
 import { type KeyboardEvent, useId, useRef, useState } from "react";
 
 import type { Dictionary } from "@/i18n/get-dictionary";
@@ -78,7 +78,7 @@ export function PlatformShowcase({ locale, platforms, products, common }: Props)
                   selected ? "scale-100 opacity-100" : "scale-95 opacity-0",
                 )}
               />
-              <ProductGlyph slug={product.slug} size="sm" className="relative hidden sm:inline-flex" />
+              <ProductGlyph slug={product.slug} size="sm" className="max-sm:hidden" />
               <span className="relative min-w-0">
                 <span className="block text-sm font-medium whitespace-nowrap sm:text-base">
                   {product.name}
@@ -92,105 +92,112 @@ export function PlatformShowcase({ locale, platforms, products, common }: Props)
         })}
       </div>
 
-      {publicProducts.map((product) => {
-        const selected = product.slug === active;
-        const copy = products[product.slug];
-        const link = productLink(product.slug, locale);
-        const comingSoon = product.status === "coming_soon";
-        return (
-          <div
-            key={product.slug}
-            role="tabpanel"
-            id={`${baseId}-panel-${product.slug}`}
-            aria-labelledby={`${baseId}-tab-${product.slug}`}
-            hidden={!selected}
-            data-product={product.slug}
-            className="relative mt-6 overflow-hidden rounded-[var(--radius-panel)] border border-line bg-surface md:mt-8"
-          >
+      {/* Server HTML and first paint show final states; only tab switches animate. */}
+      <AnimatePresence initial={false}>
+        {publicProducts.map((product) => {
+          const selected = product.slug === active;
+          const copy = products[product.slug];
+          const link = productLink(product.slug, locale);
+          const comingSoon = product.status === "coming_soon";
+          return (
             <div
-              aria-hidden
-              className="pointer-events-none absolute end-[-10%] -top-32 h-96 w-96 rounded-full bg-[radial-gradient(closest-side,var(--product-soft),transparent)] blur-2xl"
-            />
-            <div className="relative grid gap-10 p-6 sm:p-8 lg:grid-cols-12 lg:gap-12 lg:p-12">
-              <m.div
-                key={String(selected)}
-                initial={{ opacity: 0, y: 14 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-                className="flex flex-col lg:col-span-5"
-              >
-                <div className="flex flex-wrap items-center gap-3">
-                  <ProductGlyph slug={product.slug} size="lg" />
-                  <div>
-                    <h3 className="text-2xl font-semibold tracking-tight text-text">{product.name}</h3>
-                    <p className="text-sm text-product-text">{copy.category}</p>
+              key={product.slug}
+              role="tabpanel"
+              id={`${baseId}-panel-${product.slug}`}
+              aria-labelledby={`${baseId}-tab-${product.slug}`}
+              hidden={!selected}
+              data-product={product.slug}
+              className="relative mt-6 overflow-hidden rounded-[var(--radius-panel)] border border-line bg-surface md:mt-8"
+            >
+              <div
+                aria-hidden
+                className="pointer-events-none absolute end-[-10%] -top-32 h-96 w-96 rounded-full bg-[radial-gradient(closest-side,var(--product-soft),transparent)] blur-2xl"
+              />
+              <div className="relative grid gap-10 p-6 sm:p-8 lg:grid-cols-12 lg:gap-12 lg:p-12">
+                <m.div
+                  key={String(selected)}
+                  initial={{ opacity: 0, y: 14 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+                  className="flex flex-col lg:col-span-5"
+                >
+                  <div className="flex flex-wrap items-center gap-3">
+                    <ProductGlyph slug={product.slug} size="lg" />
+                    <div>
+                      <h3 className="text-2xl font-semibold tracking-tight text-text">{product.name}</h3>
+                      <p className="text-sm text-product-text">{copy.category}</p>
+                    </div>
+                    <StatusBadge
+                      status={product.status}
+                      label={common.status[product.status]}
+                      className="ms-auto self-start"
+                    />
                   </div>
-                  <StatusBadge
-                    status={product.status}
-                    label={common.status[product.status]}
-                    className="ms-auto self-start"
-                  />
-                </div>
-                <p className="mt-8 font-display text-title font-medium text-text">{copy.tagline}</p>
-                <p className="mt-4 leading-relaxed text-muted">{copy.summary}</p>
-                <ul className="mt-6 space-y-3">
-                  {copy.highlights.map((item) => (
-                    <li key={item} className="flex items-start gap-3 text-[0.95rem] text-text">
-                      <span className="mt-0.5 inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-product-soft text-product-text">
-                        <Check aria-hidden className="size-3" strokeWidth={3} />
-                      </span>
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-                {comingSoon && <p className="mt-6 text-sm text-muted">{platforms.waitlistNote}</p>}
-                <div className="mt-8 lg:mt-auto lg:pt-10">
-                  <a
-                    href={link.href}
-                    target={link.external ? "_blank" : undefined}
-                    rel={link.external ? "noopener" : undefined}
-                    className={buttonClasses(comingSoon ? "secondary" : "product", "lg", "w-full sm:w-auto")}
-                  >
-                    {comingSoon
-                      ? common.cta.joinWaitlist
-                      : fill(common.cta.visitSite, { product: product.name })}
-                    {link.external ? (
-                      <>
-                        <ArrowUpRight aria-hidden className="size-4" />
-                        <span className="sr-only">({common.opensInNewTab})</span>
-                      </>
-                    ) : (
-                      <ArrowRight aria-hidden className="size-4 rtl:rotate-180" />
-                    )}
-                  </a>
-                </div>
-              </m.div>
-
-              <div className="lg:col-span-7">
-                <figure aria-label={fill(platforms.previewLabel, { product: product.name })}>
-                  {selected && (
-                    <m.div
-                      initial={{ opacity: 0, y: 20, scale: 0.98 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-                      aria-hidden
-                    >
-                      {product.slug === "zirahr" && <ZiraPreview copy={platforms.previews.zirahr} />}
-                      {product.slug === "jasiri" && <JasiriPreview copy={platforms.previews.jasiri} />}
-                      {product.slug === "expense_now" && (
-                        <ExpensePreview copy={platforms.previews.expense_now} />
+                  <p className="mt-8 font-display text-title font-medium text-text">{copy.tagline}</p>
+                  <p className="mt-4 leading-relaxed text-muted">{copy.summary}</p>
+                  <ul className="mt-6 space-y-3">
+                    {copy.highlights.map((item) => (
+                      <li key={item} className="flex items-start gap-3 text-[0.95rem] text-text">
+                        <span className="mt-0.5 inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-product-soft text-product-text">
+                          <Check aria-hidden className="size-3" strokeWidth={3} />
+                        </span>
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                  {comingSoon && <p className="mt-6 text-sm text-muted">{platforms.waitlistNote}</p>}
+                  <div className="mt-8 lg:mt-auto lg:pt-10">
+                    <a
+                      href={link.href}
+                      target={link.external ? "_blank" : undefined}
+                      rel={link.external ? "noopener" : undefined}
+                      className={buttonClasses(
+                        comingSoon ? "secondary" : "product",
+                        "lg",
+                        "w-full sm:w-auto",
                       )}
-                    </m.div>
-                  )}
-                  <figcaption className="mt-3 text-end text-[0.7rem] text-subtle">
-                    {common.syntheticData}
-                  </figcaption>
-                </figure>
+                    >
+                      {comingSoon
+                        ? common.cta.joinWaitlist
+                        : fill(common.cta.visitSite, { product: product.name })}
+                      {link.external ? (
+                        <>
+                          <ArrowUpRight aria-hidden className="size-4" />
+                          <span className="sr-only">({common.opensInNewTab})</span>
+                        </>
+                      ) : (
+                        <ArrowRight aria-hidden className="size-4 rtl:rotate-180" />
+                      )}
+                    </a>
+                  </div>
+                </m.div>
+
+                <div className="lg:col-span-7">
+                  <figure aria-label={fill(platforms.previewLabel, { product: product.name })}>
+                    {selected && (
+                      <m.div
+                        initial={{ opacity: 0, y: 20, scale: 0.98 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+                        aria-hidden
+                      >
+                        {product.slug === "zirahr" && <ZiraPreview copy={platforms.previews.zirahr} />}
+                        {product.slug === "jasiri" && <JasiriPreview copy={platforms.previews.jasiri} />}
+                        {product.slug === "expense_now" && (
+                          <ExpensePreview copy={platforms.previews.expense_now} />
+                        )}
+                      </m.div>
+                    )}
+                    <figcaption className="mt-3 text-end text-[0.7rem] text-subtle">
+                      {common.syntheticData}
+                    </figcaption>
+                  </figure>
+                </div>
               </div>
             </div>
-          </div>
-        );
-      })}
+          );
+        })}
+      </AnimatePresence>
     </div>
   );
 }

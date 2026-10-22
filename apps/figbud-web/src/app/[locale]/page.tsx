@@ -1,6 +1,7 @@
 import { isLocale } from "@figbud/i18n";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { Suspense } from "react";
 
 import { Hero } from "@/components/home/hero";
 import {
@@ -29,12 +30,25 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
   return (
     <>
       <Hero locale={locale} dict={dict} />
-      <PlatformsSection locale={locale} dict={dict} />
-      <PhilosophySection locale={locale} dict={dict} />
-      <AfricaSection locale={locale} dict={dict} />
-      <EngineerSection locale={locale} dict={dict} />
-      <CompanySection locale={locale} dict={dict} />
-      <FinalCtaSection locale={locale} dict={dict} />
+      {/* Each boundary hydrates as its own task, keeping the main thread responsive. */}
+      <Suspense>
+        <PlatformsSection locale={locale} dict={dict} />
+      </Suspense>
+      <Suspense>
+        <PhilosophySection locale={locale} dict={dict} />
+      </Suspense>
+      <Suspense>
+        <AfricaSection locale={locale} dict={dict} />
+      </Suspense>
+      <Suspense>
+        <EngineerSection locale={locale} dict={dict} />
+      </Suspense>
+      <Suspense>
+        <CompanySection locale={locale} dict={dict} />
+      </Suspense>
+      <Suspense>
+        <FinalCtaSection locale={locale} dict={dict} />
+      </Suspense>
     </>
   );
 }
