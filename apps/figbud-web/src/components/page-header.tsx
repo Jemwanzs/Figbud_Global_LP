@@ -1,13 +1,15 @@
 import { Container, Eyebrow } from "@figbud/ui";
 import type { ReactNode } from "react";
 
-/** Standard header for inner pages: eyebrow, page title (h1) and lead. */
+/** Standard header for inner pages: breadcrumbs, eyebrow, page title (h1) and lead. */
 export function PageHeader({
+  breadcrumbs,
   eyebrow,
   title,
   lead,
   children,
 }: {
+  breadcrumbs?: ReactNode;
   eyebrow?: string;
   title: string;
   lead?: string;
@@ -20,6 +22,7 @@ export function PageHeader({
         <div className="fb-grid absolute inset-0 [mask-image:radial-gradient(ellipse_70%_80%_at_70%_0%,black,transparent_75%)] opacity-50" />
       </div>
       <Container size="wide" className="pt-14 pb-14 sm:pt-20 sm:pb-16 lg:pt-24 lg:pb-20">
+        {breadcrumbs && <div className="mb-6 sm:mb-8">{breadcrumbs}</div>}
         {eyebrow && <Eyebrow className="fb-rise">{eyebrow}</Eyebrow>}
         <h1 className="mt-5 max-w-4xl font-display text-display font-semibold text-text">{title}</h1>
         {lead && (

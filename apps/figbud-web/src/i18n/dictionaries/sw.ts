@@ -11,6 +11,7 @@ const sw: DeepPartial<Dictionary> = {
   },
   common: {
     skipToContent: "Ruka hadi maudhui",
+    breadcrumb: "Njia ya ukurasa",
     nav: {
       label: "Kuu",
       home: "Nyumbani",

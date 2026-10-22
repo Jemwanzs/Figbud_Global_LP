@@ -3,6 +3,7 @@ import { Container } from "@figbud/ui";
 import type { Metadata } from "next";
 import { Suspense } from "react";
 
+import { Breadcrumbs } from "@/components/breadcrumbs";
 import { EnquiryForm } from "@/components/contact/enquiry-form";
 import { PageHeader } from "@/components/page-header";
 import { resolvePage } from "@/lib/page";
@@ -20,7 +21,21 @@ export default async function ContactPage({ params }: PageProps<"/[locale]/conta
 
   return (
     <>
-      <PageHeader eyebrow={page.eyebrow} title={page.title} lead={page.lead} />
+      <PageHeader
+        breadcrumbs={
+          <Breadcrumbs
+            locale={locale}
+            label={dict.common.breadcrumb}
+            items={[
+              { label: dict.common.nav.home, path: routes.home },
+              { label: dict.common.nav.contact, path: routes.contact },
+            ]}
+          />
+        }
+        eyebrow={page.eyebrow}
+        title={page.title}
+        lead={page.lead}
+      />
       <Container size="wide" className="grid gap-12 py-16 sm:py-20 lg:grid-cols-12 lg:gap-16 lg:py-24">
         <div className="lg:col-span-7">
           {/* The form reads ?kind=&product= from the URL, which is request-time data. */}

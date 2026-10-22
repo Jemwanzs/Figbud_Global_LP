@@ -70,6 +70,26 @@ test.describe("navigation", () => {
     await expect(dialog).toBeHidden();
   });
 
+  test("inner pages show breadcrumbs with matching structured data", async ({ page }) => {
+    await page.goto("/en/products");
+    const trail = page.getByRole("navigation", { name: "Breadcrumb" });
+    await expect(trail.getByRole("link", { name: "Home" })).toHaveAttribute("href", "/en");
+    await expect(trail.locator('[aria-current="page"]')).toHaveText("Products");
+
+    const schemas = await page
+      .locator('script[type="application/ld+json"]')
+      .evaluateAll((nodes) => nodes.map((n) => JSON.parse(n.textContent ?? "{}")));
+    const breadcrumbs = schemas.find((s) => s["@type"] === "BreadcrumbList");
+    expect(breadcrumbs.itemListElement.map((i: { name: string }) => i.name)).toEqual(["Home", "Products"]);
+    expect(breadcrumbs.itemListElement[1].item).toMatch(/^https?:\/\/[^/]+\/en\/products$/);
+  });
+
+  test("Arabic breadcrumbs are localised and right-to-left", async ({ page }) => {
+    await page.goto("/ar/contact");
+    const trail = page.getByRole("navigation", { name: "مسار التنقل" });
+    await expect(trail.getByRole("link")).toHaveAttribute("href", "/ar");
+  });
+
   test("unknown URLs return a branded 404", async ({ page }) => {
     const response = await page.goto("/en/does-not-exist");
     expect(response?.status()).toBe(404);

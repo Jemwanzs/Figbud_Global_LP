@@ -11,6 +11,7 @@ const fr: DeepPartial<Dictionary> = {
   },
   common: {
     skipToContent: "Aller au contenu",
+    breadcrumb: "Fil d’Ariane",
     nav: {
       label: "Principale",
       home: "Accueil",

@@ -14,6 +14,7 @@ const en = {
   },
   common: {
     skipToContent: "Skip to content",
+    breadcrumb: "Breadcrumb",
     nav: {
       label: "Main",
       home: "Home",

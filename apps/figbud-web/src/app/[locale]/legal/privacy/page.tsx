@@ -23,6 +23,7 @@ export default async function PrivacyPage({ params }: PageProps<"/[locale]/legal
     <InProgressPage
       locale={locale}
       dict={dict}
+      path="/legal/privacy"
       title={dict.pages.privacy.title}
       body={dict.pages.legalPending}
     />

@@ -5,6 +5,7 @@ import { ArrowRight, ArrowUpRight, Check } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { Breadcrumbs } from "@/components/breadcrumbs";
 import { PageHeader } from "@/components/page-header";
 import { ProductGlyph } from "@/components/product-glyph";
 import { fill } from "@/lib/format";
@@ -24,6 +25,16 @@ export default async function ProductsPage({ params }: PageProps<"/[locale]/prod
   return (
     <>
       <PageHeader
+        breadcrumbs={
+          <Breadcrumbs
+            locale={locale}
+            label={common.breadcrumb}
+            items={[
+              { label: common.nav.home, path: routes.home },
+              { label: common.nav.products, path: routes.products },
+            ]}
+          />
+        }
         eyebrow={common.productsMenu.title}
         title={dict.pages.products.title}
         lead={dict.pages.products.lead}

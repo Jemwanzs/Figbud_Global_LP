@@ -23,6 +23,7 @@ export default async function TermsPage({ params }: PageProps<"/[locale]/legal/t
     <InProgressPage
       locale={locale}
       dict={dict}
+      path="/legal/terms"
       title={dict.pages.terms.title}
       body={dict.pages.legalPending}
     />

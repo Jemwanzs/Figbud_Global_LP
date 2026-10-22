@@ -23,6 +23,7 @@ export default async function CookiesPage({ params }: PageProps<"/[locale]/legal
     <InProgressPage
       locale={locale}
       dict={dict}
+      path="/legal/cookies"
       title={dict.pages.cookies.title}
       body={dict.pages.legalPending}
     />

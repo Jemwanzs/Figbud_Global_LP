@@ -5,6 +5,7 @@ import Link from "next/link";
 
 import type { Dictionary } from "@/i18n/get-dictionary";
 
+import { Breadcrumbs } from "./breadcrumbs";
 import { PageHeader } from "./page-header";
 
 /**
@@ -14,12 +15,15 @@ import { PageHeader } from "./page-header";
 export function InProgressPage({
   locale,
   dict,
+  path,
   title,
   lead,
   body,
 }: {
   locale: Locale;
   dict: Dictionary;
+  /** Locale-agnostic path of this page, for its breadcrumb trail. */
+  path: string;
   title: string;
   lead?: string;
   body?: string;
@@ -27,7 +31,21 @@ export function InProgressPage({
   const copy = dict.pages.inProgress;
   return (
     <>
-      <PageHeader eyebrow={copy.eyebrow} title={title} lead={lead} />
+      <PageHeader
+        breadcrumbs={
+          <Breadcrumbs
+            locale={locale}
+            label={dict.common.breadcrumb}
+            items={[
+              { label: dict.common.nav.home, path: "/" },
+              { label: title, path },
+            ]}
+          />
+        }
+        eyebrow={copy.eyebrow}
+        title={title}
+        lead={lead}
+      />
       <Container size="wide" className="py-16 sm:py-20">
         <p className="max-w-2xl leading-relaxed text-muted">{body ?? copy.body}</p>
         <Link href={localizePath(locale)} className={buttonClasses("secondary", "md", "mt-8")}>

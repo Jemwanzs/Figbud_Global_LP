@@ -11,6 +11,7 @@ const ar: DeepPartial<Dictionary> = {
   },
   common: {
     skipToContent: "انتقل إلى المحتوى",
+    breadcrumb: "مسار التنقل",
     nav: {
       label: "الرئيسية",
       home: "الرئيسية",

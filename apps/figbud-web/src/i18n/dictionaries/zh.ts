@@ -11,6 +11,7 @@ const zh: DeepPartial<Dictionary> = {
   },
   common: {
     skipToContent: "跳到主要内容",
+    breadcrumb: "面包屑导航",
     nav: {
       label: "主导航",
       home: "首页",
