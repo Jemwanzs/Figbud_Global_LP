@@ -8,6 +8,7 @@
 //!   origin in `Origin` (CSRF defence in depth).
 //! - Every security-relevant action is written to `audit_log`.
 
+mod enquiries;
 mod handlers;
 
 use std::{net::IpAddr, time::Duration};
@@ -24,7 +25,10 @@ use sqlx::{FromRow, PgPool};
 use uuid::Uuid;
 use webauthn_rs::{Webauthn, WebauthnBuilder};
 
-pub use handlers::router;
+/// Every admin endpoint: sign-in and team (handlers), enquiries inbox.
+pub fn router() -> axum::Router<SharedState> {
+    handlers::router().merge(enquiries::router())
+}
 
 use crate::{config::AdminConfig, error::ApiError, routes::SharedState};
 

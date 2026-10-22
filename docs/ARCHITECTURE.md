@@ -74,6 +74,8 @@ Shared packages ship TypeScript source and are compiled by each app (`transpileP
 | `POST /v1/admin/cms/articles/{id}/{submit,publish,archive,restore}` | Workflow: submit (editor+), publish now or at a future `published_at` / archive / restore (reviewer+) |
 | `GET /v1/admin/cms/articles/{id}/versions` · `GET /v1/admin/cms/taxonomy` · `POST /v1/admin/cms/preview` | History · topics, authors, tags · sanitised preview |
 | `POST /v1/admin/cms/categories` · `POST /v1/admin/cms/authors` | New topic (reviewer+) · new byline (owner) |
+| `GET /v1/admin/enquiries` · `GET /v1/admin/enquiries/{id}` | Inbox (viewer+): filters `status`, `kind`, `product`, `q`, `include_spam`, `page`; detail with email delivery states and status history |
+| `POST /v1/admin/enquiries/{id}/status` · `GET /v1/admin/enquiries/export` | Follow-up status (editor+) · CSV export (owner only, audited, formula-safe cells) |
 
 **Editorial rules:** draft → in_review → published → archived (restore returns a draft). Published and archived articles are edited only by reviewers or owners. Maker-checker: a reviewer cannot publish an article they edited last; owners can (audited as `self_approved`). Every save writes a version; every action writes the audit log. The editorial routes accept bodies up to 512 KB; all other routes stay at 16 KB.
 
