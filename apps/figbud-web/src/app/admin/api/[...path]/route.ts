@@ -43,8 +43,10 @@ async function forward(request: NextRequest, { params }: RouteContext<"/admin/ap
   }
 
   const response = new Headers({ "cache-control": "no-store" });
-  const type = upstream.headers.get("content-type");
-  if (type) response.set("content-type", type);
+  for (const name of ["content-type", "content-disposition"]) {
+    const value = upstream.headers.get(name);
+    if (value) response.set(name, value);
+  }
   for (const cookie of upstream.headers.getSetCookie()) response.append("set-cookie", cookie);
   return new Response(upstream.status === 204 ? null : upstream.body, {
     status: upstream.status,

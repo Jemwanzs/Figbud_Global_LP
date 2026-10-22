@@ -10,6 +10,7 @@ import { SignOutButton } from "./sign-out-button";
 const NAV = [
   { href: "/admin", label: "Overview" },
   { href: "/admin/insights", label: "Insights" },
+  { href: "/admin/enquiries", label: "Enquiries" },
 ] as const;
 
 /** Header and navigation shared by every signed-in admin page. */

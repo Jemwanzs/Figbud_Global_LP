@@ -89,6 +89,36 @@ const usedInvites = new Set();
 const audit = [];
 
 const drafts = new Map(); // editorial articles by id
+// Synthetic enquiries for the inbox (no real people).
+const enquiries = [
+  {
+    id: "0b6e7a52-3f1e-4c55-9a4b-1f4e2a7c9d01",
+    reference: "FBG-2610-TEST01",
+    kind: "demo_request",
+    product: "zirahr",
+    name: "Amina Wanjiru",
+    email: "amina@example.co.ke",
+    company: "Mfano Ltd",
+    job_title: "HR Lead",
+    country: "Kenya",
+    message: "We would like a payroll demo for 120 staff.",
+    status: "new",
+    created_at: "2026-10-21T09:00:00Z",
+    history: [],
+  },
+  {
+    id: "0b6e7a52-3f1e-4c55-9a4b-1f4e2a7c9d02",
+    reference: "FBG-2610-TEST02",
+    kind: "waitlist",
+    product: "expense_now",
+    name: "Juma Otieno",
+    email: "juma@example.com",
+    company: "Sample Co",
+    status: "new",
+    created_at: "2026-10-20T09:00:00Z",
+    history: [],
+  },
+];
 
 function validateArticle(b) {
   const errors = [];
@@ -294,6 +324,72 @@ function admin(req, res, url, body, send) {
     });
   }
   if (path === "audit") return send(200, audit.slice(0, 200));
+
+  // --- Enquiries inbox (services/api/src/admin/enquiries.rs) ---
+  if (path === "enquiries" || path === "enquiries/export") {
+    const p = url.searchParams;
+    const q = (p.get("q") ?? "").toLowerCase();
+    const rows = enquiries.filter(
+      (e) =>
+        (!p.get("status") || e.status === p.get("status")) &&
+        (!p.get("kind") || e.kind === p.get("kind")) &&
+        (!p.get("product") || e.product === p.get("product")) &&
+        (!q || `${e.name} ${e.email} ${e.company} ${e.reference}`.toLowerCase().includes(q)) &&
+        (p.get("status") === "spam" || e.status !== "spam"),
+    );
+    if (path === "enquiries") {
+      return send(200, {
+        items: rows,
+        page: 1,
+        per_page: 50,
+        total: rows.length,
+        total_pages: rows.length ? 1 : 0,
+      });
+    }
+    if (user.role !== "owner")
+      return send(403, { error: { code: "forbidden", message: "You don't have permission to do that." } });
+    const csv = [
+      "reference,name,email",
+      ...rows.map((e) => [e.reference, e.name, e.email].map((v) => `"${v}"`).join(",")),
+    ].join("\r\n");
+    res.writeHead(200, {
+      "content-type": "text/csv; charset=utf-8",
+      "content-disposition": 'attachment; filename="figbud-enquiries-test.csv"',
+    });
+    return res.end(csv);
+  }
+  const enq = /^enquiries\/([0-9a-f-]{36})(\/status)?$/.exec(path);
+  if (enq) {
+    const e = enquiries.find((x) => x.id === enq[1]);
+    if (!e) return send(404, { error: { code: "not_found", message: "Not found." } });
+    if (enq[2]) {
+      if (!["new", "contacted", "qualified", "closed", "spam"].includes(body.status))
+        return send(400, { error: { code: "bad_request", message: "unknown filter value" } });
+      e.history.unshift({
+        action: "enquiry.status_changed",
+        actor_email: user.email,
+        detail: { from: e.status, to: body.status },
+        created_at: new Date().toISOString(),
+      });
+      e.status = body.status;
+      return send(200, { status: e.status });
+    }
+    const { history, ...enquiry } = { ...e };
+    return send(200, {
+      enquiry: {
+        ...enquiry,
+        locale: "en",
+        source_path: "/en/contact",
+        is_spam: e.status === "spam",
+        updated_at: e.created_at,
+      },
+      emails: [
+        { template: "team_notification", status: "pending", attempts: 0 },
+        { template: "visitor_acknowledgement", status: "pending", attempts: 0 },
+      ],
+      history,
+    });
+  }
 
   // --- Editorial (services/api/src/cms/editorial.rs) ---
   if (path === "cms/taxonomy") {

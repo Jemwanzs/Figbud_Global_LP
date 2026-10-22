@@ -33,6 +33,8 @@ const ACTIONS: Record<string, string> = {
   "cms.article_restored": "Restored an article",
   "cms.category_created": "Added a topic",
   "cms.author_created": "Added an author",
+  "enquiry.status_changed": "Updated an enquiry",
+  "enquiry.exported": "Exported enquiries",
 };
 
 export default function AdminHomePage() {
@@ -47,10 +49,12 @@ export default function AdminHomePage() {
 async function Dashboard() {
   const user = await requireAdmin();
   if (user === "unavailable") return <AdminUnavailable />;
-  const [articles, audit] = await Promise.all([
+  const [articles, audit, enquiries] = await Promise.all([
     adminGet<{ status: string }[]>("cms/articles"),
     user.role === "owner" ? adminGet<AuditEntry[]>("audit") : Promise.resolve({ data: undefined }),
+    adminGet<{ total: number }>("enquiries?status=new"),
   ]);
+  const newEnquiries = enquiries.data?.total;
   const count = (status: string) => articles.data?.filter((a) => a.status === status).length ?? 0;
 
   return (
@@ -93,17 +97,24 @@ async function Dashboard() {
               ))}
             </dl>
           </Link>
-          <article className="rounded-[var(--radius-panel)] border border-line bg-surface p-6 sm:p-8">
+          <Link
+            href="/admin/enquiries?status=new"
+            className="group rounded-[var(--radius-panel)] border border-line bg-surface p-6 transition-colors hover:border-line-strong sm:p-8"
+          >
             <WorkspaceHeading icon={<Inbox aria-hidden className="size-5" />} title="Enquiries">
-              <span className="ms-auto rounded-full border border-line px-2.5 py-0.5 text-xs text-subtle">
-                Coming next
-              </span>
+              <ArrowRight
+                aria-hidden
+                className="ms-auto size-5 text-subtle transition-transform group-hover:translate-x-0.5 rtl:rotate-180"
+              />
             </WorkspaceHeading>
             <p className="mt-4 leading-relaxed text-muted">
-              Every demo request, waitlist sign-up and enquiry is stored safely. The inbox to review and
-              follow them up arrives next.
+              Demo requests, waitlist sign-ups and messages from the website, ready to follow up.
             </p>
-          </article>
+            <p className="mt-5 text-sm">
+              <span className="font-semibold text-text">{newEnquiries ?? "–"}</span>{" "}
+              <span className="text-subtle">new, waiting for a reply</span>
+            </p>
+          </Link>
         </div>
       </section>
 
