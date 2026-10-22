@@ -35,7 +35,7 @@
 | Railway service configuration      | ✅ Completed                             | Existing `figbud-web` kept (Railpack, dashboard commands) + variables, health check, watch paths; `figbud-api` and `Postgres` added; domains generated; `ADMIN_ORIGIN` set |
 | Frontend deployment (`figbud-web`) | ✅ Live                                  | `figbud-web-production.up.railway.app`: site, blog, admin sign-in (991f63b, 22 Oct 12:25 UTC); editor UI deploying |
 | Rust backend deployment (`figbud-api`) | ✅ Live                              | `/health/ready` ok (now the Railway health check), CMS + editorial + admin APIs, `EMAIL_MODE=hold` |
-| PostgreSQL database                | ✅ Provisioned                           | Railway PostgreSQL deployed (private network); backups to be confirmed (P6-12)            |
+| PostgreSQL database                | ✅ Provisioned                           | Railway PostgreSQL (private network); backups daily (6 days), weekly (1 month), monthly (3 months) + manual baseline |
 | Resend domain and API key          | ⛔ Awaiting configuration                | To be supplied later (Q4); never committed, Railway variables only                       |
 | Email integration                  | 🔄 Preparation stage                     | Templates for all form types built; `EMAIL_MODE=hold` stores emails until Resend is set  |
 | Production domains                 | ⬜ Pending                               | Domain choice outstanding (Q1); Railway domains used until then, not indexed             |
@@ -362,7 +362,7 @@ Items marked **Blocking** stop the listed tasks; everything else proceeds with t
 | P6-09  | Domains, DNS, SSL for corporate and product subdomains                                      | ⛔ Q1 |
 | P6-10  | CDN caching for static assets and prerendered pages                                         | ⬜ |
 | P6-11  | Secrets in Railway variables (IP salt and database reference set; Resend later)            | 🔄 (Resend part ⛔ Q4) |
-| P6-12  | Automated database backups and a tested restore                                             | ⬜ |
+| P6-12  | Automated database backups ✅ (daily/weekly/monthly + manual baseline, 22 Oct); tested restore in a staging environment (needs your go-ahead: extra Railway cost) | 🔄 In progress |
 | P6-13  | Monitoring: uptime, error tracking, structured logs, RUM Core Web Vitals                    | ⬜ |
 | P6-14  | Rollback procedure tested; permanent redirects from any legacy URLs (e.g. `figbudglobal.online`) | ⬜ Q1 |
 | P6-15  | Launch checklist and sign-off                                                               | ⬜ |

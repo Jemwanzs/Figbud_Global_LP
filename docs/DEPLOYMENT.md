@@ -121,6 +121,27 @@ The command prints a single-use link (valid 7 days) to `ADMIN_ORIGIN/admin/invit
 
 Passkeys are bound to `ADMIN_ORIGIN`: when the production domain replaces the Railway domain, admins register a passkey on the new origin through a fresh invite.
 
+## Backups
+
+Railway volume backups protect the `Postgres` service (enabled 22 Oct 2026):
+
+| Schedule  | Frequency       | Kept for  |
+| --------- | --------------- | --------- |
+| Daily     | every 24 hours  | 6 days    |
+| Weekly    | every 7 days    | 1 month   |
+| Monthly   | every 30 days   | 3 months  |
+
+A manual baseline backup was taken on 22 Oct 2026 and has no expiry. Commands:
+
+```bash
+railway postgres pitr schedule list --service Postgres     # schedules
+railway postgres pitr backup list --service Postgres       # backups
+railway postgres pitr backup create --service Postgres     # on-demand (before risky releases)
+railway postgres pitr backup restore <backup-id> --service Postgres
+```
+
+**Restoring replaces the service's data in place.** Take an on-demand backup first, announce a short maintenance window, and verify `/health/ready` afterwards. The restore drill (P6-12) should run in a staging environment, never against production data. For restoring to an exact moment, Railway's point-in-time recovery (`railway postgres pitr enable`) adds continuous WAL archiving to a storage bucket at extra cost.
+
 ## Rollback
 
 - **Code:** redeploy the previous successful deployment from the service's *Deployments* tab.
