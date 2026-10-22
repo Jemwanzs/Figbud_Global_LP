@@ -15,7 +15,8 @@ Railway project **FigBud_LP** (`5c4df4db-fd17-4371-9424-df0dde7d32e4`), environm
 | `Postgres`   | Railway PostgreSQL        | managed                                                                                    | managed         | none (private network only)                      |
 
 - **figbud-web** builds from the repository root because it imports the shared `packages/*`. It uses the build and start commands configured in the Railway dashboard (kept as found); watch paths are `/apps/figbud-web/**`, `/packages/**`, `/package.json`, `/package-lock.json`. `apps/figbud-web/railway.toml` (Dockerfile build) is an alternative: setting the service's *Config file path* to it would replace the dashboard commands.
-- **figbud-api** sets *Root directory* to `services/api`; its `railway.toml` (Dockerfile, health check, watch path `/services/api/**`) is picked up automatically.
+- **figbud-api** sets *Root directory* to `services/api`; Railway builds its `Dockerfile` automatically. Health check `/health/ready` (60 s), restart on failure and watch path `/services/api/**` are set on the service itself.
+- **Settings live on the services, not in files.** Railway no longer applies `railway.toml` config files (deprecated in favour of `.railway/railway.ts` infrastructure as code), and a config file never followed a service's root directory. The two `railway.toml` files in the repo document the intended settings only; a later migration to infrastructure as code is tracked in the roadmap.
 - The browser calls the API on its public domain (`NEXT_PUBLIC_API_URL`); the API reaches PostgreSQL over Railway's private network (`${{Postgres.DATABASE_URL}}`).
 
 ## Database migrations

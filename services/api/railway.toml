@@ -1,5 +1,5 @@
-# Railway service definition for the FigBud API (not yet provisioned).
-# Set the service root directory to `services/api` in Railway.
+# Reference only: Railway no longer applies railway.toml (see docs/DEPLOYMENT.md).
+# These settings are configured on the figbud-api service (root `services/api`).
 [build]
 builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile"

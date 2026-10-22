@@ -1,5 +1,5 @@
-# Railway service definition for the FigBud Global website (not yet provisioned).
-# Keep the service root at the repository root so shared packages are in the build context.
+# Reference only: Railway no longer applies railway.toml (see docs/DEPLOYMENT.md).
+# The live figbud-web service builds with Railpack from the repository root.
 [build]
 builder = "DOCKERFILE"
 dockerfilePath = "apps/figbud-web/Dockerfile"
