@@ -17,12 +17,12 @@
 | 2     | FigBud Global homepage               | 🔄 In progress | 17 / 22 tasks (3 more in progress)      | Verified company facts, CI Lighthouse baseline |
 | 3     | Corporate pages                      | 🔄 In progress | 7 / 14 tasks                            | Company profile, legal texts                 |
 | 4     | Product websites                     | ⬜ Not started | 0 / 20 tasks                            | Product capability sign-off, payroll rules   |
-| 5     | Integrations & administration        | 🔄 In progress | 7 / 17 tasks (CMS read API done)        | Resend credentials, recipient addresses      |
-| 6     | Production deployment                | 🔄 In progress | 8 / 18 tasks                            | Railway outage (builds queued), Resend, domains |
+| 5     | Integrations & administration        | 🔄 In progress | 8 / 17 tasks (+ CMS reads, admin UI started) | Resend credentials, recipient addresses      |
+| 6     | Production deployment                | 🔄 In progress | 9 / 18 tasks                            | Resend, domains, backups/monitoring          |
 
 **Where we are:** the monorepo, shared design system, multilingual architecture, Rust enquiry API with PostgreSQL and a retrying email outbox, and the first complete FigBud Global homepage are built and verified locally. Everything runs without any external service. The next steps that need decisions from FigBud are listed in **§5 Open questions**.
 
-**Verified on 22 Oct 2026 (latest):** Rust tests 42/42 against real PostgreSQL (incl. CMS visibility, search, sanitised HTML, approval rule) · clippy and rustfmt clean · `cargo audit` 0 advisories · `npm audit` 0 vulnerabilities in shipped dependencies · TypeScript strict, ESLint, Prettier clean · frontend unit tests 15/15 · Playwright 159 tests across Chromium (desktop + Pixel), Firefox, WebKit (desktop Safari + iPhone), incl. axe WCAG 2.2 AA on every route and 360 px checks · production build passes · blog verified end to end against the real API and database.
+**Verified on 22 Oct 2026 (latest):** Rust tests 52/52 against real PostgreSQL (incl. real WebAuthn ceremonies, CMS visibility, sanitised HTML) · clippy and rustfmt clean · `cargo audit` 0 advisories (333 crates) · `npm audit` 0 vulnerabilities in shipped dependencies · TypeScript strict, ESLint, Prettier clean · frontend unit tests 15/15 · Playwright 171 tests across Chromium, Firefox and WebKit (incl. admin passkey journeys, axe on every route) · admin sign-in verified end to end against the production API image · **Railway live:** API `/health/ready` ok, website serving, CORS and CSP correct, live enquiry stored (reference FBG-2610-4DFU55, flagged test, never emailed).
 
 ### Deployment readiness
 
@@ -32,9 +32,9 @@
 | GitHub connection & initial push   | ✅ Completed                             | `main` holds the full project; pushes are fast-forward only                               |
 | Continuous integration             | ✅ Completed                             | Lint, types, unit, build, cross-browser e2e, Rust with PostgreSQL, audits, Lighthouse     |
 | Railway project ID                 | ✅ Provided                              | `5c4df4db-fd17-4371-9424-df0dde7d32e4`: inspect before configuring; never duplicate      |
-| Railway service configuration      | 🔄 Configured, deploy pending            | Existing `figbud-web` kept (Railpack, dashboard commands) + variables, health check, watch paths; `figbud-api` and `Postgres` added; domains generated |
-| Frontend deployment (`figbud-web`) | 🔄 Queued                                | Build queued by the Railway platform outage (22 Oct); `figbud-web-production.up.railway.app` still serves the 06:23 build |
-| Rust backend deployment (`figbud-api`) | 🔄 Queued                            | Root `services/api`, `EMAIL_MODE=hold`, CORS to the web domain; first build queued by the outage |
+| Railway service configuration      | ✅ Completed                             | Existing `figbud-web` kept (Railpack, dashboard commands) + variables, health check, watch paths; `figbud-api` and `Postgres` added; domains generated; `ADMIN_ORIGIN` set |
+| Frontend deployment (`figbud-web`) | ✅ Live                                  | `figbud-web-production.up.railway.app` (commit 2208ef7, 22 Oct 10:24 UTC); newer build (blog, admin) queued by Railway |
+| Rust backend deployment (`figbud-api`) | ✅ Live                              | `/health/ready` ok, migrations applied, `EMAIL_MODE=hold`; newer build (CMS, admin) queued by Railway |
 | PostgreSQL database                | ✅ Provisioned                           | Railway PostgreSQL deployed (private network); backups to be confirmed (P6-12)            |
 | Resend domain and API key          | ⛔ Awaiting configuration                | To be supplied later (Q4); never committed, Railway variables only                       |
 | Email integration                  | 🔄 Preparation stage                     | Templates for all form types built; `EMAIL_MODE=hold` stores emails until Resend is set  |
@@ -330,9 +330,9 @@ Items marked **Blocking** stop the listed tasks; everything else proceeds with t
 | P5-05  | Per-product and partnership recipient routing via environment                                 | ✅ |
 | P5-06  | Per-IP rate limiting with `Retry-After`                                                       | ✅ |
 | P5-07  | CMS data model and API (articles, categories, tags, authors, scheduling, approvals, versions): schema + public read API ✅; editing/approval endpoints follow admin auth (P5-08) | 🔄 In progress |
-| P5-08  | Admin authentication (SSO or passkeys), roles, session security, CSRF                        | ⬜ |
-| P5-09  | Admin UI: enquiries inbox, statuses, export; CMS editor                                      | ⬜ |
-| P5-10  | Audit log for all admin and CMS actions                                                      | ⬜ |
+| P5-08  | Admin authentication: passkeys (WebAuthn), invite-only onboarding + CLI bootstrap, roles, hashed sessions, CSRF (Origin), rate limits | ✅ |
+| P5-09  | Admin UI: sign-in, invite acceptance, owner overview and invites ✅; enquiries inbox, statuses, export; CMS editor | 🔄 In progress |
+| P5-10  | Audit log for all admin and CMS actions (admin sign-ins, invites, passkeys recorded; CMS actions with the editor) | 🔄 In progress |
 | P5-11  | Go live on Resend (verified domain, real recipients)                                         | ⛔ Q4 |
 | P5-12  | Localised acknowledgement emails                                                             | ⬜ |
 | P5-13  | Shared rate-limit store when API runs >1 replica                                             | ⬜ |
@@ -358,10 +358,10 @@ Items marked **Blocking** stop the listed tasks; everything else proceeds with t
 | P6-06  | CI: format, lint, typecheck, unit, Rust (with PostgreSQL), build, e2e                       | ✅ |
 | P6-06b | Lighthouse budgets in CI (a11y/SEO/CLS gate; performance warns while baselining)            | 🔄 In progress |
 | P6-07  | Dependency and vulnerability scanning (Dependabot / cargo-audit / npm audit)                | ✅ |
-| P6-08  | Railway: inspect existing project, then configure web, API, PostgreSQL (production configured; staging later) | 🔄 Configured; first deploy queued by Railway outage |
+| P6-08  | Railway: inspect existing project, then configure web, API, PostgreSQL (production live; staging later) | ✅ Production |
 | P6-09  | Domains, DNS, SSL for corporate and product subdomains                                      | ⛔ Q1 |
 | P6-10  | CDN caching for static assets and prerendered pages                                         | ⬜ |
-| P6-11  | Secrets in Railway variables (IP salt and DB at first deploy; Resend later)                 | ⬜ (Resend part ⛔ Q4) |
+| P6-11  | Secrets in Railway variables (IP salt and database reference set; Resend later)            | 🔄 (Resend part ⛔ Q4) |
 | P6-12  | Automated database backups and a tested restore                                             | ⬜ |
 | P6-13  | Monitoring: uptime, error tracking, structured logs, RUM Core Web Vitals                    | ⬜ |
 | P6-14  | Rollback procedure tested; permanent redirects from any legacy URLs (e.g. `figbudglobal.online`) | ⬜ Q1 |
@@ -398,7 +398,8 @@ Items marked **Blocking** stop the listed tasks; everything else proceeds with t
 | CSP requires `'unsafe-inline'` scripts for static Next.js pages      | Low    | All other directives locked down; evaluate nonce/hash approach in P6           |
 | Dev-tooling audit findings (ESLint's `braces` dependency)            | Low    | Build-time only; CI audits shipped dependencies (0 findings); Dependabot tracks tooling |
 | Local Lighthouse on Windows is noisy (trace errors, CPU contention)  | Low    | Lighthouse measured in CI on a clean Linux runner, median of three runs        |
-| Railway platform outage (22 Oct) delays the first deployment         | Medium | Services configured; queued builds not retriggered (per Railway); local commits pushed once builds resume |
+| Railway platform outage (22 Oct) slows deployments                   | Medium | First deployment completed 10:24 UTC; later builds may queue; queued builds never retriggered (per Railway) |
+| Passkeys are bound to the admin origin                               | Low    | When the production domain replaces the Railway domain, admins register a passkey there via a fresh invite |
 | Blog has no articles until FigBud supplies verified content           | Low    | Honest empty state; blog stays `noindex` and out of the sitemap until the first article is published |
 
 ---
@@ -407,6 +408,7 @@ Items marked **Blocking** stop the listed tasks; everything else proceeds with t
 
 | Date        | Change                                                                                                   |
 | ----------- | -------------------------------------------------------------------------------------------------------- |
+| 22 Oct 2026 | First Railway deployment live and verified (API ready, website serving, CORS/CSP correct, live enquiry stored). Admin authentication (P5-08): passkeys via webauthn-rs, invite-only onboarding with CLI bootstrap, hashed sessions, Origin-checked CSRF, roles, audit log. Admin UI started (P5-09): sign-in, invite acceptance, owner overview. `time` crate updated for RUSTSEC-2026-0009. |
 | 22 Oct 2026 | Railway: existing `figbud-web` configured (kept its Railpack commands), `figbud-api` and `Postgres` added, domains generated; first builds queued by a Railway outage. Breadcrumbs with BreadcrumbList (P3-11), Products comparison and future slot (P3-10). CMS schema and public read API in Rust (P5-07 part 1), blog index and article pages on it (P3-05, P3-06) with real 404s, sanitised HTML and BlogPosting data. |
 | 22 Oct 2026 | Folder renamed to `FigBud_LP` (P1-01 ✅; workspace links rebuilt). Accessibility and cross-browser testing added (axe on every route; Firefox, WebKit, iPhone, 360 px) and the defects found fixed: Safari failing to load scripts over HTTP (CSP), iPhone overflow in platform tabs, label-in-name, landmark, badge contrast. Content now visible in server HTML before hydration; homepage hydrates in chunks. CI gains Lighthouse budgets, npm/cargo audits, Dependabot and a PR template. Email hold mode (P5-17) so nothing is lost or falsely marked sent before Resend. Railway project ID received; deployment table updated. |
 | 22 Oct 2026 | GitHub repository connected and initial push to `main`. CI workflow (first run green), deployment runbook (`docs/DEPLOYMENT.md`) and Railway watch paths added; both Docker images build. `draft_designs/` kept local only (third-party references, public repo). Deployment-readiness tracker and Q17 (Railway project) added. |
