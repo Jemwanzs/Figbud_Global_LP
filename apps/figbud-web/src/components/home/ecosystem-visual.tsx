@@ -7,7 +7,7 @@ import { useEffect, useRef, useState } from "react";
 
 import type { Dictionary } from "@/i18n/get-dictionary";
 
-import { ProductGlyph } from "../product-glyph";
+import { ProductGlyph } from "@figbud/site-kit";
 
 /** Composition coordinates in a 400 × 340 design space. */
 const W = 400;

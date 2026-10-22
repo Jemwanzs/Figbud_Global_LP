@@ -11,7 +11,7 @@ import type { Dictionary } from "@/i18n/get-dictionary";
 import { fill } from "@/lib/format";
 import { productLink } from "@/lib/site";
 
-import { ProductGlyph } from "../product-glyph";
+import { ProductGlyph } from "@figbud/site-kit";
 import { ExpensePreview, JasiriPreview, ZiraPreview } from "./product-previews";
 
 type Props = {

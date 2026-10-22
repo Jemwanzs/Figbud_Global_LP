@@ -3,16 +3,15 @@
 import { publicProducts } from "@figbud/brand";
 import { LOCALE_COOKIE, type Locale, localeInfo, localizePath, locales, stripLocale } from "@figbud/i18n";
 import { FigBudWordmark, StatusBadge, ThemeToggle, buttonClasses, cn } from "@figbud/ui";
-import { ArrowRight, ArrowUpRight, Check, ChevronDown, Globe, Menu, X } from "lucide-react";
+import { ArrowRight, ArrowUpRight, ChevronDown, Menu, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 
+import { LanguageSwitcher, ProductGlyph, useDismiss } from "@figbud/site-kit";
+
 import type { Dictionary } from "@/i18n/get-dictionary";
 import { productLink, routes } from "@/lib/site";
-import { useDismiss } from "@/lib/use-dismiss";
-
-import { ProductGlyph } from "./product-glyph";
 
 type HeaderProps = {
   locale: Locale;
@@ -94,7 +93,12 @@ export function SiteHeader({ locale, common, products }: HeaderProps) {
         </nav>
 
         <div className="ms-auto flex items-center gap-1 sm:gap-2">
-          <LanguageSwitcher locale={locale} pathname={current} common={common} className="hidden md:block" />
+          <LanguageSwitcher
+            locale={locale}
+            pathname={current}
+            labels={common.language}
+            className="hidden md:block"
+          />
           <ThemeToggle labels={common.theme} />
           <Link
             href={localizePath(locale, routes.contact)}
@@ -211,73 +215,6 @@ function ProductsMenu({ locale, common, products, active }: HeaderProps & { acti
 
 function rememberLocale(locale: Locale) {
   document.cookie = `${LOCALE_COOKIE}=${locale}; path=/; max-age=31536000; samesite=lax`;
-}
-
-function LanguageSwitcher({
-  locale,
-  pathname,
-  common,
-  className,
-}: {
-  locale: Locale;
-  pathname: string;
-  common: Dictionary["common"];
-  className?: string;
-}) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  const listId = useId();
-  const close = useCallback(() => setOpen(false), []);
-  useDismiss(ref, open, close);
-
-  return (
-    <div ref={ref} className={cn("relative", className)}>
-      <button
-        type="button"
-        aria-expanded={open}
-        aria-controls={listId}
-        onClick={() => setOpen((v) => !v)}
-        className="inline-flex min-h-11 items-center gap-1.5 rounded-full px-3 text-sm text-muted transition-colors hover:bg-surface-2 hover:text-text"
-      >
-        <Globe aria-hidden className="size-[18px]" />
-        {/* Visible code first so the accessible name contains it (WCAG 2.5.3). */}
-        <span>{localeInfo[locale].short}</span>
-        <span className="sr-only">
-          {" "}
-          — {common.language.label}: {localeInfo[locale].label}
-        </span>
-        <ChevronDown aria-hidden className={cn("size-3.5 transition-transform", open && "rotate-180")} />
-      </button>
-      <div id={listId} hidden={!open} className="absolute end-0 top-full z-10 w-56 pt-2">
-        <ul className="fb-panel fb-rise rounded-2xl p-1.5 [animation-duration:.3s]">
-          {locales.map((code) => {
-            const info = localeInfo[code];
-            return (
-              <li key={code}>
-                <Link
-                  href={localizePath(code, pathname)}
-                  hrefLang={info.tag}
-                  lang={info.tag}
-                  aria-current={code === locale ? "true" : undefined}
-                  onClick={() => {
-                    rememberLocale(code);
-                    close();
-                  }}
-                  className="flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm text-muted transition-colors hover:bg-surface-2 hover:text-text aria-[current]:text-text"
-                >
-                  <span className="flex-1">{info.label}</span>
-                  {info.status === "draft" && (
-                    <span className="text-[0.7rem] text-subtle">{common.language.inReview}</span>
-                  )}
-                  {code === locale && <Check aria-hidden className="size-4 text-accent" />}
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
-      </div>
-    </div>
-  );
 }
 
 function MobileMenu({

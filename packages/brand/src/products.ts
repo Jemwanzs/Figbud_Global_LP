@@ -61,3 +61,50 @@ export function getProduct(slug: ProductSlug): Product {
   if (!product) throw new Error(`Unknown product: ${slug}`);
   return product;
 }
+
+/** One entry in a product website's navigation; labels live in each site's dictionary. */
+export interface ProductNavItem {
+  key: string;
+  path: string;
+  /** Shown in the header; the rest appear in the footer and mobile menu. */
+  primary?: boolean;
+}
+
+/**
+ * Information architecture of each product website (brief §3.3–3.5). The
+ * primary call to action is derived from the product status: active products
+ * offer a demo, coming-soon products a waitlist.
+ */
+export const productSites: Record<ProductSlug, { nav: ProductNavItem[] }> = {
+  zirahr: {
+    nav: [
+      { key: "platform", path: "/platform", primary: true },
+      { key: "modules", path: "/modules", primary: true },
+      { key: "solutions", path: "/solutions", primary: true },
+      { key: "payrollCalculator", path: "/payroll-calculator", primary: true },
+      { key: "resources", path: "/resources" },
+      { key: "pricing", path: "/pricing", primary: true },
+      { key: "company", path: "/company" },
+    ],
+  },
+  jasiri: {
+    nav: [
+      { key: "platform", path: "/platform", primary: true },
+      { key: "lendingSolutions", path: "/lending-solutions", primary: true },
+      { key: "loanOrigination", path: "/loan-origination" },
+      { key: "creditRisk", path: "/credit-risk" },
+      { key: "loanServicing", path: "/loan-servicing" },
+      { key: "collections", path: "/collections", primary: true },
+      { key: "analytics", path: "/analytics", primary: true },
+      { key: "integrations", path: "/integrations" },
+      { key: "security", path: "/security" },
+      { key: "resources", path: "/resources" },
+    ],
+  },
+  expense_now: {
+    nav: [
+      { key: "overview", path: "/", primary: true },
+      { key: "capabilities", path: "/capabilities", primary: true },
+    ],
+  },
+};

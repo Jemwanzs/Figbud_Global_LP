@@ -8,7 +8,7 @@ import Link from "next/link";
 
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { PageHeader } from "@/components/page-header";
-import { ProductGlyph } from "@/components/product-glyph";
+import { ProductGlyph } from "@figbud/site-kit";
 import { fill } from "@/lib/format";
 import { resolvePage } from "@/lib/page";
 import { pageMetadata, productLink, routes } from "@/lib/site";

@@ -52,10 +52,15 @@ test("review an enquiry, follow it up and export the inbox", async ({ page }) =>
     "held until email delivery is configured",
   );
 
-  await page.getByLabel("Follow-up status").selectOption("qualified");
+  // The mock's data is shared across parallel projects: pick a status that differs from the current one.
+  const select = page.getByLabel("Follow-up status");
+  const next = (await select.inputValue()) === "qualified" ? "contacted" : "qualified";
+  await select.selectOption(next);
   await page.getByRole("button", { name: "Update status" }).click();
   await expect(page.getByRole("status").filter({ hasText: "Status updated." })).toBeVisible();
-  await expect(page.getByRole("region", { name: "History" })).toContainText("→ Qualified");
+  await expect(page.getByRole("region", { name: "History" })).toContainText(
+    `→ ${next === "qualified" ? "Qualified" : "Contacted"}`,
+  );
 
   await page.goto("/admin/enquiries");
   const download = page.waitForEvent("download");
