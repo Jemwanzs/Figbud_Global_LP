@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.7
-FROM rust:1.96-slim-bookworm AS build
+FROM rust:1.98-slim-bookworm AS build
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends cmake clang pkg-config libssl-dev \
     && rm -rf /var/lib/apt/lists/*
