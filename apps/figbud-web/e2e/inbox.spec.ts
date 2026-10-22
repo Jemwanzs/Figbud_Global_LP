@@ -4,6 +4,9 @@ import { type Page, expect, test } from "@playwright/test";
 
 // Enquiries inbox against e2e/mock-api.mjs (synthetic enquiries; signed in as an owner).
 
+// Long journeys (passkey sign-in plus many steps) get more than the default budget.
+test.describe.configure({ timeout: 60_000 });
+
 test.beforeEach(({ browserName }) => {
   test.skip(browserName !== "chromium", "virtual authenticators are a Chromium DevTools feature");
 });
