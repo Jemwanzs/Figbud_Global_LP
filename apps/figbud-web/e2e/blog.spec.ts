@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-// Content comes from e2e/mock-cms.mjs (synthetic articles in English, none in Swahili).
+// Content comes from e2e/mock-api.mjs (synthetic articles in English, none in Swahili).
 
 test.describe("blog index", () => {
   test("lists published articles with topics and search", async ({ page }) => {
