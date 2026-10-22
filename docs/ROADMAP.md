@@ -17,12 +17,12 @@
 | 2     | FigBud Global homepage               | 🔄 In progress | 17 / 22 tasks (3 more in progress)      | Verified company facts, CI Lighthouse baseline |
 | 3     | Corporate pages                      | 🔄 In progress | 7 / 14 tasks                            | Company profile, legal texts                 |
 | 4     | Product websites                     | ⬜ Not started | 0 / 20 tasks                            | Product capability sign-off, payroll rules   |
-| 5     | Integrations & administration        | 🔄 In progress | 10 / 17 tasks (CMS and admin live; inbox next) | Resend credentials, recipient addresses      |
+| 5     | Integrations & administration        | 🔄 In progress | 11 / 17 tasks (admin, CMS, inbox done)  | Resend credentials, recipient addresses      |
 | 6     | Production deployment                | 🔄 In progress | 9 / 18 tasks                            | Resend, domains, backups/monitoring          |
 
 **Where we are:** the monorepo, shared design system, multilingual architecture, Rust enquiry API with PostgreSQL and a retrying email outbox, and the first complete FigBud Global homepage are built and verified locally. Everything runs without any external service. The next steps that need decisions from FigBud are listed in **§5 Open questions**.
 
-**Verified on 22 Oct 2026 (latest):** Rust tests 59/59 against real PostgreSQL (real WebAuthn ceremonies, editorial workflow incl. maker-checker and conflicts, CMS visibility, sanitised HTML) · clippy and rustfmt clean · `cargo audit` 0 advisories · `npm audit` 0 vulnerabilities in shipped dependencies · TypeScript strict, ESLint, Prettier clean · Playwright 175 tests across Chromium, Firefox and WebKit (incl. admin and editor journeys, axe on every route) · admin sign-in and the full editorial flow (write → save → submit → publish → live on the blog → archive) verified end to end against the production API image · **Railway live (991f63b):** API ready, website, blog, admin and proxy verified; forged-origin admin requests refused (403).
+**Verified on 22 Oct 2026 (latest):** Rust tests 63/63 against real PostgreSQL (real WebAuthn ceremonies, editorial workflow, enquiries inbox and export, CMS visibility, sanitised HTML) · clippy and rustfmt clean · `cargo audit` 0 advisories · `npm audit` 0 vulnerabilities in shipped dependencies · TypeScript strict, ESLint, Prettier clean · frontend unit tests 15/15 · Playwright 177 tests across Chromium, Firefox and WebKit (admin, editor and inbox journeys; axe on every public route) · verified end to end against the production API image: admin sign-in, the editorial flow (write → publish → live → archive) and the inbox (enquiry → follow-up → CSV export) · **Railway live (43792dc):** API ready, website, blog, admin, editor; admin endpoints refuse unauthenticated and forged-origin requests.
 
 ### Deployment readiness
 
@@ -331,7 +331,7 @@ Items marked **Blocking** stop the listed tasks; everything else proceeds with t
 | P5-06  | Per-IP rate limiting with `Retry-After`                                                       | ✅ |
 | P5-07  | CMS data model and API: schema, public read API, editorial API (drafts, review, maker-checker publishing, scheduling, archive/restore, versions, taxonomy, preview) | ✅ |
 | P5-08  | Admin authentication: passkeys (WebAuthn), invite-only onboarding + CLI bootstrap, roles, hashed sessions, CSRF (Origin), rate limits | ✅ |
-| P5-09  | Admin UI: sign-in, invites, overview ✅; Insights editor and workflow ✅; enquiries inbox, statuses, export | 🔄 In progress |
+| P5-09  | Admin UI: sign-in, invites, overview; Insights editor and workflow; enquiries inbox with follow-up statuses and owner-only CSV export | ✅ |
 | P5-10  | Audit log for all admin and CMS actions (sign-ins, failures, invites, passkeys, every editorial action; shown to owners) | ✅ |
 | P5-11  | Go live on Resend (verified domain, real recipients)                                         | ⛔ Q4 |
 | P5-12  | Localised acknowledgement emails                                                             | ⬜ |
@@ -381,7 +381,7 @@ Items marked **Blocking** stop the listed tasks; everything else proceeds with t
 | M5 — ZiraHR site                   | P4-01, P4-02, P4-Z*                          | Validated calculator, module pages, SEO               | ⬜ |
 | M6 — Jasiri LMS site               | P4-J*                                        | Demos and verified capabilities                       | ⬜ |
 | M7 — Expense Now site              | P4-E*                                        | Waitlist live, roadmap content approved               | ⬜ |
-| M8 — Integrations live             | Phase 5                                      | Real email, admin, CMS                                | ⬜ |
+| M8 — Integrations live             | Phase 5                                      | Real email, admin, CMS                                | 🔄 Admin and CMS live; email awaits Resend (Q4) |
 | M8b — Repository live              | P1-25, P6-05, P6-06                          | Code on GitHub `main`, CI green                       | ✅ 22 Oct 2026 |
 | M9 — Production launch             | Phase 6                                      | Launch checklist signed                               | ⬜ |
 
@@ -409,6 +409,7 @@ Items marked **Blocking** stop the listed tasks; everything else proceeds with t
 
 | Date        | Change                                                                                                   |
 | ----------- | -------------------------------------------------------------------------------------------------------- |
+| 22 Oct 2026 | Enquiries inbox (P5-09 complete): filters, search, detail with email delivery states, follow-up statuses with history, owner-only CSV export with formula-injection protection; every action audited. Verified end to end against the production API image. Insights editor live on Railway (43792dc). |
 | 22 Oct 2026 | Editorial workflow (P5-07 complete): drafts, review, maker-checker publishing, scheduling, archive/restore, versions with conflict detection, taxonomy, preview; every action audited (P5-10 complete). Insights editor UI (P5-09). Railway: discovered `railway.toml` is no longer applied (and never followed the API root directory); API health check, restart policy and watch path now set on the service. Second deployment live (991f63b). Real end-to-end run found and fixed an editor status race. |
 | 22 Oct 2026 | First Railway deployment live and verified (API ready, website serving, CORS/CSP correct, live enquiry stored). Admin authentication (P5-08): passkeys via webauthn-rs, invite-only onboarding with CLI bootstrap, hashed sessions, Origin-checked CSRF, roles, audit log. Admin UI started (P5-09): sign-in, invite acceptance, owner overview. `time` crate updated for RUSTSEC-2026-0009. |
 | 22 Oct 2026 | Railway: existing `figbud-web` configured (kept its Railpack commands), `figbud-api` and `Postgres` added, domains generated; first builds queued by a Railway outage. Breadcrumbs with BreadcrumbList (P3-11), Products comparison and future slot (P3-10). CMS schema and public read API in Rust (P5-07 part 1), blog index and article pages on it (P3-05, P3-06) with real 404s, sanitised HTML and BlogPosting data. |
