@@ -47,7 +47,7 @@ for (const [mark, cls, label] of pills) {
   // "✅ Completed" style cells keep their own words; bare marks get the label.
   html = html.replace(
     new RegExp(
-      `${mark}(\\s+(?:Completed|In progress|Blocked|Not started|Complete|Available|Awaiting details|Awaiting configuration|Pending|Needs you|Ready for review))?`,
+      `${mark}(\\s+(?:Completed|In progress|Blocked|Not started|Complete|Available|Awaiting details|Awaiting configuration|Pending verification|Pending|Needs you|Ready for review|Provided|Preparation stage))?`,
       "g",
     ),
     (_, words) => `<span class="pill pill-${cls}">${words ? words.trim() : label}</span>`,

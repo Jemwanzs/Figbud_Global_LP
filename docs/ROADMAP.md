@@ -3,7 +3,7 @@
 > **The single authoritative plan** for the FigBud Global corporate website and its product websites (ZiraHR, Jasiri LMS, Expense Now and future products).
 > It consolidates every scope and standards brief supplied to date, records how overlaps and conflicts were resolved, and tracks delivery task by task.
 >
-> **Owner:** James Sammy (FigBud Global) · **Repository:** [github.com/Jemwanzs/Figbud_Global_LP](https://github.com/Jemwanzs/Figbud_Global_LP) · **Maintained in:** `docs/ROADMAP.md` (updated as work lands) · **Last updated:** 22 October 2026
+> **Owner:** James Sammy (FigBud Global) · **Repository:** [github.com/Jemwanzs/Figbud_Global_LP](https://github.com/Jemwanzs/Figbud_Global_LP) · **Maintained in:** `docs/ROADMAP.md` (updated as work lands) · **Last updated:** 22 October 2026 (afternoon)
 
 **Status legend:** ✅ Completed · 🔄 In progress · ⛔ Blocked (waiting on an input listed in §5) · ⬜ Not started
 
@@ -14,30 +14,31 @@
 | Phase | Name                                 | Status         | Progress                                | Waiting on                                   |
 | ----- | ------------------------------------ | -------------- | --------------------------------------- | -------------------------------------------- |
 | 1     | Project foundation                   | ✅ Completed   | 25 / 25 tasks                           | —                                            |
-| 2     | FigBud Global homepage               | 🔄 In progress | 17 / 22 tasks                           | Verified company facts, Lighthouse run       |
+| 2     | FigBud Global homepage               | 🔄 In progress | 17 / 22 tasks (3 more in progress)      | Verified company facts, CI Lighthouse baseline |
 | 3     | Corporate pages                      | 🔄 In progress | 3 / 14 tasks                            | Company profile, legal texts                 |
 | 4     | Product websites                     | ⬜ Not started | 0 / 20 tasks                            | Product capability sign-off, payroll rules   |
-| 5     | Integrations & administration        | 🔄 In progress | 6 / 16 tasks                            | Resend credentials, recipient addresses      |
-| 6     | Production deployment                | 🔄 In progress | 7 / 18 tasks                            | Railway project ID, Resend, domains          |
+| 5     | Integrations & administration        | 🔄 In progress | 7 / 17 tasks                            | Resend credentials, recipient addresses      |
+| 6     | Production deployment                | 🔄 In progress | 8 / 18 tasks                            | Railway CLI sign-in, Resend, domains         |
 
 **Where we are:** the monorepo, shared design system, multilingual architecture, Rust enquiry API with PostgreSQL and a retrying email outbox, and the first complete FigBud Global homepage are built and verified locally. Everything runs without any external service. The next steps that need decisions from FigBud are listed in **§5 Open questions**.
 
-**Verified on 22 Oct 2026:** Rust tests 26/26 pass (including real-PostgreSQL integration tests) · clippy and rustfmt clean · TypeScript strict typecheck clean · ESLint clean · Prettier clean · frontend unit tests 15/15 · Playwright end-to-end 19/19 on desktop and mobile · production build succeeds with every page statically prerendered · live form → API → database → simulated email confirmed in a real browser.
+**Verified on 22 Oct 2026 (latest):** Rust tests 30/30 against real PostgreSQL · clippy and rustfmt clean · `cargo audit` 0 advisories (286 crates) · `npm audit` 0 vulnerabilities in shipped dependencies · TypeScript strict, ESLint, Prettier clean · frontend unit tests 15/15 · Playwright 119 tests across Chromium (desktop + Pixel), Firefox, WebKit (desktop Safari + iPhone), including axe WCAG 2.2 AA scans of every route and 360 px overflow checks · production build fully prerendered.
 
 ### Deployment readiness
 
 | Item                               | Status                                  | Notes                                                                                   |
 | ---------------------------------- | --------------------------------------- | --------------------------------------------------------------------------------------- |
-| GitHub repository                  | ✅ Available                             | `Jemwanzs/Figbud_Global_LP` (public)                                                     |
-| GitHub connection & initial push   | ✅ Completed                             | Remote verified empty before pushing; `main` holds the full project                     |
-| Continuous integration             | ✅ Completed                             | First run green: website and API (with PostgreSQL) jobs pass on every push to `main`     |
-| Railway project ID                 | ⛔ Awaiting details                      | Inspect the existing project before configuring; never create a duplicate (Q17)          |
-| Frontend deployment (`figbud-web`) | ⬜ Pending                               | Dockerfile, `railway.toml`, health check and variables ready — see `docs/DEPLOYMENT.md`  |
+| GitHub repository                  | ✅ Provided                              | `Jemwanzs/Figbud_Global_LP` (public)                                                     |
+| GitHub connection & initial push   | ✅ Completed                             | `main` holds the full project; pushes are fast-forward only                               |
+| Continuous integration             | ✅ Completed                             | Lint, types, unit, build, cross-browser e2e, Rust with PostgreSQL, audits, Lighthouse     |
+| Railway project ID                 | ✅ Provided                              | `5c4df4db-fd17-4371-9424-df0dde7d32e4`: inspect before configuring; never duplicate      |
+| Railway service configuration      | 🔄 Pending verification                  | Configs, Dockerfiles and runbook ready; Railway CLI sign-in needed to inspect the project |
+| Frontend deployment (`figbud-web`) | ⬜ Pending                               | Dockerfile, `railway.toml`, health check and variables ready (see `docs/DEPLOYMENT.md`)  |
 | Rust backend deployment (`figbud-api`) | ⬜ Pending                           | Dockerfile, `railway.toml`, `/health/ready`, migrations on boot                          |
-| PostgreSQL provisioning            | ⬜ Pending                               | Railway PostgreSQL service + automated backups                                           |
-| Resend credentials                 | ⛔ Awaiting configuration                | Integration built and tested in log mode; needs key, verified domain, recipients (Q4)    |
-| Production domains                 | ⬜ Pending                               | Domain choice outstanding (Q1)                                                           |
-
+| PostgreSQL database                | ⬜ Pending                               | Railway PostgreSQL on the private network + automated backups                            |
+| Resend domain and API key          | ⛔ Awaiting configuration                | To be supplied later (Q4); never committed, Railway variables only                       |
+| Email integration                  | 🔄 Preparation stage                     | Templates for all form types built; `EMAIL_MODE=hold` stores emails until Resend is set  |
+| Production domains                 | ⬜ Pending                               | Domain choice outstanding (Q1); Railway domains used until then, not indexed             |
 ---
 
 ## 2. Vision and positioning
@@ -179,7 +180,7 @@ Items marked **Blocking** stop the listed tasks; everything else proceeds with t
 | Q1  | Production domain: `figbudglobal.com` (proposed) or the existing `figbudglobal.online`?              | P6, SEO, email sender   | Yes (P6)  | All origins are environment variables                        |
 | Q2  | Verified company profile: history, founding year, team, offices, registered entity, contact details | About page, footer, schema | Yes (P3) | No company facts published beyond the confirmed positioning |
 | Q3  | Verified figures (customers, users, markets) and any customer logos with permission                  | Homepage proof section  | No        | No statistics or logos shown                                 |
-| Q4  | Resend API key, verified sending domain, CTO/team recipient addresses, per-product routing           | P5 email go-live        | Yes (P5)  | `EMAIL_MODE=log` simulates delivery                           |
+| Q4  | Resend API key, verified sending domain, CTO/team recipient addresses, per-product routing           | P5 email go-live        | Yes (P5)  | `EMAIL_MODE=hold` stores emails until Resend is configured    |
 | Q5  | Legal texts: privacy (Kenya Data Protection Act 2019), terms, cookies — reviewed by counsel          | Legal pages, consent    | Yes (P3)  | Pages exist, `noindex`, state "being finalised"               |
 | Q6  | Native-speaker reviewers for Swahili, French, Arabic, Chinese                                        | Locale publication      | No        | Draft translations, not indexed                              |
 | Q7  | Product accent colours and logos (ZiraHR current logo is cyan in screenshots; spec says warm orange) | P4 brand fidelity       | No        | Accents per §3.6; generic product glyphs                     |
@@ -192,7 +193,7 @@ Items marked **Blocking** stop the listed tasks; everything else proceeds with t
 | Q14 | Analytics tool (privacy-friendly, cookie-less preferred?) and consent requirements                   | P5 analytics            | No        | No analytics or tracking cookies                             |
 | Q15 | Spam protection: add Cloudflare Turnstile (privacy-friendly CAPTCHA) on public forms?                | P5 hardening            | No        | Honeypot + fill-time check + rate limiting                   |
 | Q16 | Consulting / custom-solutions services alongside products (mentioned as possible)                    | IA, About, Products     | No        | Products only                                                |
-| Q17 | Railway project ID, and whether staging and production environments already exist                    | P6 deployment           | Yes (P6)  | Deployment configuration prepared in the repo               |
+| Q17 | Railway project ID, and whether staging and production environments already exist                    | P6 deployment           | Partly    | **ID provided** (`5c4df4db…`); environments confirmed on inspection |
 
 ---
 
@@ -255,9 +256,9 @@ Items marked **Blocking** stop the listed tasks; everything else proceeds with t
 | P2-15  | Reduced-motion support and 44 px touch targets                                                  | ✅ |
 | P2-16  | Branded 404 (route-level and global)                                                            | ✅ |
 | P2-17  | Visual QA at 390 px / 1440 px, dark, light, Arabic                                              | ✅ |
-| P2-18  | Lighthouse and Core Web Vitals audit on production build; fix findings                          | ⬜ |
-| P2-19  | Automated accessibility scan (axe) in Playwright; manual screen-reader pass                     | ⬜ |
-| P2-20  | Cross-browser check (Safari/iOS, Firefox, Samsung Internet)                                     | ⬜ |
+| P2-18  | Lighthouse and Core Web Vitals audit on production build; fix findings (A11y/SEO/BP 100; LCP and hydration fixes landed; performance baseline now measured in CI) | 🔄 In progress |
+| P2-19  | Automated accessibility scan (axe) in Playwright ✅; manual screen-reader pass (NVDA/VoiceOver) pending | 🔄 In progress |
+| P2-20  | Cross-browser check: automated on Chromium, Firefox, WebKit/iPhone ✅; real iOS and Samsung Internet devices pending | 🔄 In progress |
 | P2-21  | Verified proof section (figures, logos, testimonials)                                           | ⛔ Q3 |
 | P2-22  | Stakeholder design review and sign-off                                                          | ⬜ |
 
@@ -338,8 +339,9 @@ Items marked **Blocking** stop the listed tasks; everything else proceeds with t
 | P5-14  | Turnstile on public forms                                                                    | ⬜ Q15 |
 | P5-15  | Privacy-friendly analytics and conversion tracking                                           | ⬜ Q14 |
 | P5-16  | Data-retention policy and purge job for enquiries                                            | ⬜ Q5 |
+| P5-17  | Email hold mode: store emails until Resend is configured; only provider acceptance counts as sent; recipients resolved at delivery | ✅ |
 
-### Phase 6 — Production deployment ⛔
+### Phase 6 — Production deployment 🔄
 
 **Goal:** live, monitored, recoverable production. **Depends on:** Railway project details (Q17), domains (Q1), Resend credentials (Q4) and **your authorisation** — nothing is created or purchased without it. **Runbook:** [DEPLOYMENT.md](DEPLOYMENT.md).
 **Acceptance criteria:** HTTPS on all domains, CI gates enforced, backups and rollback tested, staging non-indexable, monitoring alerting.
@@ -352,14 +354,14 @@ Items marked **Blocking** stop the listed tasks; everything else proceeds with t
 | P6-03b | Deployment runbook: services, variables, migrations, Resend go-live, rollback               | ✅ |
 | P6-04  | Staging never indexable (robots + `noindex` unless explicitly enabled)                      | ✅ |
 | P6-05  | GitHub repository connected; initial push to `main`                                        | ✅ |
-| P6-05b | Branch protection on `main` (require CI), PR template                                      | ⬜ |
+| P6-05b | PR template ✅; branch protection on `main` (require CI) needs your go-ahead in GitHub settings | 🔄 In progress |
 | P6-06  | CI: format, lint, typecheck, unit, Rust (with PostgreSQL), build, e2e                       | ✅ |
-| P6-06b | Lighthouse performance budgets in CI                                                        | ⬜ |
-| P6-07  | Dependency and vulnerability scanning (Dependabot / cargo-audit / npm audit)                | ⬜ |
-| P6-08  | Railway: inspect existing project, then configure web, API, PostgreSQL (staging + production) | ⛔ Q17 |
+| P6-06b | Lighthouse budgets in CI (a11y/SEO/CLS gate; performance warns while baselining)            | 🔄 In progress |
+| P6-07  | Dependency and vulnerability scanning (Dependabot / cargo-audit / npm audit)                | ✅ |
+| P6-08  | Railway: inspect existing project, then configure web, API, PostgreSQL (staging + production) | 🔄 ID provided; awaiting CLI sign-in |
 | P6-09  | Domains, DNS, SSL for corporate and product subdomains                                      | ⛔ Q1 |
 | P6-10  | CDN caching for static assets and prerendered pages                                         | ⬜ |
-| P6-11  | Secrets in Railway variables (Resend, IP salt, DB)                                          | ⛔ Q4 |
+| P6-11  | Secrets in Railway variables (IP salt and DB at first deploy; Resend later)                 | ⬜ (Resend part ⛔ Q4) |
 | P6-12  | Automated database backups and a tested restore                                             | ⬜ |
 | P6-13  | Monitoring: uptime, error tracking, structured logs, RUM Core Web Vitals                    | ⬜ |
 | P6-14  | Rollback procedure tested; permanent redirects from any legacy URLs (e.g. `figbudglobal.online`) | ⬜ Q1 |
@@ -394,7 +396,8 @@ Items marked **Blocking** stop the listed tasks; everything else proceeds with t
 | Product sites drift from the shared design system                    | Medium | Shared packages; product sites consume tokens, never fork them                 |
 | In-memory rate limiting insufficient with multiple API replicas      | Low now | P5-13 before scaling out                                                      |
 | CSP requires `'unsafe-inline'` scripts for static Next.js pages      | Low    | All other directives locked down; evaluate nonce/hash approach in P6           |
-| Dev-tooling audit findings (ESLint's `braces` dependency, 5 high)    | Low    | Build-time only, not shipped; resolve when `eslint-config-next` updates (P6-07) |
+| Dev-tooling audit findings (ESLint's `braces` dependency)            | Low    | Build-time only; CI audits shipped dependencies (0 findings); Dependabot tracks tooling |
+| Local Lighthouse on Windows is noisy (trace errors, CPU contention)  | Low    | Lighthouse measured in CI on a clean Linux runner, median of three runs        |
 
 ---
 
@@ -402,5 +405,6 @@ Items marked **Blocking** stop the listed tasks; everything else proceeds with t
 
 | Date        | Change                                                                                                   |
 | ----------- | -------------------------------------------------------------------------------------------------------- |
+| 22 Oct 2026 | Folder renamed to `FigBud_LP` (P1-01 ✅; workspace links rebuilt). Accessibility and cross-browser testing added (axe on every route; Firefox, WebKit, iPhone, 360 px) and the defects found fixed: Safari failing to load scripts over HTTP (CSP), iPhone overflow in platform tabs, label-in-name, landmark, badge contrast. Content now visible in server HTML before hydration; homepage hydrates in chunks. CI gains Lighthouse budgets, npm/cargo audits, Dependabot and a PR template. Email hold mode (P5-17) so nothing is lost or falsely marked sent before Resend. Railway project ID received; deployment table updated. |
 | 22 Oct 2026 | GitHub repository connected and initial push to `main`. CI workflow (first run green), deployment runbook (`docs/DEPLOYMENT.md`) and Railway watch paths added; both Docker images build. `draft_designs/` kept local only (third-party references, public repo). Deployment-readiness tracker and Q17 (Railway project) added. |
 | 22 Oct 2026 | Roadmap created. Scope from five briefs consolidated; D1–D13 recorded; Q1–Q16 raised. Phase 1 completed; Phase 2 homepage built and verified; contact and products pages, enquiry API and email outbox delivered. |
