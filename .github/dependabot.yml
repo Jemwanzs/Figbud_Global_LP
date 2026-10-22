@@ -29,3 +29,7 @@ updates:
   - package-ecosystem: docker
     directories: [/services/api, /apps/figbud-web]
     schedule: { interval: monthly }
+    ignore:
+      # Stay on the Node.js LTS line pinned in .nvmrc; majors are a deliberate upgrade.
+      - dependency-name: node
+        update-types: [version-update:semver-major]

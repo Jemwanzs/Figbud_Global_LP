@@ -52,6 +52,17 @@ jobs:
           NEXT_PUBLIC_SITE_URL: http://localhost:3300
       - run: npx -y @lhci/cli@0.15.x autorun
         working-directory: apps/figbud-web
+      # Median scores per page as run annotations, readable on the run page.
+      - name: Summarise scores
+        if: always()
+        working-directory: apps/figbud-web
+        run: |
+          node -e '
+            const runs = require("./.lighthouseci/manifest.json").filter((r) => r.isRepresentativeRun);
+            for (const r of runs) {
+              const s = Object.entries(r.summary).map(([k, v]) => `${k} ${Math.round(v * 100)}`).join(" · ");
+              console.log(`::notice title=Lighthouse ${new URL(r.url).pathname}::${s}`);
+            }'
 
   api:
     name: API (fmt, clippy, tests with PostgreSQL)
