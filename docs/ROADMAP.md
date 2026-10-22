@@ -13,7 +13,7 @@
 
 | Phase | Name                                 | Status         | Progress                                | Waiting on                                   |
 | ----- | ------------------------------------ | -------------- | --------------------------------------- | -------------------------------------------- |
-| 1     | Project foundation                   | ✅ Completed   | 23 / 25 tasks                           | Folder rename (you), first git commit        |
+| 1     | Project foundation                   | ✅ Completed   | 25 / 25 tasks                           | —                                            |
 | 2     | FigBud Global homepage               | 🔄 In progress | 17 / 22 tasks                           | Verified company facts, Lighthouse run       |
 | 3     | Corporate pages                      | 🔄 In progress | 3 / 14 tasks                            | Company profile, legal texts                 |
 | 4     | Product websites                     | ⬜ Not started | 0 / 20 tasks                            | Product capability sign-off, payroll rules   |
@@ -165,7 +165,7 @@ These resolve overlaps between the briefs. Latest confirmed requirements win; an
 | D9  | Translations                | "Implement five languages" vs "never publish unreviewed machine translation"                      | All five locales routed; non-English marked **draft**: rendered for review, `noindex`, excluded from sitemap/hreflang, missing strings fall back to English |
 | D10 | CMS                         | Headless CMS vs Rust-backed CMS                                                                   | Rust API owns CMS data (per engineering standards); admin UI in Phase 5                                                   |
 | D11 | Product-site links before launch | "Open product site in new tab" vs product sites not yet built                                | Link becomes external automatically once `NEXT_PUBLIC_<PRODUCT>_URL` is set; until then it targets the Products page      |
-| D12 | Project folder              | Rename to `FigBud_Global_LP`                                                                       | Blocked by the editor's folder lock; `scripts/rename-workspace.ps1` performs it safely with VS Code closed (P1-01)        |
+| D12 | Project folder              | Rename to `FigBud_Global_LP`                                                                       | Renamed by FigBud to `FigBud_LP` (22 Oct 2026); the rename script was retired. Repository name unchanged (P1-01)          |
 | D13 | Static vs dynamic rendering | SSR/SSG "where appropriate"                                                                       | Marketing pages fully prerendered (SSG/PPR); only the contact form reads request data; OG image rendered on demand        |
 
 ---
@@ -205,7 +205,7 @@ Items marked **Blocking** stop the listed tasks; everything else proceeds with t
 
 | ID     | Task                                                                                                  | Status |
 | ------ | ----------------------------------------------------------------------------------------------------- | ------ |
-| P1-01  | Rename folder to `FigBud_Global_LP` (script ready; run with VS Code closed)                           | ⛔ Needs you |
+| P1-01  | Rename project folder (now `FigBud_LP`)                                                               | ✅ |
 | P1-02  | Inspect workspace and `draft_designs` (references only; never shipped)                                 | ✅ |
 | P1-03  | npm-workspaces monorepo: `apps/`, `packages/`, `services/`, `infra/`, `docs/`                          | ✅ |
 | P1-04  | Next.js 16 + React 19 + TypeScript strict app (`apps/figbud-web`)                                      | ✅ |

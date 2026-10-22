@@ -82,16 +82,6 @@ Nothing is deployed yet. The full procedure — services, variables, migrations,
 3. Attach custom domains and confirm SSL; point `CORS_ALLOWED_ORIGINS` at them.
 4. Verify `/health/ready`, submit a test enquiry, and confirm delivery in Resend.
 
-## Project folder
-
-The folder is still named `ZiraHR_LP` because Windows locks a folder that VS Code has open. Close VS Code, then run:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File "C:\Users\James Bright\DeVops\ZiraHR_LP\scripts\rename-workspace.ps1"
-```
-
-It renames the folder to `FigBud_Global_LP`, refuses to overwrite anything, and keeps the local database volume.
-
 ## Content rules
 
 - `draft_designs/` holds reference images for inspiration only. Nothing from it is used in the product.
