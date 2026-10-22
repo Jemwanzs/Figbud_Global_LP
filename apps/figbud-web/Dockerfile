@@ -2,7 +2,7 @@
 # Build context: repository root (the app depends on shared workspace packages).
 #   docker build -f apps/figbud-web/Dockerfile -t figbud-web .
 
-FROM node:22-alpine AS deps
+FROM node:25-alpine AS deps
 WORKDIR /repo
 COPY package.json package-lock.json ./
 COPY apps/figbud-web/package.json apps/figbud-web/
@@ -11,7 +11,7 @@ COPY packages/i18n/package.json packages/i18n/
 COPY packages/ui/package.json packages/ui/
 RUN npm ci --workspace figbud-web --include-workspace-root
 
-FROM node:22-alpine AS build
+FROM node:25-alpine AS build
 WORKDIR /repo
 COPY --from=deps /repo/node_modules ./node_modules
 COPY . .
@@ -25,7 +25,7 @@ ARG NEXT_PUBLIC_EXPENSE_NOW_URL
 ENV NEXT_TELEMETRY_DISABLED=1 NEXT_OUTPUT_STANDALONE=true
 RUN npm run build -w figbud-web
 
-FROM node:22-alpine AS runtime
+FROM node:25-alpine AS runtime
 WORKDIR /app
 ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=3000 HOSTNAME=0.0.0.0
 RUN addgroup -S figbud && adduser -S figbud -G figbud
