@@ -142,6 +142,13 @@ railway postgres pitr backup restore <backup-id> --service Postgres
 
 **Restoring replaces the service's data in place.** Take an on-demand backup first, announce a short maintenance window, and verify `/health/ready` afterwards. The restore drill (P6-12) should run in a staging environment, never against production data. For restoring to an exact moment, Railway's point-in-time recovery (`railway postgres pitr enable`) adds continuous WAL archiving to a storage bucket at extra cost.
 
+## Monitoring
+
+- **Uptime:** `.github/workflows/uptime.yml` checks production every 15 minutes: API readiness (database reachable), the main pages and admin sign-in, and that the temporary domain stays `noindex`. A failure fails the run and GitHub emails the repository owner. Run it on demand from the Actions tab.
+- **Logs:** the API logs structured JSON in production (`railway logs --service figbud-api`); every request has an `x-request-id`.
+- **Health checks:** Railway restarts a service whose health check fails (`/health/ready` for the API, `/en` for the website).
+- **Not yet:** error tracking and real-user Core Web Vitals need a provider choice (Q14).
+
 ## Rollback
 
 - **Code:** redeploy the previous successful deployment from the service's *Deployments* tab.

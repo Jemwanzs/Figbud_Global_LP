@@ -1,0 +1,46 @@
+name: Uptime
+
+# Production health every 15 minutes. A failed run fails the workflow, and
+# GitHub notifies the repository owner by email.
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: uptime
+  cancel-in-progress: false
+
+env:
+  WEB: https://figbud-web-production.up.railway.app
+  API: https://figbud-api-production.up.railway.app
+
+jobs:
+  check:
+    name: Production health
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: API ready (database reachable)
+        run: |
+          body=$(curl -fsS --retry 3 --retry-delay 10 --max-time 15 "$API/health/ready")
+          echo "$body"
+          grep -q '"status":"ready"' <<< "$body"
+          grep -q '"database":"ok"' <<< "$body"
+
+      - name: Website pages respond
+        run: |
+          for path in /en /en/products /en/contact /en/blog /admin/login; do
+            code=$(curl -sS -o /dev/null -w '%{http_code}' --retry 3 --retry-delay 10 --max-time 20 "$WEB$path")
+            echo "$path -> $code"
+            test "$code" = 200
+          done
+
+      - name: Temporary domain stays out of search engines
+        # No pipe: `grep -q` exits early, which fails the writer under pipefail.
+        run: |
+          page=$(curl -fsS --retry 3 --retry-delay 10 --max-time 20 "$WEB/en")
+          grep -q 'name="robots" content="noindex' <<< "$page"

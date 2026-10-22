@@ -363,7 +363,7 @@ Items marked **Blocking** stop the listed tasks; everything else proceeds with t
 | P6-10  | CDN caching for static assets and prerendered pages                                         | ⬜ |
 | P6-11  | Secrets in Railway variables (IP salt and database reference set; Resend later)            | 🔄 (Resend part ⛔ Q4) |
 | P6-12  | Automated database backups ✅ (daily/weekly/monthly + manual baseline, 22 Oct); tested restore in a staging environment (needs your go-ahead: extra Railway cost) | 🔄 In progress |
-| P6-13  | Monitoring: uptime, error tracking, structured logs, RUM Core Web Vitals                    | ⬜ |
+| P6-13  | Monitoring: uptime checks every 15 min ✅, structured logs ✅, health-check restarts ✅; error tracking and RUM Core Web Vitals (provider choice, Q14) | 🔄 In progress |
 | P6-14  | Rollback procedure tested; permanent redirects from any legacy URLs (e.g. `figbudglobal.online`) | ⬜ Q1 |
 | P6-15  | Launch checklist and sign-off                                                               | ⬜ |
 | P6-16  | Move Railway service settings into infrastructure as code (`.railway/railway.ts`); `railway.toml` is no longer applied | ⬜ |
