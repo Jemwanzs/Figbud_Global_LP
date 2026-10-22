@@ -43,7 +43,7 @@ async function EditArticle({ params }: Pick<PageProps<"/admin/insights/[id]">, "
         {article.data.title}
       </h1>
       <ArticleEditor
-        key={`${article.data.id}-${article.data.version}`}
+        key={article.data.id}
         user={user}
         taxonomy={taxonomy.data}
         article={article.data}
