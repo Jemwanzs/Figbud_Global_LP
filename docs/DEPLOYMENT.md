@@ -59,6 +59,7 @@ Guidelines:
 | `NEXT_PUBLIC_API_URL`          | now `https://figbud-api-production.up.railway.app`; later `https://api.figbudglobal.com` |
 | `NEXT_PUBLIC_ALLOW_INDEXING`   | `false` until the production domain is attached; then `true` in production only |
 | `NEXT_PUBLIC_ZIRAHR_URL` etc.  | set when each product website goes live (Phase 4)                     |
+| `API_INTERNAL_URL` (optional, server-only) | private-network API origin for server-side blog fetches, e.g. `http://figbud-api.railway.internal:8080`; falls back to `NEXT_PUBLIC_API_URL` |
 
 ## First deployment checklist
 

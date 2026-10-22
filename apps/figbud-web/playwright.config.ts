@@ -1,10 +1,12 @@
 import { defineConfig, devices } from "@playwright/test";
 
 const PORT = Number(process.env.E2E_PORT ?? 3100);
+const MOCK_CMS_PORT = 3199;
 
 /**
  * End-to-end tests run against a production build (`npm run build` first).
- * The enquiry API is mocked at the network layer, so no backend is required.
+ * The enquiry API is mocked at the network layer and the CMS by e2e/mock-cms.mjs,
+ * so no backend is required.
  */
 export default defineConfig({
   testDir: "./e2e",
@@ -25,10 +27,20 @@ export default defineConfig({
     { name: "webkit", use: { ...devices["Desktop Safari"], viewport: { width: 1440, height: 900 } } },
     { name: "iphone", use: { ...devices["iPhone 15"] } },
   ],
-  webServer: {
-    command: `npx next start --port ${PORT}`,
-    url: `http://localhost:${PORT}/en`,
-    reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
-  },
+  webServer: [
+    {
+      // Stand-in for the API's CMS endpoints (blog tests); the Next server reads it at runtime.
+      command: `node e2e/mock-cms.mjs`,
+      url: `http://localhost:${MOCK_CMS_PORT}/health`,
+      env: { MOCK_CMS_PORT: String(MOCK_CMS_PORT) },
+      reuseExistingServer: !process.env.CI,
+    },
+    {
+      command: `npx next start --port ${PORT}`,
+      url: `http://localhost:${PORT}/en`,
+      env: { API_INTERNAL_URL: `http://localhost:${MOCK_CMS_PORT}` },
+      reuseExistingServer: !process.env.CI,
+      timeout: 120_000,
+    },
+  ],
 });

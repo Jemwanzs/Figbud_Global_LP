@@ -10,6 +10,7 @@ const ROUTES = [
   "/en/contact",
   "/en/about",
   "/en/blog",
+  "/en/blog/effective-dated-payroll",
   "/en/legal/privacy",
   "/en/does-not-exist",
   "/ar",

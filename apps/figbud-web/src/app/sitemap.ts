@@ -1,15 +1,21 @@
 import { indexableLocales, localeInfo, localizePath } from "@figbud/i18n";
 import type { MetadataRoute } from "next";
 
-import { allowIndexing, publishedPaths, siteOrigin } from "@/lib/site";
+import { getArticles, getPublishedSlugs } from "@/lib/cms";
+import { allowIndexing, publishedPaths, routes, siteOrigin } from "@/lib/site";
 
-/** Only published pages in reviewed locales, each with its hreflang alternates. */
-export default function sitemap(): MetadataRoute.Sitemap {
+/**
+ * Only published pages in reviewed locales, each with its hreflang alternates.
+ * The blog joins once it has articles; each article is listed in its own
+ * locale (translations are separate articles with their own slugs).
+ */
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   if (!allowIndexing) return [];
-  return publishedPaths.flatMap((path) =>
+
+  const pages = publishedPaths.flatMap((path) =>
     indexableLocales.map((locale) => ({
       url: `${siteOrigin}${localizePath(locale, path)}`,
-      changeFrequency: path === "/" ? "weekly" : "monthly",
+      changeFrequency: path === "/" ? ("weekly" as const) : ("monthly" as const),
       priority: path === "/" ? 1 : 0.7,
       alternates: {
         languages: Object.fromEntries(
@@ -18,4 +24,29 @@ export default function sitemap(): MetadataRoute.Sitemap {
       },
     })),
   );
+
+  const blog = await Promise.all(
+    indexableLocales.map(async (locale) => {
+      const [latest, slugs] = await Promise.all([
+        getArticles({ locale, perPage: 1 }),
+        getPublishedSlugs(locale),
+      ]);
+      if (!latest.ok || latest.data.total === 0) return [];
+      return [
+        {
+          url: `${siteOrigin}${localizePath(locale, routes.blog)}`,
+          changeFrequency: "weekly" as const,
+          priority: 0.6,
+          lastModified: latest.data.items[0]?.published_at,
+        },
+        ...slugs.map((slug) => ({
+          url: `${siteOrigin}${localizePath(locale, `${routes.blog}/${slug}`)}`,
+          changeFrequency: "monthly" as const,
+          priority: 0.5,
+        })),
+      ];
+    }),
+  );
+
+  return [...pages, ...blog.flat()];
 }

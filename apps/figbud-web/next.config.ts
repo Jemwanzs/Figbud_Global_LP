@@ -21,7 +21,8 @@ const csp = [
   "default-src 'self'",
   `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`,
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob:",
+  // Article cover and body images may come from any HTTPS host chosen by editors.
+  "img-src 'self' data: blob: https:",
   "font-src 'self'",
   `connect-src 'self' ${apiOrigin}${isDev ? " ws: wss:" : ""}`,
   "frame-ancestors 'none'",

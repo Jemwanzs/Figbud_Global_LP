@@ -37,7 +37,7 @@ Marketing infrastructure is **isolated from operational products**: the API and 
 | `packages/brand`            | Design tokens (`tokens.css`) and the product registry                   |
 | `packages/ui`               | Shared React components: logo, buttons, container, badges, theme, motion |
 | `packages/i18n`             | Locale registry, path helpers, hreflang, negotiation, dictionary merge   |
-| `services/api`              | Rust API: enquiries, email outbox, health; later CMS and admin          |
+| `services/api`              | Rust API: enquiries, email outbox, health, CMS reads; later admin       |
 | `infra`                     | Docker Compose for local PostgreSQL                                     |
 | `scripts`                   | Workspace utilities                                                     |
 | `docs`                      | Roadmap and architecture                                                |
@@ -63,6 +63,11 @@ Shared packages ship TypeScript source and are compiled by each app (`transpileP
 | `GET /health`        | Liveness (no dependencies)                                              |
 | `GET /health/ready`  | Readiness: database reachable; reports email mode                       |
 | `POST /v1/enquiries` | Create an enquiry. Requires `Idempotency-Key: <uuid>` header            |
+| `GET /v1/articles`   | Published articles: `locale`, `category`, `tag`, `q` (full-text), `page`, `per_page` (≤ 50) |
+| `GET /v1/articles/{slug}` | One published article: sanitised `body_html`, headings, SEO fields, related |
+| `GET /v1/categories` / `GET /v1/tags` | Topics with published-article counts (tags: in use only) |
+
+CMS reads return only articles with `status = 'published'` whose `published_at` has passed (a future time schedules publication); drafts, reviews and archived articles are never served. They are cacheable for 60 s (`stale-while-revalidate=300`); every other response is `no-store`. Article Markdown is rendered in Rust with raw HTML escaped and only `https`/`http`/`mailto`/relative links and `https` images kept, so the website embeds the result without handling untrusted markup.
 
 **Request lifecycle** for `POST /v1/enquiries`:
 
@@ -79,6 +84,7 @@ Shared packages ship TypeScript source and are compiled by each app (`transpileP
 
 - `enquiries` — reference (`FBG-YYMM-XXXXXX`), idempotency key, kind, product, contact fields, locale, source path, user agent, IP hash, spam flag, workflow status (`new → contacted → qualified → closed`), timestamps.
 - `email_outbox` — rendered subject/HTML/text, recipients, status (`pending | sending | retry | sent | failed | skipped`), attempts, next attempt, last error, provider message id.
+- `cms_articles` — localised (`locale`, `slug` unique together), title, excerpt, Markdown body, cover image, SEO fields, author, category, status (`draft → in_review → published`, or `archived`), `published_at`, approval (`approved_by`, `approved_at`; required by a database constraint before publishing), version, generated full-text `search` vector. Related: `cms_authors`, `cms_categories`, `cms_tags`, `cms_article_tags`, `cms_article_versions` (revision history).
 
 Migrations live in `services/api/migrations` and run automatically at API start-up.
 

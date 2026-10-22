@@ -12,3 +12,8 @@ export function fillNodes(template: string, values: Record<string, ReactNode>): 
     return <Fragment key={i}>{key && key in values ? values[key] : part}</Fragment>;
   });
 }
+
+/** A long, localised calendar date. UTC, so server and client always agree. */
+export function formatDate(iso: string, languageTag: string): string {
+  return new Intl.DateTimeFormat(languageTag, { dateStyle: "long", timeZone: "UTC" }).format(new Date(iso));
+}
