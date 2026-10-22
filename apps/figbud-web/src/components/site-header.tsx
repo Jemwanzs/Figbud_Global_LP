@@ -236,12 +236,16 @@ function LanguageSwitcher({
         type="button"
         aria-expanded={open}
         aria-controls={listId}
-        aria-label={`${common.language.label}: ${localeInfo[locale].label}`}
         onClick={() => setOpen((v) => !v)}
         className="inline-flex min-h-11 items-center gap-1.5 rounded-full px-3 text-sm text-muted transition-colors hover:bg-surface-2 hover:text-text"
       >
         <Globe aria-hidden className="size-[18px]" />
+        {/* Visible code first so the accessible name contains it (WCAG 2.5.3). */}
         <span>{localeInfo[locale].short}</span>
+        <span className="sr-only">
+          {" "}
+          — {common.language.label}: {localeInfo[locale].label}
+        </span>
         <ChevronDown aria-hidden className={cn("size-3.5 transition-transform", open && "rotate-180")} />
       </button>
       <div id={listId} hidden={!open} className="absolute end-0 top-full z-10 w-56 pt-2">

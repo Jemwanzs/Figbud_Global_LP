@@ -23,10 +23,14 @@ test.describe("homepage", () => {
   test("platform tabs support keyboard navigation", async ({ page }) => {
     await page.goto("/en#platforms");
     const zira = page.getByRole("tab", { name: /ZiraHR/ });
-    await zira.focus();
-    await page.keyboard.press("ArrowRight");
     const jasiri = page.getByRole("tab", { name: /Jasiri LMS/ });
-    await expect(jasiri).toHaveAttribute("aria-selected", "true");
+    // Keyboard handlers attach on hydration, which WebKit reaches later; retry until React responds.
+    await expect(async () => {
+      await zira.click();
+      await zira.focus();
+      await page.keyboard.press("ArrowRight");
+      await expect(jasiri).toHaveAttribute("aria-selected", "true", { timeout: 1_000 });
+    }).toPass();
     await expect(jasiri).toBeFocused();
     await page.keyboard.press("End");
     await expect(page.getByRole("tab", { name: /Expense Now/ })).toHaveAttribute("aria-selected", "true");
@@ -109,4 +113,17 @@ test.describe("contact form", () => {
     expect(keys).toHaveLength(1);
     expect(keys[0]).toMatch(/^[0-9a-f-]{36}$/);
   });
+});
+
+test.describe("narrow screens", () => {
+  test.use({ viewport: { width: 360, height: 780 } });
+
+  for (const route of ["/en", "/en/products", "/en/contact", "/ar", "/zh"]) {
+    test(`${route} has no horizontal scroll at 360 px`, async ({ page }) => {
+      await page.goto(route);
+      await expect(page.locator("main")).toBeVisible();
+      const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+      expect(overflow).toBeLessThanOrEqual(0);
+    });
+  }
 });

@@ -7,6 +7,9 @@ const monorepoRoot = path.join(process.cwd(), "..", "..");
 
 const isDev = process.env.NODE_ENV !== "production";
 const apiOrigin = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080").replace(/\/$/, "");
+// Only upgrade subresources when the site is served over HTTPS: WebKit applies
+// `upgrade-insecure-requests` to localhost too, which breaks plain-HTTP builds.
+const servesHttps = (process.env.NEXT_PUBLIC_SITE_URL ?? "").startsWith("https://");
 
 /**
  * Content Security Policy. Next.js streams its RSC payload through inline
@@ -25,7 +28,7 @@ const csp = [
   "form-action 'self'",
   "base-uri 'self'",
   "object-src 'none'",
-  ...(isDev ? [] : ["upgrade-insecure-requests"]),
+  ...(servesHttps ? ["upgrade-insecure-requests"] : []),
 ].join("; ");
 
 const securityHeaders = [

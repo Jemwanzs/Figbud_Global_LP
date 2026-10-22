@@ -96,9 +96,11 @@ export default async function LocaleLayout({ children, params }: LayoutProps<"/[
         <MotionProvider>
           <SiteHeader locale={locale} common={dict.common} products={dict.products} />
           {info.status === "draft" && (
-            <p className="border-b border-line bg-surface px-5 py-2.5 text-center text-sm text-muted">
-              {dict.common.draftNotice}
-            </p>
+            <section aria-labelledby="draft-notice" className="border-b border-line bg-surface">
+              <p id="draft-notice" className="px-5 py-2.5 text-center text-sm text-muted">
+                {dict.common.draftNotice}
+              </p>
+            </section>
           )}
           <main id="main" tabIndex={-1} className="outline-none">
             {children}

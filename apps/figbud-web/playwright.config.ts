@@ -19,6 +19,11 @@ export default defineConfig({
   projects: [
     { name: "desktop", use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 } } },
     { name: "mobile", use: { ...devices["Pixel 7"] } },
+    // Cross-browser engines: Gecko and WebKit (Safari / iOS). Samsung Internet
+    // is Chromium-based, so the Pixel project covers its engine.
+    { name: "firefox", use: { ...devices["Desktop Firefox"], viewport: { width: 1440, height: 900 } } },
+    { name: "webkit", use: { ...devices["Desktop Safari"], viewport: { width: 1440, height: 900 } } },
+    { name: "iphone", use: { ...devices["iPhone 15"] } },
   ],
   webServer: {
     command: `npx next start --port ${PORT}`,
