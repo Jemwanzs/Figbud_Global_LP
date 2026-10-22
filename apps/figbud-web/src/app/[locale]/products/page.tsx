@@ -1,8 +1,9 @@
-import { publicProducts } from "@figbud/brand";
-import { localizePath } from "@figbud/i18n";
-import { Container, Reveal, StatusBadge, buttonClasses } from "@figbud/ui";
+import { type ProductSlug, getProduct, publicProducts } from "@figbud/brand";
+import { type Locale, localizePath } from "@figbud/i18n";
+import { Container, Eyebrow, Reveal, StatusBadge, buttonClasses } from "@figbud/ui";
 import { ArrowRight, ArrowUpRight, Check } from "lucide-react";
 import type { Metadata } from "next";
+import type { ReactNode } from "react";
 import Link from "next/link";
 
 import { Breadcrumbs } from "@/components/breadcrumbs";
@@ -21,6 +22,7 @@ export async function generateMetadata({ params }: PageProps<"/[locale]/products
 export default async function ProductsPage({ params }: PageProps<"/[locale]/products">) {
   const { locale, dict } = await resolvePage(params);
   const { common } = dict;
+  const page = dict.pages.products;
 
   return (
     <>
@@ -45,7 +47,7 @@ export default async function ProductsPage({ params }: PageProps<"/[locale]/prod
             const copy = dict.products[product.slug];
             const link = productLink(product.slug, locale);
             const comingSoon = product.status === "coming_soon";
-            const enquiry = `${localizePath(locale, routes.contact)}?kind=${comingSoon ? "waitlist" : "demo_request"}&product=${product.slug}`;
+            const enquiry = enquiryHref(locale, product.slug);
             return (
               <li key={product.slug} id={product.slug} data-product={product.slug} className="scroll-mt-28">
                 <Reveal
@@ -115,6 +117,150 @@ export default async function ProductsPage({ params }: PageProps<"/[locale]/prod
           })}
         </ul>
       </Container>
+
+      <Container size="wide" className="pb-16 sm:pb-20 lg:pb-24">
+        <Reveal>
+          <h2 className="font-display text-title font-semibold text-text">{page.compare.title}</h2>
+          <p className="mt-3 max-w-2xl text-muted">{page.compare.lead}</p>
+          {/* Phones: one card per product. Wider screens: a side-by-side table. */}
+          <ul className="mt-8 space-y-4 md:hidden">
+            {publicProducts.map((product) => {
+              const copy = dict.products[product.slug];
+              const comingSoon = product.status === "coming_soon";
+              return (
+                <li
+                  key={product.slug}
+                  data-product={product.slug}
+                  className="rounded-[var(--radius-panel)] border border-line bg-surface p-5"
+                >
+                  <div className="flex items-center gap-3">
+                    <ProductGlyph slug={product.slug} size="sm" />
+                    <h3 className="font-semibold text-text">{product.name}</h3>
+                    <StatusBadge
+                      status={product.status}
+                      label={common.status[product.status]}
+                      className="ms-auto"
+                    />
+                  </div>
+                  <dl className="mt-4 space-y-3 text-sm">
+                    <div>
+                      <dt className="text-subtle">{page.compare.rows.category}</dt>
+                      <dd className="mt-0.5 text-text">{copy.category}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-subtle">{page.compare.rows.summary}</dt>
+                      <dd className="mt-0.5 leading-relaxed text-muted">{copy.summary}</dd>
+                    </div>
+                  </dl>
+                  <Link
+                    href={enquiryHref(locale, product.slug)}
+                    className="mt-2 inline-flex min-h-11 items-center gap-1.5 text-sm font-medium text-accent hover:underline"
+                  >
+                    {comingSoon ? common.cta.joinWaitlist : common.cta.requestDemo}
+                    <ArrowRight aria-hidden className="size-4 rtl:rotate-180" />
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+          <div
+            className="mt-8 hidden overflow-x-auto rounded-[var(--radius-panel)] border border-line bg-surface md:block"
+            tabIndex={0}
+            role="region"
+            aria-label={page.compare.caption}
+          >
+            <table className="w-full border-collapse text-start text-sm sm:text-[0.95rem]">
+              <caption className="sr-only">{page.compare.caption}</caption>
+              <thead>
+                <tr className="border-b border-line">
+                  <td className="w-40 p-4 sm:p-5" />
+                  {publicProducts.map((product) => (
+                    <th
+                      key={product.slug}
+                      scope="col"
+                      data-product={product.slug}
+                      className="p-4 text-start font-semibold text-text sm:p-5"
+                    >
+                      <span className="flex items-center gap-3">
+                        <ProductGlyph slug={product.slug} size="sm" />
+                        {product.name}
+                      </span>
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                <CompareRow label={page.compare.rows.category}>
+                  {(slug) => dict.products[slug].category}
+                </CompareRow>
+                <CompareRow label={page.compare.rows.summary}>
+                  {(slug) => <span className="text-muted">{dict.products[slug].summary}</span>}
+                </CompareRow>
+                <CompareRow label={page.compare.rows.status}>
+                  {(slug) => {
+                    const status = getProduct(slug).status;
+                    return <StatusBadge status={status} label={common.status[status]} />;
+                  }}
+                </CompareRow>
+                <CompareRow label={page.compare.rows.next}>
+                  {(slug) => {
+                    const comingSoon = getProduct(slug).status === "coming_soon";
+                    return (
+                      <Link
+                        href={enquiryHref(locale, slug)}
+                        className="inline-flex min-h-11 items-center gap-1.5 font-medium text-accent hover:underline"
+                      >
+                        {comingSoon ? common.cta.joinWaitlist : common.cta.requestDemo}
+                        <ArrowRight aria-hidden className="size-4 rtl:rotate-180" />
+                      </Link>
+                    );
+                  }}
+                </CompareRow>
+              </tbody>
+            </table>
+          </div>
+        </Reveal>
+
+        <Reveal className="mt-12 rounded-[var(--radius-panel)] border border-dashed border-line-strong p-6 sm:mt-16 sm:p-10 lg:p-12">
+          <div className="grid gap-8 lg:grid-cols-12 lg:items-center">
+            <div className="lg:col-span-8">
+              <Eyebrow>{page.future.eyebrow}</Eyebrow>
+              <h2 className="mt-4 font-display text-title font-semibold text-text">{page.future.title}</h2>
+              <p className="mt-4 max-w-2xl leading-relaxed text-muted">{page.future.body}</p>
+            </div>
+            <div className="lg:col-span-4 lg:text-end">
+              <Link
+                href={`${localizePath(locale, routes.contact)}?kind=partnership`}
+                className={buttonClasses("secondary", "lg")}
+              >
+                {page.future.cta}
+                <ArrowRight aria-hidden className="size-4 rtl:rotate-180" />
+              </Link>
+            </div>
+          </div>
+        </Reveal>
+      </Container>
     </>
+  );
+}
+
+/** The pre-filled enquiry form: a waitlist for coming-soon products, otherwise a demo request. */
+function enquiryHref(locale: Locale, slug: ProductSlug): string {
+  const kind = getProduct(slug).status === "coming_soon" ? "waitlist" : "demo_request";
+  return `${localizePath(locale, routes.contact)}?kind=${kind}&product=${slug}`;
+}
+
+function CompareRow({ label, children }: { label: string; children: (slug: ProductSlug) => ReactNode }) {
+  return (
+    <tr className="border-b border-line last:border-b-0">
+      <th scope="row" className="p-4 text-start align-top font-medium text-subtle sm:p-5">
+        {label}
+      </th>
+      {publicProducts.map((product) => (
+        <td key={product.slug} data-product={product.slug} className="p-4 align-top text-text sm:p-5">
+          {children(product.slug)}
+        </td>
+      ))}
+    </tr>
   );
 }

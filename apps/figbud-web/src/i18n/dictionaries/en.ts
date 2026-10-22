@@ -265,6 +265,18 @@ const en = {
       title: "Products",
       description: "Explore the FigBud ecosystem: ZiraHR, Jasiri LMS and Expense Now.",
       lead: "Configurable enterprise platforms for people, lending and spend. Each product has its own dedicated website.",
+      compare: {
+        title: "The ecosystem at a glance",
+        lead: "Three platforms, one design philosophy: configurable, reliable and ready to scale.",
+        caption: "Comparison of FigBud products",
+        rows: { category: "Built for", summary: "What it does", status: "Availability", next: "Next step" },
+      },
+      future: {
+        eyebrow: "What's next",
+        title: "More platforms in the making",
+        body: "New FigBud platforms join this page as they launch. If your organisation has an operational problem worth solving, or you would like to partner with us, we would like to hear from you.",
+        cta: "Start a conversation",
+      },
     },
     about: {
       title: "About Us",

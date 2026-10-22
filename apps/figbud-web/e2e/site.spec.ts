@@ -97,6 +97,27 @@ test.describe("navigation", () => {
   });
 });
 
+test.describe("products page", () => {
+  test("comparison links straight to the pre-filled enquiry form", async ({ page, isMobile }) => {
+    await page.goto("/en/products");
+    const compare = isMobile
+      ? page.locator("ul").filter({ has: page.getByRole("heading", { level: 3, name: "Expense Now" }) })
+      : page.getByRole("region", { name: "Comparison of FigBud products" });
+    await expect(compare.getByRole("link", { name: "Join the waitlist" })).toHaveAttribute(
+      "href",
+      "/en/contact?kind=waitlist&product=expense_now",
+    );
+    await expect(compare.getByRole("link", { name: "Request a demo" }).first()).toHaveAttribute(
+      "href",
+      "/en/contact?kind=demo_request&product=zirahr",
+    );
+    await expect(page.getByRole("link", { name: "Start a conversation" })).toHaveAttribute(
+      "href",
+      "/en/contact?kind=partnership",
+    );
+  });
+});
+
 test.describe("contact form", () => {
   test("validates on the client before calling the API", async ({ page }) => {
     let called = false;
