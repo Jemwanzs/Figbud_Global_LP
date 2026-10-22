@@ -6,17 +6,17 @@ Step-by-step procedure for deploying the FigBud Global website and API to Railwa
 
 ## Services
 
-One Railway project, one environment per stage (`staging`, `production`), three services. Do not create a second project or duplicate services; inspect the existing project first.
+Railway project **FigBud_LP** (`5c4df4db-fd17-4371-9424-df0dde7d32e4`), environment `production`. Do not create a second project or duplicate services; inspect the existing project first.
 
-| Service       | Source                              | Railway config file              | Root / build context | Health check     | Public domain (proposed)        |
-| ------------- | ----------------------------------- | -------------------------------- | -------------------- | ---------------- | ------------------------------- |
-| `figbud-web`  | GitHub `main`                       | `apps/figbud-web/railway.toml`   | repository root      | `/en`            | `figbudglobal.com`              |
-| `figbud-api`  | GitHub `main`                       | `services/api/railway.toml`      | `services/api`       | `/health/ready`  | `api.figbudglobal.com`          |
-| `Postgres`    | Railway PostgreSQL template          | —                                | —                    | managed          | none (private network only)     |
+| Service      | Source                    | Build                                                                                      | Health check    | Domain (temporary, not indexed)                  |
+| ------------ | ------------------------- | ------------------------------------------------------------------------------------------ | --------------- | ------------------------------------------------ |
+| `figbud-web` | GitHub `main`, repo root  | Railpack (set in the dashboard): `npm run build --workspace=figbud-web`, start `npm run start --workspace=figbud-web` | `/en` (120 s)   | `https://figbud-web-production.up.railway.app`   |
+| `figbud-api` | GitHub `main`, root `services/api` | Dockerfile via `services/api/railway.toml`                                        | `/health/ready` | `https://figbud-api-production.up.railway.app`   |
+| `Postgres`   | Railway PostgreSQL        | managed                                                                                    | managed         | none (private network only)                      |
 
-- **figbud-web** must build from the repository root because it imports the shared `packages/*`. In the service settings set *Config file path* to `apps/figbud-web/railway.toml` and leave *Root directory* empty.
-- **figbud-api** sets *Root directory* to `services/api`; its `railway.toml` is picked up automatically.
-- Watch paths in each `railway.toml` keep a frontend change from redeploying the API and vice versa.
+- **figbud-web** builds from the repository root because it imports the shared `packages/*`. It uses the build and start commands configured in the Railway dashboard (kept as found); watch paths are `/apps/figbud-web/**`, `/packages/**`, `/package.json`, `/package-lock.json`. `apps/figbud-web/railway.toml` (Dockerfile build) is an alternative: setting the service's *Config file path* to it would replace the dashboard commands.
+- **figbud-api** sets *Root directory* to `services/api`; its `railway.toml` (Dockerfile, health check, watch path `/services/api/**`) is picked up automatically.
+- The browser calls the API on its public domain (`NEXT_PUBLIC_API_URL`); the API reaches PostgreSQL over Railway's private network (`${{Postgres.DATABASE_URL}}`).
 
 ## Database migrations
 
@@ -38,7 +38,7 @@ Guidelines:
 | `DATABASE_URL`                   | `${{Postgres.DATABASE_URL}}` (reference variable, private network) | **yes** |
 | `IP_HASH_SALT`                   | random 32+ characters (`openssl rand -hex 32`)                     | **yes** |
 | `TRUST_PROXY`                    | `true`                                                             | no     |
-| `CORS_ALLOWED_ORIGINS`           | `https://figbudglobal.com` plus product origins when live          | no     |
+| `CORS_ALLOWED_ORIGINS`           | the web origin (now `https://figbud-web-production.up.railway.app`; later `https://figbudglobal.com` plus product origins) | no     |
 | `EMAIL_MODE`                     | `hold` (default outside development) until Resend is verified, then `resend` | no     |
 | `RESEND_API_KEY`                 | from Resend → API Keys (sending access only)                       | **yes** |
 | `EMAIL_FROM`                     | `FigBud Global <hello@your-verified-domain>`                       | no     |
@@ -55,9 +55,9 @@ Guidelines:
 
 | Variable                       | Value                                                                  |
 | ------------------------------ | ---------------------------------------------------------------------- |
-| `NEXT_PUBLIC_SITE_URL`         | `https://figbudglobal.com`                                             |
-| `NEXT_PUBLIC_API_URL`          | `https://api.figbudglobal.com` (or the API's Railway domain)           |
-| `NEXT_PUBLIC_ALLOW_INDEXING`   | `true` in production only; leave unset in staging                      |
+| `NEXT_PUBLIC_SITE_URL`         | now `https://figbud-web-production.up.railway.app`; later `https://figbudglobal.com` |
+| `NEXT_PUBLIC_API_URL`          | now `https://figbud-api-production.up.railway.app`; later `https://api.figbudglobal.com` |
+| `NEXT_PUBLIC_ALLOW_INDEXING`   | `false` until the production domain is attached; then `true` in production only |
 | `NEXT_PUBLIC_ZIRAHR_URL` etc.  | set when each product website goes live (Phase 4)                     |
 
 ## First deployment checklist
