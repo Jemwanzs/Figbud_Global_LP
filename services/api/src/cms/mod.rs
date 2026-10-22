@@ -3,6 +3,7 @@
 //! returned; drafts, articles in review, scheduled and archived articles stay
 //! invisible. Editing and approval arrive with admin authentication (P5-08).
 
+pub mod editorial;
 pub mod markdown;
 
 use axum::{
@@ -334,7 +335,7 @@ fn cached<T: Serialize>(body: T) -> impl IntoResponse {
     )
 }
 
-fn parse_locale(raw: Option<&str>) -> Result<&'static str, ApiError> {
+pub(crate) fn parse_locale(raw: Option<&str>) -> Result<&'static str, ApiError> {
     match raw {
         None => Ok("en"),
         Some(value) => LOCALES
@@ -345,7 +346,7 @@ fn parse_locale(raw: Option<&str>) -> Result<&'static str, ApiError> {
     }
 }
 
-fn parse_slug(raw: Option<&str>) -> Result<Option<String>, ApiError> {
+pub(crate) fn parse_slug(raw: Option<&str>) -> Result<Option<String>, ApiError> {
     let Some(value) = raw.map(str::trim).filter(|v| !v.is_empty()) else {
         return Ok(None);
     };

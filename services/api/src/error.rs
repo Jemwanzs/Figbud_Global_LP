@@ -25,6 +25,11 @@ pub enum ApiError {
     Unauthorized(&'static str),
     #[error("forbidden")]
     Forbidden,
+    #[error("conflict: {0}")]
+    Conflict(&'static str),
+    /// Forbidden, with a reason the person can act on.
+    #[error("not permitted: {0}")]
+    NotPermitted(&'static str),
     #[error("rate limited")]
     RateLimited { retry_after_secs: u64 },
     #[error("database error: {0}")]
@@ -58,6 +63,8 @@ impl IntoResponse for ApiError {
             ApiError::BadRequest(message) => (StatusCode::BAD_REQUEST, "bad_request", *message, None),
             ApiError::NotFound => (StatusCode::NOT_FOUND, "not_found", "Not found.", None),
             ApiError::Unauthorized(message) => (StatusCode::UNAUTHORIZED, "unauthorized", *message, None),
+            ApiError::Conflict(message) => (StatusCode::CONFLICT, "conflict", *message, None),
+            ApiError::NotPermitted(message) => (StatusCode::FORBIDDEN, "forbidden", *message, None),
             ApiError::Forbidden => (
                 StatusCode::FORBIDDEN,
                 "forbidden",

@@ -70,6 +70,12 @@ Shared packages ship TypeScript source and are compiled by each app (`transpileP
 | `POST /v1/admin/login/{start,finish}` | Sign in with a passkey (email, then WebAuthn assertion) |
 | `POST /v1/admin/logout` · `GET /v1/admin/me` | End the session · current admin |
 | `POST /v1/admin/invites` · `GET /v1/admin/audit` | Owner only: invite an admin · latest audit entries |
+| `GET/POST /v1/admin/cms/articles[/{id}]` | Editorial: list/read all articles (viewer+), create/save drafts (editor+; `version` required, stale saves get `409`) |
+| `POST /v1/admin/cms/articles/{id}/{submit,publish,archive,restore}` | Workflow: submit (editor+), publish now or at a future `published_at` / archive / restore (reviewer+) |
+| `GET /v1/admin/cms/articles/{id}/versions` · `GET /v1/admin/cms/taxonomy` · `POST /v1/admin/cms/preview` | History · topics, authors, tags · sanitised preview |
+| `POST /v1/admin/cms/categories` · `POST /v1/admin/cms/authors` | New topic (reviewer+) · new byline (owner) |
+
+**Editorial rules:** draft → in_review → published → archived (restore returns a draft). Published and archived articles are edited only by reviewers or owners. Maker-checker: a reviewer cannot publish an article they edited last; owners can (audited as `self_approved`). Every save writes a version; every action writes the audit log. The editorial routes accept bodies up to 512 KB; all other routes stay at 16 KB.
 
 **Admin security:** passkeys only (`webauthn-rs`), ceremony state kept server-side and single-use (5 minutes). Sessions are random 256-bit tokens stored as SHA-256 hashes, sent as an `HttpOnly`, `SameSite=Strict` cookie (`__Host-` prefixed over HTTPS), expiring after `ADMIN_SESSION_HOURS`. Every state-changing admin request must carry `Origin: ADMIN_ORIGIN`. Roles are ordered owner > reviewer > editor > viewer. Sign-ins, failures, invites and new passkeys are written to `audit_log`; admin endpoints are rate limited per IP and return 404 when admin is disabled.
 

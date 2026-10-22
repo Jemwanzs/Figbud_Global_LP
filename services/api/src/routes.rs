@@ -74,8 +74,10 @@ pub fn router(state: SharedState) -> Router {
         .route("/v1/enquiries", post(create_enquiry))
         .merge(cms::router())
         .merge(admin::router())
-        .with_state(state)
         .layer(RequestBodyLimitLayer::new(16 * 1024))
+        // Articles are larger than any form; the editorial API gets its own limit.
+        .merge(cms::editorial::router().layer(RequestBodyLimitLayer::new(512 * 1024)))
+        .with_state(state)
         .layer(cors)
         .layer(CompressionLayer::new())
         .layer(TimeoutLayer::with_status_code(
