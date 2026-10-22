@@ -1,9 +1,9 @@
 use std::{net::SocketAddr, sync::Arc};
 
 use figbud_api::{
+    admin,
     config::{AppEnv, Config},
     email::{self, outbox},
-    rate_limit::RateLimiter,
     routes::{self, AppState},
 };
 use sqlx::postgres::PgPoolOptions;
@@ -24,6 +24,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     sqlx::migrate!("./migrations").run(&pool).await?;
     tracing::info!("database migrations applied");
 
+    // `figbud-api admin invite --email <email> --role <role>`: bootstrap the
+    // first owner (or any admin) without a running UI. Prints the link once.
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    if args.first().map(String::as_str) == Some("admin") {
+        return admin_command(&pool, &config, &args[1..]).await;
+    }
+
     let (shutdown_tx, shutdown_rx) = watch::channel(false);
     let worker = match email::build_sender(&config.email) {
         Some(sender) => Some(tokio::spawn(outbox::run_worker(
@@ -41,11 +48,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     let bind_addr = config.bind_addr;
-    let state = Arc::new(AppState {
-        enquiry_limiter: RateLimiter::new(config.enquiry_rate_limit, config.enquiry_rate_window),
-        config,
-        pool,
-    });
+    let state = Arc::new(AppState::new(config, pool)?);
 
     let listener = tokio::net::TcpListener::bind(bind_addr).await?;
     tracing::info!(%bind_addr, "figbud-api listening");
@@ -61,6 +64,45 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let _ = worker.await;
     }
     Ok(())
+}
+
+async fn admin_command(
+    pool: &sqlx::PgPool,
+    config: &Config,
+    args: &[String],
+) -> Result<(), Box<dyn std::error::Error>> {
+    const USAGE: &str =
+        "usage: figbud-api admin invite --email <email> --role <owner|reviewer|editor|viewer>";
+    let admin_config = config
+        .admin
+        .as_ref()
+        .ok_or("admin is disabled: set ADMIN_ORIGIN")?;
+    let flag = |name: &str| {
+        args.iter()
+            .position(|a| a == name)
+            .and_then(|i| args.get(i + 1))
+            .cloned()
+    };
+    match args.first().map(String::as_str) {
+        Some("invite") => {
+            let email = flag("--email").ok_or(USAGE)?;
+            let role = flag("--role")
+                .as_deref()
+                .and_then(admin::Role::parse)
+                .ok_or(USAGE)?;
+            if !figbud_api::enquiry::is_valid_email(&email) {
+                return Err("invalid email address".into());
+            }
+            let (url, expires_at) = admin::create_invite(pool, admin_config, &email, role, None).await?;
+            println!(
+                "Invite for {email} ({}) — valid until {expires_at}:
+{url}",
+                role.as_str()
+            );
+            Ok(())
+        }
+        _ => Err(USAGE.into()),
+    }
 }
 
 fn init_tracing(env: AppEnv) {

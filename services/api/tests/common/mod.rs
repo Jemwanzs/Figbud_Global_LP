@@ -6,7 +6,6 @@ use std::{net::SocketAddr, sync::Arc, time::Duration};
 use axum::{Router, extract::connect_info::MockConnectInfo};
 use figbud_api::{
     config::{AppEnv, Config, EmailConfig, EmailMode},
-    rate_limit::RateLimiter,
     routes::{AppState, router},
 };
 use http_body_util::BodyExt;
@@ -25,6 +24,11 @@ pub fn config(database_url: &str) -> Config {
         enquiry_rate_limit: 100,
         enquiry_rate_window: Duration::from_secs(60),
         min_form_fill: Duration::from_millis(2500),
+        admin: Some(figbud_api::config::AdminConfig {
+            origin: "http://localhost:3000".parse().unwrap(),
+            rp_id: "localhost".into(),
+            session_ttl: Duration::from_secs(3600),
+        }),
         email: EmailConfig {
             mode: EmailMode::Log,
             from: "FigBud <no-reply@localhost>".into(),
@@ -41,11 +45,7 @@ pub fn config(database_url: &str) -> Config {
 }
 
 pub fn app_with(pool: sqlx::PgPool, config: Config) -> Router {
-    let state = Arc::new(AppState {
-        enquiry_limiter: RateLimiter::new(config.enquiry_rate_limit, config.enquiry_rate_window),
-        config,
-        pool,
-    });
+    let state = Arc::new(AppState::new(config, pool).unwrap());
     router(state).layer(MockConnectInfo(SocketAddr::from(([203, 0, 113, 9], 4000))))
 }
 

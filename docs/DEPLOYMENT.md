@@ -46,6 +46,8 @@ Guidelines:
 | `EMAIL_TEAM_RECIPIENTS`          | CTO / team addresses, comma-separated                              | treat as private |
 | `EMAIL_RECIPIENTS_ZIRAHR` / `_JASIRI` / `_EXPENSE_NOW` / `_PARTNERSHIPS` | optional extra routing         | treat as private |
 | `RUST_LOG`                       | `figbud_api=info,tower_http=info,sqlx=warn`                        | no     |
+| `ADMIN_ORIGIN`                   | the web origin serving `/admin` (now `https://figbud-web-production.up.railway.app`; later `https://figbudglobal.com`). Unset = admin disabled | no |
+| `ADMIN_SESSION_HOURS`            | optional, default `12`                                             | no     |
 
 `PORT` is injected by Railway; the API binds to it.
 
@@ -105,6 +107,18 @@ What each enquiry sends:
 | `partnership`       | team + partnership routing                | "Your partnership enquiry"         |
 
 Undelivered emails retry automatically (30 s doubling to 1 h, six attempts) and never send twice. Submissions flagged as automated are stored but never emailed.
+
+## Admin access (passkeys)
+
+Admins sign in with passkeys; there are no passwords. The first owner is invited from the command line, once:
+
+```bash
+railway ssh --service figbud-api -- figbud-api admin invite --email you@example.com --role owner
+```
+
+The command prints a single-use link (valid 7 days) to `ADMIN_ORIGIN/admin/invite`. Opening it registers a passkey on that device and signs in. Owners invite everyone else from the admin UI; a new invite for an existing admin adds a passkey (new device or recovery).
+
+Passkeys are bound to `ADMIN_ORIGIN`: when the production domain replaces the Railway domain, admins register a passkey on the new origin through a fresh invite.
 
 ## Rollback
 

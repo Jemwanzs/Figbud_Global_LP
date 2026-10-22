@@ -8,7 +8,6 @@ use axum::{
     routing::{get, post},
 };
 use serde::Serialize;
-use sha2::{Digest, Sha256};
 use tower_http::{
     compression::CompressionLayer,
     cors::{AllowOrigin, CorsLayer},
@@ -21,18 +20,35 @@ use tower_http::{
 use uuid::Uuid;
 
 use crate::{
-    cms,
+    admin, cms,
     config::{Config, EmailMode},
     email::{self, outbox, templates},
     enquiry::{EnquiryInput, new_reference},
     error::ApiError,
-    rate_limit::{RateLimiter, client_ip},
+    rate_limit::{RateLimiter, client_ip, ip_hash},
 };
 
 pub struct AppState {
     pub config: Config,
     pub pool: sqlx::PgPool,
     pub enquiry_limiter: RateLimiter,
+    /// Admin sign-in attempts per IP (passkey ceremonies, invites).
+    pub auth_limiter: RateLimiter,
+    /// WebAuthn relying party; `None` when admin is disabled.
+    pub webauthn: Option<webauthn_rs::Webauthn>,
+}
+
+impl AppState {
+    pub fn new(config: Config, pool: sqlx::PgPool) -> Result<Self, String> {
+        let webauthn = config.admin.as_ref().map(admin::relying_party).transpose()?;
+        Ok(Self {
+            enquiry_limiter: RateLimiter::new(config.enquiry_rate_limit, config.enquiry_rate_window),
+            auth_limiter: RateLimiter::new(20, Duration::from_secs(600)),
+            webauthn,
+            config,
+            pool,
+        })
+    }
 }
 
 pub type SharedState = Arc<AppState>;
@@ -57,6 +73,7 @@ pub fn router(state: SharedState) -> Router {
         .route("/health/ready", get(ready))
         .route("/v1/enquiries", post(create_enquiry))
         .merge(cms::router())
+        .merge(admin::router())
         .with_state(state)
         .layer(RequestBodyLimitLayer::new(16 * 1024))
         .layer(cors)
@@ -178,7 +195,7 @@ async fn create_enquiry(
         .get(header::USER_AGENT)
         .and_then(|v| v.to_str().ok())
         .map(|ua| ua.chars().take(400).collect::<String>());
-    let ip_hash = hex::encode(Sha256::digest(format!("{}:{ip}", state.config.ip_hash_salt)));
+    let ip_hash = ip_hash(&state.config.ip_hash_salt, ip);
 
     let mut tx = state.pool.begin().await?;
     let inserted = sqlx::query(

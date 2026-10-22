@@ -21,6 +21,10 @@ pub enum ApiError {
     BadRequest(&'static str),
     #[error("not found")]
     NotFound,
+    #[error("unauthorized: {0}")]
+    Unauthorized(&'static str),
+    #[error("forbidden")]
+    Forbidden,
     #[error("rate limited")]
     RateLimited { retry_after_secs: u64 },
     #[error("database error: {0}")]
@@ -53,6 +57,13 @@ impl IntoResponse for ApiError {
             ),
             ApiError::BadRequest(message) => (StatusCode::BAD_REQUEST, "bad_request", *message, None),
             ApiError::NotFound => (StatusCode::NOT_FOUND, "not_found", "Not found.", None),
+            ApiError::Unauthorized(message) => (StatusCode::UNAUTHORIZED, "unauthorized", *message, None),
+            ApiError::Forbidden => (
+                StatusCode::FORBIDDEN,
+                "forbidden",
+                "You don't have permission to do that.",
+                None,
+            ),
             ApiError::RateLimited { .. } => (
                 StatusCode::TOO_MANY_REQUESTS,
                 "rate_limited",
@@ -91,10 +102,10 @@ impl IntoResponse for ApiError {
         )
             .into_response();
 
-        if let ApiError::RateLimited { retry_after_secs } = self {
-            if let Ok(value) = HeaderValue::from_str(&retry_after_secs.to_string()) {
-                response.headers_mut().insert(header::RETRY_AFTER, value);
-            }
+        if let ApiError::RateLimited { retry_after_secs } = self
+            && let Ok(value) = HeaderValue::from_str(&retry_after_secs.to_string())
+        {
+            response.headers_mut().insert(header::RETRY_AFTER, value);
         }
         response
     }

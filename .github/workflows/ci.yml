@@ -85,6 +85,8 @@ jobs:
         working-directory: services/api
     steps:
       - uses: actions/checkout@v4
+      # webauthn-rs links OpenSSL; installed explicitly so runner image changes cannot break it.
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libssl-dev pkg-config
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy

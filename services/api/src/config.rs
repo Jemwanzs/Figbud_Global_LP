@@ -56,6 +56,17 @@ pub struct EmailConfig {
     pub worker_interval: Duration,
 }
 
+/// Admin sign-in (passkeys). Present only when an admin origin is configured.
+#[derive(Debug, Clone)]
+pub struct AdminConfig {
+    /// The origin the admin UI is served from, e.g. `https://figbudglobal.com`.
+    /// Passkeys are bound to it, and state-changing requests must come from it.
+    pub origin: url::Url,
+    /// WebAuthn relying-party id: the origin's host unless overridden.
+    pub rp_id: String,
+    pub session_ttl: Duration,
+}
+
 #[derive(Debug, Clone)]
 pub struct Config {
     pub app_env: AppEnv,
@@ -70,6 +81,8 @@ pub struct Config {
     pub enquiry_rate_window: Duration,
     /// Submissions completed faster than this are treated as automated.
     pub min_form_fill: Duration,
+    /// `None` disables every admin endpoint.
+    pub admin: Option<AdminConfig>,
     pub email: EmailConfig,
 }
 
@@ -120,8 +133,16 @@ impl Config {
             None => "FigBud Global <no-reply@localhost>".into(),
         };
 
+        let admin = parse_admin(
+            app_env,
+            optional("ADMIN_ORIGIN").as_deref(),
+            optional("ADMIN_RP_ID"),
+            parse_or("ADMIN_SESSION_HOURS", 12)?,
+        )?;
+
         Ok(Self {
             app_env,
+            admin,
             bind_addr,
             database_url: optional("DATABASE_URL").ok_or(ConfigError::Missing("DATABASE_URL"))?,
             database_max_connections: parse_or("DATABASE_MAX_CONNECTIONS", 10)?,
@@ -178,6 +199,44 @@ where
     }
 }
 
+/// Admin is on when `ADMIN_ORIGIN` is set, and by default in development
+/// (`http://localhost:3000`). Production requires an `https` origin.
+fn parse_admin(
+    app_env: AppEnv,
+    origin: Option<&str>,
+    rp_id: Option<String>,
+    session_hours: u64,
+) -> Result<Option<AdminConfig>, ConfigError> {
+    let origin = match (origin, app_env) {
+        (Some(raw), _) => raw,
+        (None, AppEnv::Development) => "http://localhost:3000",
+        (None, _) => return Ok(None),
+    };
+    let invalid = |reason: &str| ConfigError::Invalid {
+        name: "ADMIN_ORIGIN",
+        reason: reason.into(),
+    };
+    let url = url::Url::parse(origin).map_err(|_| invalid("not a valid URL"))?;
+    if url.path() != "/" || url.query().is_some() {
+        return Err(invalid("must be an origin without a path"));
+    }
+    if app_env.is_production() && url.scheme() != "https" {
+        return Err(invalid("must use https in production"));
+    }
+    let host = url.host_str().ok_or_else(|| invalid("has no host"))?.to_owned();
+    if !(1..=720).contains(&session_hours) {
+        return Err(ConfigError::Invalid {
+            name: "ADMIN_SESSION_HOURS",
+            reason: "expected 1..=720".into(),
+        });
+    }
+    Ok(Some(AdminConfig {
+        origin: url,
+        rp_id: rp_id.unwrap_or(host),
+        session_ttl: Duration::from_secs(session_hours * 3600),
+    }))
+}
+
 /// Resolves `EMAIL_MODE`. Unset means `log` in development and `hold`
 /// elsewhere; `log` is refused in production because it would record
 /// simulated messages instead of keeping them for real delivery.
@@ -207,6 +266,27 @@ fn parse_email_mode(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn admin_defaults_to_localhost_only_in_development() {
+        let dev = parse_admin(AppEnv::Development, None, None, 12).unwrap().unwrap();
+        assert_eq!(
+            (dev.origin.as_str(), dev.rp_id.as_str()),
+            ("http://localhost:3000/", "localhost")
+        );
+        assert!(parse_admin(AppEnv::Production, None, None, 12).unwrap().is_none());
+    }
+
+    #[test]
+    fn admin_origin_is_validated() {
+        let prod = parse_admin(AppEnv::Production, Some("https://figbudglobal.com"), None, 12)
+            .unwrap()
+            .unwrap();
+        assert_eq!(prod.rp_id, "figbudglobal.com");
+        assert!(parse_admin(AppEnv::Production, Some("http://figbudglobal.com"), None, 12).is_err());
+        assert!(parse_admin(AppEnv::Production, Some("https://x.com/admin"), None, 12).is_err());
+        assert!(parse_admin(AppEnv::Production, Some("https://x.com"), None, 0).is_err());
+    }
 
     #[test]
     fn email_mode_defaults_to_log_only_in_development() {

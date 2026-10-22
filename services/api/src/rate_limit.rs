@@ -65,6 +65,12 @@ impl RateLimiter {
 
 /// Resolves the client address. `X-Forwarded-For` is only honoured when the
 /// API runs behind a trusted proxy, otherwise it is trivially spoofable.
+/// Salted SHA-256 of a client IP: lets abuse be correlated without storing raw IPs.
+pub fn ip_hash(salt: &str, ip: IpAddr) -> String {
+    use sha2::{Digest, Sha256};
+    hex::encode(Sha256::digest(format!("{salt}:{ip}")))
+}
+
 pub fn client_ip(headers: &HeaderMap, peer: SocketAddr, trust_proxy: bool) -> IpAddr {
     if trust_proxy {
         let forwarded = headers

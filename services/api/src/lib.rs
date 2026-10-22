@@ -6,6 +6,7 @@
 //! and tenant systems are deliberately out of scope: this service only ever
 //! holds marketing-site data.
 
+pub mod admin;
 pub mod cms;
 pub mod config;
 pub mod email;

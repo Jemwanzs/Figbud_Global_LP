@@ -19,8 +19,11 @@ Monorepo for the FigBud Global corporate website and its product websites — **
 ## Prerequisites
 
 - Node.js 22+ and npm
-- Rust 1.85+ (`rustup`)
+- Rust 1.88+ (`rustup`) and OpenSSL development files (`libssl-dev` on Debian/Ubuntu)
 - Docker Desktop (for local PostgreSQL)
+
+On Windows without OpenSSL, run any API command in the bundled Rust container instead,
+for example `npm run api:docker -- cargo test` (database tests included).
 
 ## Run it locally
 
@@ -55,6 +58,7 @@ The website also runs without the API — only the contact form needs it. Emails
 | `npm run db:up` / `db:down` | Start / stop local PostgreSQL                                       |
 | `npm run verify`      | Everything above that CI will enforce                                     |
 | `npm run roadmap:page` | Render `docs/ROADMAP.md` to a shareable page (`.artifacts/roadmap.html`) |
+| `npm run api:docker -- <cmd>` | Run an API command (e.g. `cargo test`) in the Rust dev container   |
 
 Database-backed API tests use the separate `figbud_test` database created by Docker Compose:
 

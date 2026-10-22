@@ -66,6 +66,12 @@ Shared packages ship TypeScript source and are compiled by each app (`transpileP
 | `GET /v1/articles`   | Published articles: `locale`, `category`, `tag`, `q` (full-text), `page`, `per_page` (≤ 50) |
 | `GET /v1/articles/{slug}` | One published article: sanitised `body_html`, headings, SEO fields, related |
 | `GET /v1/categories` / `GET /v1/tags` | Topics with published-article counts (tags: in use only) |
+| `POST /v1/admin/invites/accept/{start,finish}` | Accept an invite: register a passkey, create the admin, sign in |
+| `POST /v1/admin/login/{start,finish}` | Sign in with a passkey (email, then WebAuthn assertion) |
+| `POST /v1/admin/logout` · `GET /v1/admin/me` | End the session · current admin |
+| `POST /v1/admin/invites` · `GET /v1/admin/audit` | Owner only: invite an admin · latest audit entries |
+
+**Admin security:** passkeys only (`webauthn-rs`), ceremony state kept server-side and single-use (5 minutes). Sessions are random 256-bit tokens stored as SHA-256 hashes, sent as an `HttpOnly`, `SameSite=Strict` cookie (`__Host-` prefixed over HTTPS), expiring after `ADMIN_SESSION_HOURS`. Every state-changing admin request must carry `Origin: ADMIN_ORIGIN`. Roles are ordered owner > reviewer > editor > viewer. Sign-ins, failures, invites and new passkeys are written to `audit_log`; admin endpoints are rate limited per IP and return 404 when admin is disabled.
 
 CMS reads return only articles with `status = 'published'` whose `published_at` has passed (a future time schedules publication); drafts, reviews and archived articles are never served. They are cacheable for 60 s (`stale-while-revalidate=300`); every other response is `no-store`. Article Markdown is rendered in Rust with raw HTML escaped and only `https`/`http`/`mailto`/relative links and `https` images kept, so the website embeds the result without handling untrusted markup.
 
@@ -85,6 +91,7 @@ CMS reads return only articles with `status = 'published'` whose `published_at` 
 - `enquiries` — reference (`FBG-YYMM-XXXXXX`), idempotency key, kind, product, contact fields, locale, source path, user agent, IP hash, spam flag, workflow status (`new → contacted → qualified → closed`), timestamps.
 - `email_outbox` — rendered subject/HTML/text, recipients, status (`pending | sending | retry | sent | failed | skipped`), attempts, next attempt, last error, provider message id.
 - `cms_articles` — localised (`locale`, `slug` unique together), title, excerpt, Markdown body, cover image, SEO fields, author, category, status (`draft → in_review → published`, or `archived`), `published_at`, approval (`approved_by`, `approved_at`; required by a database constraint before publishing), version, generated full-text `search` vector. Related: `cms_authors`, `cms_categories`, `cms_tags`, `cms_article_tags`, `cms_article_versions` (revision history).
+- `admin_users` (email, name, role, disabled), `admin_passkeys` (credential id, serialised passkey, last used), `admin_invites` and `admin_sessions` (token hashes, expiry, revocation), `admin_challenges` (WebAuthn ceremony state), `audit_log` (actor, action, target, detail, IP hash).
 
 Migrations live in `services/api/migrations` and run automatically at API start-up.
 

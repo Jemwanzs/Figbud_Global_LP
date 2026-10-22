@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.7
 FROM rust:1.96-slim-bookworm AS build
 WORKDIR /app
-RUN apt-get update && apt-get install -y --no-install-recommends cmake clang pkg-config \
+RUN apt-get update && apt-get install -y --no-install-recommends cmake clang pkg-config libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 COPY Cargo.toml Cargo.lock ./
 RUN mkdir src && echo 'fn main() {}' > src/main.rs && touch src/lib.rs \
@@ -11,7 +11,7 @@ COPY migrations ./migrations
 RUN touch src/main.rs src/lib.rs && cargo build --release
 
 FROM debian:bookworm-slim AS runtime
-RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl \
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl libssl3 \
     && rm -rf /var/lib/apt/lists/* \
     && useradd --system --uid 10001 figbud
 COPY --from=build /app/target/release/figbud-api /usr/local/bin/figbud-api
