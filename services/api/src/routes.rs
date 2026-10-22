@@ -106,6 +106,7 @@ async fn ready(State(state): State<SharedState>) -> impl IntoResponse {
     let database_ok = sqlx::query("SELECT 1").execute(&state.pool).await.is_ok();
     let email_mode = match state.config.email.mode {
         EmailMode::Log => "log",
+        EmailMode::Hold => "hold",
         EmailMode::Resend { .. } => "resend",
     };
     let status = if database_ok {
@@ -224,10 +225,9 @@ async fn create_enquiry(
     // Automated submissions are stored for review but never trigger email.
     if !automated {
         let email_config = &state.config.email;
-        let mut team = email::team_recipients(email_config, &enquiry);
-        if team.is_empty() {
-            team.push("team-inbox@localhost.invalid".into());
-        }
+        // Empty while no recipients are configured: the worker resolves them
+        // from the enquiry when it delivers, so held notifications reach the team.
+        let team = email::team_recipients(email_config, &enquiry);
         let notification = templates::team_notification(&enquiry, &reference);
         outbox::enqueue(&mut tx, id, &team, Some(&enquiry.email), &notification).await?;
 

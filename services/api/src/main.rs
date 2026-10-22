@@ -25,13 +25,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing::info!("database migrations applied");
 
     let (shutdown_tx, shutdown_rx) = watch::channel(false);
-    let sender: Arc<dyn email::EmailSender> = Arc::from(email::build_sender(&config.email));
-    let worker = tokio::spawn(outbox::run_worker(
-        pool.clone(),
-        sender,
-        config.email.clone(),
-        shutdown_rx,
-    ));
+    let worker = match email::build_sender(&config.email) {
+        Some(sender) => Some(tokio::spawn(outbox::run_worker(
+            pool.clone(),
+            Arc::from(sender),
+            config.email.clone(),
+            shutdown_rx,
+        ))),
+        None => {
+            tracing::warn!(
+                "email delivery on hold (EMAIL_MODE=hold): messages are stored in the outbox                  and delivered once EMAIL_MODE=resend is configured"
+            );
+            None
+        }
+    };
 
     let bind_addr = config.bind_addr;
     let state = Arc::new(AppState {
@@ -50,7 +57,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     .await?;
 
     let _ = shutdown_tx.send(true);
-    let _ = worker.await;
+    if let Some(worker) = worker {
+        let _ = worker.await;
+    }
     Ok(())
 }
 

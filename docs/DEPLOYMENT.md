@@ -39,7 +39,7 @@ Guidelines:
 | `IP_HASH_SALT`                   | random 32+ characters (`openssl rand -hex 32`)                     | **yes** |
 | `TRUST_PROXY`                    | `true`                                                             | no     |
 | `CORS_ALLOWED_ORIGINS`           | `https://figbudglobal.com` plus product origins when live          | no     |
-| `EMAIL_MODE`                     | `log` until Resend is verified, then `resend`                      | no     |
+| `EMAIL_MODE`                     | `hold` (default outside development) until Resend is verified, then `resend` | no     |
 | `RESEND_API_KEY`                 | from Resend → API Keys (sending access only)                       | **yes** |
 | `EMAIL_FROM`                     | `FigBud Global <hello@your-verified-domain>`                       | no     |
 | `EMAIL_REPLY_TO`                 | optional public reply address                                      | no     |
@@ -64,14 +64,24 @@ Guidelines:
 
 1. Confirm the Railway project ID and inspect existing services and environments; reuse what exists.
 2. Add the PostgreSQL service (if not present) and enable automated backups.
-3. Create `figbud-api` from GitHub, root `services/api`; add variables with `EMAIL_MODE=log`.
+3. Create `figbud-api` from GitHub, root `services/api`; add variables with `EMAIL_MODE=hold`.
 4. Deploy; confirm `GET /health/ready` returns `{"status":"ready","database":"ok"}` and the logs show "database migrations applied".
 5. Generate a domain for the API (or attach `api.<domain>`).
 6. Create `figbud-web` from GitHub with config file path `apps/figbud-web/railway.toml`; set `NEXT_PUBLIC_API_URL` to the API domain.
 7. Add the web origin to the API's `CORS_ALLOWED_ORIGINS`; redeploy the API.
-8. Submit a test enquiry on `/en/contact`; confirm the reference and the simulated emails in the API logs.
-9. Resend go-live (below), then switch `EMAIL_MODE=resend` and repeat step 8.
+8. Submit a test enquiry on `/en/contact`; confirm the reference, and that its emails are stored in `email_outbox` as `pending` (held, not sent).
+9. Resend go-live (below): switching to `EMAIL_MODE=resend` delivers every held message, then repeat step 8.
 10. Attach custom domains, confirm SSL, then set `NEXT_PUBLIC_ALLOW_INDEXING=true` on production only and redeploy the web service.
+
+## Email delivery modes
+
+| `EMAIL_MODE` | Where                         | Behaviour                                                                                         |
+| ------------ | ----------------------------- | ------------------------------------------------------------------------------------------------- |
+| `log`        | development (default there)   | Renders and logs each email; recorded as `skipped`. Refused when `APP_ENV=production`.             |
+| `hold`       | staging/production (default)  | Enquiries and their emails are stored; nothing is sent and the worker does not run.               |
+| `resend`     | production after go-live      | Delivers through Resend. A message is `sent` only after Resend accepts it and returns a message id. |
+
+`GET /health/ready` reports the active mode (`email_mode`). Forms work identically in every mode: the visitor always receives a reference, and the website never claims an email was delivered.
 
 ## Resend go-live
 
@@ -79,7 +89,9 @@ Guidelines:
 2. Create an API key with **sending access** restricted to that domain.
 3. Set `RESEND_API_KEY`, `EMAIL_FROM`, `EMAIL_TEAM_RECIPIENTS` (and any routing variables) on `figbud-api`, then `EMAIL_MODE=resend`.
 4. The API refuses to start in `resend` mode if any of those three are missing, so a misconfiguration fails the deploy instead of silently dropping enquiries.
-5. Submit one enquiry of each type and confirm delivery in the Resend dashboard.
+5. On start-up the worker delivers everything held so far. Team notifications queued before recipients existed are addressed to the routing configured **at delivery time**. Visitor acknowledgements for old enquiries are also sent, so if the hold lasted weeks, consider marking stale acknowledgements `skipped` first:
+   `UPDATE email_outbox SET status = 'skipped' WHERE template = 'visitor_acknowledgement' AND status = 'pending' AND created_at < now() - interval '7 days';`
+6. Submit one enquiry of each type and confirm delivery in the Resend dashboard.
 
 What each enquiry sends:
 
@@ -87,7 +99,7 @@ What each enquiry sends:
 | ------------------- | ----------------------------------------- | ---------------------------------- |
 | `demo_request`      | team + product routing                    | "Your {product} demo request"      |
 | `contact`, `sales`  | team + product routing                    | "We've received your enquiry"      |
-| `early_access`      | team + product routing                    | "Your {product} early-access request" |
+| `early_access`      | team + product routing                    | "Your {product} early-access request" (sign-up requests) |
 | `waitlist`          | team + product routing                    | "You're on the {product} waitlist" |
 | `partnership`       | team + partnership routing                | "Your partnership enquiry"         |
 

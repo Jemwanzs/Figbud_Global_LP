@@ -73,7 +73,7 @@ Shared packages ship TypeScript source and are compiled by each app (`transpileP
 5. One transaction inserts the enquiry and its outbox emails (team notification + visitor acknowledgement). Visitor IPs are stored only as salted SHA-256 hashes.
 6. A background worker claims due outbox rows with `FOR UPDATE SKIP LOCKED`, sends them, and retries transient failures with exponential backoff (30 s → 1 h, 6 attempts). The outbox row id is sent to Resend as its idempotency key, so a retry after an ambiguous failure cannot send twice.
 
-**Email modes:** `EMAIL_MODE=log` (default) renders and logs messages and marks them delivered without calling any provider. `EMAIL_MODE=resend` requires `RESEND_API_KEY`, `EMAIL_FROM` and `EMAIL_TEAM_RECIPIENTS`; the API refuses to start without them.
+**Email modes:** `EMAIL_MODE=log` (development default) renders and logs messages and records them as `skipped`, never `sent`; it is refused in production. `EMAIL_MODE=hold` (default outside development) stores enquiries and their emails without running the delivery worker, so nothing is lost before Resend is configured. `EMAIL_MODE=resend` requires `RESEND_API_KEY`, `EMAIL_FROM` and `EMAIL_TEAM_RECIPIENTS` (the API refuses to start without them) and marks a message `sent` only when Resend accepts it. Team notifications queued with no recipients are addressed from the routing configured at delivery time.
 
 ## Data model
 

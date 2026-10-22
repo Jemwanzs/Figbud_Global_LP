@@ -41,17 +41,26 @@ pub enum SendError {
 #[async_trait]
 pub trait EmailSender: Send + Sync {
     fn provider(&self) -> &'static str;
+    /// True when `send` only simulates delivery; such messages are recorded
+    /// as `skipped`, never `sent`.
+    fn simulated(&self) -> bool {
+        false
+    }
     /// Returns the provider's message id on success.
     async fn send(&self, email: &OutgoingEmail) -> Result<String, SendError>;
 }
 
-/// Local development sender: logs the message and reports success.
+/// Local development sender: logs the message instead of delivering it.
 pub struct LogSender;
 
 #[async_trait]
 impl EmailSender for LogSender {
     fn provider(&self) -> &'static str {
         "log"
+    }
+
+    fn simulated(&self) -> bool {
+        true
     }
 
     async fn send(&self, email: &OutgoingEmail) -> Result<String, SendError> {
@@ -142,25 +151,33 @@ impl EmailSender for ResendSender {
     }
 }
 
-pub fn build_sender(config: &EmailConfig) -> Box<dyn EmailSender> {
+/// The configured sender, or `None` while delivery is on hold.
+pub fn build_sender(config: &EmailConfig) -> Option<Box<dyn EmailSender>> {
     match &config.mode {
-        EmailMode::Log => Box::new(LogSender),
-        EmailMode::Resend { api_key } => Box::new(ResendSender::new(api_key.clone())),
+        EmailMode::Log => Some(Box::new(LogSender)),
+        EmailMode::Hold => None,
+        EmailMode::Resend { api_key } => Some(Box::new(ResendSender::new(api_key.clone()))),
     }
 }
 
 /// Team recipients for an enquiry: the default team list plus any
 /// product- or topic-specific routing, de-duplicated case-insensitively.
 pub fn team_recipients(config: &EmailConfig, enquiry: &Enquiry) -> Vec<String> {
+    team_recipients_for(config, enquiry.kind, enquiry.product)
+}
+
+/// Routing by enquiry kind and product. Also used at delivery time for team
+/// notifications queued before any recipients were configured.
+pub fn team_recipients_for(config: &EmailConfig, kind: EnquiryKind, product: Product) -> Vec<String> {
     let mut recipients = config.team_recipients.clone();
-    let product_specific = match enquiry.product {
+    let product_specific = match product {
         Product::Zirahr => &config.zirahr_recipients,
         Product::Jasiri => &config.jasiri_recipients,
         Product::ExpenseNow => &config.expense_now_recipients,
         Product::Figbud => &Vec::new(),
     };
     recipients.extend(product_specific.iter().cloned());
-    if enquiry.kind == EnquiryKind::Partnership {
+    if kind == EnquiryKind::Partnership {
         recipients.extend(config.partnership_recipients.iter().cloned());
     }
     let mut seen = std::collections::HashSet::new();

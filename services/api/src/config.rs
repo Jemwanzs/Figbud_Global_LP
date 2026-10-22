@@ -29,8 +29,13 @@ impl AppEnv {
 /// How outbound email is delivered.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum EmailMode {
-    /// Render and log messages, mark them as delivered, never call a provider.
+    /// Local development: render and log messages, record them as `skipped`
+    /// (simulated, never delivered) and never call a provider.
     Log,
+    /// No provider configured yet: messages are stored in the outbox as
+    /// `pending` and delivered once `EMAIL_MODE=resend` is set. The default
+    /// outside development, so nothing is ever lost or falsely marked sent.
+    Hold,
     /// Deliver through the Resend HTTP API.
     Resend { api_key: String },
 }
@@ -97,18 +102,11 @@ impl Config {
             None => "local-development-salt".into(),
         };
 
-        let mode = match optional("EMAIL_MODE").as_deref() {
-            None | Some("log") => EmailMode::Log,
-            Some("resend") => EmailMode::Resend {
-                api_key: optional("RESEND_API_KEY").ok_or(ConfigError::Missing("RESEND_API_KEY"))?,
-            },
-            Some(other) => {
-                return Err(ConfigError::Invalid {
-                    name: "EMAIL_MODE",
-                    reason: format!("expected log|resend, got {other}"),
-                });
-            }
-        };
+        let mode = parse_email_mode(
+            app_env,
+            optional("EMAIL_MODE").as_deref(),
+            optional("RESEND_API_KEY"),
+        )?;
 
         let team_recipients = list("EMAIL_TEAM_RECIPIENTS");
         if matches!(mode, EmailMode::Resend { .. }) && team_recipients.is_empty() {
@@ -177,5 +175,73 @@ where
             name,
             reason: e.to_string(),
         }),
+    }
+}
+
+/// Resolves `EMAIL_MODE`. Unset means `log` in development and `hold`
+/// elsewhere; `log` is refused in production because it would record
+/// simulated messages instead of keeping them for real delivery.
+fn parse_email_mode(
+    app_env: AppEnv,
+    raw: Option<&str>,
+    resend_api_key: Option<String>,
+) -> Result<EmailMode, ConfigError> {
+    match raw {
+        None if app_env == AppEnv::Development => Ok(EmailMode::Log),
+        None | Some("hold") => Ok(EmailMode::Hold),
+        Some("log") if app_env.is_production() => Err(ConfigError::Invalid {
+            name: "EMAIL_MODE",
+            reason: "log is for development only; use hold until Resend is configured".into(),
+        }),
+        Some("log") => Ok(EmailMode::Log),
+        Some("resend") => Ok(EmailMode::Resend {
+            api_key: resend_api_key.ok_or(ConfigError::Missing("RESEND_API_KEY"))?,
+        }),
+        Some(other) => Err(ConfigError::Invalid {
+            name: "EMAIL_MODE",
+            reason: format!("expected log|hold|resend, got {other}"),
+        }),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn email_mode_defaults_to_log_only_in_development() {
+        assert_eq!(
+            parse_email_mode(AppEnv::Development, None, None).unwrap(),
+            EmailMode::Log
+        );
+        assert_eq!(
+            parse_email_mode(AppEnv::Staging, None, None).unwrap(),
+            EmailMode::Hold
+        );
+        assert_eq!(
+            parse_email_mode(AppEnv::Production, None, None).unwrap(),
+            EmailMode::Hold
+        );
+    }
+
+    #[test]
+    fn production_refuses_simulated_delivery() {
+        assert!(parse_email_mode(AppEnv::Production, Some("log"), None).is_err());
+        assert_eq!(
+            parse_email_mode(AppEnv::Staging, Some("log"), None).unwrap(),
+            EmailMode::Log
+        );
+    }
+
+    #[test]
+    fn resend_requires_an_api_key() {
+        assert!(parse_email_mode(AppEnv::Production, Some("resend"), None).is_err());
+        assert_eq!(
+            parse_email_mode(AppEnv::Production, Some("resend"), Some("re_test".into())).unwrap(),
+            EmailMode::Resend {
+                api_key: "re_test".into()
+            }
+        );
+        assert!(parse_email_mode(AppEnv::Production, Some("smtp"), None).is_err());
     }
 }

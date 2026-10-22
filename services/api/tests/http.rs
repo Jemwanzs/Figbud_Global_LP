@@ -12,7 +12,7 @@ use axum::{
 };
 use figbud_api::{
     config::{AppEnv, Config, EmailConfig, EmailMode},
-    email::{LogSender, outbox},
+    email::{EmailSender, LogSender, OutgoingEmail, SendError, outbox},
     rate_limit::RateLimiter,
     routes::{AppState, router},
 };
@@ -194,6 +194,10 @@ async fn rate_limit_returns_retry_after() {
 // Database-backed tests
 // ---------------------------------------------------------------------------
 
+/// Tests that drain the shared outbox run one at a time, so neither delivers
+/// the other's messages with the wrong sender.
+static OUTBOX: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+
 async fn database() -> Option<sqlx::PgPool> {
     let url = std::env::var("TEST_DATABASE_URL").ok()?;
     let pool = PgPoolOptions::new().max_connections(4).connect(&url).await.ok()?;
@@ -207,6 +211,7 @@ async fn stores_enquiries_idempotently_and_delivers_email() {
         eprintln!("skipping: TEST_DATABASE_URL not set");
         return;
     };
+    let _outbox = OUTBOX.lock().await;
     let url = std::env::var("TEST_DATABASE_URL").unwrap();
     let app = app_with(pool.clone(), config(&url));
     let key = Uuid::new_v4();
@@ -244,7 +249,7 @@ async fn stores_enquiries_idempotently_and_delivers_email() {
             .unwrap();
         let pending: i64 = sqlx::query_scalar(
             "SELECT count(*) FROM email_outbox o JOIN enquiries e ON e.id = o.enquiry_id
-              WHERE e.idempotency_key = $1 AND o.status <> 'sent'",
+              WHERE e.idempotency_key = $1 AND o.status <> 'skipped'",
         )
         .bind(key)
         .fetch_one(&pool)
@@ -255,6 +260,91 @@ async fn stores_enquiries_idempotently_and_delivers_email() {
         }
     }
     assert!(delivered >= 2);
+
+    // Simulated delivery is never recorded as sent.
+    let sent: i64 = sqlx::query_scalar(
+        "SELECT count(*) FROM email_outbox o JOIN enquiries e ON e.id = o.enquiry_id
+          WHERE e.idempotency_key = $1 AND (o.status = 'sent' OR o.sent_at IS NOT NULL)",
+    )
+    .bind(key)
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert_eq!(sent, 0);
+}
+
+/// Stands in for Resend: accepts every message and records the recipients.
+#[derive(Default)]
+struct AcceptingSender {
+    recipients: std::sync::Mutex<Vec<Vec<String>>>,
+}
+
+#[async_trait::async_trait]
+impl EmailSender for AcceptingSender {
+    fn provider(&self) -> &'static str {
+        "test"
+    }
+
+    async fn send(&self, email: &OutgoingEmail) -> Result<String, SendError> {
+        self.recipients.lock().unwrap().push(email.to.clone());
+        Ok(format!("msg-{}", email.id))
+    }
+}
+
+#[tokio::test]
+async fn held_messages_wait_for_a_provider_then_reach_configured_recipients() {
+    let Some(pool) = database().await else {
+        eprintln!("skipping: TEST_DATABASE_URL not set");
+        return;
+    };
+    let _outbox = OUTBOX.lock().await;
+    let url = std::env::var("TEST_DATABASE_URL").unwrap();
+
+    // Before Resend: delivery on hold and no team recipients configured yet.
+    let mut held = config(&url);
+    held.email.mode = EmailMode::Hold;
+    held.email.team_recipients = vec![];
+    let app = app_with(pool.clone(), held);
+    let key = Uuid::new_v4();
+    let response = app
+        .oneshot(post_enquiry(&valid_demo_request(), Some(key)))
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::CREATED);
+
+    let statuses: Vec<(String, Vec<String>)> = sqlx::query_as(
+        "SELECT o.status, o.to_addresses FROM email_outbox o JOIN enquiries e ON e.id = o.enquiry_id
+          WHERE e.idempotency_key = $1 AND o.template = 'team_notification'",
+    )
+    .bind(key)
+    .fetch_all(&pool)
+    .await
+    .unwrap();
+    assert_eq!(statuses, vec![("pending".to_owned(), vec![])]);
+
+    // Resend configured later: the held notification goes to today's recipients.
+    let sender = AcceptingSender::default();
+    let mut live = config(&url).email;
+    live.team_recipients = vec!["cto@example.com".into()];
+    for _ in 0..20 {
+        outbox::deliver_due(&pool, &sender, &live).await.unwrap();
+        let (status, to, sent_at): (String, Vec<String>, Option<chrono::DateTime<chrono::Utc>>) =
+            sqlx::query_as(
+                "SELECT o.status, o.to_addresses, o.sent_at FROM email_outbox o
+                   JOIN enquiries e ON e.id = o.enquiry_id
+                  WHERE e.idempotency_key = $1 AND o.template = 'team_notification'",
+            )
+            .bind(key)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+        if status == "sent" {
+            assert_eq!(to, vec!["cto@example.com".to_owned()]);
+            assert!(sent_at.is_some());
+            return;
+        }
+    }
+    panic!("held team notification was never delivered");
 }
 
 #[tokio::test]

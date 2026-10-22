@@ -9,8 +9,11 @@ use sqlx::{FromRow, PgPool, Postgres, Transaction};
 use tokio::sync::watch;
 use uuid::Uuid;
 
-use super::{EmailSender, OutgoingEmail, SendError, templates::RenderedEmail};
-use crate::config::EmailConfig;
+use super::{EmailSender, OutgoingEmail, SendError, team_recipients_for, templates::RenderedEmail};
+use crate::{
+    config::EmailConfig,
+    enquiry::{EnquiryKind, Product},
+};
 
 const BATCH_SIZE: i64 = 10;
 const BASE_BACKOFF_SECS: i64 = 30;
@@ -44,6 +47,7 @@ pub async fn enqueue(
 #[derive(Debug, FromRow)]
 struct ClaimedEmail {
     id: Uuid,
+    enquiry_id: Uuid,
     to_addresses: Vec<String>,
     reply_to: Option<String>,
     subject: String,
@@ -92,7 +96,7 @@ pub async fn deliver_due(
                  ORDER BY next_attempt_at
                  LIMIT $1
                  FOR UPDATE SKIP LOCKED)
-      RETURNING id, to_addresses, reply_to, subject, html_body, text_body, attempts, max_attempts",
+      RETURNING id, enquiry_id, to_addresses, reply_to, subject, html_body, text_body, attempts, max_attempts",
     )
     .bind(BATCH_SIZE)
     .fetch_all(pool)
@@ -100,26 +104,40 @@ pub async fn deliver_due(
 
     let count = claimed.len();
     for row in claimed {
+        let mut to = row.to_addresses;
+        if to.is_empty() {
+            to = resolve_team(pool, config, row.enquiry_id).await?;
+        }
         let email = OutgoingEmail {
             id: row.id,
             from: config.from.clone(),
-            to: row.to_addresses,
+            to,
             reply_to: row.reply_to,
             subject: row.subject,
             html: row.html_body,
             text: row.text_body,
         };
-        match sender.send(&email).await {
+        let result = if email.to.is_empty() {
+            Err(SendError::Transient("no team recipients configured".into()))
+        } else {
+            sender.send(&email).await
+        };
+        match result {
             Ok(message_id) => {
+                // Only a provider's acceptance counts as sent; simulations are `skipped`.
+                let status = if sender.simulated() { "skipped" } else { "sent" };
                 sqlx::query(
                     "UPDATE email_outbox
-                        SET status = 'sent', sent_at = now(), provider = $2, provider_message_id = $3,
+                        SET status = $4, sent_at = CASE WHEN $4 = 'sent' THEN now() END,
+                            provider = $2, provider_message_id = $3, to_addresses = $5,
                             last_error = NULL, locked_at = NULL, updated_at = now()
                       WHERE id = $1",
                 )
                 .bind(row.id)
                 .bind(sender.provider())
                 .bind(message_id)
+                .bind(status)
+                .bind(&email.to)
                 .execute(pool)
                 .await?;
             }
@@ -145,6 +163,23 @@ pub async fn deliver_due(
         }
     }
     Ok(count)
+}
+
+/// Team recipients for a notification queued before any were configured.
+async fn resolve_team(
+    pool: &PgPool,
+    config: &EmailConfig,
+    enquiry_id: Uuid,
+) -> Result<Vec<String>, sqlx::Error> {
+    let (kind, product): (String, String) =
+        sqlx::query_as("SELECT kind, product FROM enquiries WHERE id = $1")
+            .bind(enquiry_id)
+            .fetch_one(pool)
+            .await?;
+    Ok(match (EnquiryKind::parse(&kind), Product::parse(&product)) {
+        (Some(kind), Some(product)) => team_recipients_for(config, kind, product),
+        _ => config.team_recipients.clone(),
+    })
 }
 
 /// 30s, 60s, 120s, ... capped at one hour.
