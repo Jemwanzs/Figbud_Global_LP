@@ -6,7 +6,7 @@ export function AuthCard({ title, lead, children }: { title: string; lead: strin
   return (
     <main className="relative isolate flex min-h-dvh items-center justify-center px-5 py-16">
       <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
-        <div className="absolute start-1/2 top-0 h-[32rem] w-[48rem] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(closest-side,var(--glow),transparent)] blur-2xl" />
+        <div className="absolute start-1/2 top-0 h-[32rem] w-[48rem] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(closest-side,var(--glow),transparent)]" />
       </div>
       <div className="w-full max-w-md">
         <FigBudWordmark />

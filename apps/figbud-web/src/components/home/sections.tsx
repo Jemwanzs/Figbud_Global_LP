@@ -91,7 +91,7 @@ export function AfricaSection({ dict }: SectionProps) {
     <section aria-labelledby="africa-title" className="relative overflow-hidden py-20 sm:py-24 lg:py-32">
       <div
         aria-hidden
-        className="pointer-events-none absolute end-[-15%] top-1/2 -z-10 h-[46rem] w-[46rem] -translate-y-1/2 rounded-full bg-[radial-gradient(closest-side,var(--glow),transparent)] opacity-60 blur-2xl"
+        className="pointer-events-none absolute end-[-15%] top-1/2 -z-10 h-[46rem] w-[46rem] -translate-y-1/2 rounded-full bg-[radial-gradient(closest-side,var(--glow),transparent)] opacity-60"
       />
       <Container size="wide" className="grid items-center gap-14 lg:grid-cols-12 lg:gap-12">
         <div className="lg:col-span-5">

@@ -56,7 +56,7 @@ export default async function ProductsPage({ params }: PageProps<"/[locale]/prod
                 >
                   <div
                     aria-hidden
-                    className="pointer-events-none absolute end-[-8%] -top-32 h-80 w-80 rounded-full bg-[radial-gradient(closest-side,var(--product-soft),transparent)] blur-2xl"
+                    className="pointer-events-none absolute end-[-8%] -top-32 h-80 w-80 rounded-full bg-[radial-gradient(closest-side,var(--product-soft),transparent)]"
                   />
                   <div className="relative grid gap-10 lg:grid-cols-12">
                     <div className="lg:col-span-6">

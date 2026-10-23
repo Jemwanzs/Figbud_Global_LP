@@ -111,7 +111,7 @@ export function PlatformShowcase({ locale, platforms, products, common }: Props)
             >
               <div
                 aria-hidden
-                className="pointer-events-none absolute end-[-10%] -top-32 h-96 w-96 rounded-full bg-[radial-gradient(closest-side,var(--product-soft),transparent)] blur-2xl"
+                className="pointer-events-none absolute end-[-10%] -top-32 h-96 w-96 rounded-full bg-[radial-gradient(closest-side,var(--product-soft),transparent)]"
               />
               <div className="relative grid gap-10 p-6 sm:p-8 lg:grid-cols-12 lg:gap-12 lg:p-12">
                 <m.div
