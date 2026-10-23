@@ -33,6 +33,8 @@ Marketing infrastructure is **isolated from operational products**: the API and 
 | Path                        | Purpose                                                                 |
 | --------------------------- | ----------------------------------------------------------------------- |
 | `apps/figbud-web`           | Corporate website (Next.js 16, App Router, Cache Components)            |
+| `apps/zirahr-web`           | ZiraHR product website (port 3001), built on `@figbud/site-kit`          |
+| `packages/site-kit`         | Shared site building blocks: security headers, locale proxy, base styles, cross-site links, product header/footer |
 | `apps/<product>-web`        | Product websites, added in Phase 4 from the same template               |
 | `packages/brand`            | Design tokens (`tokens.css`) and the product registry                   |
 | `packages/ui`               | Shared React components: logo, buttons, container, badges, theme, motion |

@@ -3,7 +3,7 @@
 > **The single authoritative plan** for the FigBud Global corporate website and its product websites (ZiraHR, Jasiri LMS, Expense Now and future products).
 > It consolidates every scope and standards brief supplied to date, records how overlaps and conflicts were resolved, and tracks delivery task by task.
 >
-> **Owner:** James Sammy (FigBud Global) · **Repository:** [github.com/Jemwanzs/Figbud_Global_LP](https://github.com/Jemwanzs/Figbud_Global_LP) · **Maintained in:** `docs/ROADMAP.md` (updated as work lands) · **Last updated:** 22 October 2026 (afternoon)
+> **Owner:** James Sammy (FigBud Global) · **Repository:** [github.com/Jemwanzs/Figbud_Global_LP](https://github.com/Jemwanzs/Figbud_Global_LP) · **Maintained in:** `docs/ROADMAP.md` (updated as work lands) · **Last updated:** 23 October 2026
 
 **Status legend:** ✅ Completed · 🔄 In progress · ⛔ Blocked (waiting on an input listed in §5) · ⬜ Not started
 
@@ -16,7 +16,7 @@
 | 1     | Project foundation                   | ✅ Completed   | 25 / 25 tasks                           | —                                            |
 | 2     | FigBud Global homepage               | 🔄 In progress | 17 / 22 tasks (3 more in progress)      | Verified company facts, CI Lighthouse baseline |
 | 3     | Corporate pages                      | 🔄 In progress | 7 / 14 tasks                            | Company profile, legal texts                 |
-| 4     | Product websites                     | ⬜ Not started | 0 / 20 tasks                            | Product capability sign-off, payroll rules   |
+| 4     | Product websites                     | 🔄 In progress | 2 / 20 tasks (template + ZiraHR site started) | Product capability sign-off, payroll rules, Railway service for product sites |
 | 5     | Integrations & administration        | 🔄 In progress | 11 / 17 tasks (admin, CMS, inbox done)  | Resend credentials, recipient addresses      |
 | 6     | Production deployment                | 🔄 In progress | 9 / 18 tasks                            | Resend, domains, backups/monitoring          |
 
@@ -168,6 +168,8 @@ These resolve overlaps between the briefs. Latest confirmed requirements win; an
 | D11 | Product-site links before launch | "Open product site in new tab" vs product sites not yet built                                | Link becomes external automatically once `NEXT_PUBLIC_<PRODUCT>_URL` is set; until then it targets the Products page      |
 | D12 | Project folder              | Rename to `FigBud_Global_LP`                                                                       | Renamed by FigBud to `FigBud_LP` (22 Oct 2026); the rename script was retired. Repository name unchanged (P1-01)          |
 | D13 | Static vs dynamic rendering | SSR/SSG "where appropriate"                                                                       | Marketing pages fully prerendered (SSG/PPR); only the contact form reads request data; OG image rendered on demand        |
+| D14 | Product-site enquiries | Each product site could host its own forms | Product sites send demo and waitlist requests to the corporate enquiry form, prefilled: one form, one API, one inbox; no per-site CORS or duplicated validation |
+| D15 | Product-site languages | Brief: product sites multilingual; translations not yet reviewed | All locales route (cross-site links never break); copy is English, marked `lang="en"`, non-English URLs `noindex` until reviewed translations exist (Q6) |
 
 ---
 
@@ -256,7 +258,7 @@ Items marked **Blocking** stop the listed tasks; everything else proceeds with t
 | P2-15  | Reduced-motion support and 44 px touch targets                                                  | ✅ |
 | P2-16  | Branded 404 (route-level and global)                                                            | ✅ |
 | P2-17  | Visual QA at 390 px / 1440 px, dark, light, Arabic                                              | ✅ |
-| P2-18  | Lighthouse and Core Web Vitals audit on production build; fix findings (A11y/SEO/BP 100; LCP and hydration fixes landed; performance baseline now measured in CI) | 🔄 In progress |
+| P2-18  | Lighthouse and Core Web Vitals audit on production build; fix findings (A11y/SEO/BP 100; LCP and hydration fixes; redundant blur filters removed: homepage first paint ~730 ms → ~190–320 ms locally; CI baseline running) | 🔄 In progress |
 | P2-19  | Automated accessibility scan (axe) in Playwright ✅; manual screen-reader pass (NVDA/VoiceOver) pending | 🔄 In progress |
 | P2-20  | Cross-browser check: automated on Chromium, Firefox, WebKit/iPhone ✅; real iOS and Samsung Internet devices pending | 🔄 In progress |
 | P2-21  | Verified proof section (figures, logos, testimonials)                                           | ⛔ Q3 |
@@ -284,17 +286,17 @@ Items marked **Blocking** stop the listed tasks; everything else proceeds with t
 | P3-13  | Swahili translation review → publish `sw` locale                                       | ⛔ Q6 |
 | P3-14  | French, Arabic, Chinese review → publish                                               | ⛔ Q6 |
 
-### Phase 4 — Product websites ⬜
+### Phase 4 — Product websites 🔄
 
 **Goal:** independently deployable product sites (`apps/zirahr-web`, `apps/jasiri-web`, `apps/expense-web`) sharing packages. **Depends on:** Phase 2 design system; Q7–Q13.
 **Acceptance criteria:** each site meets Phase 2 quality bar, has its own nav/SEO/sitemap, Back to FigBud link, and only verified capability claims.
 
 | ID      | Task                                                                                         | Status |
 | ------- | -------------------------------------------------------------------------------------------- | ------ |
-| P4-01   | App template for product sites (shared layout, product theme, product nav config)             | ⬜ |
-| P4-02   | Cross-site links: env-driven origins, new-tab behaviour, Back to FigBud                        | ⬜ |
+| P4-01   | App template for product sites: `@figbud/site-kit` (shared security headers, locale proxy, styles, product header with Back to FigBud, footer, product theme) + product nav in the registry | ✅ |
+| P4-02   | Cross-site links: env-driven origins, new-tab behaviour with announced "opens in a new tab", Back to FigBud, never-dead fallbacks; product CTAs to the corporate enquiry form | ✅ |
 | **ZiraHR** |  |  |
-| P4-Z1   | Homepage — The Connected Workforce                                                             | ⬜ |
+| P4-Z1   | Homepage — The Connected Workforce (`apps/zirahr-web`: hero, modules, payroll, demo CTA; built and tested, not yet deployed) | 🔄 In progress |
 | P4-Z2   | Platform and Modules pages (Employee 360, payroll, leave, attendance, performance, collaboration, analytics, ESS) — each a distinct interactive experience | ⬜ |
 | P4-Z3   | Kenya payroll engine: rules-based, effective-dated, unit-tested against signed-off cases      | ⛔ Q10 |
 | P4-Z4   | Payroll calculator page (Kenya default; other countries disabled until validated)             | ⛔ Q10 |
@@ -310,11 +312,11 @@ Items marked **Blocking** stop the listed tasks; everything else proceeds with t
 | P4-E2   | Capability roadmap content: live vs planned clearly marked                                      | ⛔ Q12 |
 | P4-E3   | Approval-chain and payment-orchestration storytelling (no PSP or settlement claims)             | ⬜ |
 | **All products** |  |  |
-| P4-10   | Per-site metadata, sitemaps, SoftwareApplication schema                                         | ⬜ |
+| P4-10   | Per-site metadata ✅ and SoftwareApplication schema ✅ (ZiraHR); per-site sitemaps once pages are published | 🔄 In progress |
 | P4-11   | Product-intent SEO content (HR/payroll; loan management; expense management)                    | ⬜ |
 | P4-12   | Product accents and logos confirmed                                                             | ⛔ Q7 |
 | P4-13   | Real sanitised screenshots where available                                                      | ⛔ Q9 |
-| P4-14   | Per-site e2e + Lighthouse budgets in CI                                                         | ⬜ |
+| P4-14   | Per-site e2e in CI ✅ (ZiraHR, 5 browser projects); Lighthouse budgets per site | 🔄 In progress |
 
 ### Phase 5 — Integrations & administration 🔄
 
@@ -409,6 +411,7 @@ Items marked **Blocking** stop the listed tasks; everything else proceeds with t
 
 | Date        | Change                                                                                                   |
 | ----------- | -------------------------------------------------------------------------------------------------------- |
+| 23 Oct 2026 | Product-site template (P4-01) and cross-site links (P4-02): `@figbud/site-kit` shared by all sites; the corporate site now uses it (no behaviour change). ZiraHR website started (`apps/zirahr-web`, P4-Z1): hero, modules, payroll, placeholders with real 404s; e2e in CI. Paint performance: redundant blur filters removed across sites. |
 | 22 Oct 2026 | Enquiries inbox (P5-09 complete): filters, search, detail with email delivery states, follow-up statuses with history, owner-only CSV export with formula-injection protection; every action audited. Verified end to end against the production API image. Insights editor live on Railway (43792dc). |
 | 22 Oct 2026 | Editorial workflow (P5-07 complete): drafts, review, maker-checker publishing, scheduling, archive/restore, versions with conflict detection, taxonomy, preview; every action audited (P5-10 complete). Insights editor UI (P5-09). Railway: discovered `railway.toml` is no longer applied (and never followed the API root directory); API health check, restart policy and watch path now set on the service. Second deployment live (991f63b). Real end-to-end run found and fixed an editor status race. |
 | 22 Oct 2026 | First Railway deployment live and verified (API ready, website serving, CORS/CSP correct, live enquiry stored). Admin authentication (P5-08): passkeys via webauthn-rs, invite-only onboarding with CLI bootstrap, hashed sessions, Origin-checked CSRF, roles, audit log. Admin UI started (P5-09): sign-in, invite acceptance, owner overview. `time` crate updated for RUSTSEC-2026-0009. |
