@@ -1,4 +1,4 @@
-import { type ProductSlug, getProduct, publicProducts } from "@figbud/brand";
+import type { Product, ProductSlug } from "@figbud/brand";
 import { type Locale, localizePath } from "@figbud/i18n";
 import { Container, Eyebrow, Reveal, StatusBadge, buttonClasses } from "@figbud/ui";
 import { ArrowRight, ArrowUpRight, Check } from "lucide-react";
@@ -10,6 +10,7 @@ import { Breadcrumbs } from "@/components/breadcrumbs";
 import { PageHeader } from "@/components/page-header";
 import { ProductGlyph } from "@figbud/site-kit";
 import { fill } from "@/lib/format";
+import { getPublicProducts } from "@/lib/products";
 import { resolvePage } from "@/lib/page";
 import { pageMetadata, productLink, routes } from "@/lib/site";
 
@@ -23,6 +24,8 @@ export default async function ProductsPage({ params }: PageProps<"/[locale]/prod
   const { locale, dict } = await resolvePage(params);
   const { common } = dict;
   const page = dict.pages.products;
+  const products = await getPublicProducts();
+  const statusOf = (slug: ProductSlug) => products.find((p) => p.slug === slug)!.status;
 
   return (
     <>
@@ -43,11 +46,11 @@ export default async function ProductsPage({ params }: PageProps<"/[locale]/prod
       />
       <Container size="wide" className="py-16 sm:py-20 lg:py-24">
         <ul className="space-y-6 lg:space-y-8">
-          {publicProducts.map((product, i) => {
+          {products.map((product, i) => {
             const copy = dict.products[product.slug];
             const link = productLink(product.slug, locale);
             const comingSoon = product.status === "coming_soon";
-            const enquiry = enquiryHref(locale, product.slug);
+            const enquiry = enquiryHref(locale, product);
             return (
               <li key={product.slug} id={product.slug} data-product={product.slug} className="scroll-mt-28">
                 <Reveal
@@ -124,7 +127,7 @@ export default async function ProductsPage({ params }: PageProps<"/[locale]/prod
           <p className="mt-3 max-w-2xl text-muted">{page.compare.lead}</p>
           {/* Phones: one card per product. Wider screens: a side-by-side table. */}
           <ul className="mt-8 space-y-4 md:hidden">
-            {publicProducts.map((product) => {
+            {products.map((product) => {
               const copy = dict.products[product.slug];
               const comingSoon = product.status === "coming_soon";
               return (
@@ -153,7 +156,7 @@ export default async function ProductsPage({ params }: PageProps<"/[locale]/prod
                     </div>
                   </dl>
                   <Link
-                    href={enquiryHref(locale, product.slug)}
+                    href={enquiryHref(locale, product)}
                     className="mt-2 inline-flex min-h-11 items-center gap-1.5 text-sm font-medium text-accent hover:underline"
                   >
                     {comingSoon ? common.cta.joinWaitlist : common.cta.requestDemo}
@@ -174,7 +177,7 @@ export default async function ProductsPage({ params }: PageProps<"/[locale]/prod
               <thead>
                 <tr className="border-b border-line">
                   <td className="w-40 p-4 sm:p-5" />
-                  {publicProducts.map((product) => (
+                  {products.map((product) => (
                     <th
                       key={product.slug}
                       scope="col"
@@ -190,24 +193,24 @@ export default async function ProductsPage({ params }: PageProps<"/[locale]/prod
                 </tr>
               </thead>
               <tbody>
-                <CompareRow label={page.compare.rows.category}>
+                <CompareRow products={products} label={page.compare.rows.category}>
                   {(slug) => dict.products[slug].category}
                 </CompareRow>
-                <CompareRow label={page.compare.rows.summary}>
+                <CompareRow products={products} label={page.compare.rows.summary}>
                   {(slug) => <span className="text-muted">{dict.products[slug].summary}</span>}
                 </CompareRow>
-                <CompareRow label={page.compare.rows.status}>
+                <CompareRow products={products} label={page.compare.rows.status}>
                   {(slug) => {
-                    const status = getProduct(slug).status;
+                    const status = statusOf(slug);
                     return <StatusBadge status={status} label={common.status[status]} />;
                   }}
                 </CompareRow>
-                <CompareRow label={page.compare.rows.next}>
+                <CompareRow products={products} label={page.compare.rows.next}>
                   {(slug) => {
-                    const comingSoon = getProduct(slug).status === "coming_soon";
+                    const comingSoon = statusOf(slug) === "coming_soon";
                     return (
                       <Link
-                        href={enquiryHref(locale, slug)}
+                        href={enquiryHref(locale, { slug, status: statusOf(slug) })}
                         className="inline-flex min-h-11 items-center gap-1.5 font-medium text-accent hover:underline"
                       >
                         {comingSoon ? common.cta.joinWaitlist : common.cta.requestDemo}
@@ -245,18 +248,26 @@ export default async function ProductsPage({ params }: PageProps<"/[locale]/prod
 }
 
 /** The pre-filled enquiry form: a waitlist for coming-soon products, otherwise a demo request. */
-function enquiryHref(locale: Locale, slug: ProductSlug): string {
-  const kind = getProduct(slug).status === "coming_soon" ? "waitlist" : "demo_request";
+function enquiryHref(locale: Locale, { slug, status }: Pick<Product, "slug" | "status">): string {
+  const kind = status === "coming_soon" ? "waitlist" : "demo_request";
   return `${localizePath(locale, routes.contact)}?kind=${kind}&product=${slug}`;
 }
 
-function CompareRow({ label, children }: { label: string; children: (slug: ProductSlug) => ReactNode }) {
+function CompareRow({
+  products,
+  label,
+  children,
+}: {
+  products: Product[];
+  label: string;
+  children: (slug: ProductSlug) => ReactNode;
+}) {
   return (
     <tr className="border-b border-line last:border-b-0">
       <th scope="row" className="p-4 text-start align-top font-medium text-subtle sm:p-5">
         {label}
       </th>
-      {publicProducts.map((product) => (
+      {products.map((product) => (
         <td key={product.slug} data-product={product.slug} className="p-4 align-top text-text sm:p-5">
           {children(product.slug)}
         </td>

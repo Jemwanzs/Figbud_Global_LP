@@ -1,4 +1,4 @@
-import { ArrowRight, FileText, Inbox } from "lucide-react";
+import { ArrowRight, FileText, Globe, Inbox } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { type ReactNode, Suspense } from "react";
@@ -35,6 +35,14 @@ const ACTIONS: Record<string, string> = {
   "cms.author_created": "Added an author",
   "enquiry.status_changed": "Updated an enquiry",
   "enquiry.exported": "Exported enquiries",
+  "site.created": "Created a website",
+  "site.updated": "Updated website settings",
+  "site.archived": "Archived a website",
+  "site.restored": "Restored a website",
+  "site.status_requested": "Requested a website status change",
+  "site.status_approved": "Approved a website status change",
+  "site.status_rejected": "Rejected a website status change",
+  "site.status_cancelled": "Cancelled a website status change",
 };
 
 export default function AdminHomePage() {
@@ -49,11 +57,16 @@ export default function AdminHomePage() {
 async function Dashboard() {
   const user = await requireAdmin();
   if (user === "unavailable") return <AdminUnavailable />;
-  const [articles, audit, enquiries] = await Promise.all([
+  const [articles, audit, enquiries, sites] = await Promise.all([
     adminGet<{ status: string }[]>("cms/articles"),
     user.role === "owner" ? adminGet<AuditEntry[]>("audit") : Promise.resolve({ data: undefined }),
     adminGet<{ total: number }>("enquiries?status=new"),
+    adminGet<{ status: string; archived_at?: string | null; pending_to_status?: string | null }[]>("sites"),
   ]);
+  const liveSites = sites.data?.filter(
+    (s) => !s.archived_at && ["coming_soon", "beta", "active"].includes(s.status),
+  );
+  const pendingSites = sites.data?.filter((s) => s.pending_to_status).length;
   const newEnquiries = enquiries.data?.total;
   const count = (status: string) => articles.data?.filter((a) => a.status === status).length ?? 0;
 
@@ -70,7 +83,32 @@ async function Dashboard() {
         <h2 id="workspaces" className="sr-only">
           Workspaces
         </h2>
-        <div className="grid gap-5 md:grid-cols-2">
+        <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+          <Link
+            href="/admin/sites"
+            className="group rounded-[var(--radius-panel)] border border-line bg-surface p-6 transition-colors hover:border-line-strong sm:p-8"
+          >
+            <WorkspaceHeading icon={<Globe aria-hidden className="size-5" />} title="Websites">
+              <ArrowRight
+                aria-hidden
+                className="ms-auto size-5 text-subtle transition-transform group-hover:translate-x-0.5 rtl:rotate-180"
+              />
+            </WorkspaceHeading>
+            <p className="mt-4 leading-relaxed text-muted">
+              The corporate website and every product website: settings and marketing status.
+            </p>
+            <dl className="mt-5 flex flex-wrap gap-x-6 gap-y-2 text-sm">
+              {[
+                ["Listed", liveSites?.length ?? "–"],
+                ["Awaiting approval", pendingSites ?? "–"],
+              ].map(([label, value]) => (
+                <div key={label} className="flex items-baseline gap-2">
+                  <dt className="text-subtle">{label}</dt>
+                  <dd className="font-semibold text-text">{value}</dd>
+                </div>
+              ))}
+            </dl>
+          </Link>
           <Link
             href="/admin/insights"
             className="group rounded-[var(--radius-panel)] border border-line bg-surface p-6 transition-colors hover:border-line-strong sm:p-8"

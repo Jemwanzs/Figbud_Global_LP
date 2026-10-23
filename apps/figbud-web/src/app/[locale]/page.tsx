@@ -13,6 +13,7 @@ import {
   PlatformsSection,
 } from "@/components/home/sections";
 import { getDictionary } from "@/i18n/get-dictionary";
+import { getPublicProducts } from "@/lib/products";
 import { pageMetadata } from "@/lib/site";
 
 export async function generateMetadata({ params }: PageProps<"/[locale]">): Promise<Metadata> {
@@ -32,7 +33,7 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
       <Hero locale={locale} dict={dict} />
       {/* Each boundary hydrates as its own task, keeping the main thread responsive. */}
       <Suspense>
-        <PlatformsSection locale={locale} dict={dict} />
+        <PlatformsSection locale={locale} dict={dict} products={await getPublicProducts()} />
       </Suspense>
       <Suspense>
         <PhilosophySection locale={locale} dict={dict} />

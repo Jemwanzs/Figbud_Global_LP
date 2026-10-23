@@ -1,6 +1,6 @@
 "use client";
 
-import { type ProductSlug, publicProducts } from "@figbud/brand";
+import type { Product, ProductSlug } from "@figbud/brand";
 import type { Locale } from "@figbud/i18n";
 import { StatusBadge, buttonClasses, cn } from "@figbud/ui";
 import { ArrowRight, ArrowUpRight, Check } from "lucide-react";
@@ -18,16 +18,18 @@ type Props = {
   locale: Locale;
   platforms: Dictionary["home"]["platforms"];
   products: Dictionary["products"];
+  /** Public products with their current marketing status (lib/products). */
+  items: Product[];
   common: Dictionary["common"];
 };
 
-export function PlatformShowcase({ locale, platforms, products, common }: Props) {
-  const [active, setActive] = useState<ProductSlug>("zirahr");
+export function PlatformShowcase({ locale, platforms, products, items, common }: Props) {
+  const [active, setActive] = useState<ProductSlug>(items[0]?.slug ?? "zirahr");
   const baseId = useId();
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
   const onKeyDown = (event: KeyboardEvent, index: number) => {
-    const last = publicProducts.length - 1;
+    const last = items.length - 1;
     const rtl = document.documentElement.dir === "rtl";
     const forward = rtl ? "ArrowLeft" : "ArrowRight";
     const back = rtl ? "ArrowRight" : "ArrowLeft";
@@ -38,7 +40,7 @@ export function PlatformShowcase({ locale, platforms, products, common }: Props)
     if (event.key === "End") next = last;
     if (next === null) return;
     event.preventDefault();
-    setActive(publicProducts[next]!.slug);
+    setActive(items[next]!.slug);
     tabRefs.current[next]?.focus();
   };
 
@@ -47,9 +49,10 @@ export function PlatformShowcase({ locale, platforms, products, common }: Props)
       <div
         role="tablist"
         aria-label={platforms.tabsLabel}
-        className="grid grid-cols-3 gap-2 rounded-[1.4rem] border border-line bg-surface/50 p-1.5 sm:gap-3 md:p-2"
+        style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}
+        className="grid gap-2 rounded-[1.4rem] border border-line bg-surface/50 p-1.5 sm:gap-3 md:p-2"
       >
-        {publicProducts.map((product, index) => {
+        {items.map((product, index) => {
           const selected = product.slug === active;
           return (
             <button
@@ -94,7 +97,7 @@ export function PlatformShowcase({ locale, platforms, products, common }: Props)
 
       {/* Server HTML and first paint show final states; only tab switches animate. */}
       <AnimatePresence initial={false}>
-        {publicProducts.map((product) => {
+        {items.map((product) => {
           const selected = product.slug === active;
           const copy = products[product.slug];
           const link = productLink(product.slug, locale);

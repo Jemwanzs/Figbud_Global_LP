@@ -1,3 +1,4 @@
+import type { Product } from "@figbud/brand";
 import { type Locale, localizePath } from "@figbud/i18n";
 import { Container, Eyebrow, Reveal, buttonClasses } from "@figbud/ui";
 import { ArrowRight, Calculator, Cable, ChartSpline, ShieldCheck, Workflow } from "lucide-react";
@@ -36,7 +37,7 @@ function SectionHeading({
   );
 }
 
-export function PlatformsSection({ locale, dict }: SectionProps) {
+export function PlatformsSection({ locale, dict, products }: SectionProps & { products: Product[] }) {
   const platforms = dict.home.platforms;
   return (
     <section id="platforms" aria-labelledby="platforms-title" className="relative py-20 sm:py-24 lg:py-32">
@@ -52,6 +53,7 @@ export function PlatformsSection({ locale, dict }: SectionProps) {
             locale={locale}
             platforms={platforms}
             products={dict.products}
+            items={products}
             common={dict.common}
           />
         </Reveal>

@@ -5,7 +5,7 @@
 //   cryptography is verified by the Rust tests; here the browser's virtual
 //   authenticator runs real ceremonies and the mock checks each response's
 //   client data (type, challenge, origin) and the Origin header (CSRF).
-import { randomBytes } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import { createServer } from "node:http";
 
 const PORT = Number(process.env.MOCK_API_PORT ?? 3199);
@@ -184,6 +184,238 @@ function clientData(credential) {
   } catch {
     return {};
   }
+}
+
+// Website registry (Admin Studio, Phase B), mirroring services/api/src/sites.rs.
+const SITE_STATUSES = ["draft", "coming_soon", "beta", "active", "retired"];
+const SITE_MOVES = {
+  draft: ["coming_soon", "beta", "active"],
+  coming_soon: ["draft", "beta", "active", "retired"],
+  beta: ["coming_soon", "active", "retired"],
+  active: ["coming_soon", "beta", "retired"],
+  retired: ["coming_soon"],
+};
+const SITE_TEMPLATES = {
+  hr_workforce: "hr",
+  lending_credit: "lending",
+  finance_payments: "finance",
+  custom_enterprise: "custom",
+};
+const seedSite = (n, slug, kind, name, tagline, category, template, status) => ({
+  id: `01928d6c-0000-7000-8000-00000000000${n}`,
+  slug,
+  kind,
+  name,
+  tagline,
+  description: null,
+  category,
+  template,
+  status,
+  primary_domain: null,
+  position: n - 1,
+  archived_at: null,
+  version: 1,
+  updated_at: new Date().toISOString(),
+  requests: [],
+});
+const sites = [
+  seedSite(
+    1,
+    "figbud",
+    "corporate",
+    "FigBud Global",
+    "From vision to value, we deliver.",
+    "corporate",
+    "corporate",
+    "active",
+  ),
+  seedSite(
+    2,
+    "zirahr",
+    "product",
+    "ZiraHR",
+    "People. Payroll. Progress. Connected.",
+    "hr_workforce",
+    "hr",
+    "active",
+  ),
+  seedSite(
+    3,
+    "jasiri",
+    "product",
+    "Jasiri LMS",
+    "Every loan. Every decision. Connected.",
+    "lending_credit",
+    "lending",
+    "active",
+  ),
+  seedSite(
+    4,
+    "expense_now",
+    "product",
+    "Expense Now",
+    "Spend smarter. Move money better.",
+    "finance_payments",
+    "finance",
+    "coming_soon",
+  ),
+];
+const siteRow = ({ requests, ...s }) => ({
+  ...s,
+  pending_to_status: requests.find((r) => r.decision === "pending")?.to_status ?? null,
+});
+const SITE_CTA = { coming_soon: "waitlist", beta: "early_access", active: "demo" };
+const publicSites = () =>
+  sites
+    .filter((s) => !s.archived_at && SITE_CTA[s.status])
+    .sort((a, b) => a.position - b.position)
+    .map((s) => ({
+      ...Object.fromEntries(
+        Object.entries(s).filter(([k]) => !["requests", "archived_at", "version"].includes(k)),
+      ),
+      cta: SITE_CTA[s.status],
+    }));
+const RANKS = { viewer: 0, editor: 1, reviewer: 2, owner: 3 };
+
+function siteRoutes(path, req, body, user, send) {
+  const notFound = () => send(404, { error: { code: "not_found", message: "Not found." } });
+  const forbidden = (message = "You don't have permission to do that.") =>
+    send(403, { error: { code: "forbidden", message } });
+  const conflict = (message) => send(409, { error: { code: "conflict", message } });
+  const invalid = (fields) =>
+    send(422, { error: { code: "validation", message: "Please check the highlighted fields.", fields } });
+  const fieldsOf = (b, creating) => {
+    const errors = [];
+    if (!String(b.name ?? "").trim())
+      errors.push({ field: "name", code: "required", message: "Enter a name." });
+    if (creating && !/^[a-z0-9]+([_-][a-z0-9]+)*$/.test(b.slug ?? ""))
+      errors.push({ field: "slug", code: "format", message: "Use lower-case letters, numbers, - or _." });
+    if (creating && sites.some((s) => s.slug === b.slug))
+      errors.push({ field: "slug", code: "taken", message: "Another website already uses this identifier." });
+    if (b.primary_domain && !/^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/.test(b.primary_domain))
+      errors.push({
+        field: "primary_domain",
+        code: "format",
+        message: "Enter a host name such as product.example.com.",
+      });
+    return errors;
+  };
+
+  if (path === "sites" && req.method === "GET") return send(200, sites.map(siteRow));
+  if (path === "sites" && req.method === "POST") {
+    if (user.role !== "owner") return forbidden();
+    const errors = fieldsOf(body, true);
+    if (errors.length) return invalid(errors);
+    const site = {
+      ...seedSite(
+        5,
+        body.slug,
+        "product",
+        body.name.trim(),
+        body.tagline || null,
+        body.category,
+        body.template || SITE_TEMPLATES[body.category],
+        "draft",
+      ),
+      id: randomUUID(),
+      description: body.description || null,
+      primary_domain: body.primary_domain || null,
+      position: sites.length,
+    };
+    if (body.launch_status && body.launch_status !== "draft") {
+      site.requests.push({
+        id: randomUUID(),
+        from_status: "draft",
+        to_status: body.launch_status,
+        reason: "Launch status chosen when the website was created.",
+        requested_by: user.name,
+        requested_by_id: user.id,
+        decision: "pending",
+        created_at: new Date().toISOString(),
+      });
+    }
+    sites.push(site);
+    return send(201, siteRow(site));
+  }
+  const m =
+    /^sites\/([a-z0-9_-]+)(?:\/(archive|restore|status-requests)(?:\/([0-9a-f-]{36})\/(approve|reject|cancel))?)?$/.exec(
+      path,
+    );
+  const site = m && sites.find((s) => s.slug === m[1]);
+  if (!site) return notFound();
+  const [, , action, requestId, decision] = m;
+  if (!action && req.method === "GET") {
+    return send(200, { site: siteRow(site), status_requests: site.requests.slice().reverse() });
+  }
+  const touch = () =>
+    Object.assign(site, { version: site.version + 1, updated_at: new Date().toISOString() });
+  if (!action) {
+    if (user.role !== "owner") return forbidden();
+    if (body.version !== site.version) return conflict("This website was changed by someone else.");
+    const errors = fieldsOf(body, false);
+    if (errors.length) return invalid(errors);
+    Object.assign(site, {
+      name: body.name.trim(),
+      tagline: body.tagline || null,
+      description: body.description || null,
+      primary_domain: body.primary_domain || null,
+      ...(site.kind === "product"
+        ? { category: body.category, template: body.template || site.template }
+        : {}),
+    });
+    touch();
+    return send(200, siteRow(site));
+  }
+  if (action === "archive" || action === "restore") {
+    if (user.role !== "owner") return forbidden();
+    if (site.kind === "corporate") return forbidden("The corporate website cannot be archived.");
+    site.archived_at = action === "archive" ? new Date().toISOString() : null;
+    touch();
+    return send(200, siteRow(site));
+  }
+  if (RANKS[user.role] < RANKS.reviewer) return forbidden();
+  if (site.kind === "corporate") return forbidden("The corporate website is always active.");
+  const pending = site.requests.find((r) => r.decision === "pending");
+  if (!requestId) {
+    if (site.archived_at) return conflict("Restore this website before changing its status.");
+    if (pending) return conflict("This website already has a status change awaiting approval.");
+    if (!SITE_STATUSES.includes(body.to_status) || !SITE_MOVES[site.status].includes(body.to_status))
+      return invalid([
+        { field: "to_status", code: "not_allowed", message: "That status change isn't available." },
+      ]);
+    if (!String(body.reason ?? "").trim())
+      return invalid([{ field: "reason", code: "length", message: "Explain the change." }]);
+    const request = {
+      id: randomUUID(),
+      from_status: site.status,
+      to_status: body.to_status,
+      reason: body.reason.trim(),
+      requested_by: user.name,
+      requested_by_id: user.id,
+      decision: "pending",
+      created_at: new Date().toISOString(),
+    };
+    site.requests.push(request);
+    return send(201, request);
+  }
+  if (!pending || pending.id !== requestId) return notFound();
+  const own = pending.requested_by_id === user.id;
+  if (decision === "cancel" && !own && user.role !== "owner") return forbidden();
+  if (decision !== "cancel" && own && user.role !== "owner")
+    return forbidden("maker-checker: someone else must decide your request.");
+  if (decision === "approve" && site.status !== pending.from_status)
+    return conflict("The status changed since this was requested.");
+  Object.assign(pending, {
+    decision: { approve: "approved", reject: "rejected", cancel: "cancelled" }[decision],
+    decided_by: user.name,
+    decision_note: body.note ?? null,
+    decided_at: new Date().toISOString(),
+  });
+  if (decision === "approve") {
+    site.status = pending.to_status;
+    touch();
+  }
+  return send(200, siteRow(site));
 }
 
 function admin(req, res, url, body, send) {
@@ -505,6 +737,7 @@ function admin(req, res, url, body, send) {
         return send(200, detail(article));
     }
   }
+  if (path === "sites" || path.startsWith("sites/")) return siteRoutes(path, req, body, user, send);
   return send(404, { error: { code: "not_found", message: "Not found." } });
 }
 
@@ -524,6 +757,7 @@ createServer(async (req, res) => {
   };
   if (url.pathname.startsWith("/v1/admin/")) return admin(req, res, url, body, send);
   if (url.pathname === "/v1/articles") return send(200, list(url));
+  if (url.pathname === "/v1/sites") return send(200, publicSites());
   if (url.pathname === "/v1/categories") {
     const en = (url.searchParams.get("locale") ?? "en") === "en";
     return send(

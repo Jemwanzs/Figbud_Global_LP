@@ -33,7 +33,7 @@ All tables use UUID keys, foreign keys, check constraints and indexes for their 
 
 **Phase B — registry**
 
-- `sites` — `slug` (unique, kebab-case), `kind` (`corporate` | `product`), `name`, `tagline`, `description`, `category` (`corporate`, `hr_workforce`, `lending_credit`, `finance_payments`, `custom_enterprise`), `template`, `status` (`draft`, `coming_soon`, `beta`, `active`, `retired`), `primary_domain`, `position`, `archived_at`, `version`, authorship and timestamps.
+- `sites` — `slug` (unique, immutable; lower-case letters and numbers joined by `-` or `_`), `kind` (`corporate` | `product`), `name`, `tagline`, `description`, `category` (`corporate`, `hr_workforce`, `lending_credit`, `finance_payments`, `custom_enterprise`), `template`, `status` (`draft`, `coming_soon`, `beta`, `active`, `retired`), `primary_domain`, `position`, `archived_at`, `version`, authorship and timestamps.
 - `site_status_requests` — requested lifecycle transitions: from/to status, reason, requester, decision (`pending`, `approved`, `rejected`, `cancelled`), decider, timestamps. Approving applies the transition and is audited.
 
 **Later phases** (designed here, built in order): `site_themes` and `site_navigation` (E); `pages`, `page_versions`, `page_sections` (C); `content_items`, `content_targets`, `content_versions` (D, generalising `cms_articles`); `media_assets`, `media_variants`, `media_usages` (D); `site_grants` and `approval_requests` (F); `redirects`, `translations` (G).
@@ -43,6 +43,8 @@ All tables use UUID keys, foreign keys, check constraints and indexes for their 
 Global roles remain: owner (platform owner), reviewer, editor, viewer. Phase F adds per-site grants that narrow them: website administrator, product manager, content editor, reviewer / approver, publisher, viewer, scoped to one site. Every administrative endpoint authorises the actor against the site it touches.
 
 Phase B rules: everyone signed in can read the registry; owners create, edit, archive and restore sites; reviewers and owners request lifecycle transitions; a different reviewer or an owner approves them.
+
+Phase B delivery: the admin has a Websites area (`/admin/sites`: list, guided creation, settings, lifecycle panel, archive/restore). The corporate site reads `GET /v1/sites` through `apps/figbud-web/src/lib/products.ts` (cached for minutes, falling back to the code registry in `@figbud/brand` when the API is unreachable): unlisted products disappear from the Products page and homepage, and the status chooses the call to action. Beta is shown as "coming soon" there until early-access copy is reviewed in every language (P7-B6).
 
 ## Lifecycle transitions
 

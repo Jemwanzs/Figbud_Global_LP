@@ -19,10 +19,13 @@
 | 4     | Product websites                     | 🔄 In progress | 2 / 20 tasks (template + ZiraHR site started) | Product capability sign-off, payroll rules, Railway service for product sites |
 | 5     | Integrations & administration        | 🔄 In progress | 11 / 17 tasks (admin, CMS, inbox done)  | Resend credentials, recipient addresses      |
 | 6     | Production deployment                | 🔄 In progress | 9 / 18 tasks                            | Resend, domains, backups/monitoring          |
+| 7     | Admin Studio & website builder       | 🔄 In progress | 6 / 21 tasks (design + website registry done) | —                                      |
 
 **Where we are:** the monorepo, shared design system, multilingual architecture, Rust enquiry API with PostgreSQL and a retrying email outbox, and the first complete FigBud Global homepage are built and verified locally. Everything runs without any external service. The next steps that need decisions from FigBud are listed in **§5 Open questions**.
 
-**Verified on 22 Oct 2026 (latest):** Rust tests 63/63 against real PostgreSQL (real WebAuthn ceremonies, editorial workflow, enquiries inbox and export, CMS visibility, sanitised HTML) · clippy and rustfmt clean · `cargo audit` 0 advisories · `npm audit` 0 vulnerabilities in shipped dependencies · TypeScript strict, ESLint, Prettier clean · frontend unit tests 15/15 · Playwright 177 tests across Chromium, Firefox and WebKit (admin, editor and inbox journeys; axe on every public route) · verified end to end against the production API image: admin sign-in, the editorial flow (write → publish → live → archive) and the inbox (enquiry → follow-up → CSV export) · **Railway live (43792dc):** API ready, website, blog, admin, editor; admin endpoints refuse unauthenticated and forged-origin requests.
+**Verified on 23 Oct 2026 (Admin Studio Phase B):** Rust tests 69/69 against real PostgreSQL (website registry: creation, maker-checker launches, conflicts, archive, corporate rules) · TypeScript, ESLint, Prettier clean · frontend unit tests 23/23 · Playwright 183 passed across Chromium, Firefox and WebKit, including the new Websites journey and axe on the Websites pages · verified against the production API image that a registry status change reaches the public Products page (status, call to action, retired products removed).
+
+**Verified on 22 Oct 2026:** Rust tests 63/63 against real PostgreSQL (real WebAuthn ceremonies, editorial workflow, enquiries inbox and export, CMS visibility, sanitised HTML) · clippy and rustfmt clean · `cargo audit` 0 advisories · `npm audit` 0 vulnerabilities in shipped dependencies · TypeScript strict, ESLint, Prettier clean · frontend unit tests 15/15 · Playwright 177 tests across Chromium, Firefox and WebKit (admin, editor and inbox journeys; axe on every public route) · verified end to end against the production API image: admin sign-in, the editorial flow (write → publish → live → archive) and the inbox (enquiry → follow-up → CSV export) · **Railway live (43792dc):** API ready, website, blog, admin, editor; admin endpoints refuse unauthenticated and forged-origin requests.
 
 ### Deployment readiness
 
@@ -370,6 +373,35 @@ Items marked **Blocking** stop the listed tasks; everything else proceeds with t
 | P6-15  | Launch checklist and sign-off                                                               | ⬜ |
 | P6-16  | Move Railway service settings into infrastructure as code (`.railway/railway.ts`); `railway.toml` is no longer applied | ⬜ |
 
+### Phase 7 — Admin Studio & configurable website builder 🔄
+
+**Goal:** one admin studio that manages the corporate website and every product website: registry, lifecycle, pages built from typed blocks, shared content and media, themes and navigation, granular permissions with approvals and rollback, SEO and localisation. *Build once. Configure continuously. Publish confidently.* **Design:** [ADMIN_STUDIO.md](ADMIN_STUDIO.md) (D16–D20).
+**Acceptance criteria:** no arbitrary JavaScript or unsanitised HTML through the CMS; autosave never publishes; every change audited with previous and new values and reversible; marketing status never switches on the operational product, payments, sign-ups or production integrations.
+
+| ID     | Task                                                                                         | Status |
+| ------ | -------------------------------------------------------------------------------------------- | ------ |
+| P7-A1  | Phase A: audit of the existing admin and design (data model, permissions, lifecycle, safety rules) | ✅ |
+| P7-B1  | Website registry schema and migration; today's four websites seeded                              | ✅ |
+| P7-B2  | Registry API: public listing with call to action, admin create/update with version conflicts, archive/restore, audit per website | ✅ |
+| P7-B3  | Marketing lifecycle Draft → Coming soon → Beta → Active → Retired via requests with maker-checker approval | ✅ |
+| P7-B4  | Admin UI: Websites list, guided new-website wizard (category, template, suggested pages, launch status), settings, lifecycle panel, archive/restore, overview tile | ✅ |
+| P7-B5  | Corporate Products page and homepage showcase follow the registry (falls back to the code registry if the API is down) | ✅ |
+| P7-B6  | Beta / early-access badge and enquiry type on the corporate site (needs reviewed copy in every language) | ⬜ |
+| P7-C1  | Page model: pages, versions, sections; typed block schemas validated by the API (no markup) | ⬜ |
+| P7-C2  | Visual page builder: drag-and-drop sections, block library, device previews, autosave that never publishes, undo/redo | ⬜ |
+| P7-C3  | Page templates per category; draft → review → publish → schedule → rollback for pages        | ⬜ |
+| P7-D1  | Central content library distributed to several websites without duplicates, with versions    | ⬜ |
+| P7-D2  | Media library: uploads, variants, required alt text, usage tracking                          | ⬜ |
+| P7-E1  | Theme configuration with token guard rails (contrast checks, brand limits)                   | ⬜ |
+| P7-E2  | Navigation and footer configuration per website                                              | ⬜ |
+| P7-E3  | Multi-site renderer (D16); ZiraHR website moves onto registry-driven pages                   | ⬜ |
+| P7-F1  | Per-website permissions (site grants) on top of global roles                                 | ⬜ |
+| P7-F2  | Approval queue across websites; audit with previous and new values; rollback                 | ⬜ |
+| P7-G1  | SEO per page: titles, descriptions, social images, canonical URLs, redirects, sitemap        | ⬜ |
+| P7-G2  | Localisation workflow (EN/SW/FR/AR/ZH, Arabic right-to-left); unreviewed translations stay unindexed | ⬜ |
+| P7-G3  | Forms and leads per website, delivered through Resend (with P5-11)                          | ⬜ Q4 |
+| P7-G4  | Performance budgets for builder-made pages                                                   | ⬜ |
+
 ---
 
 ## 7. Milestones
@@ -386,6 +418,8 @@ Items marked **Blocking** stop the listed tasks; everything else proceeds with t
 | M8 — Integrations live             | Phase 5                                      | Real email, admin, CMS                                | 🔄 Admin and CMS live; email awaits Resend (Q4) |
 | M8b — Repository live              | P1-25, P6-05, P6-06                          | Code on GitHub `main`, CI green                       | ✅ 22 Oct 2026 |
 | M9 — Production launch             | Phase 6                                      | Launch checklist signed                               | ⬜ |
+| M10 — Website registry             | P7-A1 → P7-B5                                | Websites managed from admin; public site follows      | ✅ 23 Oct 2026 |
+| M11 — Page builder                 | P7-C*, P7-D*                                 | A product page built, reviewed and published from blocks | ⬜ |
 
 ---
 
@@ -411,6 +445,7 @@ Items marked **Blocking** stop the listed tasks; everything else proceeds with t
 
 | Date        | Change                                                                                                   |
 | ----------- | -------------------------------------------------------------------------------------------------------- |
+| 23 Oct 2026 | Admin Studio Phase 7 added (from the Enterprise Admin Studio brief). Phase A design (`docs/ADMIN_STUDIO.md`, D16–D20) and Phase B website registry delivered: schema with the four current websites, public and admin APIs, maker-checker lifecycle, Websites admin (list, guided creation, settings, lifecycle, archive), overview tile; the corporate Products page and homepage now follow the registry. |
 | 23 Oct 2026 | Product-site template (P4-01) and cross-site links (P4-02): `@figbud/site-kit` shared by all sites; the corporate site now uses it (no behaviour change). ZiraHR website started (`apps/zirahr-web`, P4-Z1): hero, modules, payroll, placeholders with real 404s; e2e in CI. Paint performance: redundant blur filters removed across sites. |
 | 22 Oct 2026 | Enquiries inbox (P5-09 complete): filters, search, detail with email delivery states, follow-up statuses with history, owner-only CSV export with formula-injection protection; every action audited. Verified end to end against the production API image. Insights editor live on Railway (43792dc). |
 | 22 Oct 2026 | Editorial workflow (P5-07 complete): drafts, review, maker-checker publishing, scheduling, archive/restore, versions with conflict detection, taxonomy, preview; every action audited (P5-10 complete). Insights editor UI (P5-09). Railway: discovered `railway.toml` is no longer applied (and never followed the API root directory); API health check, restart policy and watch path now set on the service. Second deployment live (991f63b). Real end-to-end run found and fixed an editor status race. |
