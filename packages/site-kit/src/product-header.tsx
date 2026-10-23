@@ -89,7 +89,7 @@ export function ProductHeader({
             className="hidden sm:block"
           />
           <ThemeToggle labels={labels.theme} />
-          <a {...cta} className={buttonClasses("product", "md", "ms-2 hidden sm:inline-flex")}>
+          <a {...cta} className={buttonClasses("product", "md", "ms-2 max-sm:hidden")}>
             {labels.cta}
             <ArrowUpRight aria-hidden className="size-4 rtl:-scale-x-100" />
             <span className="sr-only">({labels.opensInNewTab})</span>
