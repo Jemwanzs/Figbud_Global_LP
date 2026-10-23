@@ -26,6 +26,7 @@ use crate::{
     enquiry::{EnquiryInput, new_reference},
     error::ApiError,
     rate_limit::{RateLimiter, client_ip, ip_hash},
+    sites,
 };
 
 pub struct AppState {
@@ -74,6 +75,7 @@ pub fn router(state: SharedState) -> Router {
         .route("/v1/enquiries", post(create_enquiry))
         .merge(cms::router())
         .merge(admin::router())
+        .merge(sites::router())
         .layer(RequestBodyLimitLayer::new(16 * 1024))
         // Articles are larger than any form; the editorial API gets its own limit.
         .merge(cms::editorial::router().layer(RequestBodyLimitLayer::new(512 * 1024)))
