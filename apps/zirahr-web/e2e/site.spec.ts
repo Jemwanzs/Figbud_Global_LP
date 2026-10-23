@@ -38,7 +38,10 @@ test.describe("ZiraHR website", () => {
   }) => {
     test.skip(isMobile, "desktop navigation");
     await page.goto("/en");
-    await page.getByRole("navigation", { name: "ZiraHR", exact: true }).getByRole("link", { name: "Pricing" }).click();
+    await page
+      .getByRole("navigation", { name: "ZiraHR", exact: true })
+      .getByRole("link", { name: "Pricing" })
+      .click();
     await expect(page).toHaveURL(/\/en\/pricing$/);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Pricing");
     await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", /noindex/);
