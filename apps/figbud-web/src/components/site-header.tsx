@@ -8,7 +8,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 
-import { LanguageSwitcher, ProductGlyph, useDismiss } from "@figbud/site-kit";
+import { BrandLogo, type BrandProfile, LanguageSwitcher, ProductMark, useDismiss } from "@figbud/site-kit";
 
 import type { Dictionary } from "@/i18n/get-dictionary";
 import { productLink, routes } from "@/lib/site";
@@ -17,6 +17,8 @@ type HeaderProps = {
   locale: Locale;
   common: Dictionary["common"];
   products: Dictionary["products"];
+  /** Published brand profiles by website slug (Admin → Websites → Branding). */
+  brands: Record<string, BrandProfile | null>;
 };
 
 const navItems = [
@@ -27,7 +29,7 @@ const navItems = [
   { key: "contact", path: routes.contact },
 ] as const;
 
-export function SiteHeader({ locale, common, products }: HeaderProps) {
+export function SiteHeader({ locale, common, products, brands }: HeaderProps) {
   const pathname = usePathname();
   const current = stripLocale(pathname);
   const [scrolled, setScrolled] = useState(false);
@@ -56,7 +58,7 @@ export function SiteHeader({ locale, common, products }: HeaderProps) {
           className="-m-1 rounded-lg p-1"
           aria-label={`${common.nav.home} — FigBud Global`}
         >
-          <FigBudWordmark />
+          <FigBudLogo brand={brands.figbud} />
         </Link>
 
         <nav aria-label={common.nav.label} className="ms-6 hidden lg:block">
@@ -68,6 +70,7 @@ export function SiteHeader({ locale, common, products }: HeaderProps) {
                     locale={locale}
                     common={common}
                     products={products}
+                    brands={brands}
                     active={isActive(item.path)}
                   />
                 </li>
@@ -115,6 +118,7 @@ export function SiteHeader({ locale, common, products }: HeaderProps) {
             pathname={current}
             common={common}
             products={products}
+            brands={brands}
             isActive={isActive}
           />
         </div>
@@ -123,7 +127,7 @@ export function SiteHeader({ locale, common, products }: HeaderProps) {
   );
 }
 
-function ProductsMenu({ locale, common, products, active }: HeaderProps & { active: boolean }) {
+function ProductsMenu({ locale, common, products, brands, active }: HeaderProps & { active: boolean }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const panelId = useId();
@@ -173,7 +177,7 @@ function ProductsMenu({ locale, common, products, active }: HeaderProps & { acti
                     onClick={close}
                     className="group flex items-start gap-3.5 rounded-2xl p-3 transition-colors hover:bg-surface-2"
                   >
-                    <ProductGlyph slug={product.slug} />
+                    <ProductMark slug={product.slug} brand={brands[product.slug]} />
                     <span className="min-w-0 flex-1">
                       <span className="flex items-center gap-2">
                         <span className="font-medium text-text">{product.name}</span>
@@ -222,6 +226,7 @@ function MobileMenu({
   pathname,
   common,
   products,
+  brands,
   isActive,
 }: HeaderProps & { pathname: string; isActive: (path: string) => boolean }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -250,7 +255,7 @@ function MobileMenu({
       >
         <div className="ms-auto flex h-full w-full max-w-md flex-col overflow-y-auto bg-bg-elevated shadow-2xl sm:border-s sm:border-line">
           <div className="flex h-[4.5rem] shrink-0 items-center justify-between px-5 sm:px-8">
-            <FigBudWordmark />
+            <FigBudLogo brand={brands.figbud} />
             <button
               type="button"
               onClick={close}
@@ -298,7 +303,7 @@ function MobileMenu({
                       onClick={close}
                       className="flex min-h-14 items-center gap-3 rounded-2xl border border-line bg-surface p-3"
                     >
-                      <ProductGlyph slug={product.slug} size="sm" />
+                      <ProductMark slug={product.slug} brand={brands[product.slug]} size="sm" />
                       <span className="flex-1">
                         <span className="block font-medium">{product.name}</span>
                         <span className="block text-sm text-muted">{products[product.slug].category}</span>
@@ -353,5 +358,18 @@ function MobileMenu({
         </div>
       </dialog>
     </>
+  );
+}
+
+/** The FigBud Global logo from its brand profile, or the built-in wordmark until one is published. */
+function FigBudLogo({ brand }: { brand?: BrandProfile | null }) {
+  return (
+    <BrandLogo
+      pair={brand?.logos.horizontal}
+      height={brand?.logo_height ?? 28}
+      maxWidth={190}
+      alt="FigBud Global"
+      fallback={<FigBudWordmark />}
+    />
   );
 }

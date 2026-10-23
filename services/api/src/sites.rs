@@ -99,7 +99,7 @@ struct PublicSite {
     position: i32,
 }
 
-/// Listed websites: not archived, not draft, not retired.
+/// Listed websites (not archived, draft or retired) with their published brand.
 async fn public_sites(State(state): State<SharedState>) -> Result<impl IntoResponse, ApiError> {
     let rows: Vec<PublicSite> = sqlx::query_as(
         "SELECT slug, kind, name, tagline, description, category, status, primary_domain, position
@@ -109,12 +109,15 @@ async fn public_sites(State(state): State<SharedState>) -> Result<impl IntoRespo
     )
     .fetch_all(&state.pool)
     .await?;
+    let mut brands = crate::brand::published_by_slug(&state.pool).await?;
     let sites: Vec<Value> = rows
         .into_iter()
         .map(|s| {
             let cta = cta_for(&s.status);
+            let brand = brands.remove(&s.slug).unwrap_or(Value::Null);
             let mut value = serde_json::to_value(s).unwrap_or(Value::Null);
             value["cta"] = json!(cta);
+            value["brand"] = brand;
             value
         })
         .collect();
@@ -242,7 +245,7 @@ struct ValidSite {
     primary_domain: Option<String>,
 }
 
-fn trimmed(value: Option<&str>) -> Option<String> {
+pub(crate) fn trimmed(value: Option<&str>) -> Option<String> {
     value.map(str::trim).filter(|v| !v.is_empty()).map(str::to_owned)
 }
 
@@ -354,7 +357,7 @@ fn validate(input: &SiteInput, corporate: bool) -> Result<ValidSite, ApiError> {
 }
 
 /// Audit entry that names the website it concerns.
-async fn audit_site(
+pub(crate) async fn audit_site(
     pool: &PgPool,
     session: &AdminSession,
     site_id: Uuid,

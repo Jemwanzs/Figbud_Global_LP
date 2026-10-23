@@ -4,6 +4,7 @@ import { localeProxy } from "@figbud/site-kit/server";
 export const proxy = localeProxy;
 
 export const config = {
-  // Skip Next.js internals and any path with a file extension (robots.txt, icons).
-  matcher: ["/((?!_next|api|.*\..*).*)"],
+  // Skip Next.js internals, any path with a file extension (robots.txt, icons)
+  // and brand logo files.
+  matcher: ["/((?!_next|api|brand/assets|.*\\..*).*)"],
 };

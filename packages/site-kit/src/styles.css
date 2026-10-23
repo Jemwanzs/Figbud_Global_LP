@@ -245,3 +245,28 @@
     transition-duration: 0.001ms !important;
   }
 }
+
+/* Brand logos (BrandLogo): each theme shows the file made for its background.
+   A file made for the other background sits on a small plate of its own
+   background colour instead of being recoloured. */
+.fb-brand {
+  display: inline-flex;
+  border-radius: 0.55rem;
+}
+.fb-brand-on-light:not(.fb-brand-solo) {
+  display: none;
+}
+[data-theme="light"] .fb-brand-on-light:not(.fb-brand-solo) {
+  display: inline-flex;
+}
+[data-theme="light"] .fb-brand-on-dark:not(.fb-brand-solo) {
+  display: none;
+}
+[data-theme="light"] .fb-brand-on-dark.fb-brand-solo {
+  background: #15120f;
+  padding: 0.3rem 0.5rem;
+}
+[data-theme="dark"] .fb-brand-on-light.fb-brand-solo {
+  background: #fbf7f1;
+  padding: 0.3rem 0.5rem;
+}

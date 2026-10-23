@@ -47,3 +47,14 @@ export function securityHeaders(options: SecurityOptions): { key: string; value:
     { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
   ];
 }
+
+/**
+ * Logo files (`/brand/assets/*`): an SVG opened on its own can never run
+ * anything. Listed after the site-wide rule so it takes precedence.
+ */
+export const brandAssetHeaderRule = {
+  source: "/brand/assets/:path*",
+  headers: [
+    { key: "Content-Security-Policy", value: "default-src 'none'; style-src 'unsafe-inline'; sandbox" },
+  ],
+};

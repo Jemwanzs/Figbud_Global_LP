@@ -5,7 +5,8 @@
 //   cryptography is verified by the Rust tests; here the browser's virtual
 //   authenticator runs real ceremonies and the mock checks each response's
 //   client data (type, challenge, origin) and the Origin header (CSRF).
-import { randomBytes, randomUUID } from "node:crypto";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
+import { readFileSync } from "node:fs";
 import { createServer } from "node:http";
 
 const PORT = Number(process.env.MOCK_API_PORT ?? 3199);
@@ -274,6 +275,7 @@ const publicSites = () =>
         Object.entries(s).filter(([k]) => !["requests", "archived_at", "version"].includes(k)),
       ),
       cta: SITE_CTA[s.status],
+      brand: brands.get(s.slug)?.published ? resolveBrand(brands.get(s.slug).published) : null,
     }));
 const RANKS = { viewer: 0, editor: 1, reviewer: 2, owner: 3 };
 
@@ -418,7 +420,515 @@ function siteRoutes(path, req, body, user, send) {
   return send(200, siteRow(site));
 }
 
-function admin(req, res, url, body, send) {
+// Brand profiles and logo library (services/api/src/brand), seeded from the
+// same files as the real API. Images are validated loosely (magic bytes and
+// declared type); the Rust tests cover sanitising and decoding.
+const SEED_DIR = new URL("../../../services/api/seed/brand/", import.meta.url);
+const brandAssets = new Map(); // id -> asset (with data Buffer)
+const brands = new Map(); // site slug -> profile
+
+const BRAND_DEFAULTS = {
+  figbud: ["#f0a65d", "#a66538", "#f6bd82"],
+  zirahr: ["#22d3ee", "#0891b2", "#11e6ff"],
+  jasiri: ["#22c55e", "#7c3aed", "#4ade80"],
+  expense_now: ["#f97316", "#ea580c", "#fdba74"],
+};
+const emptyPair = () => ({ on_dark: null, on_light: null });
+const defaultBrand = (slug) => {
+  const [primary, secondary, accent] = BRAND_DEFAULTS[slug] ?? BRAND_DEFAULTS.figbud;
+  return {
+    logos: { horizontal: emptyPair(), stacked: emptyPair(), symbol: emptyPair(), wordmark: emptyPair() },
+    favicon: null,
+    app_icon: null,
+    social_image: null,
+    colors: { primary, secondary, accent },
+    logo_height: 28,
+  };
+};
+const clone = (value) => JSON.parse(JSON.stringify(value));
+
+function imageInfo(data, type) {
+  if (
+    type === "image/png" &&
+    data.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))
+  ) {
+    return { width: data.readUInt32BE(16), height: data.readUInt32BE(20) };
+  }
+  if (
+    type === "image/webp" &&
+    data.subarray(0, 4).toString() === "RIFF" &&
+    data.subarray(8, 12).toString() === "WEBP"
+  ) {
+    return { width: 400, height: 200 };
+  }
+  if (type === "image/svg+xml") {
+    const text = data.toString("utf8");
+    if (!text.includes("<svg") || /<script|<foreignobject|<image|<!doctype|<text/i.test(text)) return null;
+    const box = /viewBox="[\d.\s-]*?\s([\d.]+)\s+([\d.]+)"/.exec(text);
+    const w = /\swidth="([\d.]+)"/.exec(text)?.[1] ?? box?.[1];
+    const h = /\sheight="([\d.]+)"/.exec(text)?.[1] ?? box?.[2];
+    return w && h ? { width: Math.round(Number(w)), height: Math.round(Number(h)) } : null;
+  }
+  return null;
+}
+
+function storeAsset(slug, data, type, label, alt, origin) {
+  const existing = [...brandAssets.values()].find((a) => a.site === slug && a.data.equals(data));
+  if (existing) return [200, existing];
+  const info = imageInfo(data, type);
+  // Stable ids (from the contents), so a build and a later test run agree on file URLs.
+  const hex = createHash("sha256").update(slug).update(data).digest("hex");
+  const asset = {
+    id: `${hex.slice(0, 8)}-${hex.slice(8, 12)}-7${hex.slice(13, 16)}-8${hex.slice(17, 20)}-${hex.slice(20, 32)}`,
+    site: slug,
+    label,
+    alt_text: alt,
+    content_type: type,
+    width: info.width,
+    height: info.height,
+    has_alpha: true,
+    byte_size: data.length,
+    origin,
+    archived_at: null,
+    created_at: new Date().toISOString(),
+    widths: [],
+    data,
+  };
+  brandAssets.set(asset.id, asset);
+  return [201, asset];
+}
+
+const BRAND_SEED = {
+  figbud: [
+    "FigBud Global",
+    [
+      [
+        "figbud-horizontal-on-dark-official.png",
+        "official",
+        "FigBud logo (official, for dark backgrounds)",
+        "horizontal",
+        ["on_dark"],
+      ],
+      [
+        "figbud-symbol-on-dark-official.png",
+        "official",
+        "FigBud symbol (official, for dark backgrounds)",
+        "symbol",
+        ["on_dark"],
+      ],
+      [
+        "figbud-horizontal-on-light-proposed.png",
+        "proposed",
+        "FigBud logo for light backgrounds (proposed recolour)",
+        "horizontal",
+        ["on_light"],
+      ],
+      [
+        "figbud-symbol-on-light-proposed.png",
+        "proposed",
+        "FigBud symbol for light backgrounds (proposed recolour)",
+        "symbol",
+        ["on_light"],
+      ],
+    ],
+  ],
+  zirahr: [
+    "ZiraHR",
+    [
+      [
+        "zirahr-symbol-official.png",
+        "official",
+        "ZiraHR symbol (official)",
+        "symbol",
+        ["on_dark", "on_light"],
+      ],
+      [
+        "zirahr-supplied-incomplete.png",
+        "official",
+        "ZiraHR logo as supplied (incomplete: “HR” is cut off)",
+        null,
+        [],
+      ],
+    ],
+  ],
+  jasiri: [
+    "Jasiri LMS",
+    [
+      [
+        "jasiri-horizontal-on-dark-official.png",
+        "official",
+        "Jasiri logo (official, for dark backgrounds)",
+        "horizontal",
+        ["on_dark"],
+      ],
+      [
+        "jasiri-horizontal-on-light-proposed.png",
+        "proposed",
+        "Jasiri logo for light backgrounds (proposed recolour)",
+        "horizontal",
+        ["on_light"],
+      ],
+    ],
+  ],
+  expense_now: [
+    "Expense Now",
+    [
+      [
+        "expense-now-horizontal-on-dark-proposed.svg",
+        "proposed",
+        "Expense Now logo concept (dark backgrounds)",
+        "horizontal",
+        ["on_dark"],
+      ],
+      [
+        "expense-now-horizontal-on-light-proposed.svg",
+        "proposed",
+        "Expense Now logo concept (light backgrounds)",
+        "horizontal",
+        ["on_light"],
+      ],
+      [
+        "expense-now-symbol-proposed.svg",
+        "proposed",
+        "Expense Now symbol concept",
+        "symbol",
+        ["on_dark", "on_light"],
+      ],
+      ["expense-now-favicon-proposed.svg", "proposed", "Expense Now favicon concept", "favicon", []],
+    ],
+  ],
+};
+
+function assign(config, slot, themes, id) {
+  if (slot === "favicon") config.favicon = id;
+  else if (slot) for (const theme of themes) config.logos[slot][theme] = id;
+}
+
+for (const [slug, [name, files]] of Object.entries(BRAND_SEED)) {
+  const published = defaultBrand(slug);
+  const draft = defaultBrand(slug);
+  for (const [file, origin, label, slot, themes] of files) {
+    const data = readFileSync(new URL(file, SEED_DIR));
+    const [, asset] = storeAsset(
+      slug,
+      data,
+      file.endsWith(".svg") ? "image/svg+xml" : "image/png",
+      label,
+      name,
+      origin,
+    );
+    if (origin === "official") assign(published, slot, themes, asset.id);
+    assign(draft, slot, themes, asset.id);
+  }
+  const official = files.some(([, origin]) => origin === "official");
+  const revision = official
+    ? {
+        id: randomUUID(),
+        number: 1,
+        config: clone(published),
+        note: "Official logos supplied by FigBud",
+        state: "published",
+        requested_by: null,
+        requested_by_id: null,
+        decided_by: null,
+        decision_note: null,
+        created_at: new Date().toISOString(),
+        decided_at: new Date().toISOString(),
+      }
+    : null;
+  brands.set(slug, {
+    draft,
+    draft_version: 1,
+    draft_note:
+      slug === "expense_now"
+        ? "Proposed Expense Now logo concept: not approved. Review before submitting."
+        : JSON.stringify(draft) !== JSON.stringify(published)
+          ? "Proposed light-background versions of the official logos: review before submitting."
+          : null,
+    published: official ? published : null,
+    published_revision: revision?.id ?? null,
+    published_at: revision?.decided_at ?? null,
+    revisions: revision ? [revision] : [],
+  });
+}
+
+const profile = (slug) => {
+  if (!brands.has(slug)) {
+    brands.set(slug, {
+      draft: defaultBrand(slug),
+      draft_version: 1,
+      draft_note: null,
+      published: null,
+      published_revision: null,
+      published_at: null,
+      revisions: [],
+    });
+  }
+  return brands.get(slug);
+};
+
+const assetIds = (c) =>
+  c
+    ? [
+        ...Object.values(c.logos).flatMap((p) => [p.on_dark, p.on_light]),
+        c.favicon,
+        c.app_icon,
+        c.social_image,
+      ].filter(Boolean)
+    : [];
+
+function placements(c, id) {
+  if (!c) return [];
+  const out = [];
+  for (const [slot, pair] of Object.entries(c.logos)) {
+    if (pair.on_dark === id) out.push({ slot, theme: "dark" });
+    if (pair.on_light === id) out.push({ slot, theme: "light" });
+  }
+  for (const slot of ["favicon", "app_icon", "social_image"])
+    if (c[slot] === id) out.push({ slot, theme: null });
+  return out;
+}
+
+const hexLum = (hex) => {
+  const [r, g, b] = [1, 3, 5].map((i) => {
+    const c = parseInt(hex.slice(i, i + 2), 16) / 255;
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+};
+const ratio = (a, b) => {
+  const [hi, lo] = [hexLum(a), hexLum(b)].sort((x, y) => y - x);
+  return Math.round(((hi + 0.05) / (lo + 0.05)) * 100) / 100;
+};
+
+function brandChecks(c) {
+  const dark = ratio(c.colors.primary, "#120f0d");
+  const light = ratio(c.colors.primary, "#fbf7f1");
+  return [
+    {
+      id: "logo_on_dark",
+      required: true,
+      ok: Boolean(c.logos.horizontal.on_dark || c.logos.symbol.on_dark),
+      label: "A horizontal or symbol logo for dark backgrounds (the default theme)",
+    },
+    {
+      id: "logo_on_light",
+      required: false,
+      ok: Boolean(c.logos.horizontal.on_light || c.logos.symbol.on_light),
+      label:
+        "A logo for light backgrounds (otherwise the light theme shows the dark-background logo on a dark plate)",
+    },
+    {
+      id: "primary_on_dark",
+      required: true,
+      ok: dark >= 3,
+      ratio: dark,
+      label: "Primary colour stands out on the dark theme (at least 3:1)",
+    },
+    {
+      id: "primary_on_light",
+      required: false,
+      ok: light >= 3,
+      ratio: light,
+      label: "Primary colour stands out on the light theme (at least 3:1; darker shades are used for text)",
+    },
+  ];
+}
+const publishable = (c) => brandChecks(c).every((check) => check.ok || !check.required);
+
+function resolveBrand(c) {
+  const ref = (id) => {
+    const a = id && brandAssets.get(id);
+    return a
+      ? {
+          id: a.id,
+          url: `/v1/brand/assets/${a.id}`,
+          alt: a.alt_text,
+          content_type: a.content_type,
+          width: a.width,
+          height: a.height,
+          widths: [],
+        }
+      : null;
+  };
+  const pair = (p) => ({ on_dark: ref(p.on_dark), on_light: ref(p.on_light) });
+  return {
+    logos: Object.fromEntries(Object.entries(c.logos).map(([k, p]) => [k, pair(p)])),
+    favicon: ref(c.favicon),
+    app_icon: ref(c.app_icon),
+    social_image: ref(c.social_image),
+    colors: c.colors,
+    logo_height: c.logo_height,
+  };
+}
+
+const publicAsset = (a) =>
+  Object.fromEntries(Object.entries(a).filter(([key]) => key !== "data" && key !== "site"));
+
+function serveAsset(res, asset) {
+  res.writeHead(200, {
+    "content-type": asset.content_type,
+    "cache-control": "public, max-age=31536000, immutable",
+    "content-security-policy": "default-src 'none'; style-src 'unsafe-inline'; sandbox",
+  });
+  res.end(asset.data);
+}
+
+function brandRoutes(path, req, res, url, body, raw, user, send) {
+  const forbidden = (message = "You don't have permission to do that.") =>
+    send(403, { error: { code: "forbidden", message } });
+  const conflict = (message) => send(409, { error: { code: "conflict", message } });
+  const invalid = (fields) =>
+    send(422, { error: { code: "validation", message: "Please check the highlighted fields.", fields } });
+  const notFound = () => send(404, { error: { code: "not_found", message: "Not found." } });
+  const rank = RANKS[user.role];
+
+  const assetMatch = /^brand\/assets\/([0-9a-f-]{36})$/.exec(path);
+  if (assetMatch) {
+    const asset = brandAssets.get(assetMatch[1]);
+    return asset ? serveAsset(res, asset) : notFound();
+  }
+  const m =
+    /^sites\/([a-z0-9_-]+)\/brand(?:\/(draft|uploads|submit|assets\/([0-9a-f-]{36})\/(archive|restore)|revisions\/([0-9a-f-]{36})\/(approve|reject|cancel|restore)))?$/.exec(
+      path,
+    );
+  const site = m && sites.find((s) => s.slug === m[1]);
+  if (!site) return notFound();
+  const slug = site.slug;
+  const p = profile(slug);
+  const [, , action, assetId, assetAction, revisionId, revisionAction] = m;
+  const pending = p.revisions.find((r) => r.state === "pending");
+
+  if (!action && req.method === "GET") {
+    const mine = [...brandAssets.values()].filter((a) => a.site === slug);
+    return send(200, {
+      draft: p.draft,
+      draft_version: p.draft_version,
+      draft_note: p.draft_note,
+      draft_updated_at: new Date().toISOString(),
+      draft_updated_by: null,
+      draft_differs: JSON.stringify(p.draft) !== JSON.stringify(p.published),
+      checks: brandChecks(p.draft),
+      publishable: publishable(p.draft),
+      published: p.published,
+      published_revision: p.published_revision,
+      published_at: p.published_at,
+      assets: mine
+        .sort(
+          (a, b) =>
+            Boolean(a.archived_at) - Boolean(b.archived_at) || b.created_at.localeCompare(a.created_at),
+        )
+        .map((a) => ({
+          ...publicAsset(a),
+          used_in: {
+            draft: placements(p.draft, a.id),
+            published: placements(p.published, a.id),
+            pending: placements(pending?.config, a.id),
+          },
+        })),
+      revisions: p.revisions.slice().sort((a, b) => b.number - a.number),
+    });
+  }
+  if (rank < RANKS.editor) return forbidden();
+
+  if (action === "uploads") {
+    const label = url.searchParams.get("label")?.trim();
+    const alt = url.searchParams.get("alt")?.trim();
+    const type = req.headers["content-type"];
+    const errors = [];
+    if (!label)
+      errors.push({ field: "label", code: "required", message: "Name this file (up to 120 characters)." });
+    if (!alt)
+      errors.push({
+        field: "alt_text",
+        code: "required",
+        message: "Describe the logo for screen readers, usually the product name (up to 200 characters).",
+      });
+    const info = ["image/svg+xml", "image/png", "image/webp"].includes(type) ? imageInfo(raw, type) : null;
+    if (!info) errors.push({ field: "file", code: "invalid", message: "Upload an SVG, PNG or WebP file." });
+    if (errors.length) return invalid(errors);
+    const [status, asset] = storeAsset(slug, raw, type, label, alt, "upload");
+    return send(status, publicAsset(asset));
+  }
+  if (action === "draft") {
+    if (body.version !== p.draft_version)
+      return conflict("Someone else changed this brand draft. Reload to see their changes.");
+    const config = body.config;
+    if (!["primary", "secondary", "accent"].every((k) => /^#[0-9a-f]{6}$/i.test(config?.colors?.[k] ?? ""))) {
+      return invalid([
+        { field: "colors.primary", code: "format", message: "Use a six-digit hex colour such as #22d3ee." },
+      ]);
+    }
+    p.draft = config;
+    p.draft_version += 1;
+    return send(200, {
+      draft_version: p.draft_version,
+      checks: brandChecks(config),
+      publishable: publishable(config),
+    });
+  }
+  if (assetId) {
+    const asset = brandAssets.get(assetId);
+    if (!asset || asset.site !== slug) return notFound();
+    const used = [p.draft, p.published, pending?.config].some((c) => assetIds(c).includes(assetId));
+    if (assetAction === "archive" && used)
+      return conflict("This file is in use. Choose another file for those places first, then archive it.");
+    asset.archived_at = assetAction === "archive" ? new Date().toISOString() : null;
+    return send(200, publicAsset(asset));
+  }
+  if (action === "submit") {
+    if (!String(body.note ?? "").trim())
+      return invalid([
+        { field: "note", code: "length", message: "Say what changed in up to 300 characters." },
+      ]);
+    if (!publishable(p.draft)) return conflict("Fix the required brand checks before submitting.");
+    if (pending) return conflict("A brand change is already waiting for approval.");
+    const revision = {
+      id: randomUUID(),
+      number: Math.max(0, ...p.revisions.map((r) => r.number)) + 1,
+      config: clone(p.draft),
+      note: body.note.trim(),
+      state: "pending",
+      requested_by: user.name,
+      requested_by_id: user.id,
+      decided_by: null,
+      decision_note: null,
+      created_at: new Date().toISOString(),
+      decided_at: null,
+    };
+    p.revisions.push(revision);
+    return send(201, { id: revision.id });
+  }
+  const revision = p.revisions.find((r) => r.id === revisionId);
+  if (!revision) return notFound();
+  if (revisionAction === "restore") {
+    if (revision.state !== "published") return conflict("Only published versions can be restored.");
+    p.draft = clone(revision.config);
+    p.draft_version += 1;
+    p.draft_note = `Restored from version ${revision.number}`;
+    return send(200, { restored: revision.number });
+  }
+  if (revision.state !== "pending") return conflict("This change has already been decided.");
+  const own = revision.requested_by_id === user.id;
+  if (revisionAction === "cancel" && !own && user.role !== "owner") return forbidden();
+  if (revisionAction !== "cancel" && rank < RANKS.reviewer) return forbidden();
+  if (revisionAction === "approve" && own && user.role !== "owner")
+    return forbidden("A different reviewer must approve your own change (maker-checker).");
+  Object.assign(revision, {
+    state: { approve: "published", reject: "rejected", cancel: "cancelled" }[revisionAction],
+    decided_by: user.name,
+    decision_note: body.note ?? null,
+    decided_at: new Date().toISOString(),
+  });
+  if (revisionAction === "approve") {
+    p.published = clone(revision.config);
+    p.published_revision = revision.id;
+    p.published_at = revision.decided_at;
+  }
+  return send(200, { state: revision.state });
+}
+
+function admin(req, res, url, body, send, raw) {
   const path = url.pathname.slice("/v1/admin/".length);
   const userOf = () => users.get(sessions.get(readCookie(req)));
   if (req.method === "POST" && req.headers.origin !== ADMIN_ORIGIN) {
@@ -737,16 +1247,22 @@ function admin(req, res, url, body, send) {
         return send(200, detail(article));
     }
   }
+  if (/^sites\/[a-z0-9_-]+\/brand/.test(path) || path.startsWith("brand/assets/"))
+    return brandRoutes(path, req, res, url, body, raw, user, send);
   if (path === "sites" || path.startsWith("sites/")) return siteRoutes(path, req, body, user, send);
   return send(404, { error: { code: "not_found", message: "Not found." } });
 }
 
 createServer(async (req, res) => {
-  let raw = "";
-  for await (const chunk of req) raw += chunk;
+  const chunks = [];
+  for await (const chunk of req) chunks.push(chunk);
+  const raw = Buffer.concat(chunks);
   let body = {};
   try {
-    body = raw ? JSON.parse(raw) : {};
+    body =
+      raw.length && !String(req.headers["content-type"]).startsWith("image/")
+        ? JSON.parse(raw.toString("utf8"))
+        : {};
   } catch {
     body = {};
   }
@@ -755,9 +1271,15 @@ createServer(async (req, res) => {
     res.writeHead(status, { "content-type": "application/json" });
     res.end(JSON.stringify(payload));
   };
-  if (url.pathname.startsWith("/v1/admin/")) return admin(req, res, url, body, send);
+  if (url.pathname.startsWith("/v1/admin/")) return admin(req, res, url, body, send, raw);
   if (url.pathname === "/v1/articles") return send(200, list(url));
   if (url.pathname === "/v1/sites") return send(200, publicSites());
+  const logo = /^\/v1\/brand\/assets\/([0-9a-f-]{36})$/.exec(url.pathname);
+  if (logo) {
+    const asset = brandAssets.get(logo[1]);
+    const live = asset && assetIds(brands.get(asset.site)?.published).includes(asset.id);
+    return live ? serveAsset(res, asset) : send(404, { error: { code: "not_found", message: "Not found." } });
+  }
   if (url.pathname === "/v1/categories") {
     const en = (url.searchParams.get("locale") ?? "en") === "en";
     return send(

@@ -30,7 +30,8 @@ async function forward(request: NextRequest, { params }: RouteContext<"/admin/ap
     upstream = await fetch(`${base}/v1/admin/${path}${request.nextUrl.search}`, {
       method: request.method,
       headers,
-      body: hasBody ? await request.text() : undefined,
+      // Raw bytes, so logo uploads pass through unchanged.
+      body: hasBody ? await request.arrayBuffer() : undefined,
       cache: "no-store",
       redirect: "manual",
       signal: AbortSignal.timeout(15_000),
@@ -42,8 +43,10 @@ async function forward(request: NextRequest, { params }: RouteContext<"/admin/ap
     );
   }
 
-  const response = new Headers({ "cache-control": "no-store" });
-  for (const name of ["content-type", "content-disposition"]) {
+  // Admin images (brand files) may be cached privately; everything else is never cached.
+  const image = upstream.headers.get("content-type")?.startsWith("image/");
+  const response = new Headers({ "cache-control": image ? "private, max-age=86400" : "no-store" });
+  for (const name of ["content-type", "content-disposition", "content-security-policy"]) {
     const value = upstream.headers.get(name);
     if (value) response.set(name, value);
   }

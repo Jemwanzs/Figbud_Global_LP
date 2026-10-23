@@ -19,9 +19,11 @@
 | 4     | Product websites                     | 🔄 In progress | 2 / 20 tasks (template + ZiraHR site started) | Product capability sign-off, payroll rules, Railway service for product sites |
 | 5     | Integrations & administration        | 🔄 In progress | 11 / 17 tasks (admin, CMS, inbox done)  | Resend credentials, recipient addresses      |
 | 6     | Production deployment                | 🔄 In progress | 9 / 18 tasks                            | Resend, domains, backups/monitoring          |
-| 7     | Admin Studio & website builder       | 🔄 In progress | 6 / 21 tasks (design + website registry done) | —                                      |
+| 7     | Admin Studio & website builder       | 🔄 In progress | 12 / 30 tasks (design, website registry, brand management) | Complete logo files, Expense Now logo approval (Q18) |
 
 **Where we are:** the monorepo, shared design system, multilingual architecture, Rust enquiry API with PostgreSQL and a retrying email outbox, and the first complete FigBud Global homepage are built and verified locally. Everything runs without any external service. The next steps that need decisions from FigBud are listed in **§5 Open questions**.
+
+**Verified on 23 Oct 2026 (brand management):** Rust tests 81/81 against real PostgreSQL (logo uploads, type and size checks, SVG sanitising, renditions, draft conflicts, maker-checker publishing, rollback, archive rules, published-only delivery, seeding) · clippy and rustfmt clean · frontend unit tests 35/35 including colour-contrast guard rails · Playwright: brand journeys (upload, preview, publish, replace, roll back) and public logos pass in Chromium, Firefox and WebKit; full corporate suite 198 passed, with 6 Firefox tests that time out only under local parallel load and pass when rerun · ZiraHR site e2e 19/19.
 
 **Verified on 23 Oct 2026 (Admin Studio Phase B):** Rust tests 69/69 against real PostgreSQL (website registry: creation, maker-checker launches, conflicts, archive, corporate rules) · TypeScript, ESLint, Prettier clean · frontend unit tests 23/23 · Playwright 183 passed across Chromium, Firefox and WebKit, including the new Websites journey and axe on the Websites pages · verified against the production API image that a registry status change reaches the public Products page (status, call to action, retired products removed).
 
@@ -188,7 +190,7 @@ Items marked **Blocking** stop the listed tasks; everything else proceeds with t
 | Q4  | Resend API key, verified sending domain, CTO/team recipient addresses, per-product routing           | P5 email go-live        | Yes (P5)  | `EMAIL_MODE=hold` stores emails until Resend is configured    |
 | Q5  | Legal texts: privacy (Kenya Data Protection Act 2019), terms, cookies — reviewed by counsel          | Legal pages, consent    | Yes (P3)  | Pages exist, `noindex`, state "being finalised"               |
 | Q6  | Native-speaker reviewers for Swahili, French, Arabic, Chinese                                        | Locale publication      | No        | Draft translations, not indexed                              |
-| Q7  | Product accent colours and logos (ZiraHR current logo is cyan in screenshots; spec says warm orange) | P4 brand fidelity       | No        | Accents per §3.6; generic product glyphs                     |
+| Q7  | Product accent colours and logos                                                                     | P4 brand fidelity       | No        | **Resolved 23 Oct:** logos supplied; colours follow them (BRAND_ASSETS.md §4) |
 | Q8  | Keep Outfit-only, or add Inter for dense product UI?                                                 | P4 product sites        | No        | Outfit-only                                                  |
 | Q9  | Real product screenshots (sanitised) for ZiraHR and Jasiri                                           | P4 mockups              | No        | Original synthetic mockups                                   |
 | Q10 | Kenya statutory rules and test cases for the payroll calculator (PAYE bands, reliefs, SHIF, NSSF tiers, Housing Levy, effective dates) and who signs them off | P4 calculator | Yes (P4-Z) | Calculator not built until rules are validated |
@@ -198,6 +200,7 @@ Items marked **Blocking** stop the listed tasks; everything else proceeds with t
 | Q14 | Analytics tool (privacy-friendly, cookie-less preferred?) and consent requirements                   | P5 analytics            | No        | No analytics or tracking cookies                             |
 | Q15 | Spam protection: add Cloudflare Turnstile (privacy-friendly CAPTCHA) on public forms?                | P5 hardening            | No        | Honeypot + fill-time check + rate limiting                   |
 | Q16 | Consulting / custom-solutions services alongside products (mentioned as possible)                    | IA, About, Products     | No        | Products only                                                |
+| Q18 | Logo files: complete ZiraHR logo (supplied file is missing "HR"), SVG or larger versions, light-background versions, the FigBud "GLOBAL" lockup; approve or replace the Expense Now concept | P7-BR7, P7-BR9 | Partly | Official files published for dark backgrounds; light theme shows them on a dark plate; Expense Now keeps its icon |
 | Q17 | Railway project ID, and whether staging and production environments already exist                    | P6 deployment           | Partly    | **ID provided** (`5c4df4db…`); environments confirmed on inspection |
 
 ---
@@ -387,12 +390,21 @@ Items marked **Blocking** stop the listed tasks; everything else proceeds with t
 | P7-B4  | Admin UI: Websites list, guided new-website wizard (category, template, suggested pages, launch status), settings, lifecycle panel, archive/restore, overview tile | ✅ |
 | P7-B5  | Corporate Products page and homepage showcase follow the registry (falls back to the code registry if the API is down) | ✅ |
 | P7-B6  | Beta / early-access badge and enquiry type on the corporate site (needs reviewed copy in every language) | ⬜ |
+| P7-BR1 | Supplied logos (FigBud Global, ZiraHR, Jasiri LMS) preserved unchanged and documented; exact-pixel derived files ([BRAND_ASSETS.md](BRAND_ASSETS.md)) | ✅ |
+| P7-BR2 | Brand file library API: uploads with type, size and dimension checks, SVG sanitising, transparency, WebP renditions, archive/restore, where-used | ✅ |
+| P7-BR3 | Brand profiles: autosaved drafts (never public), submit → approve (maker-checker), version history and rollback, audit with previous and new values | ✅ |
+| P7-BR4 | Studio Branding page: logo slots per theme (horizontal, stacked, symbol, wordmark, favicon, app icon, social image), colours with contrast checks, logo size, live preview (dark/light, desktop/phone), undo/redo | ✅ |
+| P7-BR5 | Websites use the published brand: corporate header, footer, product menus, homepage tabs and Products cards; ZiraHR header and footer; logos served from each site's own origin | ✅ |
+| P7-BR6 | Product colours follow the official logos (ZiraHR cyan, Jasiri green/purple, Expense Now orange), with WCAG contrast tests | ✅ |
+| P7-BR7 | Expense Now logo concept: horizontal, stacked, symbol and favicon, in the draft for approval | 🔄 Awaiting approval (Q18) |
+| P7-BR8 | Favicons, app icons and social images from brand profiles on the websites | ⬜ |
+| P7-BR9 | Complete and vector logo files: ZiraHR with "HR", SVGs, official light-background versions | ⛔ Q18 |
 | P7-C1  | Page model: pages, versions, sections; typed block schemas validated by the API (no markup) | ⬜ |
 | P7-C2  | Visual page builder: drag-and-drop sections, block library, device previews, autosave that never publishes, undo/redo | ⬜ |
 | P7-C3  | Page templates per category; draft → review → publish → schedule → rollback for pages        | ⬜ |
 | P7-D1  | Central content library distributed to several websites without duplicates, with versions    | ⬜ |
 | P7-D2  | Media library: uploads, variants, required alt text, usage tracking                          | ⬜ |
-| P7-E1  | Theme configuration with token guard rails (contrast checks, brand limits)                   | ⬜ |
+| P7-E1  | Theme configuration with token guard rails (contrast checks, brand limits); brand colours done (P7-BR4/6) | 🔄 In progress |
 | P7-E2  | Navigation and footer configuration per website                                              | ⬜ |
 | P7-E3  | Multi-site renderer (D16); ZiraHR website moves onto registry-driven pages                   | ⬜ |
 | P7-F1  | Per-website permissions (site grants) on top of global roles                                 | ⬜ |
@@ -445,6 +457,7 @@ Items marked **Blocking** stop the listed tasks; everything else proceeds with t
 
 | Date        | Change                                                                                                   |
 | ----------- | -------------------------------------------------------------------------------------------------------- |
+| 23 Oct 2026 | Brand management (P7-BR1–BR6): supplied FigBud, ZiraHR and Jasiri logos preserved and documented (the ZiraHR file is incomplete; see Q18); brand library with validated, sanitised uploads and renditions; brand profiles with draft, approval, history and rollback; Studio Branding page with live preview; websites read published logos; product colours now follow the official logos. Expense Now logo concept proposed for approval. CI builds against the mock API so prerendered pages carry registry data. |
 | 23 Oct 2026 | Admin Studio Phase 7 added (from the Enterprise Admin Studio brief). Phase A design (`docs/ADMIN_STUDIO.md`, D16–D20) and Phase B website registry delivered: schema with the four current websites, public and admin APIs, maker-checker lifecycle, Websites admin (list, guided creation, settings, lifecycle, archive), overview tile; the corporate Products page and homepage now follow the registry. |
 | 23 Oct 2026 | Product-site template (P4-01) and cross-site links (P4-02): `@figbud/site-kit` shared by all sites; the corporate site now uses it (no behaviour change). ZiraHR website started (`apps/zirahr-web`, P4-Z1): hero, modules, payroll, placeholders with real 404s; e2e in CI. Paint performance: redundant blur filters removed across sites. |
 | 22 Oct 2026 | Enquiries inbox (P5-09 complete): filters, search, detail with email delivery states, follow-up statuses with history, owner-only CSV export with formula-injection protection; every action audited. Verified end to end against the production API image. Insights editor live on Railway (43792dc). |

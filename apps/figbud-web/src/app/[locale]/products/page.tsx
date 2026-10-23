@@ -8,9 +8,9 @@ import Link from "next/link";
 
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { PageHeader } from "@/components/page-header";
-import { ProductGlyph } from "@figbud/site-kit";
+import { BrandLogo, ProductMark, hasLogo } from "@figbud/site-kit";
 import { fill } from "@/lib/format";
-import { getPublicProducts } from "@/lib/products";
+import { getBrands, getPublicProducts } from "@/lib/products";
 import { resolvePage } from "@/lib/page";
 import { pageMetadata, productLink, routes } from "@/lib/site";
 
@@ -24,7 +24,7 @@ export default async function ProductsPage({ params }: PageProps<"/[locale]/prod
   const { locale, dict } = await resolvePage(params);
   const { common } = dict;
   const page = dict.pages.products;
-  const products = await getPublicProducts();
+  const [products, brands] = await Promise.all([getPublicProducts(), getBrands()]);
   const statusOf = (slug: ProductSlug) => products.find((p) => p.slug === slug)!.status;
 
   return (
@@ -64,10 +64,18 @@ export default async function ProductsPage({ params }: PageProps<"/[locale]/prod
                   <div className="relative grid gap-10 lg:grid-cols-12">
                     <div className="lg:col-span-6">
                       <div className="flex flex-wrap items-center gap-4">
-                        <ProductGlyph slug={product.slug} size="lg" />
+                        {!hasLogo(brands[product.slug]?.logos.horizontal) && (
+                          <ProductMark slug={product.slug} brand={brands[product.slug]} size="lg" />
+                        )}
                         <div>
                           <h2 className="text-2xl font-semibold tracking-tight text-text sm:text-3xl">
-                            {product.name}
+                            <BrandLogo
+                              pair={brands[product.slug]?.logos.horizontal}
+                              height={52}
+                              maxWidth={220}
+                              alt={product.name}
+                              fallback={product.name}
+                            />
                           </h2>
                           <p className="text-sm text-product-text">{copy.category}</p>
                         </div>
@@ -137,7 +145,7 @@ export default async function ProductsPage({ params }: PageProps<"/[locale]/prod
                   className="rounded-[var(--radius-panel)] border border-line bg-surface p-5"
                 >
                   <div className="flex items-center gap-3">
-                    <ProductGlyph slug={product.slug} size="sm" />
+                    <ProductMark slug={product.slug} brand={brands[product.slug]} size="sm" />
                     <h3 className="font-semibold text-text">{product.name}</h3>
                     <StatusBadge
                       status={product.status}
@@ -185,7 +193,7 @@ export default async function ProductsPage({ params }: PageProps<"/[locale]/prod
                       className="p-4 text-start font-semibold text-text sm:p-5"
                     >
                       <span className="flex items-center gap-3">
-                        <ProductGlyph slug={product.slug} size="sm" />
+                        <ProductMark slug={product.slug} brand={brands[product.slug]} size="sm" />
                         {product.name}
                       </span>
                     </th>

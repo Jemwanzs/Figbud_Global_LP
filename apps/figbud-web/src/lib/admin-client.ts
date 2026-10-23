@@ -35,16 +35,33 @@ export async function adminFetch<T>(path: string, body?: unknown): Promise<T> {
     body: body === undefined ? undefined : JSON.stringify(body),
     credentials: "same-origin",
   });
+  return parseResponse<T>(response);
+}
+
+async function parseResponse<T>(response: Response): Promise<T> {
   if (response.status === 204) return undefined as T;
   const data = await response.json().catch(() => null);
   if (!response.ok) {
     throw new AdminError(
-      data?.error?.message ?? "Something went wrong. Please try again.",
+      data?.error?.message ??
+        (response.status === 413 ? "That file is too large." : "Something went wrong. Please try again."),
       response.status,
       data?.error?.fields ?? [],
     );
   }
   return data as T;
+}
+
+/** Uploads a logo file as raw bytes; the API checks the type, size and contents. */
+export async function uploadBrandAsset<T>(slug: string, file: File, label: string, alt: string): Promise<T> {
+  const query = new URLSearchParams({ label, alt });
+  const response = await fetch(`/admin/api/sites/${slug}/brand/uploads?${query}`, {
+    method: "POST",
+    headers: { "content-type": file.type || "application/octet-stream" },
+    body: file,
+    credentials: "same-origin",
+  });
+  return parseResponse<T>(response);
 }
 
 const toBuffer = (value: string): ArrayBuffer => {

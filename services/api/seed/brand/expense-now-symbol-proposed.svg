@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Expense Now">
+  <g transform="translate(0.0 0.0) scale(1.0)">
+    <defs><linearGradient id="yg" x1="6" y1="4" x2="58" y2="60" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FDBA74"/><stop offset="0.45" stop-color="#F97316"/><stop offset="1" stop-color="#C2410C"/>
+    </linearGradient></defs>
+    <rect width="64" height="64" rx="16" fill="url(#yg)"/>
+    <path fill="#FFF7ED" d="M19 14h24a4 4 0 0 1 0 8H27v6.5h9.5V25l12 7-12 7v-3.5H27V42h16a4 4 0 0 1 0 8H19a4 4 0 0 1-4-4V18a4 4 0 0 1 4-4Z"/>
+  </g>
+</svg>

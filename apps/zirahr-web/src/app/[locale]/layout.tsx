@@ -7,6 +7,7 @@ import type { Metadata, Viewport } from "next";
 import { Outfit } from "next/font/google";
 import { notFound } from "next/navigation";
 
+import { getBrand } from "@/lib/brand";
 import { allowIndexing, getDictionary, siteOrigin } from "@/lib/site";
 
 import "../globals.css";
@@ -44,6 +45,7 @@ export default async function ProductLayout({ children, params }: LayoutProps<"/
   if (!isLocale(locale)) notFound();
   const dict = getDictionary(locale);
   const product = getProduct("zirahr");
+  const brand = await getBrand();
 
   const software = {
     "@context": "https://schema.org",
@@ -74,13 +76,14 @@ export default async function ProductLayout({ children, params }: LayoutProps<"/
           {dict.skipToContent}
         </a>
         <MotionProvider>
-          <ProductHeader slug="zirahr" locale={locale} labels={dict.header} />
+          <ProductHeader slug="zirahr" locale={locale} labels={dict.header} brand={brand} />
           <main id="main" tabIndex={-1} className="outline-none">
             {children}
           </main>
           <ProductFooter
             slug="zirahr"
             locale={locale}
+            brand={brand}
             labels={{ ...dict.footer, nav: dict.header.nav, opensInNewTab: dict.header.opensInNewTab }}
           />
         </MotionProvider>

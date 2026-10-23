@@ -8,6 +8,7 @@ import { notFound } from "next/navigation";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { getDictionary } from "@/i18n/get-dictionary";
+import { getBrands } from "@/lib/products";
 import { allowIndexing, siteOrigin } from "@/lib/site";
 
 import "../globals.css";
@@ -64,6 +65,7 @@ export default async function LocaleLayout({ children, params }: LayoutProps<"/[
   if (!isLocale(locale)) notFound();
   const dict = await getDictionary(locale);
   const info = localeInfo[locale];
+  const brands = await getBrands();
 
   const organization = {
     "@context": "https://schema.org",
@@ -94,7 +96,7 @@ export default async function LocaleLayout({ children, params }: LayoutProps<"/[
           {dict.common.skipToContent}
         </a>
         <MotionProvider>
-          <SiteHeader locale={locale} common={dict.common} products={dict.products} />
+          <SiteHeader locale={locale} common={dict.common} products={dict.products} brands={brands} />
           {info.status === "draft" && (
             <section aria-labelledby="draft-notice" className="border-b border-line bg-surface">
               <p id="draft-notice" className="px-5 py-2.5 text-center text-sm text-muted">
@@ -105,7 +107,7 @@ export default async function LocaleLayout({ children, params }: LayoutProps<"/[
           <main id="main" tabIndex={-1} className="outline-none">
             {children}
           </main>
-          <SiteFooter locale={locale} dict={dict} />
+          <SiteFooter locale={locale} dict={dict} brand={brands.figbud} />
         </MotionProvider>
         <script
           type="application/ld+json"

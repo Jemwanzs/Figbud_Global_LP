@@ -1,6 +1,7 @@
 import { publicProducts } from "@figbud/brand";
 import { type Locale, localizePath } from "@figbud/i18n";
 import { Container, FigBudWordmark } from "@figbud/ui";
+import { BrandLogo, type BrandProfile } from "@figbud/site-kit";
 import { ArrowUpRight } from "lucide-react";
 import { cacheLife } from "next/cache";
 import Link from "next/link";
@@ -14,7 +15,16 @@ async function currentYear() {
   return new Date().getFullYear();
 }
 
-export async function SiteFooter({ locale, dict }: { locale: Locale; dict: Dictionary }) {
+export async function SiteFooter({
+  locale,
+  dict,
+  brand,
+}: {
+  locale: Locale;
+  dict: Dictionary;
+  /** The published FigBud Global brand profile, if any. */
+  brand?: BrandProfile | null;
+}) {
   const { footer, common } = dict;
   const year = await currentYear();
 
@@ -34,7 +44,13 @@ export async function SiteFooter({ locale, dict }: { locale: Locale; dict: Dicti
       <Container size="wide" className="grid gap-12 py-16 md:grid-cols-12 md:py-20">
         <div className="md:col-span-5">
           <Link href={localizePath(locale)} className="inline-block rounded-lg" aria-label="FigBud Global">
-            <FigBudWordmark />
+            <BrandLogo
+              pair={brand?.logos.horizontal}
+              height={brand?.logo_height ?? 28}
+              maxWidth={190}
+              alt="FigBud Global"
+              fallback={<FigBudWordmark />}
+            />
           </Link>
           <p className="mt-6 max-w-sm text-lg leading-relaxed text-text">{footer.tagline}</p>
         </div>

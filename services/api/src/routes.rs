@@ -20,7 +20,7 @@ use tower_http::{
 use uuid::Uuid;
 
 use crate::{
-    admin, cms,
+    admin, brand, cms,
     config::{Config, EmailMode},
     email::{self, outbox, templates},
     enquiry::{EnquiryInput, new_reference},
@@ -76,9 +76,11 @@ pub fn router(state: SharedState) -> Router {
         .merge(cms::router())
         .merge(admin::router())
         .merge(sites::router())
+        .merge(brand::router())
         .layer(RequestBodyLimitLayer::new(16 * 1024))
         // Articles are larger than any form; the editorial API gets its own limit.
         .merge(cms::editorial::router().layer(RequestBodyLimitLayer::new(512 * 1024)))
+        .merge(brand::upload_router())
         .with_state(state)
         .layer(cors)
         .layer(CompressionLayer::new())

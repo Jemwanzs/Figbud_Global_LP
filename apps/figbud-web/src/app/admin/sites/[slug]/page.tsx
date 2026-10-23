@@ -1,3 +1,5 @@
+import { buttonClasses } from "@figbud/ui";
+import { Palette } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -49,6 +51,13 @@ async function Site({ params }: Pick<PageProps<"/admin/sites/[slug]">, "params">
         ) : (
           <SiteStatusPill status={site.status} />
         )}
+        <Link
+          href={`/admin/sites/${site.slug}/brand`}
+          className={buttonClasses("secondary", "md", "sm:ms-auto")}
+        >
+          <Palette aria-hidden className="size-4" />
+          Branding
+        </Link>
       </div>
       <p className="mt-2 text-muted">
         {categoryLabel(site.category)}

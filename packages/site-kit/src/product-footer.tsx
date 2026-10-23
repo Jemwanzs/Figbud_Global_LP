@@ -5,7 +5,8 @@ import { cacheLife } from "next/cache";
 import Link from "next/link";
 
 import { figbudLink, linkProps, productSiteLink } from "./cross-site";
-import { ProductGlyph } from "./product-glyph";
+import type { BrandProfile } from "./brand";
+import { ProductMark } from "./brand-logo";
 
 export interface ProductFooterLabels {
   nav: Record<string, string>;
@@ -34,10 +35,12 @@ export async function ProductFooter({
   slug,
   locale,
   labels,
+  brand,
 }: {
   slug: ProductSlug;
   locale: Locale;
   labels: ProductFooterLabels;
+  brand?: BrandProfile | null;
 }) {
   const product = getProduct(slug);
   const year = await currentYear();
@@ -47,7 +50,7 @@ export async function ProductFooter({
       <div className="mx-auto grid max-w-[92rem] gap-12 px-5 py-14 sm:px-8 md:px-10 lg:grid-cols-12 lg:px-16 lg:py-20">
         <div className="lg:col-span-4">
           <div className="flex items-center gap-3">
-            <ProductGlyph slug={slug} size="sm" />
+            <ProductMark slug={slug} brand={brand} size="sm" />
             <span className="text-lg font-semibold text-text">{product.name}</span>
           </div>
           <p className="mt-4 max-w-sm leading-relaxed text-muted">{labels.tagline}</p>

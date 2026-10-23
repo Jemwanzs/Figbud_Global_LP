@@ -28,6 +28,9 @@ async-trait = "0.1"
 pulldown-cmark = { version = "0.13.5", default-features = false, features = ["html"] }
 webauthn-rs = { version = "0.5.4", features = ["danger-allow-state-serialisation"] }
 url = "2"
+image = { version = "0.25.10", default-features = false, features = ["png", "webp"] }
+resvg = { version = "0.48.1", default-features = false }
+usvg = { version = "0.48.1", default-features = false, features = ["writer"] }
 
 [dev-dependencies]
 http-body-util = "0.1"

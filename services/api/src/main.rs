@@ -23,6 +23,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .await?;
     sqlx::migrate!("./migrations").run(&pool).await?;
     tracing::info!("database migrations applied");
+    // First-run brand profiles from the supplied artwork; never blocks start-up.
+    if let Err(err) = figbud_api::brand::seed::run(&pool).await {
+        tracing::warn!(error = %err, "brand seeding failed");
+    }
 
     // `figbud-api admin invite --email <email> --role <role>`: bootstrap the
     // first owner (or any admin) without a running UI. Prints the link once.

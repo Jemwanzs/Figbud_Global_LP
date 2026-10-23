@@ -38,6 +38,8 @@ All tables use UUID keys, foreign keys, check constraints and indexes for their 
 
 **Later phases** (designed here, built in order): `site_themes` and `site_navigation` (E); `pages`, `page_versions`, `page_sections` (C); `content_items`, `content_targets`, `content_versions` (D, generalising `cms_articles`); `media_assets`, `media_variants`, `media_usages` (D); `site_grants` and `approval_requests` (F); `redirects`, `translations` (G).
 
+**Brand management (delivered 23 Oct 2026).** `site_brands` (draft and published profile per website), `brand_revisions` (submissions and version history), `brand_assets` and `brand_asset_renditions` (immutable logo library with WebP copies). This is the single place where logos and brand colours are configured; the page builder and product registry read it, with no second logo system. Details: [BRAND_ASSETS.md](BRAND_ASSETS.md).
+
 ## Permissions
 
 Global roles remain: owner (platform owner), reviewer, editor, viewer. Phase F adds per-site grants that narrow them: website administrator, product manager, content editor, reviewer / approver, publisher, viewer, scoped to one site. Every administrative endpoint authorises the actor against the site it touches.

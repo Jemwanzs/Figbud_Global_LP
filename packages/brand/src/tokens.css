@@ -74,38 +74,40 @@
   --product-text: var(--accent);
   --product-soft: rgb(240 166 93 / 0.12);
 }
+/* Product palettes follow each product's official logo (docs/BRAND_ASSETS.md):
+   ZiraHR cyan, Jasiri green with purple, Expense Now orange (proposed). */
 [data-product="zirahr"] {
-  --product: #ff8a3d;
-  --product-2: #c4541b;
-  --product-ink: #1b0f06;
-  --product-text: #ff9d5c;
-  --product-soft: rgb(255 138 61 / 0.13);
+  --product: #22d3ee;
+  --product-2: #0891b2;
+  --product-ink: #04161b;
+  --product-text: #67e8f9;
+  --product-soft: rgb(34 211 238 / 0.12);
 }
 [data-product="jasiri"] {
-  --product: #20c997;
-  --product-2: #0e7c86;
-  --product-ink: #04140f;
-  --product-text: #3fd9ab;
-  --product-soft: rgb(32 201 151 / 0.12);
+  --product: #22c55e;
+  --product-2: #7c3aed;
+  --product-ink: #04140a;
+  --product-text: #4ade80;
+  --product-soft: rgb(34 197 94 / 0.12);
 }
 [data-product="expense_now"] {
-  --product: #9fb3ff;
-  --product-2: #6ee7c5;
-  --product-ink: #0b1030;
-  --product-text: #b4c3ff;
-  --product-soft: rgb(159 179 255 / 0.13);
+  --product: #f97316;
+  --product-2: #c2410c;
+  --product-ink: #1c0a02;
+  --product-text: #fb923c;
+  --product-soft: rgb(249 115 22 / 0.13);
 }
 [data-theme="light"] [data-product="zirahr"],
 [data-theme="light"][data-product="zirahr"] {
-  --product-text: #b4480f;
+  --product-text: #0e7490;
 }
 [data-theme="light"] [data-product="jasiri"],
 [data-theme="light"][data-product="jasiri"] {
-  --product-text: #0b7a5c;
+  --product-text: #15803d;
 }
 [data-theme="light"] [data-product="expense_now"],
 [data-theme="light"][data-product="expense_now"] {
-  --product-text: #3a4fb8;
+  --product-text: #c2410c;
 }
 
 @theme inline {

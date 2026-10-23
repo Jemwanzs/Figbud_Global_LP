@@ -11,7 +11,7 @@ import type { Dictionary } from "@/i18n/get-dictionary";
 import { fill } from "@/lib/format";
 import { productLink } from "@/lib/site";
 
-import { ProductGlyph } from "@figbud/site-kit";
+import { type BrandProfile, ProductMark } from "@figbud/site-kit";
 import { ExpensePreview, JasiriPreview, ZiraPreview } from "./product-previews";
 
 type Props = {
@@ -20,10 +20,12 @@ type Props = {
   products: Dictionary["products"];
   /** Public products with their current marketing status (lib/products). */
   items: Product[];
+  /** Published brand profiles by product slug. */
+  brands: Record<string, BrandProfile | null>;
   common: Dictionary["common"];
 };
 
-export function PlatformShowcase({ locale, platforms, products, items, common }: Props) {
+export function PlatformShowcase({ locale, platforms, products, items, brands, common }: Props) {
   const [active, setActive] = useState<ProductSlug>(items[0]?.slug ?? "zirahr");
   const baseId = useId();
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
@@ -81,7 +83,12 @@ export function PlatformShowcase({ locale, platforms, products, items, common }:
                   selected ? "scale-100 opacity-100" : "scale-95 opacity-0",
                 )}
               />
-              <ProductGlyph slug={product.slug} size="sm" className="max-sm:hidden" />
+              <ProductMark
+                slug={product.slug}
+                brand={brands[product.slug]}
+                size="sm"
+                className="max-sm:hidden"
+              />
               <span className="relative min-w-0">
                 <span className="block text-sm font-medium whitespace-nowrap sm:text-base">
                   {product.name}
@@ -125,7 +132,7 @@ export function PlatformShowcase({ locale, platforms, products, items, common }:
                   className="flex flex-col lg:col-span-5"
                 >
                   <div className="flex flex-wrap items-center gap-3">
-                    <ProductGlyph slug={product.slug} size="lg" />
+                    <ProductMark slug={product.slug} brand={brands[product.slug]} size="lg" />
                     <div>
                       <h3 className="text-2xl font-semibold tracking-tight text-text">{product.name}</h3>
                       <p className="text-sm text-product-text">{copy.category}</p>

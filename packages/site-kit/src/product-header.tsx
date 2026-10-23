@@ -10,7 +10,8 @@ import { useRef } from "react";
 
 import { enquiryLink, figbudLink, linkProps } from "./cross-site";
 import { type LanguageLabels, LanguageSwitcher } from "./language-switcher";
-import { ProductGlyph } from "./product-glyph";
+import type { BrandProfile } from "./brand";
+import { ProductMark } from "./brand-logo";
 
 export interface ProductHeaderLabels {
   /** Navigation label for each `productSites[slug].nav` key. */
@@ -31,10 +32,13 @@ export function ProductHeader({
   slug,
   locale,
   labels,
+  brand,
 }: {
   slug: ProductSlug;
   locale: Locale;
   labels: ProductHeaderLabels;
+  /** The product's published brand profile, if any. */
+  brand?: BrandProfile | null;
 }) {
   const product = getProduct(slug);
   const nav = productSites[slug].nav;
@@ -59,7 +63,7 @@ export function ProductHeader({
       </div>
       <div className="mx-auto flex h-[4.5rem] max-w-[92rem] items-center gap-6 px-5 sm:px-8 md:px-10 lg:px-16">
         <Link href={localizePath(locale)} className="flex items-center gap-3 rounded-xl">
-          <ProductGlyph slug={slug} size="sm" />
+          <ProductMark slug={slug} brand={brand} size="sm" />
           <span className="text-[1.15rem] font-semibold tracking-[-0.02em] text-text">{product.name}</span>
         </Link>
 
@@ -94,7 +98,7 @@ export function ProductHeader({
             <ArrowUpRight aria-hidden className="size-4 rtl:-scale-x-100" />
             <span className="sr-only">({labels.opensInNewTab})</span>
           </a>
-          <MobileMenu slug={slug} locale={locale} labels={labels} isActive={isActive} />
+          <MobileMenu slug={slug} locale={locale} labels={labels} isActive={isActive} brand={brand} />
         </div>
       </div>
     </header>
@@ -106,11 +110,13 @@ function MobileMenu({
   locale,
   labels,
   isActive,
+  brand,
 }: {
   slug: ProductSlug;
   locale: Locale;
   labels: ProductHeaderLabels;
   isActive: (path: string) => boolean;
+  brand?: BrandProfile | null;
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const close = () => dialogRef.current?.close();
@@ -138,7 +144,7 @@ function MobileMenu({
         <div className="ms-auto flex h-full w-full max-w-md flex-col overflow-y-auto bg-bg-elevated shadow-2xl sm:border-s sm:border-line">
           <div className="flex h-[4.5rem] shrink-0 items-center justify-between px-5 sm:px-8">
             <span className="flex items-center gap-3">
-              <ProductGlyph slug={slug} size="sm" />
+              <ProductMark slug={slug} brand={brand} size="sm" />
               <span className="text-lg font-semibold">{product.name}</span>
             </span>
             <button

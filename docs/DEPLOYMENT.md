@@ -29,6 +29,10 @@ Guidelines:
 - Never edit a migration that has run in any shared environment; add a new file.
 - Take a manual Railway backup before a release that contains a destructive migration.
 
+**Brand seeding.** After migrations, the API gives every website without a brand profile its first profile from the files in `services/api/seed/brand/` (embedded in the binary). The official logos are published and proposed variants go into the draft. Websites that already have a profile are never touched, so changes made in Admin → Branding are never overwritten. A seeding failure is logged and never stops the API. Brand files are stored in PostgreSQL (`brand_assets`) and so are covered by the database backups. See [BRAND_ASSETS.md](BRAND_ASSETS.md).
+
+**Website builds and registry data.** The websites prerender pages with the published registry and brand data they can reach at build time (`API_INTERNAL_URL`, else `NEXT_PUBLIC_API_URL`), and refresh it every few minutes at run time.
+
 ## Variables
 
 ### `figbud-api`

@@ -29,7 +29,9 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
-      - run: npm run build
+      # Built against the e2e mock API so prerendered pages carry registry data
+      # (statuses, published logos), as production builds do against the real API.
+      - run: node scripts/build-with-mock-api.mjs
       - run: npx playwright install --with-deps chromium firefox webkit
         working-directory: apps/figbud-web
       - run: npm run test:e2e
