@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   web:
-    name: Website (lint, types, unit, build, e2e)
+    name: Websites (lint, types, unit, build, e2e)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -33,6 +33,8 @@ jobs:
       - run: npx playwright install --with-deps chromium firefox webkit
         working-directory: apps/figbud-web
       - run: npm run test:e2e
+      - name: ZiraHR website e2e
+        run: npm run test:e2e -w zirahr-web
 
   lighthouse:
     name: Lighthouse (production build, mobile)

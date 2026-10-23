@@ -12,7 +12,7 @@
   },
   "scripts": {
     "dev": "npm run dev -w figbud-web",
-    "build": "npm run build -w figbud-web",
+    "build": "npm run build -w figbud-web && npm run build -w zirahr-web",
     "start": "npm run start -w figbud-web",
     "lint": "npm run lint --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
@@ -27,7 +27,8 @@
     "db:up": "docker compose -f infra/docker-compose.yml up -d postgres",
     "db:down": "docker compose -f infra/docker-compose.yml down",
     "verify": "npm run format:check && npm run lint && npm run typecheck && npm run test && npm run build && npm run api:lint && npm run api:test",
-    "roadmap:page": "node scripts/build-roadmap-page.mjs"
+    "roadmap:page": "node scripts/build-roadmap-page.mjs",
+    "dev:zirahr": "npm run dev -w zirahr-web"
   },
   "devDependencies": {
     "marked": "^18.1.1",
