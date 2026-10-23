@@ -712,7 +712,7 @@ dependencies = [
  "http-body-util",
  "image",
  "pulldown-cmark",
- "rand 0.9.5",
+ "rand 0.10.3",
  "reqwest",
  "resvg",
  "serde",
