@@ -107,7 +107,7 @@ export function PlatformShowcase({ locale, platforms, products, items, brands, c
         {items.map((product) => {
           const selected = product.slug === active;
           const copy = products[product.slug];
-          const link = productLink(product.slug, locale);
+          const link = productLink(product.slug, locale, product.status);
           const comingSoon = product.status === "coming_soon";
           return (
             <div

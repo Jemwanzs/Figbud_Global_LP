@@ -27,18 +27,14 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
   const { locale } = await params;
   if (!isLocale(locale)) notFound();
   const dict = await getDictionary(locale);
+  const [products, brands] = await Promise.all([getPublicProducts(), getBrands()]);
 
   return (
     <>
-      <Hero locale={locale} dict={dict} />
+      <Hero locale={locale} dict={dict} products={products} brands={brands} />
       {/* Each boundary hydrates as its own task, keeping the main thread responsive. */}
       <Suspense>
-        <PlatformsSection
-          locale={locale}
-          dict={dict}
-          products={await getPublicProducts()}
-          brands={await getBrands()}
-        />
+        <PlatformsSection locale={locale} dict={dict} products={products} brands={brands} />
       </Suspense>
       <Suspense>
         <PhilosophySection locale={locale} dict={dict} />

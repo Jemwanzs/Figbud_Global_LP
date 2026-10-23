@@ -18,9 +18,9 @@ async function getListedSites(): Promise<ListedSite[] | null> {
 }
 
 /**
- * Today's public products, with their marketing status from the website
- * registry (managed in Admin → Websites). Products the registry doesn't list
- * (draft, retired, archived) are left out. Products without copy in the
+ * Today's public products, with their name and marketing status from the
+ * website registry (managed in Admin → Websites). Products the registry
+ * doesn't list (draft, retired, archived) are left out. Products without copy in the
  * dictionaries are skipped. If the API can't be reached, the code registry in
  * @figbud/brand is used unchanged.
  *
@@ -30,12 +30,12 @@ async function getListedSites(): Promise<ListedSite[] | null> {
 export async function getPublicProducts(): Promise<Product[]> {
   const sites = await getListedSites();
   if (!sites) return [...publicProducts];
-  const listed = new Map(sites.map((s) => [s.slug, s.status]));
+  const listed = new Map(sites.map((s) => [s.slug, s]));
   return publicProducts.flatMap((product) => {
-    const status = listed.get(product.slug);
-    if (!status) return [];
-    const shown: ProductStatus = status === "active" ? "active" : "coming_soon";
-    return [{ ...product, status: shown }];
+    const site = listed.get(product.slug);
+    if (!site) return [];
+    const status: ProductStatus = site.status === "active" ? "active" : "coming_soon";
+    return [{ ...product, name: site.name, status }];
   });
 }
 

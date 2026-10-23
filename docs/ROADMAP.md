@@ -19,7 +19,7 @@
 | 4     | Product websites                     | 🔄 In progress | 2 / 20 tasks (template + ZiraHR site started) | Product capability sign-off, payroll rules, Railway service for product sites |
 | 5     | Integrations & administration        | 🔄 In progress | 11 / 17 tasks (admin, CMS, inbox done)  | Resend credentials, recipient addresses      |
 | 6     | Production deployment                | 🔄 In progress | 9 / 18 tasks                            | Resend, domains, backups/monitoring          |
-| 7     | Admin Studio & website builder       | 🔄 In progress | 12 / 30 tasks (design, website registry, brand management) | Complete logo files, Expense Now logo approval (Q18) |
+| 7     | Admin Studio & website builder       | 🔄 In progress | 13 / 31 tasks (design, website registry, brand management, branded hero) | Complete logo files, Expense Now logo approval (Q18) |
 
 **Where we are:** the monorepo, shared design system, multilingual architecture, Rust enquiry API with PostgreSQL and a retrying email outbox, and the first complete FigBud Global homepage are built and verified locally. Everything runs without any external service. The next steps that need decisions from FigBud are listed in **§5 Open questions**.
 
@@ -396,6 +396,7 @@ Items marked **Blocking** stop the listed tasks; everything else proceeds with t
 | P7-BR4 | Studio Branding page: logo slots per theme (horizontal, stacked, symbol, wordmark, favicon, app icon, social image), colours with contrast checks, logo size, live preview (dark/light, desktop/phone), undo/redo | ✅ |
 | P7-BR5 | Websites use the published brand: corporate header, footer, product menus, homepage tabs and Products cards; ZiraHR header and footer; logos served from each site's own origin | ✅ |
 | P7-BR6 | Product colours follow the official logos (ZiraHR cyan, Jasiri green/purple, Expense Now orange), with WCAG contrast tests | ✅ |
+| P7-BR10 | Homepage hero ecosystem: published logos (FigBud core, ZiraHR symbol, Jasiri logo; Expense Now keeps its icon until approved), registry names, statuses and colours; nodes link to configured destinations with descriptions on hover, focus or first tap; reduced motion respected | ✅ |
 | P7-BR7 | Expense Now logo concept: horizontal, stacked, symbol and favicon, in the draft for approval | 🔄 Awaiting approval (Q18) |
 | P7-BR8 | Favicons, app icons and social images from brand profiles on the websites | ⬜ |
 | P7-BR9 | Complete and vector logo files: ZiraHR with "HR", SVGs, official light-background versions | ⛔ Q18 |
@@ -449,6 +450,7 @@ Items marked **Blocking** stop the listed tasks; everything else proceeds with t
 | Local Lighthouse on Windows is noisy (trace errors, CPU contention)  | Low    | Lighthouse measured in CI on a clean Linux runner, median of three runs        |
 | Railway platform outage (22 Oct) slows deployments                   | Medium | First deployment completed 10:24 UTC; later builds may queue; queued builds never retriggered (per Railway) |
 | Passkeys are bound to the admin origin                               | Low    | When the production domain replaces the Railway domain, admins register a passkey there via a fresh invite |
+| Hero description cards on iPhone: headless WebKit stops animation frames while a card overlaps the animated orbit (seen only in the emulator) | Low | Check on a real iPhone; if reproduced, pause the orbit animation while a card is open |
 | Blog has no articles until FigBud supplies verified content           | Low    | Honest empty state; blog stays `noindex` and out of the sitemap until the first article is published |
 
 ---
@@ -457,6 +459,7 @@ Items marked **Blocking** stop the listed tasks; everything else proceeds with t
 
 | Date        | Change                                                                                                   |
 | ----------- | -------------------------------------------------------------------------------------------------------- |
+| 23 Oct 2026 | Branded hero (P7-BR10): the homepage ecosystem uses published logos, names, statuses and colours from the Studio; product nodes are keyboard-accessible links with descriptions (hover, focus, first tap on touch). Product links now follow registry status everywhere they are passed it. |
 | 23 Oct 2026 | Brand management (P7-BR1–BR6): supplied FigBud, ZiraHR and Jasiri logos preserved and documented (the ZiraHR file is incomplete; see Q18); brand library with validated, sanitised uploads and renditions; brand profiles with draft, approval, history and rollback; Studio Branding page with live preview; websites read published logos; product colours now follow the official logos. Expense Now logo concept proposed for approval. CI builds against the mock API so prerendered pages carry registry data. |
 | 23 Oct 2026 | Admin Studio Phase 7 added (from the Enterprise Admin Studio brief). Phase A design (`docs/ADMIN_STUDIO.md`, D16–D20) and Phase B website registry delivered: schema with the four current websites, public and admin APIs, maker-checker lifecycle, Websites admin (list, guided creation, settings, lifecycle, archive), overview tile; the corporate Products page and homepage now follow the registry. |
 | 23 Oct 2026 | Product-site template (P4-01) and cross-site links (P4-02): `@figbud/site-kit` shared by all sites; the corporate site now uses it (no behaviour change). ZiraHR website started (`apps/zirahr-web`, P4-Z1): hero, modules, payroll, placeholders with real 404s; e2e in CI. Paint performance: redundant blur filters removed across sites. |

@@ -1,4 +1,4 @@
-import { type ProductSlug, getProduct } from "@figbud/brand";
+import { type ProductSlug, getProduct, type ProductStatus } from "@figbud/brand";
 import { type Locale, hreflangAlternates, isIndexable, localizePath } from "@figbud/i18n";
 import type { Metadata } from "next";
 
@@ -35,9 +35,13 @@ export interface ProductLink {
  * - Otherwise (product site not yet deployed): the product's section on the
  *   corporate Products page, so no link is ever dead.
  */
-export function productLink(slug: ProductSlug, locale: Locale): ProductLink {
-  const product = getProduct(slug);
-  if (product.status === "coming_soon") {
+/** Where a product links to; pass the registry status when the page has it (lib/products). */
+export function productLink(
+  slug: ProductSlug,
+  locale: Locale,
+  status: ProductStatus = getProduct(slug).status,
+): ProductLink {
+  if (status === "coming_soon") {
     return {
       href: `${localizePath(locale, "/contact")}?kind=waitlist&product=${slug}`,
       external: false,

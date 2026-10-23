@@ -82,7 +82,7 @@ Each website's brand profile also stores primary, secondary and accent colours. 
   - Every published version is kept. **Restore to draft** copies an earlier version back for review and republishing.
   - The audit log records each change with previous and new values.
 - **Where logos appear.** Websites read the published profile from `GET /v1/sites`, cached for a few minutes. Pages update within minutes of approval, or immediately on the next deploy.
-  - **Corporate site:** header and footer logo; product symbols in the Products menu, the homepage product tabs and the Products page; full product logos on Products page cards.
+  - **Corporate site:** header and footer logo; the homepage hero ecosystem (FigBud symbol at the centre on a dark tile, product symbols or logos on each node); product symbols in the Products menu, the homepage product tabs and the Products page; full product logos on Products page cards.
   - **ZiraHR site:** header, mobile menu and footer.
   - Where nothing is published, the built-in look remains. Files are served by each website from its own origin at `/brand/assets/{id}`.
 - **Permissions.** Viewers can see branding. Editors can upload, draft, archive and submit. Reviewers and owners approve. Only files used by a published profile are public.

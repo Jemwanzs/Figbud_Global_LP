@@ -1,4 +1,6 @@
+import type { Product } from "@figbud/brand";
 import { type Locale, localizePath } from "@figbud/i18n";
+import type { BrandProfile } from "@figbud/site-kit";
 import { Container, Eyebrow, buttonClasses } from "@figbud/ui";
 import { ArrowRight, Check } from "lucide-react";
 import Link from "next/link";
@@ -8,7 +10,19 @@ import { routes } from "@/lib/site";
 
 import { EcosystemVisual } from "./ecosystem-visual";
 
-export function Hero({ locale, dict }: { locale: Locale; dict: Dictionary }) {
+export function Hero({
+  locale,
+  dict,
+  products,
+  brands,
+}: {
+  locale: Locale;
+  dict: Dictionary;
+  /** Listed products with their registry status. */
+  products: Product[];
+  /** Published brand profiles by website slug. */
+  brands: Record<string, BrandProfile | null>;
+}) {
   const hero = dict.home.hero;
   return (
     <section aria-labelledby="hero-title" className="relative isolate overflow-hidden">
@@ -59,9 +73,13 @@ export function Hero({ locale, dict }: { locale: Locale; dict: Dictionary }) {
 
         <div className="fb-rise lg:col-span-6" style={{ animationDelay: "160ms" }}>
           <EcosystemVisual
+            locale={locale}
             labels={hero.visual}
-            status={dict.common.status}
+            common={dict.common}
+            copy={dict.products}
             caption={dict.common.syntheticData}
+            products={products}
+            brands={brands}
           />
         </div>
       </Container>

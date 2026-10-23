@@ -67,6 +67,7 @@ export function BrandLogo({
   fallback = null,
   className,
   basePath,
+  on,
 }: {
   pair?: BrandPair | null;
   height: number;
@@ -76,8 +77,26 @@ export function BrandLogo({
   className?: string;
   /** Where files are served from; the Studio previews drafts through the admin API. */
   basePath?: string;
+  /** For logos on a fixed-colour surface (not the page theme): always use the file made for it. */
+  on?: "dark" | "light";
 }) {
   if (!hasLogo(pair)) return <>{fallback}</>;
+  if (on) {
+    const asset = on === "dark" ? (pair.on_dark ?? pair.on_light) : (pair.on_light ?? pair.on_dark);
+    return (
+      <span className={cn("inline-flex shrink-0 items-center", className)}>
+        <LogoImage
+          asset={asset!}
+          theme="both"
+          solo={false}
+          height={height}
+          maxWidth={maxWidth}
+          alt={alt}
+          basePath={basePath}
+        />
+      </span>
+    );
+  }
   const solo = !(pair.on_dark && pair.on_light);
   const props = { height, maxWidth, alt, basePath };
   return (

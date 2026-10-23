@@ -48,7 +48,7 @@ export default async function ProductsPage({ params }: PageProps<"/[locale]/prod
         <ul className="space-y-6 lg:space-y-8">
           {products.map((product, i) => {
             const copy = dict.products[product.slug];
-            const link = productLink(product.slug, locale);
+            const link = productLink(product.slug, locale, product.status);
             const comingSoon = product.status === "coming_soon";
             const enquiry = enquiryHref(locale, product);
             return (

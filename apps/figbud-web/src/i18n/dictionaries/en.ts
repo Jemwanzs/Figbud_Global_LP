@@ -101,6 +101,7 @@ const en = {
         label: "The FigBud ecosystem: ZiraHR, Jasiri LMS and Expense Now connected through one core.",
         core: "FigBud core",
         coreDetail: "Identity · Workflows · Data",
+        explore: "Explore {product}",
         feedTitle: "Live across the ecosystem",
         live: "Live",
         events: [
