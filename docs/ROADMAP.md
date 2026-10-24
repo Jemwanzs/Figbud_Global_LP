@@ -19,7 +19,7 @@
 | 4     | Product websites                     | 🔄 In progress | 2 / 22 tasks (template + ZiraHR site started; lending template and Ziwa site added) | Product capability sign-off, payroll rules, Railway service for product sites |
 | 5     | Integrations & administration        | 🔄 In progress | 11 / 17 tasks (admin, CMS, inbox done)  | Resend credentials, recipient addresses      |
 | 6     | Production deployment                | 🔄 In progress | 9 / 18 tasks                            | Resend, domains, backups/monitoring          |
-| 7     | Admin Studio & website builder       | 🔄 In progress | 17 / 36 tasks (registry, brand management, hero, icons, branded Studio, Ziwa LMS, smart actions) | Complete logo files, Expense Now logo approval (Q18) |
+| 7     | Admin Studio & website builder       | 🔄 In progress | 18 / 37 tasks (registry, brand management, hero, map, icons, branded Studio, Ziwa LMS, smart actions) | Complete logo files, Expense Now logo approval (Q18) |
 
 **Where we are:** the monorepo, shared design system, multilingual architecture, Rust enquiry API with PostgreSQL and a retrying email outbox, and the first complete FigBud Global homepage are built and verified locally. Everything runs without any external service. The next steps that need decisions from FigBud are listed in **§5 Open questions**.
 
@@ -405,6 +405,7 @@ Items marked **Blocking** stop the listed tasks; everything else proceeds with t
 | P7-BR11 | Social sharing images from brand profiles (pages still use the generated Open Graph image) | ⬜ |
 | P7-ZW1 | Ziwa LMS registered (fifth website, after Expense Now; coming soon) and shown across the corporate site: product menus, hero (rebalanced four-product layout), homepage tabs with its own preview, Products page, contact form, structured data; enquiries and email routing accept it | ✅ |
 | P7-ZW2 | Ziwa LMS logo concept (horizontal, stacked, symbol, favicon; light and dark), teal palette with contrast tests, in its brand draft for approval | 🔄 Awaiting approval (Q19) |
+| P7-MAP1 | Africa expansion map: FigBud Global origin at Nairobi with the official symbol ("Where our vision begins."); product logos from the registry and published brands on an ocean-side arc with description cards (hover, focus, tap) linking to product sites or waitlists; compact grid on phones; per-product "Show on the Africa expansion map" setting in Admin → Websites | ✅ |
 | P7-UX1 | Smart action buttons: shared change detection and `ActionButton` across Studio forms (enabled only when ready, reasons when not, no double submits, saved baselines, unsaved-changes warning, autosave skips unchanged drafts, Discard draft) | ✅ |
 | P7-BR12 | Branded Studio: official symbol in the admin header and sign-in pages; website cards with published logos, temporary-icon notice, custom domain vs website destination, Manage / Branding / Open website actions; admin nav fits phones | ✅ |
 | P7-BR9 | Complete and vector logo files: ZiraHR with "HR", SVGs, official light-background versions | ⛔ Q18 |
@@ -467,6 +468,7 @@ Items marked **Blocking** stop the listed tasks; everything else proceeds with t
 
 | Date        | Change                                                                                                   |
 | ----------- | -------------------------------------------------------------------------------------------------------- |
+| 24 Oct 2026 | Africa expansion map (P7-MAP1): Nairobi origin with the FigBud symbol and product logos from the registry and brand profiles; per-product map visibility setting (`sites.show_on_map`, audited); shared tap-to-reveal and call-to-action helpers used by the hero and the map. |
 | 24 Oct 2026 | Ziwa LMS (P7-ZW1/ZW2): registered as the fifth website (coming soon) and shown across the corporate site; enquiries, admin filters and email routing accept it; proposed logo concept and teal palette; product registry documented (`docs/PRODUCT_REGISTRY.md`). Count-free headings ("Distinct platforms") so adding products needs no copy change. Smart action buttons (P7-UX1) across the Studio. |
 | 24 Oct 2026 | Icons and branded Studio (P7-BR8, P7-BR12): browser tabs, home-screen icons, admin header, sign-in, 404 and Studio website cards now show the official symbols from the published brand profiles; icons were added to the live profiles as version 2 ("Favicon and app icon from the official symbol"). Admin site list and detail return each website's published brand. |
 | 23 Oct 2026 | Branded hero (P7-BR10): the homepage ecosystem uses published logos, names, statuses and colours from the Studio; product nodes are keyboard-accessible links with descriptions (hover, focus, first tap on touch). Product links now follow registry status everywhere they are passed it. |

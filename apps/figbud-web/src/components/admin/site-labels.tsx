@@ -20,6 +20,8 @@ export interface AdminSite {
   version: number;
   updated_at: string;
   pending_to_status?: SiteStatus | null;
+  /** Shown on the corporate Africa expansion map. */
+  show_on_map?: boolean;
   /** Published brand profile (list responses only). */
   brand?: BrandProfile | null;
 }

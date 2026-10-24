@@ -39,6 +39,13 @@ export async function getPublicProducts(): Promise<Product[]> {
   });
 }
 
+/** Products shown on the Africa expansion map: listed, and not switched off in Admin → Websites. */
+export async function getMapProducts(): Promise<Product[]> {
+  const [products, sites] = await Promise.all([getPublicProducts(), getListedSites()]);
+  const hidden = new Set((sites ?? []).filter((s) => s.show_on_map === false).map((s) => s.slug));
+  return products.filter((p) => !hidden.has(p.slug));
+}
+
 /** Published brand profiles by website slug (empty when none are published or the API is down). */
 export async function getBrands(): Promise<Record<string, BrandProfile | null>> {
   const sites = await getListedSites();

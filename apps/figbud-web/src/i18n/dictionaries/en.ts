@@ -197,6 +197,8 @@ const en = {
       lead: "Every platform is engineered with multilingual, multicurrency and jurisdiction-aware foundations. New markets arrive as validated market packs: local statutory rules, payment rails and languages, reviewed before they go live.",
       startingPoint: "Nairobi, Kenya",
       startingPointLabel: "Starting point",
+      originTagline: "Where our vision begins.",
+      productsLabel: "FigBud products",
       mapLabel:
         "Map of Africa showing Nairobi as FigBud's starting point, with illustrative routes to other African markets.",
       mapNote: "Routes are illustrative of our expansion architecture, not current operations.",

@@ -94,7 +94,12 @@ export function PhilosophySection({ dict }: SectionProps) {
   );
 }
 
-export function AfricaSection({ dict }: SectionProps) {
+export function AfricaSection({
+  locale,
+  dict,
+  products,
+  brands,
+}: SectionProps & { products: Product[]; brands: Record<string, BrandProfile | null> }) {
   const africa = dict.home.africa;
   return (
     <section aria-labelledby="africa-title" className="relative overflow-hidden py-20 sm:py-24 lg:py-32">
@@ -123,9 +128,18 @@ export function AfricaSection({ dict }: SectionProps) {
         </div>
         <Reveal delay={0.05} className="mx-auto w-full max-w-xl lg:col-span-7 lg:max-w-none lg:ps-8">
           <AfricaMap
-            label={africa.mapLabel}
-            startingPoint={africa.startingPoint}
-            startingPointLabel={africa.startingPointLabel}
+            locale={locale}
+            labels={{
+              label: africa.mapLabel,
+              startingPoint: africa.startingPoint,
+              originTagline: africa.originTagline,
+              productsLabel: africa.productsLabel,
+              explore: dict.home.hero.visual.explore,
+            }}
+            common={dict.common}
+            copy={dict.products}
+            products={products}
+            brands={brands}
           />
           <p className="mt-4 text-center text-xs text-subtle">{africa.mapNote}</p>
         </Reveal>

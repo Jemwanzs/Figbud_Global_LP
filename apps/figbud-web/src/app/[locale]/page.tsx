@@ -13,7 +13,7 @@ import {
   PlatformsSection,
 } from "@/components/home/sections";
 import { getDictionary } from "@/i18n/get-dictionary";
-import { getBrands, getPublicProducts } from "@/lib/products";
+import { getBrands, getMapProducts, getPublicProducts } from "@/lib/products";
 import { pageMetadata } from "@/lib/site";
 
 export async function generateMetadata({ params }: PageProps<"/[locale]">): Promise<Metadata> {
@@ -27,7 +27,11 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
   const { locale } = await params;
   if (!isLocale(locale)) notFound();
   const dict = await getDictionary(locale);
-  const [products, brands] = await Promise.all([getPublicProducts(), getBrands()]);
+  const [products, mapProducts, brands] = await Promise.all([
+    getPublicProducts(),
+    getMapProducts(),
+    getBrands(),
+  ]);
 
   return (
     <>
@@ -40,7 +44,7 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
         <PhilosophySection locale={locale} dict={dict} />
       </Suspense>
       <Suspense>
-        <AfricaSection locale={locale} dict={dict} />
+        <AfricaSection locale={locale} dict={dict} products={mapProducts} brands={brands} />
       </Suspense>
       <Suspense>
         <EngineerSection locale={locale} dict={dict} />

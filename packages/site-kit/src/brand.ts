@@ -36,6 +36,8 @@ export interface ListedSite {
   status: "coming_soon" | "beta" | "active";
   cta: "waitlist" | "early_access" | "demo";
   brand: BrandProfile | null;
+  /** Shown on the corporate Africa expansion map (Admin → Websites → settings). */
+  show_on_map?: boolean;
 }
 
 export const BRAND_ASSET_PATH = "/brand/assets/";

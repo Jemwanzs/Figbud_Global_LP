@@ -217,6 +217,7 @@ const seedSite = (n, slug, kind, name, tagline, category, template, status) => (
   archived_at: null,
   version: 1,
   updated_at: new Date().toISOString(),
+  show_on_map: true,
   requests: [],
 });
 const sites = [
@@ -372,6 +373,7 @@ function siteRoutes(path, req, body, user, send) {
       tagline: body.tagline || null,
       description: body.description || null,
       primary_domain: body.primary_domain || null,
+      ...(typeof body.show_on_map === "boolean" ? { show_on_map: body.show_on_map } : {}),
       ...(site.kind === "product"
         ? { category: body.category, template: body.template || site.template }
         : {}),

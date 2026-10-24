@@ -21,7 +21,11 @@ interface Form {
   description: string;
   primary_domain: string;
   launch_status: SiteStatus;
+  show_on_map: boolean;
 }
+
+/** The fields edited as text (inputs, selects, text areas). */
+type TextField = Exclude<keyof Form, "show_on_map">;
 
 const slugify = (value: string) =>
   value
@@ -40,6 +44,7 @@ const toForm = (site?: AdminSite): Form => ({
   description: site?.description ?? "",
   primary_domain: site?.primary_domain ?? "",
   launch_status: "coming_soon",
+  show_on_map: site?.show_on_map ?? true,
 });
 
 /**
@@ -65,7 +70,7 @@ export function SiteForm({ site, canEdit }: { site?: AdminSite; canEdit: boolean
   const category = CATEGORIES.find((c) => c.value === form.category);
   const errorFor = (field: string) => fields.find((f) => f.field === field)?.message;
 
-  const set = (key: keyof Form) => (value: string) =>
+  const set = (key: TextField) => (value: string) =>
     setForm((f) => {
       const next = { ...f, [key]: value } as Form;
       if (key === "name" && !slugTouched) next.slug = slugify(value);
@@ -85,7 +90,9 @@ export function SiteForm({ site, canEdit }: { site?: AdminSite; canEdit: boolean
       tagline: form.tagline || null,
       description: form.description || null,
       primary_domain: form.primary_domain || null,
-      ...(site ? { version: site.version } : { slug: form.slug, launch_status: form.launch_status }),
+      ...(site
+        ? { version: site.version, show_on_map: form.show_on_map }
+        : { slug: form.slug, launch_status: form.launch_status }),
     };
     try {
       const saved = await adminFetch<AdminSite>(site ? `sites/${site.slug}` : "sites", body);
@@ -114,7 +121,7 @@ export function SiteForm({ site, canEdit }: { site?: AdminSite; canEdit: boolean
     }
   }
 
-  const field = (name: keyof Form, label: string, input: React.ReactNode, hint?: string) => {
+  const field = (name: TextField, label: string, input: React.ReactNode, hint?: string) => {
     const error = errorFor(name);
     return (
       <div>
@@ -133,7 +140,7 @@ export function SiteForm({ site, canEdit }: { site?: AdminSite; canEdit: boolean
     );
   };
 
-  const inputProps = (name: keyof Form) => ({
+  const inputProps = (name: TextField) => ({
     id: `${uid}-${name}`,
     value: form[name],
     disabled: !canEdit || busy,
@@ -262,6 +269,27 @@ export function SiteForm({ site, canEdit }: { site?: AdminSite; canEdit: boolean
               </p>
             </div>
           )}
+        </fieldset>
+      )}
+
+      {site && !corporate && (
+        <fieldset className="space-y-3">
+          <legend className="font-semibold text-text">On the FigBud Global website</legend>
+          <label className="flex min-h-11 cursor-pointer items-start gap-3 text-sm text-text">
+            <input
+              type="checkbox"
+              checked={form.show_on_map}
+              disabled={!canEdit || busy}
+              onChange={(e) => setForm((f) => ({ ...f, show_on_map: e.target.checked }))}
+              className="mt-0.5 size-5 shrink-0 accent-[var(--accent)]"
+            />
+            <span>
+              Show on the Africa expansion map
+              <span className="mt-0.5 block text-subtle">
+                Only while the website is listed (coming soon, beta or active). Takes effect when saved.
+              </span>
+            </span>
+          </label>
         </fieldset>
       )}
 

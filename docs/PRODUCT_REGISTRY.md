@@ -16,6 +16,7 @@ Rules that apply to every website:
 - **Marketing status is not operational readiness (D19).** "Active" changes what the marketing website offers; it never switches on the product, payments or sign-ups.
 - **The order is the `position` in the registry.** Product menus, the homepage tabs and hero, the Products page and the Studio all follow it.
 - **Status changes go through Admin → Websites** with maker-checker approval. Draft, retired and archived websites disappear from every public listing.
+- **Africa expansion map:** each product website has a "Show on the Africa expansion map" setting (Admin → Websites → settings, `sites.show_on_map`, on by default). The corporate homepage map shows listed products with it on, using their published symbol (or full logo, or built-in icon), status and destination. The routes stay labelled as illustrative expansion architecture, not current operations.
 - **Each website has its own brand profile, enquiry routing (`EMAIL_RECIPIENTS_<PRODUCT>`) and content.** Nothing is shared between products' customer data. The marketing API holds website data only.
 
 ## Ziwa LMS (added 24 October 2026)

@@ -6,11 +6,12 @@ import { BrandLogo, type BrandProfile, ProductMark, hasLogo } from "@figbud/site
 import { FigBudMark, cn } from "@figbud/ui";
 import { ArrowRight, ArrowUpRight } from "lucide-react";
 import { AnimatePresence, m, useInView, useReducedMotion } from "motion/react";
-import { type CSSProperties, type MouseEvent, useEffect, useId, useRef, useState } from "react";
+import { type CSSProperties, useEffect, useId, useRef, useState } from "react";
 
 import type { Dictionary } from "@/i18n/get-dictionary";
-import { fill } from "@/lib/format";
-import { productLink } from "@/lib/site";
+
+import { productCta } from "./product-cta";
+import { useRevealOnTap } from "./use-reveal";
 
 /** Composition coordinates in a 400 × 340 design space. */
 const W = 400;
@@ -253,41 +254,10 @@ function ProductNode({
   const { slug, name, status } = product;
   const node = NODES[slug];
   const id = useId();
-  const ref = useRef<HTMLDivElement>(null);
-  const [open, setOpen] = useState(false);
-  const link = productLink(slug, locale, status);
-  const cta =
-    status === "coming_soon"
-      ? common.cta.joinWaitlist
-      : link.external
-        ? fill(common.cta.visitSite, { product: name })
-        : fill(exploreLabel, { product: name });
+  const { ref, open, onClick } = useRevealOnTap();
+  const { link, label: cta } = productCta(product, locale, common, exploreLabel);
   // A product without a symbol but with a full logo shows the logo in place of its name.
   const horizontal = !hasLogo(brand?.logos.symbol) && hasLogo(brand?.logos.horizontal);
-
-  // Touch screens have no hover: the first tap shows the description, the next one opens the product.
-  const onClick = (event: MouseEvent<HTMLAnchorElement>) => {
-    if (!open && window.matchMedia("(hover: none)").matches) {
-      event.preventDefault();
-      setOpen(true);
-    }
-  };
-
-  useEffect(() => {
-    if (!open) return;
-    const close = (event: PointerEvent) => {
-      if (!ref.current?.contains(event.target as Node)) setOpen(false);
-    };
-    const escape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(false);
-    };
-    document.addEventListener("pointerdown", close);
-    document.addEventListener("keydown", escape);
-    return () => {
-      document.removeEventListener("pointerdown", close);
-      document.removeEventListener("keydown", escape);
-    };
-  }, [open]);
 
   return (
     <div

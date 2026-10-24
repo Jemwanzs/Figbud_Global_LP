@@ -97,12 +97,13 @@ struct PublicSite {
     status: String,
     primary_domain: Option<String>,
     position: i32,
+    show_on_map: bool,
 }
 
 /// Listed websites (not archived, draft or retired) with their published brand.
 async fn public_sites(State(state): State<SharedState>) -> Result<impl IntoResponse, ApiError> {
     let rows: Vec<PublicSite> = sqlx::query_as(
-        "SELECT slug, kind, name, tagline, description, category, status, primary_domain, position
+        "SELECT slug, kind, name, tagline, description, category, status, primary_domain, position, show_on_map
            FROM sites
           WHERE archived_at IS NULL AND status IN ('coming_soon', 'beta', 'active')
           ORDER BY position, name",
@@ -149,12 +150,13 @@ struct AdminSite {
     version: i32,
     updated_at: DateTime<Utc>,
     pending_to_status: Option<String>,
+    show_on_map: bool,
 }
 
 macro_rules! admin_select {
     () => {
         "SELECT s.id, s.slug, s.kind, s.name, s.tagline, s.description, s.category, s.template, s.status,
-                s.primary_domain, s.position, s.archived_at, s.version, s.updated_at,
+                s.primary_domain, s.position, s.archived_at, s.version, s.updated_at, s.show_on_map,
                 (SELECT r.to_status FROM site_status_requests r
                   WHERE r.site_id = s.id AND r.decision = 'pending') AS pending_to_status
            FROM sites s "
@@ -251,6 +253,8 @@ struct SiteInput {
     launch_status: Option<String>,
     /// Updates only: the version the editor started from.
     version: Option<i32>,
+    /// Updates only: show the product on the corporate Africa expansion map.
+    show_on_map: Option<bool>,
 }
 
 struct ValidSite {
@@ -497,7 +501,8 @@ async fn update(
     let expected = input.version.ok_or(ApiError::BadRequest("version is required"))?;
     let updated: Option<i32> = sqlx::query_scalar(
         "UPDATE sites SET name = $3, tagline = $4, description = $5, category = $6, template = $7, primary_domain = $8,
-                position = COALESCE($9, position), version = version + 1, updated_by = $10, updated_at = now()
+                position = COALESCE($9, position), show_on_map = COALESCE($11, show_on_map),
+                version = version + 1, updated_by = $10, updated_at = now()
           WHERE slug = $1 AND version = $2
       RETURNING version",
     )
@@ -511,6 +516,7 @@ async fn update(
     .bind(&valid.primary_domain)
     .bind(input.position)
     .bind(session.user.id)
+    .bind(input.show_on_map)
     .fetch_optional(&state.pool)
     .await
     .map_err(|err| {
@@ -527,9 +533,11 @@ async fn update(
     }
     let changes = json!({
         "before": { "name": current.name, "tagline": current.tagline, "category": current.category,
-                    "template": current.template, "primary_domain": current.primary_domain },
+                    "template": current.template, "primary_domain": current.primary_domain,
+                    "show_on_map": current.show_on_map },
         "after": { "name": valid.name, "tagline": valid.tagline, "category": valid.category,
-                   "template": valid.template, "primary_domain": valid.primary_domain },
+                   "template": valid.template, "primary_domain": valid.primary_domain,
+                   "show_on_map": input.show_on_map.unwrap_or(current.show_on_map) },
     });
     audit_site(&state.pool, &session, current.id, "site.updated", changes).await?;
     Ok(Json(load(&state.pool, &slug).await?))

@@ -333,6 +333,21 @@ async fn settings_conflicts_archive_and_corporate_rules() {
         )
         .await;
     assert_eq!(status, StatusCode::CONFLICT, "a stale version is refused");
+
+    // The Africa map setting is saved with the other settings and audited.
+    let (status, hidden) = s
+        .call(
+            "POST",
+            &format!("/v1/admin/sites/{slug}"),
+            Some(&owner),
+            Some(json!({ "name": "Custom Suite", "category": "custom_enterprise", "show_on_map": false, "version": saved["version"] })),
+        )
+        .await;
+    assert_eq!(
+        (status, hidden["show_on_map"].as_bool()),
+        (StatusCode::OK, Some(false))
+    );
+    let saved = hidden;
     let (status, _) = s
         .call(
             "POST",
