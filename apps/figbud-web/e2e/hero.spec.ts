@@ -75,3 +75,26 @@ test("the hero fits small screens without horizontal scrolling", async ({ page }
     expect(box!.x + box!.width).toBeLessThanOrEqual(360);
   }
 });
+
+test("Ziwa LMS appears across the corporate site as coming soon", async ({ page }) => {
+  await page.goto("/en");
+  const node = hero(page).getByRole("link", { name: /Ziwa LMS/ });
+  await expect(node).toHaveAttribute("href", "/en/contact?kind=waitlist&product=ziwa");
+  await expect(node).toContainText("Coming soon");
+  // The concept logo is not approved, so the built-in icon shows.
+  await expect(node.locator('img[src^="/brand/assets/"]')).toHaveCount(0);
+
+  await page.goto("/en/products");
+  const card = page.locator("#ziwa");
+  await expect(card.getByRole("heading", { level: 2 })).toHaveText("Ziwa LMS");
+  await expect(card).toContainText("Lending that flows with your business.");
+  await expect(card.getByRole("link", { name: "Join the waitlist" })).toHaveAttribute(
+    "href",
+    "/en/contact?kind=waitlist&product=ziwa",
+  );
+  // Jasiri keeps its own, different positioning.
+  await expect(page.locator("#jasiri")).toContainText("Every loan. Every decision. Connected.");
+
+  await page.goto("/en/contact?kind=waitlist&product=ziwa");
+  await expect(page.getByLabel("Product")).toHaveValue("ziwa");
+});

@@ -44,6 +44,9 @@ test("create a product website, launch it with approval and manage its settings"
   // Guided creation: the identifier follows the name, the template follows the category.
   const run = randomBytes(3).toString("hex");
   await page.getByRole("link", { name: "New website" }).click();
+  // Create stays disabled, and says why, until the required fields are filled.
+  await expect(page.getByRole("button", { name: "Create draft website" })).toBeDisabled();
+  await expect(page.getByText("Enter a name and a valid identifier")).toBeVisible();
   await page.getByLabel("Website name").fill(`PayFlow ${run}`);
   await expect(page.getByLabel("Identifier")).toHaveValue(`payflow_${run}`);
   await page.getByRole("radio", { name: "Lending & Credit" }).click();
@@ -78,9 +81,18 @@ test("create a product website, launch it with approval and manage its settings"
 
   // Settings save with the current version.
   const settings = page.getByRole("region", { name: "Settings" });
+  const save = settings.getByRole("button", { name: "Save settings" });
+  // Save is enabled only while something differs from what is saved.
+  await expect(save).toBeDisabled();
+  await expect(settings.getByText("Nothing to save")).toBeVisible();
+  await settings.getByLabel("Tagline").fill("Temporary");
+  await expect(save).toBeEnabled();
+  await settings.getByLabel("Tagline").fill("");
+  await expect(save).toBeDisabled();
   await settings.getByLabel("Tagline").fill("Lending, simplified.");
-  await settings.getByRole("button", { name: "Save settings" }).click();
+  await save.click();
   await status(page, "Settings saved.");
+  await expect(save).toBeDisabled();
   await settings.getByLabel("Tagline").fill("Lending, simplified twice.");
   await settings.getByRole("button", { name: "Save settings" }).click();
   await status(page, "Settings saved.");

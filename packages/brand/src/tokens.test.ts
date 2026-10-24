@@ -29,7 +29,7 @@ const contrast = (a: string, b: string) => {
 const dark = block(':root,\n[data-theme="dark"]');
 const light = block('[data-theme="light"]');
 
-describe.each(["figbud", "zirahr", "jasiri", "expense_now"])("%s tokens", (slug) => {
+describe.each(["figbud", "zirahr", "jasiri", "expense_now", "ziwa"])("%s tokens", (slug) => {
   const product = block(`[data-product="${slug}"]`);
 
   it("accent text is readable on the dark theme", () => {

@@ -141,4 +141,4 @@ export function SiteMark({ slug, name, brand }: { slug: string; name: string; br
 }
 
 const isProductSlug = (slug: string): slug is ProductSlug =>
-  ["zirahr", "jasiri", "expense_now"].includes(slug);
+  ["zirahr", "jasiri", "expense_now", "ziwa"].includes(slug);

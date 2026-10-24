@@ -49,7 +49,7 @@ Guidelines:
 | `EMAIL_FROM`                     | `FigBud Global <hello@your-verified-domain>`                       | no     |
 | `EMAIL_REPLY_TO`                 | optional public reply address                                      | no     |
 | `EMAIL_TEAM_RECIPIENTS`          | CTO / team addresses, comma-separated                              | treat as private |
-| `EMAIL_RECIPIENTS_ZIRAHR` / `_JASIRI` / `_EXPENSE_NOW` / `_PARTNERSHIPS` | optional extra routing         | treat as private |
+| `EMAIL_RECIPIENTS_ZIRAHR` / `_JASIRI` / `_EXPENSE_NOW` / `_ZIWA` / `_PARTNERSHIPS` | optional extra routing         | treat as private |
 | `RUST_LOG`                       | `figbud_api=info,tower_http=info,sqlx=warn`                        | no     |
 | `ADMIN_ORIGIN`                   | the web origin serving `/admin` (now `https://figbud-web-production.up.railway.app`; later `https://figbudglobal.com`). Unset = admin disabled | no |
 | `ADMIN_SESSION_HOURS`            | optional, default `12`                                             | no     |

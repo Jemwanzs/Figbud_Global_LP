@@ -174,6 +174,7 @@ pub fn team_recipients_for(config: &EmailConfig, kind: EnquiryKind, product: Pro
         Product::Zirahr => &config.zirahr_recipients,
         Product::Jasiri => &config.jasiri_recipients,
         Product::ExpenseNow => &config.expense_now_recipients,
+        Product::Ziwa => &config.ziwa_recipients,
         Product::Figbud => &Vec::new(),
     };
     recipients.extend(product_specific.iter().cloned());
@@ -206,6 +207,7 @@ mod tests {
             zirahr_recipients: vec!["hr-sales@example.com".into(), "CTO@example.com".into()],
             jasiri_recipients: vec![],
             expense_now_recipients: vec![],
+            ziwa_recipients: vec![],
             partnership_recipients: vec!["partners@example.com".into()],
             send_acknowledgements: true,
             worker_interval: Duration::from_secs(5),

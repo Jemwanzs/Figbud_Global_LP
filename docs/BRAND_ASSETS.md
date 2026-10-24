@@ -61,6 +61,16 @@ Expense Now has no official logo yet. The concept is original artwork made for F
 
 The concept is in the Expense Now brand draft, labelled "Proposed … not approved". To adopt it, review it in the Studio, submit it, and approve it. To replace it, upload the final artwork into the same slots.
 
+## 3b. Ziwa LMS: proposed logo concept (not approved)
+
+Ziwa LMS (added 24 Oct 2026, see [PRODUCT_REGISTRY.md](PRODUCT_REGISTRY.md)) has no official logo yet. The concept is original artwork made for FigBud:
+
+- **Symbol:** a deep navy tile (#0B1F3A) carrying a "Z" drawn as two flowing water lines joined by a current, in a teal-to-emerald gradient (#5EEAD4 → #2DD4BF → #10B981). "Ziwa" is Swahili for lake. It reads at favicon size and differs clearly from ZiraHR's cyan square.
+- **Wordmark:** "Ziwa **LMS**" in Outfit SemiBold, converted to outlines. "LMS" is in teal (#2DD4BF on dark, #0F766E on light).
+- **Variations:** horizontal and stacked (dark and light backgrounds), symbol only, favicon (`services/api/seed/brand/ziwa-*-proposed.svg`).
+
+It sits in the Ziwa brand draft, labelled "Proposed … not approved". Until it is approved, the corporate site shows Ziwa's built-in wave icon.
+
 ## 4. Product colours
 
 Product accent tokens (`packages/brand/src/tokens.css`) now follow each product's logo instead of the earlier placeholders. A unit test (`tokens.test.ts`) checks WCAG AA contrast for every accent on both themes.
@@ -71,6 +81,7 @@ Product accent tokens (`packages/brand/src/tokens.css`) now follow each product'
 | ZiraHR | #22D3EE cyan | #0891B2 | #67E8F9 | #0E7490 |
 | Jasiri LMS | #22C55E green | #7C3AED purple | #4ADE80 | #15803D |
 | Expense Now (proposed) | #F97316 orange | #C2410C | #FB923C | #C2410C |
+| Ziwa LMS (proposed) | #2DD4BF teal | #0E7490 deep teal | #5EEAD4 | #0F766E |
 
 Each website's brand profile also stores primary, secondary and accent colours. The Studio previews them and checks their contrast.
 

@@ -1,11 +1,12 @@
 import type { ProductSlug } from "@figbud/brand";
 import { cn } from "@figbud/ui";
-import { Landmark, ReceiptText, UsersRound } from "lucide-react";
+import { Landmark, ReceiptText, UsersRound, Waves } from "lucide-react";
 
 const icons = {
   zirahr: UsersRound,
   jasiri: Landmark,
   expense_now: ReceiptText,
+  ziwa: Waves,
 } satisfies Record<ProductSlug, unknown>;
 
 /** Product identity tile: the product's accent gradient with its symbol. */

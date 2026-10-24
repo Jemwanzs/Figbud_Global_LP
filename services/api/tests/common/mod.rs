@@ -37,6 +37,7 @@ pub fn config(database_url: &str) -> Config {
             zirahr_recipients: vec![],
             jasiri_recipients: vec![],
             expense_now_recipients: vec![],
+            ziwa_recipients: vec![],
             partnership_recipients: vec![],
             send_acknowledgements: true,
             worker_interval: Duration::from_secs(5),

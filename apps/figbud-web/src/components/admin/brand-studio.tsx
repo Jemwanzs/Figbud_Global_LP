@@ -5,6 +5,9 @@ import { CircleAlert, CircleCheck, LoaderCircle, Redo2, Undo2 } from "lucide-rea
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 
 import { type AdminUser, AdminError, adminFetch, hasRole } from "@/lib/admin-client";
+import { sameValue, useSavedBaseline, useUnsavedChangesWarning } from "@/lib/form-state";
+
+import { ActionButton } from "./action-button";
 
 import { AssetThumb, BrandLibrary } from "./brand-library";
 import { BrandPreview } from "./brand-preview";
@@ -59,6 +62,10 @@ export function BrandStudio({
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
 
+  // The last draft the server has; an edit undone back to it needs no save.
+  const { baseline, markSaved } = useSavedBaseline(config, initial.draft);
+  const stateFor = (next: BrandConfig): SaveState => (sameValue(next, baseline) ? "saved" : "unsaved");
+  useUnsavedChangesWarning(save === "unsaved" || save === "saving");
   const canEdit = hasRole(user, "editor");
   const assets = useMemo(() => new Map(data.assets.map((a) => [a.id, a])), [data.assets]);
   const usable = data.assets.filter((a) => !a.archived_at);
@@ -74,13 +81,14 @@ export function BrandStudio({
       setChecks({ list: fresh.checks, publishable: fresh.publishable });
       if (resetDraft) {
         setConfig(fresh.draft);
+        markSaved(fresh.draft);
         version.current = fresh.draft_version;
         setPast([]);
         setFuture([]);
         setSave("saved");
       }
     },
-    [slug],
+    [slug, markSaved],
   );
 
   const change = (next: BrandConfig) => {
@@ -88,7 +96,7 @@ export function BrandStudio({
     setPast((p) => [...p.slice(-49), config]);
     setFuture([]);
     setConfig(next);
-    setSave("unsaved");
+    setSave(stateFor(next));
   };
 
   // Autosave the draft a moment after the last change. Never publishes.
@@ -103,6 +111,7 @@ export function BrandStudio({
           publishable: boolean;
         }>(`sites/${slug}/brand/draft`, { config, version: version.current });
         version.current = saved.draft_version;
+        markSaved(config);
         setChecks({ list: saved.checks, publishable: saved.publishable });
         setSave((s) => (s === "saving" ? "saved" : s));
         reload(false).catch(() => undefined);
@@ -112,14 +121,7 @@ export function BrandStudio({
       }
     }, 900);
     return () => clearTimeout(timer);
-  }, [config, save, slug, reload]);
-
-  useEffect(() => {
-    if (save !== "unsaved" && save !== "saving") return;
-    const warn = (event: BeforeUnloadEvent) => event.preventDefault();
-    window.addEventListener("beforeunload", warn);
-    return () => window.removeEventListener("beforeunload", warn);
-  }, [save]);
+  }, [config, save, slug, reload, markSaved]);
 
   const undo = () => {
     const previous = past.at(-1);
@@ -127,7 +129,7 @@ export function BrandStudio({
     setPast((p) => p.slice(0, -1));
     setFuture((f) => [config, ...f]);
     setConfig(previous);
-    setSave("unsaved");
+    setSave(stateFor(previous));
   };
   const redo = () => {
     const next = future[0];
@@ -135,7 +137,7 @@ export function BrandStudio({
     setFuture((f) => f.slice(1));
     setPast((p) => [...p, config]);
     setConfig(next);
-    setSave("unsaved");
+    setSave(stateFor(next));
   };
 
   async function run(label: string, path: string, body: unknown, success: string, resetDraft = false) {
@@ -195,6 +197,20 @@ export function BrandStudio({
       </div>
     );
   };
+
+  // Why the draft can't be submitted yet, most fundamental reason first.
+  const submitBlocker =
+    save === "unsaved" || save === "saving"
+      ? "Saving the draft…"
+      : save !== "saved"
+        ? "Reload the draft first"
+        : !data.draft_differs
+          ? "The draft matches the published brand"
+          : !checks.publishable
+            ? "Fix the required checks above"
+            : !note.trim()
+              ? "Say what changed"
+              : null;
 
   const saveText: Record<SaveState, string> = {
     saved: "Draft saved",
@@ -483,7 +499,8 @@ export function BrandStudio({
                 className="mt-5 space-y-3"
                 onSubmit={(e) => {
                   e.preventDefault();
-                  run("submit", "submit", { note }, "Sent for approval.");
+                  if (submitBlocker === null && busy === null)
+                    run("submit", "submit", { note }, "Sent for approval.");
                 }}
               >
                 <label htmlFor={`${uid}-note`} className="block text-sm font-medium text-text">
@@ -497,19 +514,34 @@ export function BrandStudio({
                   onChange={(e) => setNote(e.target.value)}
                   className="w-full rounded-xl border border-line-strong bg-surface px-4 py-3 text-text"
                 />
-                <button
-                  type="submit"
-                  disabled={
-                    !!busy || !note.trim() || save !== "saved" || !checks.publishable || !data.draft_differs
-                  }
-                  className={buttonClasses("primary", "md")}
-                >
-                  {busy === "submit" && <LoaderCircle aria-hidden className="size-4 animate-spin" />}
-                  Submit for publishing
-                </button>
-                {!data.draft_differs && save === "saved" && (
-                  <p className="text-xs text-subtle">The draft matches the published brand.</p>
-                )}
+                <div className="flex flex-wrap items-center gap-2">
+                  <ActionButton
+                    type="submit"
+                    ready={submitBlocker === null && busy === null}
+                    busy={busy === "submit"}
+                    hint={submitBlocker ?? undefined}
+                  >
+                    Submit for publishing
+                  </ActionButton>
+                  {data.published_revision && (
+                    <ActionButton
+                      variant="ghost"
+                      ready={data.draft_differs && save === "saved" && busy === null}
+                      busy={busy === "discard"}
+                      onClick={() =>
+                        run(
+                          "discard",
+                          `revisions/${data.published_revision}/restore`,
+                          {},
+                          "Draft reset to the published brand.",
+                          true,
+                        )
+                      }
+                    >
+                      Discard draft changes
+                    </ActionButton>
+                  )}
+                </div>
               </form>
             ) : (
               <p className="mt-5 text-sm text-muted">Editors and above can change branding.</p>

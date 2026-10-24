@@ -7,7 +7,7 @@ const ar: DeepPartial<Dictionary> = {
   meta: {
     title: "FigBud Global — برمجيات مؤسسية مصممة للتعقيد",
     description:
-      "تبني FigBud Global منصات مؤسسية قابلة للتهيئة للموارد البشرية والإقراض والنفقات: ZiraHR وJasiri LMS وExpense Now.",
+      "تبني FigBud Global منصات مؤسسية قابلة للتهيئة للموارد البشرية والإقراض والنفقات: ZiraHR وJasiri LMS وExpense Now وZiwa LMS.",
   },
   common: {
     skipToContent: "انتقل إلى المحتوى",
@@ -44,7 +44,7 @@ const ar: DeepPartial<Dictionary> = {
       lead: "تقنية مؤسسية تدفع الأعمال إلى الأمام. قابلة للتهيئة. موثوقة. جاهزة للنمو.",
       pillars: ["صُنعت في كينيا", "متعددة اللغات والعملات بالتصميم", "آمنة بالبنية"],
     },
-    platforms: { eyebrow: "منصاتنا", title: "ثلاث منصات. منظومة واحدة متصلة." },
+    platforms: { eyebrow: "منصاتنا", title: "منصات متميزة. منظومة واحدة متصلة." },
     philosophy: { eyebrow: "فلسفتنا" },
     africa: {
       eyebrow: "صُممت لأفريقيا. جاهزة لكل مكان.",

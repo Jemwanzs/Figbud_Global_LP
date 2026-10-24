@@ -5,7 +5,13 @@ import { KeyRound, LoaderCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-import { adminFetch, assertPasskey, describePasskeyError, supportsPasskeys } from "@/lib/admin-client";
+import {
+  adminFetch,
+  assertPasskey,
+  describePasskeyError,
+  supportsPasskeys,
+  validEmail,
+} from "@/lib/admin-client";
 
 type Ceremony = { challenge_id: string; options: { publicKey: Record<string, unknown> } };
 
@@ -58,7 +64,7 @@ export function LoginForm() {
       )}
       <button
         type="submit"
-        disabled={busy || !email}
+        disabled={busy || !validEmail(email)}
         className={buttonClasses("primary", "lg", "mt-6 w-full")}
       >
         {busy ? (

@@ -81,6 +81,7 @@ impl BrandConfig {
             "zirahr" => ("#22d3ee", "#0891b2", "#11e6ff"),
             "jasiri" => ("#22c55e", "#7c3aed", "#4ade80"),
             "expense_now" => ("#f97316", "#ea580c", "#fdba74"),
+            "ziwa" => ("#2dd4bf", "#0e7490", "#5eead4"),
             _ => ("#f0a65d", "#a66538", "#f6bd82"),
         };
         Self {
@@ -255,7 +256,7 @@ mod tests {
 
     #[test]
     fn defaults_pass_the_colour_checks_but_need_a_logo() {
-        for slug in ["figbud", "zirahr", "jasiri", "expense_now"] {
+        for slug in ["figbud", "zirahr", "jasiri", "expense_now", "ziwa"] {
             let config = BrandConfig::default_for(slug);
             let checks = config.checks();
             assert_eq!(checks[2]["ok"], true, "{slug} primary on dark");

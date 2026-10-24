@@ -1,10 +1,11 @@
 import { buttonClasses, cn } from "@figbud/ui";
-import { ArrowLeft, ArrowRight, Download, Search } from "lucide-react";
+import { ArrowLeft, ArrowRight, Download } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 
 import { AdminShell, AdminUnavailable } from "@/components/admin/admin-shell";
+import { EnquiryFilters } from "@/components/admin/enquiry-filters";
 import {
   ENQUIRY_STATUSES,
   type EnquiryStatus,
@@ -106,64 +107,8 @@ async function Enquiries({ searchParams }: Pick<PageProps<"/admin/enquiries">, "
         </ul>
       </nav>
 
-      <form
-        action="/admin/enquiries"
-        className="mt-5 grid gap-3 sm:grid-cols-[1fr_auto_auto_auto] sm:items-end"
-      >
-        {current.status && <input type="hidden" name="status" value={current.status} />}
-        <div className="relative">
-          <label htmlFor="enquiry-search" className="sr-only">
-            Search by name, email, company or reference
-          </label>
-          <Search
-            aria-hidden
-            className="pointer-events-none absolute start-4 top-1/2 size-4 -translate-y-1/2 text-subtle"
-          />
-          <input
-            id="enquiry-search"
-            type="search"
-            name="q"
-            defaultValue={current.q}
-            placeholder="Name, email, company or reference"
-            className="min-h-11 w-full rounded-full border border-line-strong bg-surface ps-11 pe-4 text-text placeholder:text-subtle"
-          />
-        </div>
-        <label className="sr-only" htmlFor="enquiry-kind">
-          Type
-        </label>
-        <select
-          id="enquiry-kind"
-          name="kind"
-          defaultValue={current.kind ?? ""}
-          className="min-h-11 rounded-full border border-line-strong bg-surface px-4 text-text"
-        >
-          <option value="">All types</option>
-          {Object.entries(KIND_LABELS).map(([value, label]) => (
-            <option key={value} value={value}>
-              {label}
-            </option>
-          ))}
-        </select>
-        <label className="sr-only" htmlFor="enquiry-product">
-          Product
-        </label>
-        <select
-          id="enquiry-product"
-          name="product"
-          defaultValue={current.product ?? ""}
-          className="min-h-11 rounded-full border border-line-strong bg-surface px-4 text-text"
-        >
-          <option value="">All products</option>
-          {Object.entries(PRODUCT_LABELS).map(([value, label]) => (
-            <option key={value} value={value}>
-              {label}
-            </option>
-          ))}
-        </select>
-        <button type="submit" className={buttonClasses("secondary", "md")}>
-          Apply
-        </button>
-      </form>
+      {/* Keyed by the applied filters so the form resets when they change. */}
+      <EnquiryFilters key={JSON.stringify(current)} status={current.status} applied={current} />
 
       {!data ? (
         <p className="mt-10 text-muted">Enquiries could not be loaded. Please try again.</p>

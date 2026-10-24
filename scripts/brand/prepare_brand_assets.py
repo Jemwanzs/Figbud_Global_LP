@@ -88,42 +88,74 @@ def svg(width: float, height: float, body: str, title: str) -> str:
     )
 
 
-def expense_now(font_path: str) -> None:
-    font = TTFont(font_path)
-    instantiateVariableFont(font, {"wght": 600}, inplace=True)
-    for theme, word in (("on-dark", "#FFF7ED"), ("on-light", "#1C1917")):
-        # Horizontal: symbol + "Expense Now" (Now in the brand orange).
-        expense, w1 = outline(font, "Expense", 84, 46, 34, tracking=-0.4)
-        now, w2 = outline(font, "Now", 84 + w1 + 9, 46, 34, tracking=-0.4)
-        width = 84 + w1 + 9 + w2 + 2
-        body = (
-            symbol("h", 0, 0, 1)
-            + f'\n  <path fill="{word}" d="{expense}"/>\n  <path fill="#F97316" d="{now}"/>'
-        )
-        (SEED / f"expense-now-horizontal-{theme}-proposed.svg").write_text(
-            svg(width, 64, body, "Expense Now"), encoding="utf-8"
+def concept(font: TTFont, prefix: str, title: str, words, mark) -> None:
+    """Horizontal, stacked, symbol and favicon SVGs for a proposed logo concept.
+
+    `words` are (text, colour on dark, colour on light); `mark(id, x, y, scale)`
+    draws the 64 x 64 symbol.
+    """
+    for theme in ("on-dark", "on-light"):
+        colour = (lambda w: w[1]) if theme == "on-dark" else (lambda w: w[2])
+        # Horizontal: symbol + wordmark.
+        paths, cursor = [], 84
+        for i, word in enumerate(words):
+            d, w = outline(font, word[0], cursor, 46, 34, tracking=-0.4)
+            paths.append(f'\n  <path fill="{colour(word)}" d="{d}"/>')
+            cursor += w + (9 if i < len(words) - 1 else 2)
+        (SEED / f"{prefix}-horizontal-{theme}-proposed.svg").write_text(
+            svg(cursor, 64, mark("h", 0, 0, 1) + "".join(paths), title), encoding="utf-8"
         )
         # Stacked: symbol above the centred wordmark.
-        expense, w1 = outline(font, "Expense", 0, 0, 30, tracking=-0.3)
-        now, w2 = outline(font, "Now", 0, 0, 30, tracking=-0.3)
-        total = w1 + 8 + w2
+        widths = [outline(font, word[0], 0, 0, 30, tracking=-0.3)[1] for word in words]
+        total = sum(widths) + 8 * (len(words) - 1)
         width = max(total, 96) + 8
         left = (width - total) / 2
-        expense, _ = outline(font, "Expense", left, 112, 30, tracking=-0.3)
-        now, _ = outline(font, "Now", left + w1 + 8, 112, 30, tracking=-0.3)
-        body = (
-            symbol("s", (width - 72) / 2, 0, 72 / 64)
-            + f'\n  <path fill="{word}" d="{expense}"/>\n  <path fill="#F97316" d="{now}"/>'
+        paths = []
+        for word, w in zip(words, widths):
+            d, _ = outline(font, word[0], left, 112, 30, tracking=-0.3)
+            paths.append(f'\n  <path fill="{colour(word)}" d="{d}"/>')
+            left += w + 8
+        (SEED / f"{prefix}-stacked-{theme}-proposed.svg").write_text(
+            svg(width, 122, mark("s", (width - 72) / 2, 0, 72 / 64) + "".join(paths), title), encoding="utf-8"
         )
-        (SEED / f"expense-now-stacked-{theme}-proposed.svg").write_text(
-            svg(width, 122, body, "Expense Now"), encoding="utf-8"
-        )
-    (SEED / "expense-now-symbol-proposed.svg").write_text(svg(64, 64, symbol("y"), "Expense Now"), encoding="utf-8")
+    (SEED / f"{prefix}-symbol-proposed.svg").write_text(svg(64, 64, mark("y"), title), encoding="utf-8")
     # Favicon: the same symbol, tile filling the square so it reads at 16 px.
-    (SEED / "expense-now-favicon-proposed.svg").write_text(
-        svg(32, 32, symbol("f", 0, 0, 0.5), "Expense Now"), encoding="utf-8"
+    (SEED / f"{prefix}-favicon-proposed.svg").write_text(svg(32, 32, mark("f", 0, 0, 0.5), title), encoding="utf-8")
+    print(f"  {prefix}-*-proposed.svg")
+
+
+def expense_now(font: TTFont) -> None:
+    concept(
+        font,
+        "expense-now",
+        "Expense Now",
+        [("Expense", "#FFF7ED", "#1C1917"), ("Now", "#F97316", "#F97316")],
+        symbol,
     )
-    print("  expense-now-*-proposed.svg")
+
+
+# Ziwa LMS concept symbol (64 x 64): "ziwa" is Swahili for lake. A "Z" drawn as
+# two flowing water lines joined by a current, teal to emerald on deep navy.
+# Original artwork for FigBud; not yet approved.
+def ziwa_symbol(prefix: str, x=0.0, y=0.0, s=1.0) -> str:
+    t = f'transform="translate({x} {y}) scale({s})"'
+    return f"""<g {t}>
+    <defs><linearGradient id="{prefix}z" x1="12" y1="14" x2="52" y2="50" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#5EEAD4"/><stop offset="0.5" stop-color="#2DD4BF"/><stop offset="1" stop-color="#10B981"/>
+    </linearGradient></defs>
+    <rect width="64" height="64" rx="16" fill="#0B1F3A"/>
+    <path d="M15 21.5C22 16.5 28 26.5 35 21.5S45 17.5 49 20.5L16 43.5C20 46.5 27 47.5 32 43S42 37.5 49 42.5" fill="none" stroke="url(#{prefix}z)" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>"""
+
+
+def ziwa(font: TTFont) -> None:
+    concept(
+        font,
+        "ziwa",
+        "Ziwa LMS",
+        [("Ziwa", "#F0FDFA", "#0B1F3A"), ("LMS", "#2DD4BF", "#0F766E")],
+        ziwa_symbol,
+    )
 
 
 def on_tile(symbol: Image.Image, size: int, symbol_height: int, background, radius: int) -> Image.Image:
@@ -196,7 +228,10 @@ def main() -> None:
     save_png(recolour_neutrals(trim(js), INK), "jasiri-horizontal-on-light-proposed.png")
 
     icons(figbud_symbol, zirahr_symbol)
+    font = TTFont(font)
+    instantiateVariableFont(font, {"wght": 600}, inplace=True)
     expense_now(font)
+    ziwa(font)
 
 
 if __name__ == "__main__":

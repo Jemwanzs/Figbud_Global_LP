@@ -12,7 +12,7 @@ import { fill } from "@/lib/format";
 import { productLink } from "@/lib/site";
 
 import { type BrandProfile, ProductMark } from "@figbud/site-kit";
-import { ExpensePreview, JasiriPreview, ZiraPreview } from "./product-previews";
+import { ExpensePreview, JasiriPreview, ZiraPreview, ZiwaPreview } from "./product-previews";
 
 type Props = {
   locale: Locale;
@@ -155,7 +155,11 @@ export function PlatformShowcase({ locale, platforms, products, items, brands, c
                       </li>
                     ))}
                   </ul>
-                  {comingSoon && <p className="mt-6 text-sm text-muted">{platforms.waitlistNote}</p>}
+                  {comingSoon && (
+                    <p className="mt-6 text-sm text-muted">
+                      {fill(platforms.waitlistNote, { product: product.name })}
+                    </p>
+                  )}
                   <div className="mt-8 lg:mt-auto lg:pt-10">
                     <a
                       href={link.href}
@@ -193,6 +197,7 @@ export function PlatformShowcase({ locale, platforms, products, items, brands, c
                       >
                         {product.slug === "zirahr" && <ZiraPreview copy={platforms.previews.zirahr} />}
                         {product.slug === "jasiri" && <JasiriPreview copy={platforms.previews.jasiri} />}
+                        {product.slug === "ziwa" && <ZiwaPreview copy={platforms.previews.ziwa} />}
                         {product.slug === "expense_now" && (
                           <ExpensePreview copy={platforms.previews.expense_now} />
                         )}

@@ -36,13 +36,10 @@ test("write a draft, see field errors, save, submit, publish, archive and restor
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Insights");
   await page.getByRole("link", { name: "New article" }).click();
 
-  // Validation errors appear next to their fields.
-  await page.getByRole("button", { name: "Create draft" }).click();
-  await expect(page.getByText("Enter a title of up to 200 characters.")).toBeVisible();
-  await expect(page.getByLabel("Title", { exact: true }).filter({ visible: true })).toHaveAttribute(
-    "aria-invalid",
-    "true",
-  );
+  // Create stays disabled, and says why, until the required fields are filled.
+  const create = page.getByRole("button", { name: "Create draft" });
+  await expect(create).toBeDisabled();
+  await expect(page.getByText("Add a title, summary and article text")).toBeVisible();
 
   const title = `Payroll rules ${randomBytes(3).toString("hex")}`;
   await page.getByLabel("Title", { exact: true }).filter({ visible: true }).fill(title);
@@ -64,7 +61,15 @@ test("write a draft, see field errors, save, submit, publish, archive and restor
   await expect(page.locator(".fb-prose")).toContainText("Rates change mid-year.");
   await page.getByRole("tab", { name: "Write" }).click();
 
-  await page.getByRole("button", { name: "Create draft" }).click();
+  // Server validation errors appear next to their fields.
+  const address = page.getByLabel("Address", { exact: true }).filter({ visible: true });
+  await address.fill("Not valid!");
+  await create.click();
+  await expect(page.getByText("Use lowercase letters, numbers and hyphens.")).toBeVisible();
+  await expect(address).toHaveAttribute("aria-invalid", "true");
+  await address.fill(title.toLowerCase().replace(/ /g, "-"));
+
+  await create.click();
   await expect(page).toHaveURL(/\/admin\/insights\/[0-9a-f-]{36}$/);
   // Next.js keeps the previous route mounted but hidden (React Activity) for instant back navigation.
   await expect(page.locator("textarea[id$='-excerpt']:visible")).toHaveCount(1);

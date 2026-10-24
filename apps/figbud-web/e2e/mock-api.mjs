@@ -260,6 +260,16 @@ const sites = [
     "finance",
     "coming_soon",
   ),
+  seedSite(
+    5,
+    "ziwa",
+    "product",
+    "Ziwa LMS",
+    "Lending that flows with your business.",
+    "lending_credit",
+    "lending",
+    "coming_soon",
+  ),
 ];
 const siteRow = ({ requests, ...s }) => ({
   ...s,
@@ -620,6 +630,27 @@ const BRAND_SEED = {
       ["expense-now-favicon-proposed.svg", "proposed", "Expense Now favicon concept", "favicon", []],
     ],
   ],
+  ziwa: [
+    "Ziwa LMS",
+    [
+      [
+        "ziwa-horizontal-on-dark-proposed.svg",
+        "proposed",
+        "Ziwa LMS logo concept (dark backgrounds)",
+        "horizontal",
+        ["on_dark"],
+      ],
+      [
+        "ziwa-horizontal-on-light-proposed.svg",
+        "proposed",
+        "Ziwa LMS logo concept (light backgrounds)",
+        "horizontal",
+        ["on_light"],
+      ],
+      ["ziwa-symbol-proposed.svg", "proposed", "Ziwa LMS symbol concept", "symbol", ["on_dark", "on_light"]],
+      ["ziwa-favicon-proposed.svg", "proposed", "Ziwa LMS favicon concept", "favicon", []],
+    ],
+  ],
 };
 
 function assign(config, slot, themes, id) {
@@ -663,8 +694,8 @@ for (const [slug, [name, files]] of Object.entries(BRAND_SEED)) {
     draft,
     draft_version: 1,
     draft_note:
-      slug === "expense_now"
-        ? "Proposed Expense Now logo concept: not approved. Review before submitting."
+      slug === "expense_now" || slug === "ziwa"
+        ? `Proposed ${name} logo concept: not approved. Review before submitting.`
         : JSON.stringify(draft) !== JSON.stringify(published)
           ? "Proposed light-background versions of the official logos: review before submitting."
           : null,

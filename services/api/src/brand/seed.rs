@@ -214,6 +214,53 @@ fn plan(slug: &str) -> (&'static str, Vec<Placed>) {
                 ),
             ],
         ),
+        "ziwa" => (
+            "Ziwa LMS",
+            vec![
+                placed(
+                    seed!("ziwa-horizontal-on-dark-proposed.svg", "proposed"),
+                    "Ziwa LMS logo concept (dark backgrounds)",
+                    Horizontal,
+                    true,
+                    false,
+                ),
+                placed(
+                    seed!("ziwa-horizontal-on-light-proposed.svg", "proposed"),
+                    "Ziwa LMS logo concept (light backgrounds)",
+                    Horizontal,
+                    false,
+                    true,
+                ),
+                placed(
+                    seed!("ziwa-stacked-on-dark-proposed.svg", "proposed"),
+                    "Ziwa LMS stacked concept (dark backgrounds)",
+                    Stacked,
+                    true,
+                    false,
+                ),
+                placed(
+                    seed!("ziwa-stacked-on-light-proposed.svg", "proposed"),
+                    "Ziwa LMS stacked concept (light backgrounds)",
+                    Stacked,
+                    false,
+                    true,
+                ),
+                placed(
+                    seed!("ziwa-symbol-proposed.svg", "proposed"),
+                    "Ziwa LMS symbol concept",
+                    Symbol,
+                    true,
+                    true,
+                ),
+                placed(
+                    seed!("ziwa-favicon-proposed.svg", "proposed"),
+                    "Ziwa LMS favicon concept",
+                    Favicon,
+                    false,
+                    false,
+                ),
+            ],
+        ),
         _ => ("", Vec::new()),
     }
 }
@@ -276,6 +323,7 @@ pub async fn run(pool: &PgPool) -> Result<(), Box<dyn std::error::Error + Send +
             "expense_now" => {
                 Some("Proposed Expense Now logo concept: not approved. Review before submitting.")
             }
+            "ziwa" => Some("Proposed Ziwa LMS logo concept: not approved. Review before submitting."),
             _ if draft != published => {
                 Some("Proposed light-background versions of the official logos: review before submitting.")
             }

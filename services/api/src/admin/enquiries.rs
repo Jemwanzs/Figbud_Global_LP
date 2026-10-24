@@ -31,7 +31,7 @@ const KINDS: [&str; 6] = [
     "partnership",
     "sales",
 ];
-const PRODUCTS: [&str; 4] = ["figbud", "zirahr", "jasiri", "expense_now"];
+const PRODUCTS: [&str; 5] = ["figbud", "zirahr", "jasiri", "expense_now", "ziwa"];
 const EXPORT_LIMIT: i64 = 10_000;
 
 pub fn router() -> Router<SharedState> {

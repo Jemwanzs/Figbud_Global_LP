@@ -161,6 +161,10 @@ async fn seeded_official_logos_are_published_and_proposals_stay_in_draft() {
         site("expense_now")["brand"].is_null(),
         "the Expense Now concept is not approved"
     );
+    assert!(
+        site("ziwa")["brand"].is_null(),
+        "the Ziwa LMS concept is not approved"
+    );
 
     // Favicons and app icons from the official symbols (added once, as a
     // recorded revision, for profiles seeded before icons existed).

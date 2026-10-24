@@ -6,7 +6,7 @@
  * site's dictionaries); listing pages, navigation and sitemaps pick it up.
  */
 
-export type ProductSlug = "zirahr" | "jasiri" | "expense_now";
+export type ProductSlug = "zirahr" | "jasiri" | "expense_now" | "ziwa";
 
 /**
  * - `active`: generally available; links to its product website.
@@ -51,6 +51,15 @@ export const products: readonly Product[] = [
     proposedOrigin: "https://expense.figbudglobal.com",
     devPort: 3003,
     originEnv: "NEXT_PUBLIC_EXPENSE_NOW_URL",
+  },
+  {
+    // Second lending product on the shared lending website foundation (docs/PRODUCT_REGISTRY.md).
+    slug: "ziwa",
+    name: "Ziwa LMS",
+    status: "coming_soon",
+    proposedOrigin: "https://ziwa.figbudglobal.com",
+    devPort: 3004,
+    originEnv: "NEXT_PUBLIC_ZIWA_URL",
   },
 ];
 
@@ -105,6 +114,16 @@ export const productSites: Record<ProductSlug, { nav: ProductNavItem[] }> = {
     nav: [
       { key: "overview", path: "/", primary: true },
       { key: "capabilities", path: "/capabilities", primary: true },
+    ],
+  },
+  ziwa: {
+    nav: [
+      { key: "platform", path: "/platform", primary: true },
+      { key: "lendingSolutions", path: "/lending-solutions", primary: true },
+      { key: "features", path: "/features", primary: true },
+      { key: "integrations", path: "/integrations", primary: true },
+      { key: "resources", path: "/resources" },
+      { key: "contact", path: "/contact" },
     ],
   },
 };

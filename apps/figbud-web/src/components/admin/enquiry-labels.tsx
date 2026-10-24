@@ -24,6 +24,7 @@ export const PRODUCT_LABELS: Record<string, string> = {
   zirahr: "ZiraHR",
   jasiri: "Jasiri LMS",
   expense_now: "Expense Now",
+  ziwa: "Ziwa LMS",
 };
 
 /** How each outbox state reads to a person following up an enquiry. */

@@ -20,6 +20,7 @@ const productOrigins: Record<ProductSlug, string | undefined> = {
   zirahr: process.env.NEXT_PUBLIC_ZIRAHR_URL,
   jasiri: process.env.NEXT_PUBLIC_JASIRI_URL,
   expense_now: process.env.NEXT_PUBLIC_EXPENSE_NOW_URL,
+  ziwa: process.env.NEXT_PUBLIC_ZIWA_URL,
 };
 
 /**

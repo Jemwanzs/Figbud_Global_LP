@@ -7,7 +7,7 @@ const zh: DeepPartial<Dictionary> = {
   meta: {
     title: "FigBud Global — 为复杂业务打造的企业软件",
     description:
-      "FigBud Global 构建可配置的企业平台，覆盖人力、信贷与支出管理：ZiraHR、Jasiri LMS 与 Expense Now。",
+      "FigBud Global 构建可配置的企业平台，覆盖人力、信贷与支出管理：ZiraHR、Jasiri LMS、Expense Now 与 Ziwa LMS。",
   },
   common: {
     skipToContent: "跳到主要内容",
@@ -44,7 +44,7 @@ const zh: DeepPartial<Dictionary> = {
       lead: "推动业务前进的企业技术。可配置、可靠、随时扩展。",
       pillars: ["肯尼亚研发", "原生支持多语言与多币种", "架构级安全"],
     },
-    platforms: { eyebrow: "我们的平台", title: "三大平台，一个互联的生态系统。" },
+    platforms: { eyebrow: "我们的平台", title: "多元平台，一个互联的生态系统。" },
     philosophy: { eyebrow: "我们的理念" },
     africa: { eyebrow: "为非洲打造，面向全球。", title: "肯尼亚是我们的起点，而非终点。" },
     engineer: { eyebrow: "我们的工程能力", title: "难题，我们来解决。" },

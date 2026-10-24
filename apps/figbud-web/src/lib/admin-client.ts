@@ -169,3 +169,6 @@ export const ROLE_LABELS: Record<AdminUser["role"], string> = {
   editor: "Editor",
   viewer: "Viewer",
 };
+
+/** A plausible email address (the API does the real validation). */
+export const validEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());

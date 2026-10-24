@@ -148,6 +148,8 @@ test.describe("admin branding", () => {
     await expect(page.getByRole("status").filter({ hasText: "Brand published" })).toBeVisible();
     const history = page.getByRole("region", { name: "Version history" });
     await expect(history).toContainText("Version 1 · Published");
+    await expect(publishing.getByRole("button", { name: "Discard draft changes" })).toBeDisabled();
+    await expect(publishing.getByText("The draft matches the published brand")).toBeVisible();
 
     // Replace: a new file, published as version 2; version 1 can be restored.
     await upload(page, "brandly-second", "#f97316");
@@ -157,6 +159,10 @@ test.describe("admin branding", () => {
     await expect(files.getByRole("listitem").filter({ hasText: "brandly first" })).toContainText(
       "Live: Horizontal (dark backgrounds)",
     );
+    // Submit says why it is unavailable; Discard is available because the draft differs.
+    await expect(publishing.getByRole("button", { name: "Submit for publishing" })).toBeDisabled();
+    await expect(publishing.getByText("Say what changed")).toBeVisible();
+    await expect(publishing.getByRole("button", { name: "Discard draft changes" })).toBeEnabled();
     await publishing.getByLabel("What changed?").fill("Second logo");
     await publishing.getByRole("button", { name: "Submit for publishing" }).click();
     await publishing.getByRole("button", { name: "Publish my change" }).click();
@@ -262,6 +268,12 @@ test.describe("Studio website cards", () => {
     await expect(card("Jasiri LMS").getByRole("img", { name: "Jasiri LMS logo" })).toBeVisible();
     await expect(card("FigBud Global").getByRole("img", { name: "FigBud Global logo" })).toBeVisible();
     await expect(card("Expense Now")).toContainText("Temporary icon · no approved logo yet");
+    await expect(card("Ziwa LMS")).toContainText("Lending & Credit");
+    await expect(card("Ziwa LMS")).toContainText("Temporary icon · no approved logo yet");
+    const order = await page
+      .getByRole("article")
+      .evaluateAll((cards) => cards.map((c) => c.querySelector("h2")?.textContent));
+    expect(order.slice(0, 5)).toEqual(["FigBud Global", "ZiraHR", "Jasiri LMS", "Expense Now", "Ziwa LMS"]);
 
     await expect(card("ZiraHR")).toContainText("No custom domain");
     await expect(card("ZiraHR")).toContainText("No website destination yet");

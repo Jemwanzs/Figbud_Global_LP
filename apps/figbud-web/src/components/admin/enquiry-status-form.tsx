@@ -1,12 +1,11 @@
 "use client";
 
-import { buttonClasses } from "@figbud/ui";
-import { LoaderCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { adminFetch, describePasskeyError } from "@/lib/admin-client";
 
+import { ActionButton } from "./action-button";
 import { ENQUIRY_STATUSES, type EnquiryStatus } from "./enquiry-labels";
 
 /** Moves an enquiry along new → contacted → qualified → closed (or spam). */
@@ -53,10 +52,9 @@ export function EnquiryStatusForm({ id, status }: { id: string; status: EnquiryS
           ))}
         </select>
       </div>
-      <button type="submit" disabled={busy || value === saved} className={buttonClasses("primary", "md")}>
-        {busy && <LoaderCircle aria-hidden className="size-4 animate-spin" />}
+      <ActionButton type="submit" ready={value !== saved} busy={busy} hint="Nothing to save">
         Update status
-      </button>
+      </ActionButton>
       {message && (
         <p
           role={message.tone === "error" ? "alert" : "status"}

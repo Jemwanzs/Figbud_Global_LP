@@ -1,11 +1,14 @@
 "use client";
 
-import { buttonClasses, cn } from "@figbud/ui";
-import { Check, LoaderCircle } from "lucide-react";
+import { cn } from "@figbud/ui";
+import { Check } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useId, useState } from "react";
 
 import { AdminError, type FieldError, adminFetch } from "@/lib/admin-client";
+import { useSavedBaseline, useUnsavedChangesWarning } from "@/lib/form-state";
+
+import { ActionButton } from "./action-button";
 
 import { type AdminSite, CATEGORIES, LIFECYCLE, type SiteStatus, TEMPLATES } from "./site-labels";
 
@@ -54,7 +57,11 @@ export function SiteForm({ site, canEdit }: { site?: AdminSite; canEdit: boolean
   const [fields, setFields] = useState<FieldError[]>([]);
   const [message, setMessage] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
 
+  const { dirty, markSaved } = useSavedBaseline(form);
+  useUnsavedChangesWarning(canEdit && dirty);
   const corporate = site?.kind === "corporate";
+  // Creating needs the required fields; saving needs an actual change.
+  const creatable = form.name.trim() !== "" && /^[a-z0-9]+([_-][a-z0-9]+)*$/.test(form.slug);
   const category = CATEGORIES.find((c) => c.value === form.category);
   const errorFor = (field: string) => fields.find((f) => f.field === field)?.message;
 
@@ -82,6 +89,7 @@ export function SiteForm({ site, canEdit }: { site?: AdminSite; canEdit: boolean
     };
     try {
       const saved = await adminFetch<AdminSite>(site ? `sites/${site.slug}` : "sites", body);
+      markSaved();
       if (site) {
         setMessage({ tone: "ok", text: "Settings saved." });
         router.refresh();
@@ -291,10 +299,14 @@ export function SiteForm({ site, canEdit }: { site?: AdminSite; canEdit: boolean
 
       {canEdit && (
         <div className="flex flex-wrap items-center gap-4">
-          <button type="submit" disabled={busy} className={buttonClasses("primary", "md")}>
-            {busy && <LoaderCircle aria-hidden className="size-4 animate-spin" />}
+          <ActionButton
+            type="submit"
+            ready={site ? dirty : creatable}
+            busy={busy}
+            hint={site ? "Nothing to save" : "Enter a name and a valid identifier"}
+          >
             {site ? "Save settings" : "Create draft website"}
-          </button>
+          </ActionButton>
           {message && (
             <p
               role={message.tone === "error" ? "alert" : "status"}

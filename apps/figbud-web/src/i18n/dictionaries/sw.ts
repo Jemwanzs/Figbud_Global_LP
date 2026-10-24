@@ -7,7 +7,7 @@ const sw: DeepPartial<Dictionary> = {
   meta: {
     title: "FigBud Global — Programu za biashara zilizojengwa kwa utata",
     description:
-      "FigBud Global hujenga mifumo ya biashara inayoweza kusanidiwa kwa watu, mikopo na matumizi: ZiraHR, Jasiri LMS na Expense Now.",
+      "FigBud Global hujenga mifumo ya biashara inayoweza kusanidiwa kwa watu, mikopo na matumizi: ZiraHR, Jasiri LMS, Expense Now na Ziwa LMS.",
   },
   common: {
     skipToContent: "Ruka hadi maudhui",
@@ -44,7 +44,7 @@ const sw: DeepPartial<Dictionary> = {
       lead: "Teknolojia ya biashara inayosukuma biashara mbele. Inasanidika. Inategemewa. Iko tayari kukua.",
       pillars: ["Imejengwa Kenya", "Lugha na sarafu nyingi kwa muundo", "Salama kwa usanifu"],
     },
-    platforms: { eyebrow: "Mifumo yetu", title: "Mifumo mitatu. Mfumo-ikolojia mmoja uliounganishwa." },
+    platforms: { eyebrow: "Mifumo yetu", title: "Mifumo tofauti. Mfumo-ikolojia mmoja uliounganishwa." },
     philosophy: { eyebrow: "Falsafa yetu" },
     africa: {
       eyebrow: "Imejengwa kwa Afrika. Iko tayari kwa kila mahali.",

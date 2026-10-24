@@ -33,7 +33,8 @@ test.describe("homepage", () => {
     }).toPass();
     await expect(jasiri).toBeFocused();
     await page.keyboard.press("End");
-    await expect(page.getByRole("tab", { name: /Expense Now/ })).toHaveAttribute("aria-selected", "true");
+    // Registry order: Ziwa LMS follows Expense Now.
+    await expect(page.getByRole("tab", { name: /Ziwa LMS/ })).toHaveAttribute("aria-selected", "true");
     await expect(page.getByRole("tabpanel").getByRole("link", { name: /Join the waitlist/ })).toBeVisible();
   });
 });
@@ -103,10 +104,11 @@ test.describe("products page", () => {
     const compare = isMobile
       ? page.locator("ul").filter({ has: page.getByRole("heading", { level: 3, name: "Expense Now" }) })
       : page.getByRole("region", { name: "Comparison of FigBud products" });
-    await expect(compare.getByRole("link", { name: "Join the waitlist" })).toHaveAttribute(
-      "href",
-      "/en/contact?kind=waitlist&product=expense_now",
-    );
+    const waitlists = compare.getByRole("link", { name: "Join the waitlist" });
+    await expect(waitlists.first()).toHaveAttribute("href", "/en/contact?kind=waitlist&product=expense_now");
+    if (!isMobile) {
+      await expect(waitlists.nth(1)).toHaveAttribute("href", "/en/contact?kind=waitlist&product=ziwa");
+    }
     await expect(compare.getByRole("link", { name: "Request a demo" }).first()).toHaveAttribute(
       "href",
       "/en/contact?kind=demo_request&product=zirahr",

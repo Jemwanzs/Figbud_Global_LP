@@ -16,10 +16,10 @@
 | 1     | Project foundation                   | ✅ Completed   | 25 / 25 tasks                           | —                                            |
 | 2     | FigBud Global homepage               | 🔄 In progress | 17 / 22 tasks (3 more in progress)      | Verified company facts, CI Lighthouse baseline |
 | 3     | Corporate pages                      | 🔄 In progress | 7 / 14 tasks                            | Company profile, legal texts                 |
-| 4     | Product websites                     | 🔄 In progress | 2 / 20 tasks (template + ZiraHR site started) | Product capability sign-off, payroll rules, Railway service for product sites |
+| 4     | Product websites                     | 🔄 In progress | 2 / 22 tasks (template + ZiraHR site started; lending template and Ziwa site added) | Product capability sign-off, payroll rules, Railway service for product sites |
 | 5     | Integrations & administration        | 🔄 In progress | 11 / 17 tasks (admin, CMS, inbox done)  | Resend credentials, recipient addresses      |
 | 6     | Production deployment                | 🔄 In progress | 9 / 18 tasks                            | Resend, domains, backups/monitoring          |
-| 7     | Admin Studio & website builder       | 🔄 In progress | 15 / 33 tasks (design, website registry, brand management, branded hero, icons, branded Studio) | Complete logo files, Expense Now logo approval (Q18) |
+| 7     | Admin Studio & website builder       | 🔄 In progress | 17 / 36 tasks (registry, brand management, hero, icons, branded Studio, Ziwa LMS, smart actions) | Complete logo files, Expense Now logo approval (Q18) |
 
 **Where we are:** the monorepo, shared design system, multilingual architecture, Rust enquiry API with PostgreSQL and a retrying email outbox, and the first complete FigBud Global homepage are built and verified locally. Everything runs without any external service. The next steps that need decisions from FigBud are listed in **§5 Open questions**.
 
@@ -200,6 +200,7 @@ Items marked **Blocking** stop the listed tasks; everything else proceeds with t
 | Q14 | Analytics tool (privacy-friendly, cookie-less preferred?) and consent requirements                   | P5 analytics            | No        | No analytics or tracking cookies                             |
 | Q15 | Spam protection: add Cloudflare Turnstile (privacy-friendly CAPTCHA) on public forms?                | P5 hardening            | No        | Honeypot + fill-time check + rate limiting                   |
 | Q16 | Consulting / custom-solutions services alongside products (mentioned as possible)                    | IA, About, Products     | No        | Products only                                                |
+| Q19 | Ziwa LMS: commercial launch readiness, confirmed live capabilities, website destination, logo approval | P4-W1, P7-ZW2 | Partly | Listed as coming soon with a waitlist; built-in icon until the logo is approved |
 | Q18 | Logo files: complete ZiraHR logo (supplied file is missing "HR"), SVG or larger versions, light-background versions, the FigBud "GLOBAL" lockup; approve or replace the Expense Now concept | P7-BR7, P7-BR9 | Partly | Official files published for dark backgrounds; light theme shows them on a dark plate; Expense Now keeps its icon |
 | Q17 | Railway project ID, and whether staging and production environments already exist                    | P6 deployment           | Partly    | **ID provided** (`5c4df4db…`); environments confirmed on inspection |
 
@@ -317,6 +318,8 @@ Items marked **Blocking** stop the listed tasks; everything else proceeds with t
 | P4-E1   | Coming-soon homepage with waitlist                                                              | ⬜ |
 | P4-E2   | Capability roadmap content: live vs planned clearly marked                                      | ⛔ Q12 |
 | P4-E3   | Approval-chain and payment-orchestration storytelling (no PSP or settlement claims)             | ⬜ |
+| P4-L1   | Shared lending website template (components, content schemas, demonstrations) used by Jasiri LMS and Ziwa LMS, with independent brand, navigation, copy, SEO, forms and publication per product | ⬜ |
+| P4-W1   | Ziwa LMS website on the lending template: Home ("Every loan. A smoother journey."), Platform, Lending Solutions, Features, Integrations, Resources, Contact; copy differentiated from Jasiri | ⛔ Q19 |
 | **All products** |  |  |
 | P4-10   | Per-site metadata ✅ and SoftwareApplication schema ✅ (ZiraHR); per-site sitemaps once pages are published | 🔄 In progress |
 | P4-11   | Product-intent SEO content (HR/payroll; loan management; expense management)                    | ⬜ |
@@ -400,6 +403,9 @@ Items marked **Blocking** stop the listed tasks; everything else proceeds with t
 | P7-BR7 | Expense Now logo concept: horizontal, stacked, symbol and favicon, in the draft for approval | 🔄 Awaiting approval (Q18) |
 | P7-BR8 | Favicons and app icons from brand profiles: official FigBud and ZiraHR symbols on plain tiles, published once to existing profiles as a recorded revision; built-in fallbacks (favicon.ico, icon.png, apple-icon.png) replace the old generated "F" icon on the public site, admin, sign-in and 404 pages and the ZiraHR site | ✅ |
 | P7-BR11 | Social sharing images from brand profiles (pages still use the generated Open Graph image) | ⬜ |
+| P7-ZW1 | Ziwa LMS registered (fifth website, after Expense Now; coming soon) and shown across the corporate site: product menus, hero (rebalanced four-product layout), homepage tabs with its own preview, Products page, contact form, structured data; enquiries and email routing accept it | ✅ |
+| P7-ZW2 | Ziwa LMS logo concept (horizontal, stacked, symbol, favicon; light and dark), teal palette with contrast tests, in its brand draft for approval | 🔄 Awaiting approval (Q19) |
+| P7-UX1 | Smart action buttons: shared change detection and `ActionButton` across Studio forms (enabled only when ready, reasons when not, no double submits, saved baselines, unsaved-changes warning, autosave skips unchanged drafts, Discard draft) | ✅ |
 | P7-BR12 | Branded Studio: official symbol in the admin header and sign-in pages; website cards with published logos, temporary-icon notice, custom domain vs website destination, Manage / Branding / Open website actions; admin nav fits phones | ✅ |
 | P7-BR9 | Complete and vector logo files: ZiraHR with "HR", SVGs, official light-background versions | ⛔ Q18 |
 | P7-C1  | Page model: pages, versions, sections; typed block schemas validated by the API (no markup) | ⬜ |
@@ -461,6 +467,7 @@ Items marked **Blocking** stop the listed tasks; everything else proceeds with t
 
 | Date        | Change                                                                                                   |
 | ----------- | -------------------------------------------------------------------------------------------------------- |
+| 24 Oct 2026 | Ziwa LMS (P7-ZW1/ZW2): registered as the fifth website (coming soon) and shown across the corporate site; enquiries, admin filters and email routing accept it; proposed logo concept and teal palette; product registry documented (`docs/PRODUCT_REGISTRY.md`). Count-free headings ("Distinct platforms") so adding products needs no copy change. Smart action buttons (P7-UX1) across the Studio. |
 | 24 Oct 2026 | Icons and branded Studio (P7-BR8, P7-BR12): browser tabs, home-screen icons, admin header, sign-in, 404 and Studio website cards now show the official symbols from the published brand profiles; icons were added to the live profiles as version 2 ("Favicon and app icon from the official symbol"). Admin site list and detail return each website's published brand. |
 | 23 Oct 2026 | Branded hero (P7-BR10): the homepage ecosystem uses published logos, names, statuses and colours from the Studio; product nodes are keyboard-accessible links with descriptions (hover, focus, first tap on touch). Product links now follow registry status everywhere they are passed it. |
 | 23 Oct 2026 | Brand management (P7-BR1–BR6): supplied FigBud, ZiraHR and Jasiri logos preserved and documented (the ZiraHR file is incomplete; see Q18); brand library with validated, sanitised uploads and renditions; brand profiles with draft, approval, history and rollback; Studio Branding page with live preview; websites read published logos; product colours now follow the official logos. Expense Now logo concept proposed for approval. CI builds against the mock API so prerendered pages carry registry data. |

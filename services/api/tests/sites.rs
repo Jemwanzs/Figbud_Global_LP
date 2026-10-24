@@ -110,6 +110,12 @@ async fn seeded_registry_matches_todays_websites() {
     assert_eq!(find(&sites, "zirahr").unwrap()["cta"], "demo");
     assert_eq!(find(&sites, "jasiri").unwrap()["category"], "lending_credit");
     assert_eq!(find(&sites, "expense_now").unwrap()["cta"], "waitlist");
+    let ziwa = find(&sites, "ziwa").unwrap();
+    assert_eq!(
+        (ziwa["category"].as_str(), ziwa["cta"].as_str()),
+        (Some("lending_credit"), Some("waitlist"))
+    );
+    assert_eq!(ziwa["position"], 4, "Ziwa LMS follows Expense Now");
 }
 
 #[tokio::test]

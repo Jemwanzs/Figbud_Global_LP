@@ -10,7 +10,7 @@ const en = {
     siteName: "FigBud Global",
     title: "FigBud Global — Enterprise software built for complexity",
     description:
-      "FigBud Global builds configurable enterprise platforms for people, lending and spend: ZiraHR, Jasiri LMS and Expense Now. Built in Kenya, designed for Africa, engineered to scale.",
+      "FigBud Global builds configurable enterprise platforms for people, lending and spend: ZiraHR, Jasiri LMS, Expense Now and Ziwa LMS. Built in Kenya, designed for Africa, engineered to scale.",
   },
   common: {
     skipToContent: "Skip to content",
@@ -89,6 +89,17 @@ const en = {
         "Payment orchestration and reconciliation",
       ],
     },
+    ziwa: {
+      category: "Lending operations",
+      tagline: "Lending that flows with your business.",
+      summary:
+        "From application to repayment, Ziwa brings your lending operations together in one intelligent, configurable platform.",
+      highlights: [
+        "One guided journey from onboarding to repayment",
+        "Products, fees and repayment schedules you configure",
+        "Top-ups, restructures and arrears handled in one place",
+      ],
+    },
   },
   home: {
     hero: {
@@ -98,7 +109,8 @@ const en = {
       lead: "Enterprise technology that moves business forward. Configurable. Reliable. Ready to scale.",
       pillars: ["Built in Kenya", "Multilingual & multicurrency by design", "Secure by architecture"],
       visual: {
-        label: "The FigBud ecosystem: ZiraHR, Jasiri LMS and Expense Now connected through one core.",
+        label:
+          "The FigBud ecosystem: ZiraHR, Jasiri LMS, Expense Now and Ziwa LMS connected through one core.",
         core: "FigBud core",
         coreDetail: "Identity · Workflows · Data",
         explore: "Explore {product}",
@@ -116,11 +128,11 @@ const en = {
     },
     platforms: {
       eyebrow: "Our platforms",
-      title: "Three platforms. One connected ecosystem.",
+      title: "Distinct platforms. One connected ecosystem.",
       lead: "Each FigBud platform is a complete product with its own website, built on a shared foundation of configurable workflows, security and data.",
       tabsLabel: "Choose a platform",
       previewLabel: "{product} preview",
-      waitlistNote: "Expense Now is in development. Join the waitlist to hear first when it opens.",
+      waitlistNote: "{product} is in development. Join the waitlist to hear first when it opens.",
       previews: {
         zirahr: {
           title: "Payroll · October run",
@@ -148,6 +160,15 @@ const en = {
           approvalSteps: ["Requester", "Manager", "Finance", "Paid"],
           batch: "Vendor payment batch",
           batchDetail: "18 payments · 3 currencies",
+          comingSoon: "Planned capabilities preview",
+        },
+        ziwa: {
+          title: "Loan flow · today",
+          stages: ["Applied", "Verified", "Approved", "Disbursed", "Repaying"],
+          servicing: "Servicing queue",
+          servicingItems: ["Top-up requests", "Restructure reviews", "Early settlements"],
+          rhythm: "Repayment rhythm",
+          rhythmDetail: "On-time repayments, last 6 weeks",
           comingSoon: "Planned capabilities preview",
         },
       },
@@ -264,11 +285,11 @@ const en = {
   pages: {
     products: {
       title: "Products",
-      description: "Explore the FigBud ecosystem: ZiraHR, Jasiri LMS and Expense Now.",
+      description: "Explore the FigBud ecosystem: ZiraHR, Jasiri LMS, Expense Now and Ziwa LMS.",
       lead: "Configurable enterprise platforms for people, lending and spend. Each product has its own dedicated website.",
       compare: {
         title: "The ecosystem at a glance",
-        lead: "Three platforms, one design philosophy: configurable, reliable and ready to scale.",
+        lead: "Distinct platforms, one design philosophy: configurable, reliable and ready to scale.",
         caption: "Comparison of FigBud products",
         rows: { category: "Built for", summary: "What it does", status: "Availability", next: "Next step" },
       },
@@ -318,7 +339,7 @@ const en = {
     },
     contact: {
       title: "Contact",
-      description: "Talk to FigBud Global about ZiraHR, Jasiri LMS, Expense Now or partnerships.",
+      description: "Talk to FigBud Global about ZiraHR, Jasiri LMS, Expense Now, Ziwa LMS or partnerships.",
       lead: "Tell us about your organisation and what you're looking for. The right team will get back to you.",
       eyebrow: "Let's talk",
       nextTitle: "What happens next",
@@ -372,6 +393,7 @@ const en = {
       zirahr: "ZiraHR",
       jasiri: "Jasiri LMS",
       expense_now: "Expense Now",
+      ziwa: "Ziwa LMS",
     },
     name: "Full name",
     email: "Work email",

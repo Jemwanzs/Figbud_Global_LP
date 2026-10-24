@@ -68,6 +68,7 @@ pub enum Product {
     Zirahr,
     Jasiri,
     ExpenseNow,
+    Ziwa,
 }
 
 impl Product {
@@ -77,6 +78,7 @@ impl Product {
             "zirahr" => Self::Zirahr,
             "jasiri" => Self::Jasiri,
             "expense_now" => Self::ExpenseNow,
+            "ziwa" => Self::Ziwa,
             _ => return None,
         })
     }
@@ -87,6 +89,7 @@ impl Product {
             Self::Zirahr => "zirahr",
             Self::Jasiri => "jasiri",
             Self::ExpenseNow => "expense_now",
+            Self::Ziwa => "ziwa",
         }
     }
 
@@ -96,6 +99,7 @@ impl Product {
             Self::Zirahr => "ZiraHR",
             Self::Jasiri => "Jasiri LMS",
             Self::ExpenseNow => "Expense Now",
+            Self::Ziwa => "Ziwa LMS",
         }
     }
 }

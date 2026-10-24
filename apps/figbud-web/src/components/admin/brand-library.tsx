@@ -6,6 +6,7 @@ import { useEffect, useId, useRef, useState } from "react";
 
 import { AdminError, type FieldError, adminFetch, uploadBrandAsset } from "@/lib/admin-client";
 
+import { ActionButton } from "./action-button";
 import { ADMIN_ASSET_PATH, type LibraryAsset, ORIGIN_LABELS, fileSize, placementText } from "./brand-types";
 
 const ACCEPT = ["image/svg+xml", "image/png", "image/webp"];
@@ -140,7 +141,7 @@ export function BrandLibrary({
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            upload();
+            if (file && label.trim() && alt.trim() && busy === null) upload();
           }}
           className="rounded-2xl border border-dashed border-line-strong p-5"
           noValidate
@@ -227,10 +228,15 @@ export function BrandLibrary({
                 background. Uploading never changes the website; choose where to use the file, then submit the
                 draft.
               </p>
-              <button type="submit" disabled={!file || !!busy} className={buttonClasses("secondary", "md")}>
-                {busy === "upload" && <LoaderCircle aria-hidden className="size-4 animate-spin" />}
+              <ActionButton
+                type="submit"
+                variant="secondary"
+                ready={!!file && label.trim() !== "" && alt.trim() !== "" && busy === null}
+                busy={busy === "upload"}
+                hint={!file ? "Choose a file first" : "Name the file and add alternative text"}
+              >
                 Upload to library
-              </button>
+              </ActionButton>
             </div>
           </div>
         </form>

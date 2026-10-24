@@ -17,10 +17,13 @@ const W = 400;
 const H = 340;
 const CORE = { x: 200, y: 172 };
 
+// Two products each side of the core; the lower left stays clear for the
+// activity feed, which overlaps the panel on large screens.
 const NODES: Record<ProductSlug, { x: number; y: number; bend: number }> = {
-  zirahr: { x: 92, y: 74, bend: -34 },
-  jasiri: { x: 318, y: 96, bend: 30 },
-  expense_now: { x: 244, y: 290, bend: -30 },
+  zirahr: { x: 96, y: 64, bend: -30 },
+  jasiri: { x: 312, y: 72, bend: 30 },
+  ziwa: { x: 72, y: 198, bend: 24 },
+  expense_now: { x: 262, y: 292, bend: -28 },
 };
 
 /** Where each description card opens so it stays inside the panel. */
@@ -28,12 +31,15 @@ const CARD_POSITION: Record<ProductSlug, string> = {
   zirahr: "top-full left-0 mt-2",
   jasiri: "top-full right-0 mt-2",
   expense_now: "bottom-full right-0 mb-2",
+  ziwa: "bottom-full left-0 mb-2",
 };
 
 /** Integration endpoints orbiting the products (banks, mobile money, identity, accounting). */
 const SATELLITES: Array<{ from: ProductSlug; x: number; y: number }> = [
-  { from: "zirahr", x: 30, y: 168 },
+  { from: "zirahr", x: 24, y: 26 },
   { from: "zirahr", x: 178, y: 22 },
+  { from: "ziwa", x: 16, y: 132 },
+  { from: "ziwa", x: 124, y: 258 },
   { from: "jasiri", x: 378, y: 206 },
   { from: "jasiri", x: 262, y: 20 },
   { from: "expense_now", x: 104, y: 300 },
@@ -146,7 +152,9 @@ export function EcosystemVisual({ locale, labels, common, copy, caption, product
                     strokeDasharray={live ? "3 22" : "2 23"}
                     className="motion-safe:animate-[fb-dash_6s_linear_infinite]"
                     style={{
-                      animationDuration: slug === "jasiri" ? "7.5s" : slug === "zirahr" ? "6s" : "11s",
+                      animationDuration: { zirahr: "6s", jasiri: "7.5s", ziwa: "9s", expense_now: "11s" }[
+                        slug
+                      ],
                     }}
                   />
                 </g>

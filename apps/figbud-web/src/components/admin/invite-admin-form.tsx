@@ -1,11 +1,13 @@
 "use client";
 
 import { buttonClasses } from "@figbud/ui";
-import { Check, Copy, LoaderCircle, UserPlus } from "lucide-react";
+import { Check, Copy, UserPlus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-import { adminFetch, describePasskeyError } from "@/lib/admin-client";
+import { adminFetch, describePasskeyError, validEmail } from "@/lib/admin-client";
+
+import { ActionButton } from "./action-button";
 
 const ROLES = [
   { value: "editor", label: "Editor", hint: "Writes and edits drafts" },
@@ -78,14 +80,15 @@ export function InviteAdminForm() {
             ))}
           </select>
         </div>
-        <button type="submit" disabled={busy || !email} className={buttonClasses("primary", "md")}>
-          {busy ? (
-            <LoaderCircle aria-hidden className="size-4 animate-spin" />
-          ) : (
-            <UserPlus aria-hidden className="size-4" />
-          )}
+        <ActionButton
+          type="submit"
+          ready={validEmail(email)}
+          busy={busy}
+          hint="Enter their work email"
+          icon={<UserPlus aria-hidden className="size-4" />}
+        >
           Create invite
-        </button>
+        </ActionButton>
       </form>
       {error && (
         <p role="alert" className="mt-3 text-sm text-danger">

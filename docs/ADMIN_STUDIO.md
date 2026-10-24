@@ -61,6 +61,16 @@ Phase B delivery: the admin has a Websites area (`/admin/sites`: list, guided cr
 
 Every transition goes through a request and an approval. Each status maps to one public CTA (waitlist, early access or demo) so cards, navigation and pages stay consistent.
 
+## Action buttons and change detection
+
+Every Studio form uses the same pattern (`apps/figbud-web/src/lib/form-state.ts` and `components/admin/action-button.tsx`):
+
+- **Change detection.** A form compares its current values with the values last saved (`useSavedBaseline`). The comparison is structural and local: editing a value back to what it was makes the form clean again, and no request is made just to find out. Each form or scope tracks only its own fields, so a change elsewhere on the screen never enables another form's button.
+- **One button component.** `ActionButton` is enabled only when its action is ready: Save or Update when something changed, Create or Submit when the required fields are complete, Apply when the filters differ from those applied, Publish or Submit when there are valid unpublished changes, Discard when there is something to revert. While busy it shows progress and can't be pressed again. When it isn't ready, it says why ("Nothing to save", "Say what changed", "Add a reason for the change").
+- **After a save,** the saved values become the new baseline and the button disables again. After a failure, the entered values are kept, the error is shown and the button is available again.
+- **Unsaved changes** trigger a warning before the page is left (`useUnsavedChangesWarning`). Autosaved drafts (Branding) never publish. Publishing is always a separate, approved step. Version checks refuse conflicting edits with a way to reload.
+- **Where it is used:** website creation and settings, the lifecycle request form, Branding (autosave skips unchanged drafts; Submit explains what's missing; Discard draft changes), brand file uploads, the Insights editor, enquiry follow-up status, the inbox filters, admin invites and sign-in.
+
 ## Safety rules
 
 - No executable content from the CMS; Markdown and typed properties only, validated server-side.

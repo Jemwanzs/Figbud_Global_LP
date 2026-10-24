@@ -4,9 +4,12 @@ import { buttonClasses, cn } from "@figbud/ui";
 import { Archive, CalendarClock, Eye, LoaderCircle, PenLine, RotateCcw, Send, Upload } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useId, useState } from "react";
+import { useId, useState } from "react";
 
 import { type AdminUser, AdminError, type FieldError, adminFetch, hasRole } from "@/lib/admin-client";
+import { useSavedBaseline, useUnsavedChangesWarning } from "@/lib/form-state";
+
+import { ActionButton } from "./action-button";
 
 import { ArticleStatus, type Status } from "./article-status";
 
@@ -128,7 +131,6 @@ export function ArticleEditor({
   );
   const [fields, setFields] = useState<FieldError[]>([]);
   const [schedule, setSchedule] = useState("");
-  const [dirty, setDirty] = useState(false);
 
   const live = article && (article.status === "published" || article.status === "archived");
   const canEdit = live ? hasRole(user, "reviewer") : hasRole(user, "editor");
@@ -139,15 +141,12 @@ export function ArticleEditor({
     hasRole(user, "reviewer") &&
     (!ownEdit || user.role === "owner");
 
-  useEffect(() => {
-    if (!dirty) return;
-    const warn = (event: BeforeUnloadEvent) => event.preventDefault();
-    window.addEventListener("beforeunload", warn);
-    return () => window.removeEventListener("beforeunload", warn);
-  }, [dirty]);
+  // Unsaved means different from the last saved version; undoing an edit makes it clean again.
+  const { dirty, markSaved } = useSavedBaseline(form, toForm(initial));
+  useUnsavedChangesWarning(dirty);
+  const creatable = [form.title, form.slug, form.excerpt, form.body_markdown].every((v) => v.trim() !== "");
 
   const set = (key: keyof Form) => (value: string) => {
-    setDirty(true);
     setForm((f) => {
       const next = { ...f, [key]: value };
       if (key === "title" && !slugTouched) next.slug = slugify(value);
@@ -165,7 +164,7 @@ export function ArticleEditor({
       const saved = await action();
       setArticle(saved);
       setForm(toForm(saved));
-      setDirty(false);
+      markSaved(toForm(saved));
       setMessage({ tone: "ok", text: success });
       if (!initial) {
         router.replace(`/admin/insights/${saved.id}`);
@@ -258,7 +257,7 @@ export function ArticleEditor({
       <form
         onSubmit={(e) => {
           e.preventDefault();
-          if (canEdit) save();
+          if (canEdit && busy === null && (article ? dirty : creatable)) save();
         }}
         className="space-y-6"
         noValidate
@@ -447,10 +446,14 @@ export function ArticleEditor({
 
         {canEdit && (
           <div className="flex flex-wrap gap-3">
-            <button type="submit" disabled={busy !== null} className={buttonClasses("primary", "md")}>
-              {busy === "save" && <LoaderCircle aria-hidden className="size-4 animate-spin" />}
+            <ActionButton
+              type="submit"
+              ready={(article ? dirty : creatable) && busy === null}
+              busy={busy === "save"}
+              hint={article ? "Nothing to save" : "Add a title, summary and article text"}
+            >
               {article ? "Save changes" : "Create draft"}
-            </button>
+            </ActionButton>
             <Link href="/admin/insights" className={buttonClasses("secondary", "md")}>
               Back to Insights
             </Link>

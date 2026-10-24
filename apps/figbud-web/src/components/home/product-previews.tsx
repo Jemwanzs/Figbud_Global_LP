@@ -260,3 +260,85 @@ export function ExpensePreview({ copy }: { copy: Previews["expense_now"] }) {
     </div>
   );
 }
+
+/** Ziwa LMS: the loan journey as one flow, with servicing and repayment rhythm. */
+export function ZiwaPreview({ copy }: { copy: Previews["ziwa"] }) {
+  const counts = [128, 117, 96, 88, 412];
+  const queue = [3, 1, 2];
+  const rhythm = [86, 89, 88, 92, 91, 94];
+  return (
+    <div className="grid gap-3">
+      <Card>
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-sm font-medium text-text">{copy.title}</p>
+          <span className="rounded-full border border-product/30 px-2.5 py-1 text-[0.7rem] text-product-text">
+            {copy.comingSoon}
+          </span>
+        </div>
+        <div className="relative mt-5">
+          <svg
+            aria-hidden
+            viewBox="0 0 500 40"
+            preserveAspectRatio="none"
+            className="absolute inset-x-0 top-1 h-8 w-full"
+          >
+            <path
+              d="M10 20 C 60 4, 110 36, 160 20 S 260 4, 310 20 S 410 36, 490 20"
+              fill="none"
+              stroke="var(--product)"
+              strokeOpacity="0.45"
+              strokeWidth="2"
+              strokeDasharray="4 6"
+              className="motion-safe:animate-[fb-dash_6s_linear_infinite]"
+            />
+          </svg>
+          <ol className="relative grid grid-cols-5 gap-1">
+            {copy.stages.map((stage, i) => (
+              <m.li
+                key={stage}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.15 + i * 0.1, ease: EASE }}
+                className="flex flex-col items-center gap-1.5 text-center"
+              >
+                <span className="flex size-8 items-center justify-center rounded-full border border-product/40 bg-bg-elevated font-mono text-[0.68rem] text-product-text">
+                  {counts[i]}
+                </span>
+                <span className="truncate text-[0.68rem] text-muted sm:text-xs">{stage}</span>
+              </m.li>
+            ))}
+          </ol>
+        </div>
+      </Card>
+      <div className="grid gap-3 sm:grid-cols-[1fr_1.2fr]">
+        <Card>
+          <p className="text-xs text-subtle">{copy.servicing}</p>
+          <ul className="mt-3 space-y-2">
+            {copy.servicingItems.map((item, i) => (
+              <li key={item} className="flex items-center justify-between gap-3 text-xs">
+                <span className="text-muted">{item}</span>
+                <span className="rounded-md bg-surface-3 px-2 py-0.5 font-mono text-text">{queue[i]}</span>
+              </li>
+            ))}
+          </ul>
+        </Card>
+        <Card>
+          <p className="text-xs text-subtle">{copy.rhythm}</p>
+          <div className="mt-3 flex h-12 items-end gap-1.5" aria-hidden>
+            {rhythm.map((value, i) => (
+              <m.span
+                key={i}
+                className="flex-1 origin-bottom rounded-t-md bg-product/70"
+                style={{ height: `${(value - 80) * 5}%` }}
+                initial={{ scaleY: 0 }}
+                animate={{ scaleY: 1 }}
+                transition={{ duration: 0.7, delay: 0.2 + i * 0.06, ease: EASE }}
+              />
+            ))}
+          </div>
+          <p className="mt-2 text-[0.7rem] text-muted">{copy.rhythmDetail}</p>
+        </Card>
+      </div>
+    </div>
+  );
+}

@@ -7,6 +7,8 @@ import { useId, useState } from "react";
 
 import { type AdminUser, adminFetch, describePasskeyError, hasRole } from "@/lib/admin-client";
 
+import { ActionButton } from "./action-button";
+
 import { type AdminSite, LIFECYCLE, type SiteStatus, TRANSITIONS, statusLabel } from "./site-labels";
 
 export interface StatusRequest {
@@ -228,14 +230,14 @@ export function SiteLifecycle({
             Changes only how the website is marketed. The product itself, payments and sign-ups are not
             switched on by this.
           </p>
-          <button
+          <ActionButton
             type="submit"
-            disabled={!!busy || !reason.trim()}
-            className={buttonClasses("primary", "md")}
+            ready={reason.trim() !== ""}
+            busy={busy === "request"}
+            hint="Add a reason for the change"
           >
-            {spinner("request")}
             Request change
-          </button>
+          </ActionButton>
         </form>
       ) : (
         <p className="text-sm text-muted">Reviewers and owners can request status changes.</p>
