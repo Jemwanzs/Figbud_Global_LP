@@ -830,6 +830,309 @@ function serveAsset(res, asset) {
   res.end(asset.data);
 }
 
+// Pages built from typed blocks (services/api/src/pages): drafts, approval,
+// versions. Validation mirrors the API's main rules; rendering is simplified.
+const pages = new Map(); // id -> page
+const PAGE_TEMPLATES = [
+  { id: "blank", label: "Blank page" },
+  { id: "home", label: "Home page" },
+  { id: "overview", label: "Platform overview" },
+  { id: "features", label: "Features" },
+  { id: "contact", label: "Contact and demo" },
+];
+const sid = () => randomUUID().replace(/-/g, "");
+function pageTemplate(template, site) {
+  if (template === "blank") return { sections: [] };
+  return {
+    sections: [
+      {
+        id: sid(),
+        type: "hero",
+        eyebrow: site.name,
+        heading: site.tagline || "Replace with a one-line promise.",
+        lead: "Replace with two sentences on who the product is for.",
+        primary: { label: "Request a demo", href: "/contact" },
+      },
+      {
+        id: sid(),
+        type: "feature_grid",
+        heading: "What you can do",
+        items: [{ title: "Replace with a capability", body: "Say what it does." }],
+      },
+      {
+        id: sid(),
+        type: "call_to_action",
+        heading: `See ${site.name} in action`,
+        cta: { label: "Request a demo", href: "/contact" },
+      },
+    ],
+  };
+}
+const PAGE_PATH = /^$|^[a-z0-9]+(-[a-z0-9]+)*(\/[a-z0-9]+(-[a-z0-9]+)*){0,2}$/;
+const safeHref = (h) =>
+  typeof h === "string" &&
+  ((h.startsWith("/") && !h.startsWith("//")) || h.startsWith("https://")) &&
+  !/\s/.test(h);
+function validateDoc(doc) {
+  const problems = [];
+  for (const s of doc?.sections ?? []) {
+    const ctas = [s.primary, s.secondary, s.cta].filter(Boolean);
+    if (ctas.some((c) => !safeHref(c.href)))
+      problems.push("Links must be a page on the site (starting with /) or an https:// address.");
+    if ((s.type === "hero" || s.type === "call_to_action") && !String(s.heading ?? "").trim())
+      problems.push("Headings need 1–120 characters.");
+    if (s.type === "stats" && !String(s.source ?? "").trim())
+      problems.push(
+        "Say where the figures come from (1–200 characters): only verified figures are published.",
+      );
+  }
+  return problems;
+}
+const escapeHtml = (t) =>
+  String(t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+const md = (t) =>
+  String(t ?? "")
+    .split(/\n{2,}/)
+    .map((p) => `<p>${escapeHtml(p).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")}</p>`)
+    .join("");
+const renderDoc = (doc) => ({
+  ...doc,
+  sections: doc.sections.map((s) =>
+    s.type === "text"
+      ? { ...s, body_html: md(s.body) }
+      : s.type === "faq"
+        ? { ...s, items: s.items.map((i) => ({ question: i.question, answer_html: md(i.answer) })) }
+        : s,
+  ),
+});
+const pageSummary = (p) => ({
+  id: p.id,
+  path: p.path,
+  title: p.title,
+  position: p.position,
+  sections: p.draft.sections.length,
+  published: Boolean(p.published),
+  published_at: p.published_at,
+  draft_differs: JSON.stringify(p.draft) !== JSON.stringify(p.published),
+  pending: p.revisions.some((r) => r.state === "pending"),
+  archived_at: p.archived_at,
+  draft_updated_at: p.draft_updated_at,
+});
+const pageDetail = (p) => ({
+  page: {
+    id: p.id,
+    path: p.path,
+    title: p.title,
+    draft: p.draft,
+    draft_version: p.draft_version,
+    draft_updated_at: p.draft_updated_at,
+    draft_updated_by: null,
+    published: p.published,
+    published_revision: p.published_revision,
+    published_at: p.published_at,
+    archived_at: p.archived_at,
+  },
+  site: { slug: p.site.slug, name: p.site.name },
+  draft_differs: JSON.stringify(p.draft) !== JSON.stringify(p.published),
+  preview: renderDoc(p.draft),
+  revisions: p.revisions.slice().sort((a, b) => b.number - a.number),
+});
+
+function pagesRoutes(path, req, body, user, send) {
+  const notFound = () => send(404, { error: { code: "not_found", message: "Not found." } });
+  const forbidden = (message = "You don't have permission to do that.") =>
+    send(403, { error: { code: "forbidden", message } });
+  const conflict = (message) => send(409, { error: { code: "conflict", message } });
+  const invalid = (fields) =>
+    send(422, { error: { code: "validation", message: "Please check the highlighted fields.", fields } });
+  const rank = RANKS[user.role];
+  const now = () => new Date().toISOString();
+  const pathTaken = (site, p, except) =>
+    [...pages.values()].some((x) => x.site === site && x.path === p && !x.archived_at && x.id !== except);
+
+  const siteMatch = /^sites\/([a-z0-9_-]+)\/pages(\/order)?$/.exec(path);
+  if (siteMatch) {
+    const site = sites.find((s) => s.slug === siteMatch[1]);
+    if (!site) return notFound();
+    const mine = [...pages.values()].filter((p) => p.site === site);
+    if (!siteMatch[2] && req.method === "GET") {
+      return send(200, {
+        site: { slug: site.slug, name: site.name },
+        pages: mine
+          .sort((a, b) => Boolean(a.archived_at) - Boolean(b.archived_at) || a.position - b.position)
+          .map(pageSummary),
+        templates: PAGE_TEMPLATES,
+      });
+    }
+    if (rank < RANKS.editor) return forbidden();
+    if (siteMatch[2]) {
+      const live = mine
+        .filter((p) => !p.archived_at)
+        .map((p) => p.id)
+        .sort();
+      const given = [...new Set(body.ids ?? [])].sort();
+      if (JSON.stringify(live) !== JSON.stringify(given))
+        return conflict("The page list changed. Reload and try again.");
+      body.ids.forEach((id, i) => (pages.get(id).position = i));
+      return send(204, null);
+    }
+    const p = String(body.path ?? "")
+      .trim()
+      .replace(/^\/+|\/+$/g, "");
+    const errors = [];
+    if (!String(body.title ?? "").trim())
+      errors.push({ field: "title", code: "length", message: "Page titles need 1–120 characters." });
+    if (!PAGE_PATH.test(p))
+      errors.push({
+        field: "path",
+        code: "format",
+        message:
+          "Use lower-case words joined by hyphens, with up to three levels (e.g. solutions/banks). Leave empty for the home page.",
+      });
+    else if (pathTaken(site, p))
+      errors.push({
+        field: "path",
+        code: "taken",
+        message: "Another page on this website already uses this address.",
+      });
+    if (errors.length) return invalid(errors);
+    const page = {
+      id: randomUUID(),
+      site,
+      path: p,
+      title: body.title.trim(),
+      position: mine.length,
+      draft: pageTemplate(body.template ?? "blank", site),
+      draft_version: 1,
+      draft_updated_at: now(),
+      published: null,
+      published_revision: null,
+      published_at: null,
+      archived_at: null,
+      revisions: [],
+    };
+    pages.set(page.id, page);
+    return send(201, { id: page.id });
+  }
+
+  const m =
+    /^pages\/([0-9a-f-]{36})(?:\/(draft|submit|archive|restore|duplicate)|\/revisions\/([0-9a-f-]{36})\/(approve|reject|cancel|restore))?$/.exec(
+      path,
+    );
+  const page = m && pages.get(m[1]);
+  if (!page) return notFound();
+  const [, , action, revisionId, revisionAction] = m;
+  if (!action && !revisionId) return send(200, pageDetail(page));
+
+  if (action === "draft") {
+    if (rank < RANKS.editor) return forbidden();
+    if (body.version !== page.draft_version)
+      return conflict("Someone else changed this page. Reload to see their changes.");
+    const p = String(body.path ?? "")
+      .trim()
+      .replace(/^\/+|\/+$/g, "");
+    if (!PAGE_PATH.test(p))
+      return invalid([{ field: "path", code: "format", message: "Use lower-case words joined by hyphens." }]);
+    if (pathTaken(page.site, p, page.id))
+      return invalid([
+        { field: "path", code: "taken", message: "Another page on this website already uses this address." },
+      ]);
+    const problems = validateDoc(body.document);
+    if (problems.length) return invalid([{ field: "sections", code: "invalid", message: problems[0] }]);
+    Object.assign(page, {
+      title: body.title.trim(),
+      path: p,
+      draft: body.document,
+      draft_version: page.draft_version + 1,
+      draft_updated_at: now(),
+    });
+    return send(200, { draft_version: page.draft_version, preview: renderDoc(page.draft) });
+  }
+  if (action === "submit") {
+    if (rank < RANKS.editor) return forbidden();
+    if (!String(body.note ?? "").trim())
+      return invalid([
+        { field: "note", code: "length", message: "Say what changed in up to 300 characters." },
+      ]);
+    if (!page.draft.sections.length) return conflict("Add at least one section before submitting.");
+    if (page.revisions.some((r) => r.state === "pending"))
+      return conflict("A change to this page is already waiting for approval.");
+    const revision = {
+      id: randomUUID(),
+      number: Math.max(0, ...page.revisions.map((r) => r.number)) + 1,
+      document: structuredClone(page.draft),
+      note: body.note.trim(),
+      state: "pending",
+      requested_by: user.name,
+      requested_by_id: user.id,
+      decided_by: null,
+      decision_note: null,
+      created_at: now(),
+      decided_at: null,
+    };
+    page.revisions.push(revision);
+    return send(201, { id: revision.id });
+  }
+  if (action === "archive" || action === "restore") {
+    if (rank < RANKS.reviewer) return forbidden();
+    if (action === "restore" && pathTaken(page.site, page.path, page.id))
+      return conflict("Another page now uses this address.");
+    page.archived_at = action === "archive" ? now() : null;
+    if (action === "archive")
+      page.revisions.filter((r) => r.state === "pending").forEach((r) => (r.state = "cancelled"));
+    return send(200, { id: page.id });
+  }
+  if (action === "duplicate") {
+    if (rank < RANKS.editor) return forbidden();
+    const base = page.path || "home";
+    let n = 1;
+    let p = `${base}-copy`;
+    while (pathTaken(page.site, p)) p = `${base}-copy-${++n}`;
+    const copy = {
+      ...structuredClone({ ...page, site: null }),
+      site: page.site,
+      id: randomUUID(),
+      path: p,
+      title: `${page.title} (copy)`,
+      published: null,
+      published_revision: null,
+      published_at: null,
+      revisions: [],
+      position: [...pages.values()].filter((x) => x.site === page.site).length,
+    };
+    pages.set(copy.id, copy);
+    return send(200, { id: copy.id });
+  }
+  const revision = page.revisions.find((r) => r.id === revisionId);
+  if (!revision) return notFound();
+  if (revisionAction === "restore") {
+    if (revision.state !== "published") return conflict("Only published versions can be restored.");
+    page.draft = structuredClone(revision.document);
+    page.draft_version += 1;
+    return send(200, { restored: revision.number });
+  }
+  if (revision.state !== "pending") return conflict("This change has already been decided.");
+  const own = revision.requested_by_id === user.id;
+  if (revisionAction === "cancel" && !own && user.role !== "owner") return forbidden();
+  if (revisionAction !== "cancel" && rank < RANKS.reviewer) return forbidden();
+  if (revisionAction === "approve" && own && user.role !== "owner")
+    return forbidden("A different reviewer must approve your own change (maker-checker).");
+  Object.assign(revision, {
+    state: { approve: "published", reject: "rejected", cancel: "cancelled" }[revisionAction],
+    decided_by: user.name,
+    decision_note: body.note ?? null,
+    decided_at: now(),
+  });
+  if (revisionAction === "approve") {
+    Object.assign(page, {
+      published: structuredClone(revision.document),
+      published_revision: revision.id,
+      published_at: revision.decided_at,
+    });
+  }
+  return send(200, { state: revision.state });
+}
+
 function publishedBrand(slug) {
   const published = brands.get(slug)?.published;
   return published ? resolveBrand(published) : null;
@@ -1308,6 +1611,8 @@ function admin(req, res, url, body, send, raw) {
         return send(200, detail(article));
     }
   }
+  if (path.startsWith("pages/") || /^sites\/[a-z0-9_-]+\/pages/.test(path))
+    return pagesRoutes(path, req, body, user, send);
   if (/^sites\/[a-z0-9_-]+\/brand/.test(path) || path.startsWith("brand/assets/"))
     return brandRoutes(path, req, res, url, body, raw, user, send);
   if (path === "sites" || path.startsWith("sites/")) return siteRoutes(path, req, body, user, send);

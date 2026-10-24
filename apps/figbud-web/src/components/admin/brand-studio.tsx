@@ -276,7 +276,7 @@ export function BrandStudio({
         </p>
       )}
 
-      <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_26rem]">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-8 xl:grid-cols-[minmax(0,1fr)_26rem]">
         <div className="space-y-8">
           <section aria-labelledby={`${uid}-logos`} className="fb-panel rounded-[var(--radius-panel)] p-6">
             <h2 id={`${uid}-logos`} className="font-semibold text-text">

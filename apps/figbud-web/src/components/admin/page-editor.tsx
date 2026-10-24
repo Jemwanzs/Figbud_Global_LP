@@ -1,0 +1,1213 @@
+"use client";
+
+import { PageBlocks, type PageCta, type PageDocument, type PageSection } from "@figbud/site-kit";
+import { buttonClasses, cn } from "@figbud/ui";
+import {
+  ArrowDown,
+  ArrowUp,
+  ChevronDown,
+  CircleAlert,
+  CircleCheck,
+  Copy,
+  ExternalLink,
+  GripVertical,
+  LoaderCircle,
+  Monitor,
+  Plus,
+  Redo2,
+  Smartphone,
+  Trash2,
+  Undo2,
+} from "lucide-react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { type ReactNode, useCallback, useEffect, useId, useRef, useState } from "react";
+
+import { type AdminUser, AdminError, adminFetch, hasRole } from "@/lib/admin-client";
+import { sameValue, useSavedBaseline, useUnsavedChangesWarning } from "@/lib/form-state";
+
+import { ActionButton } from "./action-button";
+import {
+  BLOCKS,
+  type BlockType,
+  PATH_PATTERN,
+  type PageDetail,
+  blockLabel,
+  copySection,
+  newSection,
+} from "./page-types";
+
+type Draft = { title: string; path: string; document: PageDocument };
+type SaveState = "saved" | "unsaved" | "saving" | "invalid" | "conflict" | "error";
+
+const when = (iso: string) => `${new Date(iso).toUTCString().slice(5, 22)} UTC`;
+const STATE_LABELS = {
+  pending: "Awaiting approval",
+  published: "Published",
+  rejected: "Rejected",
+  cancelled: "Cancelled",
+};
+const KNOWN = ["figbud", "zirahr", "jasiri", "expense_now", "ziwa"];
+const inputClass =
+  "mt-1.5 min-h-11 w-full rounded-xl border border-line-strong bg-surface px-3 text-sm text-text disabled:opacity-60";
+
+function TextField({
+  label,
+  value,
+  onChange,
+  max,
+  multiline,
+  mono,
+  disabled,
+  hint,
+}: {
+  label: string;
+  value: string | null | undefined;
+  onChange: (value: string) => void;
+  max: number;
+  multiline?: boolean;
+  mono?: boolean;
+  disabled?: boolean;
+  hint?: string;
+}) {
+  const id = useId();
+  return (
+    <div>
+      <label htmlFor={id} className="block text-xs font-medium text-muted">
+        {label}
+      </label>
+      {multiline ? (
+        <textarea
+          id={id}
+          value={value ?? ""}
+          maxLength={max}
+          rows={4}
+          disabled={disabled}
+          onChange={(e) => onChange(e.target.value)}
+          className={cn(inputClass, "py-2.5", mono && "font-mono")}
+        />
+      ) : (
+        <input
+          id={id}
+          value={value ?? ""}
+          maxLength={max}
+          disabled={disabled}
+          onChange={(e) => onChange(e.target.value)}
+          className={cn(inputClass, mono && "font-mono")}
+        />
+      )}
+      {hint && <p className="mt-1 text-xs text-subtle">{hint}</p>}
+    </div>
+  );
+}
+
+function CtaFields({
+  label,
+  cta,
+  onChange,
+  optional,
+  disabled,
+}: {
+  label: string;
+  cta: PageCta | null | undefined;
+  onChange: (cta: PageCta | null) => void;
+  optional?: boolean;
+  disabled?: boolean;
+}) {
+  if (!cta) {
+    return optional && !disabled ? (
+      <button
+        type="button"
+        onClick={() => onChange({ label: "Learn more", href: "/" })}
+        className="text-sm font-medium text-accent hover:underline"
+      >
+        Add {label.toLowerCase()}
+      </button>
+    ) : null;
+  }
+  return (
+    <fieldset className="rounded-xl border border-line p-3">
+      <legend className="px-1 text-xs font-medium text-muted">{label}</legend>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <TextField
+          label="Button text"
+          value={cta.label}
+          max={40}
+          disabled={disabled}
+          onChange={(v) => onChange({ ...cta, label: v })}
+        />
+        <TextField
+          label="Link"
+          value={cta.href}
+          max={300}
+          mono
+          disabled={disabled}
+          hint="/contact, or https://…"
+          onChange={(v) => onChange({ ...cta, href: v })}
+        />
+      </div>
+      {optional && !disabled && (
+        <button
+          type="button"
+          onClick={() => onChange(null)}
+          className="mt-2 text-xs text-subtle hover:text-text"
+        >
+          Remove button
+        </button>
+      )}
+    </fieldset>
+  );
+}
+
+/** Editable lists inside a block (features, steps, figures, questions): 1–12 items. */
+function Items<T>({
+  items,
+  onChange,
+  blank,
+  noun,
+  disabled,
+  render,
+}: {
+  items: T[];
+  onChange: (items: T[]) => void;
+  blank: T;
+  noun: string;
+  disabled?: boolean;
+  render: (item: T, set: (item: T) => void) => ReactNode;
+}) {
+  return (
+    <div className="space-y-3">
+      {items.map((item, i) => (
+        <div key={i} className="rounded-xl border border-line p-3">
+          <div className="mb-2 flex items-center justify-between text-xs text-subtle">
+            <span>
+              {noun} {i + 1}
+            </span>
+            {!disabled && items.length > 1 && (
+              <button
+                type="button"
+                onClick={() => onChange(items.filter((_, j) => j !== i))}
+                className="hover:text-danger"
+              >
+                Remove
+                <span className="sr-only">
+                  {" "}
+                  {noun} {i + 1}
+                </span>
+              </button>
+            )}
+          </div>
+          <div className="grid gap-3">
+            {render(item, (next) => onChange(items.map((x, j) => (j === i ? next : x))))}
+          </div>
+        </div>
+      ))}
+      {!disabled && items.length < 12 && (
+        <button
+          type="button"
+          onClick={() => onChange([...items, structuredClone(blank)])}
+          className="text-sm font-medium text-accent hover:underline"
+        >
+          Add {noun.toLowerCase()}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function BlockForm({
+  section,
+  onChange,
+  disabled,
+}: {
+  section: PageSection;
+  onChange: (s: PageSection) => void;
+  disabled: boolean;
+}) {
+  const p = { disabled };
+  switch (section.type) {
+    case "hero":
+      return (
+        <div className="grid gap-3">
+          <TextField
+            label="Eyebrow (optional)"
+            value={section.eyebrow}
+            max={60}
+            {...p}
+            onChange={(v) => onChange({ ...section, eyebrow: v })}
+          />
+          <TextField
+            label="Headline"
+            value={section.heading}
+            max={120}
+            {...p}
+            onChange={(v) => onChange({ ...section, heading: v })}
+          />
+          <TextField
+            label="Introduction (optional)"
+            value={section.lead}
+            max={400}
+            multiline
+            {...p}
+            onChange={(v) => onChange({ ...section, lead: v })}
+          />
+          <CtaFields
+            label="Primary button"
+            cta={section.primary}
+            optional
+            {...p}
+            onChange={(c) => onChange({ ...section, primary: c })}
+          />
+          <CtaFields
+            label="Secondary button"
+            cta={section.secondary}
+            optional
+            {...p}
+            onChange={(c) => onChange({ ...section, secondary: c })}
+          />
+        </div>
+      );
+    case "text":
+      return (
+        <div className="grid gap-3">
+          <TextField
+            label="Heading (optional)"
+            value={section.heading}
+            max={120}
+            {...p}
+            onChange={(v) => onChange({ ...section, heading: v })}
+          />
+          <TextField
+            label="Text (Markdown)"
+            value={section.body}
+            max={10000}
+            multiline
+            mono
+            hint="## Subheading, **bold**, lists with - and [links](/contact). HTML isn't allowed."
+            {...p}
+            onChange={(v) => onChange({ ...section, body: v })}
+          />
+        </div>
+      );
+    case "feature_grid":
+      return (
+        <div className="grid gap-3">
+          <TextField
+            label="Heading (optional)"
+            value={section.heading}
+            max={120}
+            {...p}
+            onChange={(v) => onChange({ ...section, heading: v })}
+          />
+          <TextField
+            label="Introduction (optional)"
+            value={section.intro}
+            max={400}
+            {...p}
+            onChange={(v) => onChange({ ...section, intro: v })}
+          />
+          <Items
+            items={section.items}
+            noun="Feature"
+            blank={{ title: "Capability", body: "What it does." }}
+            {...p}
+            onChange={(items) => onChange({ ...section, items })}
+            render={(item, setItem) => (
+              <>
+                <TextField
+                  label="Title"
+                  value={item.title}
+                  max={80}
+                  {...p}
+                  onChange={(v) => setItem({ ...item, title: v })}
+                />
+                <TextField
+                  label="Description"
+                  value={item.body}
+                  max={400}
+                  multiline
+                  {...p}
+                  onChange={(v) => setItem({ ...item, body: v })}
+                />
+              </>
+            )}
+          />
+        </div>
+      );
+    case "steps":
+      return (
+        <div className="grid gap-3">
+          <TextField
+            label="Heading (optional)"
+            value={section.heading}
+            max={120}
+            {...p}
+            onChange={(v) => onChange({ ...section, heading: v })}
+          />
+          <Items
+            items={section.items}
+            noun="Step"
+            blank={{ title: "Next step", body: "What happens." }}
+            {...p}
+            onChange={(items) => onChange({ ...section, items })}
+            render={(item, setItem) => (
+              <>
+                <TextField
+                  label="Title"
+                  value={item.title}
+                  max={80}
+                  {...p}
+                  onChange={(v) => setItem({ ...item, title: v })}
+                />
+                <TextField
+                  label="Description"
+                  value={item.body}
+                  max={400}
+                  multiline
+                  {...p}
+                  onChange={(v) => setItem({ ...item, body: v })}
+                />
+              </>
+            )}
+          />
+        </div>
+      );
+    case "stats":
+      return (
+        <div className="grid gap-3">
+          <TextField
+            label="Heading (optional)"
+            value={section.heading}
+            max={120}
+            {...p}
+            onChange={(v) => onChange({ ...section, heading: v })}
+          />
+          <Items
+            items={section.items}
+            noun="Figure"
+            blank={{ value: "0", label: "Label" }}
+            {...p}
+            onChange={(items) => onChange({ ...section, items })}
+            render={(item, setItem) => (
+              <div className="grid gap-3 sm:grid-cols-[8rem_1fr]">
+                <TextField
+                  label="Figure"
+                  value={item.value}
+                  max={20}
+                  {...p}
+                  onChange={(v) => setItem({ ...item, value: v })}
+                />
+                <TextField
+                  label="Label"
+                  value={item.label}
+                  max={80}
+                  {...p}
+                  onChange={(v) => setItem({ ...item, label: v })}
+                />
+              </div>
+            )}
+          />
+          <TextField
+            label="Source"
+            value={section.source}
+            max={200}
+            hint="Required: where the figures come from. Publish verified figures only."
+            {...p}
+            onChange={(v) => onChange({ ...section, source: v })}
+          />
+        </div>
+      );
+    case "faq":
+      return (
+        <div className="grid gap-3">
+          <TextField
+            label="Heading (optional)"
+            value={section.heading}
+            max={120}
+            {...p}
+            onChange={(v) => onChange({ ...section, heading: v })}
+          />
+          <Items
+            items={section.items}
+            noun="Question"
+            blank={{ question: "A common question?", answer: "The answer." }}
+            {...p}
+            onChange={(items) => onChange({ ...section, items })}
+            render={(item, setItem) => (
+              <>
+                <TextField
+                  label="Question"
+                  value={item.question}
+                  max={200}
+                  {...p}
+                  onChange={(v) => setItem({ ...item, question: v })}
+                />
+                <TextField
+                  label="Answer (Markdown)"
+                  value={item.answer}
+                  max={2000}
+                  multiline
+                  {...p}
+                  onChange={(v) => setItem({ ...item, answer: v })}
+                />
+              </>
+            )}
+          />
+        </div>
+      );
+    case "call_to_action":
+      return (
+        <div className="grid gap-3">
+          <TextField
+            label="Heading"
+            value={section.heading}
+            max={120}
+            {...p}
+            onChange={(v) => onChange({ ...section, heading: v })}
+          />
+          <TextField
+            label="Text (optional)"
+            value={section.body}
+            max={400}
+            {...p}
+            onChange={(v) => onChange({ ...section, body: v })}
+          />
+          <CtaFields
+            label="Button"
+            cta={section.cta}
+            {...p}
+            onChange={(c) => c && onChange({ ...section, cta: c })}
+          />
+        </div>
+      );
+  }
+}
+
+const summary = (section: PageSection) =>
+  "heading" in section && section.heading
+    ? section.heading
+    : section.type === "text"
+      ? (section.body ?? "").slice(0, 60)
+      : "";
+
+/**
+ * The page builder. Every change autosaves to the draft, which is never
+ * public; publishing is a submission someone else approves.
+ */
+export function PageEditor({ slug, user, initial }: { slug: string; user: AdminUser; initial: PageDetail }) {
+  const router = useRouter();
+  const uid = useId();
+  const pageId = initial.page.id;
+  const canEdit = hasRole(user, "editor") && !initial.page.archived_at;
+  const [data, setData] = useState(initial);
+  const start: Draft = { title: initial.page.title, path: initial.page.path, document: initial.page.draft };
+  const [draft, setDraft] = useState<Draft>(start);
+  const { baseline, markSaved } = useSavedBaseline(draft, start);
+  const [save, setSave] = useState<SaveState>("saved");
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const version = useRef(initial.page.draft_version);
+  const [rendered, setRendered] = useState<PageDocument | null>(initial.preview);
+  const [past, setPast] = useState<Draft[]>([]);
+  const [future, setFuture] = useState<Draft[]>([]);
+  const [open, setOpen] = useState<string | null>(null);
+  const [adding, setAdding] = useState<BlockType>("text");
+  const [dragging, setDragging] = useState<number | null>(null);
+  const [device, setDevice] = useState<"desktop" | "mobile">("desktop");
+  const [note, setNote] = useState("");
+  const [decisionNote, setDecisionNote] = useState("");
+  const [busy, setBusy] = useState<string | null>(null);
+  const [message, setMessage] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
+
+  useUnsavedChangesWarning(save === "unsaved" || save === "saving" || save === "invalid");
+  const stateFor = (next: Draft): SaveState => (sameValue(next, baseline) ? "saved" : "unsaved");
+
+  const change = (next: Draft) => {
+    if (!canEdit) return;
+    setPast((p) => [...p.slice(-49), draft]);
+    setFuture([]);
+    setDraft(next);
+    setSave(stateFor(next));
+  };
+  const setSections = (sections: PageSection[]) =>
+    change({ ...draft, document: { ...draft.document, sections } });
+  const sections = draft.document.sections;
+
+  const reload = useCallback(
+    async (resetDraft: boolean) => {
+      const fresh = await adminFetch<PageDetail>(`pages/${pageId}`);
+      setData(fresh);
+      setRendered(fresh.preview);
+      if (resetDraft) {
+        const next = { title: fresh.page.title, path: fresh.page.path, document: fresh.page.draft };
+        setDraft(next);
+        markSaved(next);
+        version.current = fresh.page.draft_version;
+        setPast([]);
+        setFuture([]);
+        setSave("saved");
+      }
+    },
+    [pageId, markSaved],
+  );
+
+  // Autosave the draft shortly after the last change. Never publishes.
+  useEffect(() => {
+    if (save !== "unsaved") return;
+    const timer = setTimeout(async () => {
+      setSave("saving");
+      setSaveError(null);
+      try {
+        const saved = await adminFetch<{ draft_version: number; preview: PageDocument }>(
+          `pages/${pageId}/draft`,
+          {
+            ...draft,
+            version: version.current,
+          },
+        );
+        version.current = saved.draft_version;
+        markSaved(draft);
+        setRendered(saved.preview);
+        setSave((s) => (s === "saving" ? "saved" : s));
+        reload(false).catch(() => undefined);
+      } catch (err) {
+        if (err instanceof AdminError && err.status === 422) {
+          setSave("invalid");
+          setSaveError(err.fields[0]?.message ?? err.message);
+        } else if (err instanceof AdminError && err.status === 409) {
+          setSave("conflict");
+        } else {
+          setSave("error");
+          setSaveError(err instanceof Error ? err.message : "Draft not saved.");
+        }
+      }
+    }, 900);
+    return () => clearTimeout(timer);
+  }, [draft, save, pageId, reload, markSaved]);
+
+  const undo = () => {
+    const previous = past.at(-1);
+    if (!previous) return;
+    setPast((p) => p.slice(0, -1));
+    setFuture((f) => [draft, ...f]);
+    setDraft(previous);
+    setSave(stateFor(previous));
+  };
+  const redo = () => {
+    const next = future[0];
+    if (!next) return;
+    setFuture((f) => f.slice(1));
+    setPast((p) => [...p, draft]);
+    setDraft(next);
+    setSave(stateFor(next));
+  };
+
+  const moveSection = (from: number, to: number) => {
+    if (to < 0 || to >= sections.length || from === to) return;
+    const next = [...sections];
+    const [item] = next.splice(from, 1);
+    next.splice(to, 0, item!);
+    setSections(next);
+  };
+
+  async function run(
+    label: string,
+    path: string,
+    body: unknown,
+    success: string,
+    resetDraft = false,
+    after?: () => void,
+  ) {
+    setBusy(label);
+    setMessage(null);
+    try {
+      await adminFetch(path, body);
+      setMessage({ tone: "ok", text: success });
+      setNote("");
+      setDecisionNote("");
+      if (after) after();
+      else await reload(resetDraft);
+    } catch (err) {
+      setMessage({ tone: "error", text: err instanceof Error ? err.message : "Something went wrong." });
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  // Preview: local edits immediately; Markdown uses the API's rendering once saved.
+  const previewDoc: PageDocument = {
+    ...draft.document,
+    sections: sections.map((section) => {
+      const server = rendered?.sections.find((s) => s.id === section.id);
+      if (section.type === "text" && server?.type === "text" && server.body === section.body) {
+        return { ...section, body_html: server.body_html };
+      }
+      if (section.type === "faq" && server?.type === "faq") {
+        return {
+          ...section,
+          items: section.items.map((item, i) => {
+            const savedItem = server.items[i];
+            const savedAnswer = initialAnswer(data, section.id, i);
+            return savedItem && savedAnswer === item.answer
+              ? { ...item, answer_html: savedItem.answer_html }
+              : item;
+          }),
+        };
+      }
+      return section;
+    }),
+  };
+
+  const pending = data.revisions.find((r) => r.state === "pending");
+  const ownPending = pending?.requested_by_id === user.id;
+  const canDecide = pending && hasRole(user, "reviewer") && (!ownPending || user.role === "owner");
+  const canCancel = pending && (ownPending || user.role === "owner");
+  const pathValid = PATH_PATTERN.test(draft.path.trim().replace(/^\/+|\/+$/g, ""));
+  const submitBlocker =
+    save === "unsaved" || save === "saving"
+      ? "Saving the draft…"
+      : save === "invalid"
+        ? "Fix the highlighted problem first"
+        : save !== "saved"
+          ? "Reload the draft first"
+          : sections.length === 0
+            ? "Add at least one section"
+            : !data.draft_differs
+              ? "The draft matches the published page"
+              : !note.trim()
+                ? "Say what changed"
+                : null;
+
+  const saveText: Record<SaveState, string> = {
+    saved: "Draft saved",
+    unsaved: "Unsaved changes",
+    saving: "Saving draft…",
+    invalid: "Draft not saved: fix the problem below",
+    conflict: "Someone else changed this page",
+    error: "Draft not saved",
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="sticky top-0 z-10 -mx-5 flex flex-wrap items-center gap-3 border-b border-line bg-bg/90 px-5 py-3 backdrop-blur sm:-mx-8 sm:px-8">
+        <p role="status" aria-live="polite" className="flex items-center gap-2 text-sm text-muted">
+          {save === "saving" ? (
+            <LoaderCircle aria-hidden className="size-4 animate-spin" />
+          ) : save === "saved" ? (
+            <CircleCheck aria-hidden className="size-4 text-success" />
+          ) : (
+            <CircleAlert
+              aria-hidden
+              className={cn("size-4", save === "unsaved" ? "text-muted" : "text-danger")}
+            />
+          )}
+          {saveText[save]} · not public until published
+        </p>
+        {save === "conflict" && (
+          <button
+            type="button"
+            onClick={() => reload(true)}
+            className="text-sm font-medium text-accent hover:underline"
+          >
+            Reload their changes
+          </button>
+        )}
+        <div className="ms-auto flex flex-wrap gap-1">
+          {canEdit && (
+            <>
+              <button
+                type="button"
+                onClick={undo}
+                disabled={!past.length}
+                className={buttonClasses("ghost", "md", "px-3")}
+              >
+                <Undo2 aria-hidden className="size-4" />
+                Undo
+              </button>
+              <button
+                type="button"
+                onClick={redo}
+                disabled={!future.length}
+                className={buttonClasses("ghost", "md", "px-3")}
+              >
+                <Redo2 aria-hidden className="size-4" />
+                Redo
+              </button>
+            </>
+          )}
+          <Link
+            href={`/admin/sites/${slug}/pages/${pageId}/preview`}
+            target="_blank"
+            className={buttonClasses("secondary", "md", "px-4")}
+          >
+            <ExternalLink aria-hidden className="size-4" />
+            Full preview<span className="sr-only"> (opens in a new tab, shows the saved draft)</span>
+          </Link>
+        </div>
+      </div>
+
+      {saveError && (
+        <p
+          role="alert"
+          className="rounded-xl border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-text"
+        >
+          {saveError}
+        </p>
+      )}
+      {data.page.archived_at && (
+        <p className="rounded-xl border border-line bg-surface-2 px-4 py-3 text-sm text-muted">
+          This page is archived and not on the website. Restore it from the page list to edit it.
+        </p>
+      )}
+
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-8 xl:grid-cols-[minmax(0,30rem)_minmax(0,1fr)]">
+        <div className="space-y-6">
+          <section aria-labelledby={`${uid}-settings`} className="fb-panel rounded-[var(--radius-panel)] p-5">
+            <h2 id={`${uid}-settings`} className="font-semibold text-text">
+              Page
+            </h2>
+            <div className="mt-4 grid gap-3">
+              <TextField
+                label="Page title"
+                value={draft.title}
+                max={120}
+                disabled={!canEdit}
+                onChange={(v) => change({ ...draft, title: v })}
+              />
+              <TextField
+                label="Address"
+                value={draft.path}
+                max={180}
+                mono
+                disabled={!canEdit}
+                hint={
+                  pathValid
+                    ? `/${draft.path} · empty for the home page`
+                    : "Lower-case words joined by hyphens; up to three levels."
+                }
+                onChange={(v) => change({ ...draft, path: v })}
+              />
+              <TextField
+                label="Search title (optional)"
+                value={draft.document.seo_title}
+                max={70}
+                disabled={!canEdit}
+                hint={`${(draft.document.seo_title ?? "").length}/70`}
+                onChange={(v) => change({ ...draft, document: { ...draft.document, seo_title: v } })}
+              />
+              <TextField
+                label="Search description (optional)"
+                value={draft.document.seo_description}
+                max={170}
+                multiline
+                disabled={!canEdit}
+                hint={`${(draft.document.seo_description ?? "").length}/170`}
+                onChange={(v) => change({ ...draft, document: { ...draft.document, seo_description: v } })}
+              />
+            </div>
+          </section>
+
+          <section aria-labelledby={`${uid}-sections`} className="fb-panel rounded-[var(--radius-panel)] p-5">
+            <h2 id={`${uid}-sections`} className="font-semibold text-text">
+              Sections
+            </h2>
+            <p className="mt-1 text-sm text-muted">Drag to reorder, or use the arrows.</p>
+            <ol className="mt-4 space-y-2" aria-label="Sections">
+              {sections.map((section, i) => {
+                const expanded = open === section.id;
+                return (
+                  <li
+                    key={section.id}
+                    draggable={canEdit && !expanded}
+                    onDragStart={() => setDragging(i)}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={() => {
+                      if (dragging !== null) moveSection(dragging, i);
+                      setDragging(null);
+                    }}
+                    onDragEnd={() => setDragging(null)}
+                    className={cn(
+                      "rounded-2xl border border-line bg-surface",
+                      dragging === i && "border-accent opacity-70",
+                    )}
+                  >
+                    <div className="flex items-center gap-2 p-2">
+                      {canEdit && (
+                        <GripVertical aria-hidden className="size-5 shrink-0 cursor-grab text-subtle" />
+                      )}
+                      <button
+                        type="button"
+                        aria-expanded={expanded}
+                        onClick={() => setOpen(expanded ? null : section.id)}
+                        className="flex min-h-11 min-w-0 flex-1 items-center gap-2 rounded-lg px-1 text-start"
+                      >
+                        <span className="shrink-0 rounded-full border border-line px-2 py-0.5 text-xs text-muted">
+                          {blockLabel(section.type)}
+                        </span>
+                        <span className="truncate text-sm text-text">{summary(section)}</span>
+                        <ChevronDown
+                          aria-hidden
+                          className={cn(
+                            "ms-auto size-4 shrink-0 text-subtle transition-transform",
+                            expanded && "rotate-180",
+                          )}
+                        />
+                      </button>
+                      {canEdit && (
+                        <span className="flex shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => moveSection(i, i - 1)}
+                            disabled={i === 0}
+                            className={buttonClasses("ghost", "md", "px-2")}
+                          >
+                            <ArrowUp aria-hidden className="size-4" />
+                            <span className="sr-only">Move {blockLabel(section.type)} section up</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => moveSection(i, i + 1)}
+                            disabled={i === sections.length - 1}
+                            className={buttonClasses("ghost", "md", "px-2")}
+                          >
+                            <ArrowDown aria-hidden className="size-4" />
+                            <span className="sr-only">Move {blockLabel(section.type)} section down</span>
+                          </button>
+                          <button
+                            type="button"
+                            disabled={sections.length >= 40}
+                            onClick={() =>
+                              setSections([
+                                ...sections.slice(0, i + 1),
+                                copySection(section),
+                                ...sections.slice(i + 1),
+                              ])
+                            }
+                            className={buttonClasses("ghost", "md", "px-2")}
+                          >
+                            <Copy aria-hidden className="size-4" />
+                            <span className="sr-only">Duplicate {blockLabel(section.type)} section</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setSections(sections.filter((s) => s.id !== section.id))}
+                            className={buttonClasses("ghost", "md", "px-2 hover:text-danger")}
+                          >
+                            <Trash2 aria-hidden className="size-4" />
+                            <span className="sr-only">Remove {blockLabel(section.type)} section</span>
+                          </button>
+                        </span>
+                      )}
+                    </div>
+                    {expanded && (
+                      <div className="border-t border-line p-4">
+                        <BlockForm
+                          section={section}
+                          disabled={!canEdit}
+                          onChange={(next) =>
+                            setSections(sections.map((s) => (s.id === section.id ? next : s)))
+                          }
+                        />
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
+            </ol>
+            {canEdit && (
+              <div className="mt-4 flex flex-wrap items-end gap-2">
+                <div className="min-w-0 flex-1">
+                  <label htmlFor={`${uid}-block`} className="block text-xs font-medium text-muted">
+                    Add a section
+                  </label>
+                  <select
+                    id={`${uid}-block`}
+                    value={adding}
+                    onChange={(e) => setAdding(e.target.value as BlockType)}
+                    className={cn(inputClass, "px-3")}
+                  >
+                    {BLOCKS.map((b) => (
+                      <option key={b.type} value={b.type}>
+                        {b.label} · {b.hint}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <button
+                  type="button"
+                  disabled={sections.length >= 40}
+                  onClick={() => {
+                    const section = newSection(adding);
+                    setSections([...sections, section]);
+                    setOpen(section.id);
+                  }}
+                  className={buttonClasses("secondary", "md")}
+                >
+                  <Plus aria-hidden className="size-4" />
+                  Add
+                </button>
+              </div>
+            )}
+          </section>
+        </div>
+
+        <div className="space-y-6">
+          <section aria-labelledby={`${uid}-preview`} className="fb-panel rounded-[var(--radius-panel)] p-5">
+            <div className="flex items-center justify-between gap-3">
+              <h2 id={`${uid}-preview`} className="font-semibold text-text">
+                Live preview
+              </h2>
+              <div
+                role="group"
+                aria-label="Preview width"
+                className="flex gap-1 rounded-full border border-line p-1"
+              >
+                {(
+                  [
+                    ["desktop", "Desktop", Monitor],
+                    ["mobile", "Phone", Smartphone],
+                  ] as const
+                ).map(([value, label, Icon]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    aria-pressed={device === value}
+                    onClick={() => setDevice(value)}
+                    className={cn(
+                      "inline-flex min-h-9 items-center gap-1.5 rounded-full px-3 text-sm",
+                      device === value ? "bg-surface-2 text-text" : "text-muted hover:text-text",
+                    )}
+                  >
+                    <Icon aria-hidden className="size-3.5" />
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div
+              data-product={KNOWN.includes(slug) ? slug : "figbud"}
+              tabIndex={0}
+              role="group"
+              aria-label="Page preview (scrollable)"
+              className={cn(
+                "mt-4 max-h-[44rem] overflow-y-auto rounded-2xl border border-line bg-bg p-6 sm:p-8",
+                device === "mobile" && "mx-auto max-w-[24rem] p-5",
+              )}
+            >
+              {sections.length === 0 ? (
+                <p className="py-16 text-center text-muted">Add a section to start building this page.</p>
+              ) : (
+                <PageBlocks
+                  document={previewDoc}
+                  mode="preview"
+                  firstHeading={2}
+                  className={device === "mobile" ? "space-y-12" : undefined}
+                />
+              )}
+            </div>
+          </section>
+
+          <section aria-labelledby={`${uid}-publish`} className="fb-panel rounded-[var(--radius-panel)] p-5">
+            <h2 id={`${uid}-publish`} className="font-semibold text-text">
+              Publishing
+            </h2>
+            {pending ? (
+              <div className="mt-4 rounded-xl border border-warning/40 bg-warning/10 p-4">
+                <p className="text-sm font-medium text-text">Version {pending.number} is awaiting approval</p>
+                <p className="mt-1 text-sm text-muted">{pending.note}</p>
+                <p className="mt-1 text-xs text-subtle">
+                  Submitted by {pending.requested_by ?? "a former admin"} · {when(pending.created_at)}
+                </p>
+                {canDecide && (
+                  <TextField
+                    label="Note (optional)"
+                    value={decisionNote}
+                    max={300}
+                    onChange={setDecisionNote}
+                  />
+                )}
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {canDecide && (
+                    <>
+                      <ActionButton
+                        ready={!busy}
+                        busy={busy === "approve"}
+                        onClick={() =>
+                          run(
+                            "approve",
+                            `pages/${pageId}/revisions/${pending.id}/approve`,
+                            { note: decisionNote || null },
+                            "Page published.",
+                          )
+                        }
+                      >
+                        {ownPending ? "Publish my change" : "Approve and publish"}
+                      </ActionButton>
+                      <ActionButton
+                        variant="secondary"
+                        ready={!busy}
+                        busy={busy === "reject"}
+                        onClick={() =>
+                          run(
+                            "reject",
+                            `pages/${pageId}/revisions/${pending.id}/reject`,
+                            { note: decisionNote || null },
+                            "Change rejected.",
+                          )
+                        }
+                      >
+                        Reject
+                      </ActionButton>
+                    </>
+                  )}
+                  {canCancel && (
+                    <ActionButton
+                      variant="ghost"
+                      ready={!busy}
+                      busy={busy === "cancel"}
+                      onClick={() =>
+                        run(
+                          "cancel",
+                          `pages/${pageId}/revisions/${pending.id}/cancel`,
+                          {},
+                          "Submission withdrawn.",
+                        )
+                      }
+                    >
+                      Withdraw
+                    </ActionButton>
+                  )}
+                </div>
+                {ownPending && user.role !== "owner" && (
+                  <p className="mt-3 text-xs text-subtle">
+                    A reviewer or an owner needs to approve your change.
+                  </p>
+                )}
+              </div>
+            ) : canEdit ? (
+              <form
+                className="mt-4 space-y-3"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (submitBlocker === null && !busy)
+                    run("submit", `pages/${pageId}/submit`, { note }, "Sent for approval.");
+                }}
+              >
+                <TextField label="What changed?" value={note} max={300} multiline onChange={setNote} />
+                <div className="flex flex-wrap items-center gap-2">
+                  <ActionButton
+                    type="submit"
+                    ready={submitBlocker === null && !busy}
+                    busy={busy === "submit"}
+                    hint={submitBlocker ?? undefined}
+                  >
+                    Submit for publishing
+                  </ActionButton>
+                  {data.page.published_revision && (
+                    <ActionButton
+                      variant="ghost"
+                      ready={data.draft_differs && save === "saved" && !busy}
+                      busy={busy === "discard"}
+                      onClick={() =>
+                        run(
+                          "discard",
+                          `pages/${pageId}/revisions/${data.page.published_revision}/restore`,
+                          {},
+                          "Draft reset to the published page.",
+                          true,
+                        )
+                      }
+                    >
+                      Discard draft changes
+                    </ActionButton>
+                  )}
+                </div>
+              </form>
+            ) : (
+              <p className="mt-4 text-sm text-muted">Editors and above can change pages.</p>
+            )}
+            {message && (
+              <p
+                role={message.tone === "error" ? "alert" : "status"}
+                className={cn("mt-4 text-sm", message.tone === "error" ? "text-danger" : "text-success")}
+              >
+                {message.text}
+              </p>
+            )}
+            {hasRole(user, "reviewer") && !data.page.archived_at && (
+              <div className="mt-5 border-t border-line pt-4">
+                <button
+                  type="button"
+                  disabled={!!busy}
+                  onClick={() => {
+                    if (
+                      window.confirm(`Archive "${draft.title}"? It is taken off the website until restored.`)
+                    ) {
+                      run("archive", `pages/${pageId}/archive`, {}, "Page archived.", false, () =>
+                        router.push(`/admin/sites/${slug}/pages`),
+                      );
+                    }
+                  }}
+                  className={buttonClasses("ghost", "md")}
+                >
+                  Archive page
+                </button>
+              </div>
+            )}
+          </section>
+
+          <section aria-labelledby={`${uid}-history`} className="fb-panel rounded-[var(--radius-panel)] p-5">
+            <h2 id={`${uid}-history`} className="font-semibold text-text">
+              Version history
+            </h2>
+            {data.revisions.length === 0 ? (
+              <p className="mt-3 text-sm text-subtle">Nothing published yet.</p>
+            ) : (
+              <ol className="mt-3 space-y-4 text-sm">
+                {data.revisions.map((r) => (
+                  <li key={r.id}>
+                    <p className="text-text">
+                      Version {r.number} · {STATE_LABELS[r.state]}
+                      {r.id === data.page.published_revision && (
+                        <span className="ms-2 rounded-full border border-success/30 px-2 py-0.5 text-xs text-success">
+                          Live
+                        </span>
+                      )}
+                    </p>
+                    <p className="text-muted">{r.note}</p>
+                    <p className="text-xs text-subtle">
+                      {r.decided_by ?? r.requested_by ?? "FigBud"} · {when(r.decided_at ?? r.created_at)}
+                    </p>
+                    {canEdit && r.state === "published" && r.id !== data.page.published_revision && (
+                      <button
+                        type="button"
+                        disabled={!!busy}
+                        onClick={() =>
+                          run(
+                            `restore-${r.id}`,
+                            `pages/${pageId}/revisions/${r.id}/restore`,
+                            {},
+                            `Version ${r.number} copied into the draft. Review it, then submit.`,
+                            true,
+                          )
+                        }
+                        className="mt-1 text-sm font-medium text-accent hover:underline"
+                      >
+                        Restore to draft<span className="sr-only"> (version {r.number})</span>
+                      </button>
+                    )}
+                  </li>
+                ))}
+              </ol>
+            )}
+          </section>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** The saved (server) answer text for a FAQ item, to know if its rendered HTML is current. */
+function initialAnswer(data: PageDetail, sectionId: string, index: number): string | undefined {
+  const section = data.page.draft.sections.find((s) => s.id === sectionId);
+  return section?.type === "faq" ? section.items[index]?.answer : undefined;
+}

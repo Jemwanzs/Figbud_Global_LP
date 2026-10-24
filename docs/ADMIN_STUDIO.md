@@ -40,6 +40,14 @@ All tables use UUID keys, foreign keys, check constraints and indexes for their 
 
 **Brand management (delivered 23 Oct 2026).** `site_brands` (draft and published profile per website), `brand_revisions` (submissions and version history), `brand_assets` and `brand_asset_renditions` (immutable logo library with WebP copies). This is the single place where logos and brand colours are configured; the page builder and product registry read it, with no second logo system. Details: [BRAND_ASSETS.md](BRAND_ASSETS.md).
 
+**Pages (Phase C, delivered 25 Oct 2026).** `pages` (one row per page and website: address, title, order, working draft, published document, archive flag) and `page_revisions` (submissions and version history). A page document is a list of sections, each a typed block from the approved library:
+- **Blocks:** hero, text (Markdown), feature grid, steps, figures, questions and call to action.
+- **Validation (`services/api/src/pages/blocks.rs`):** the API validates every block. It refuses unknown block types and fields, and allows only site paths or https links. Figures need a stated source, so unverified numbers aren't published. Markdown goes through the article sanitiser.
+- **Templates:** blank, home, platform overview, features, and contact. They fill in the website's name and tagline, and mark placeholder text for replacement.
+- **Workflow:** the same as Branding. Drafts autosave and are never public. Publishing is a submission someone else approves, and owners may approve their own, which is recorded in the audit log. Restoring a published version copies it into the draft. Archiving takes a page off the website. Every action is audited with previous and new values.
+- **Public reads:** `GET /v1/sites/{slug}/pages` and `GET /v1/sites/{slug}/page?path=` return published pages of listed websites only.
+- **Rendering:** the shared `PageBlocks` renderer in `@figbud/site-kit` draws the Studio preview, the full-page draft preview and, once P7-E3 lands, the product websites. Blocks size themselves to their container, so the preview matches the website at the same width.
+
 ## Permissions
 
 Global roles remain: owner (platform owner), reviewer, editor, viewer. Phase F adds per-site grants that narrow them: website administrator, product manager, content editor, reviewer / approver, publisher, viewer, scoped to one site. Every administrative endpoint authorises the actor against the site it touches.

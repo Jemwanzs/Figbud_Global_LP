@@ -81,6 +81,7 @@ pub fn router(state: SharedState) -> Router {
         // Articles are larger than any form; the editorial API gets its own limit.
         .merge(cms::editorial::router().layer(RequestBodyLimitLayer::new(512 * 1024)))
         .merge(brand::upload_router())
+        .merge(crate::pages::router())
         .with_state(state)
         .layer(cors)
         .layer(CompressionLayer::new())

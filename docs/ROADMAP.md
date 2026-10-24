@@ -19,7 +19,7 @@
 | 4     | Product websites                     | 🔄 In progress | 2 / 22 tasks (template + ZiraHR site started; lending template and Ziwa site added) | Product capability sign-off, payroll rules, Railway service for product sites |
 | 5     | Integrations & administration        | 🔄 In progress | 11 / 17 tasks (admin, CMS, inbox done)  | Resend credentials, recipient addresses      |
 | 6     | Production deployment                | 🔄 In progress | 9 / 18 tasks                            | Resend, domains, backups/monitoring          |
-| 7     | Admin Studio & website builder       | 🔄 In progress | 18 / 37 tasks (registry, brand management, hero, map, icons, branded Studio, Ziwa LMS, smart actions) | Complete logo files, Expense Now logo approval (Q18) |
+| 7     | Admin Studio & website builder       | 🔄 In progress | 20 / 37 tasks (registry, brand management, hero, map, icons, branded Studio, Ziwa LMS, smart actions, page builder) | Complete logo files, Expense Now logo approval (Q18) |
 
 **Where we are:** the monorepo, shared design system, multilingual architecture, Rust enquiry API with PostgreSQL and a retrying email outbox, and the first complete FigBud Global homepage are built and verified locally. Everything runs without any external service. The next steps that need decisions from FigBud are listed in **§5 Open questions**.
 
@@ -409,9 +409,9 @@ Items marked **Blocking** stop the listed tasks; everything else proceeds with t
 | P7-UX1 | Smart action buttons: shared change detection and `ActionButton` across Studio forms (enabled only when ready, reasons when not, no double submits, saved baselines, unsaved-changes warning, autosave skips unchanged drafts, Discard draft) | ✅ |
 | P7-BR12 | Branded Studio: official symbol in the admin header and sign-in pages; website cards with published logos, temporary-icon notice, custom domain vs website destination, Manage / Branding / Open website actions; admin nav fits phones | ✅ |
 | P7-BR9 | Complete and vector logo files: ZiraHR with "HR", SVGs, official light-background versions | ⛔ Q18 |
-| P7-C1  | Page model: pages, versions, sections; typed block schemas validated by the API (no markup) | ⬜ |
-| P7-C2  | Visual page builder: drag-and-drop sections, block library, device previews, autosave that never publishes, undo/redo | ⬜ |
-| P7-C3  | Page templates per category; draft → review → publish → schedule → rollback for pages        | ⬜ |
+| P7-C1  | Page model: pages, versions, sections; typed block schemas validated by the API (no markup): hero, text, feature grid, steps, figures (source required), questions, call to action; safe links only; published-only public API | ✅ |
+| P7-C2  | Visual page builder: drag-and-drop sections (with keyboard arrows), block library, block forms, live desktop/phone preview and full-page draft preview, autosave that never publishes, undo/redo | ✅ |
+| P7-C3  | Page templates per category; draft → review → publish → schedule → rollback for pages: workflow, version restore, duplicate, archive, page order and five starting templates done; category-specific template sets and scheduled publishing remain | 🔄 In progress |
 | P7-D1  | Central content library distributed to several websites without duplicates, with versions    | ⬜ |
 | P7-D2  | Media library: uploads, variants, required alt text, usage tracking                          | ⬜ |
 | P7-E1  | Theme configuration with token guard rails (contrast checks, brand limits); brand colours done (P7-BR4/6) | 🔄 In progress |
@@ -441,7 +441,7 @@ Items marked **Blocking** stop the listed tasks; everything else proceeds with t
 | M8b — Repository live              | P1-25, P6-05, P6-06                          | Code on GitHub `main`, CI green                       | ✅ 22 Oct 2026 |
 | M9 — Production launch             | Phase 6                                      | Launch checklist signed                               | ⬜ |
 | M10 — Website registry             | P7-A1 → P7-B5                                | Websites managed from admin; public site follows      | ✅ 23 Oct 2026 |
-| M11 — Page builder                 | P7-C*, P7-D*                                 | A product page built, reviewed and published from blocks | ⬜ |
+| M11 — Page builder                 | P7-C*, P7-D*                                 | A product page built, reviewed and published from blocks | 🔄 Built, reviewed and published in the Studio; shown on product websites with P7-E3 |
 
 ---
 
@@ -468,6 +468,7 @@ Items marked **Blocking** stop the listed tasks; everything else proceeds with t
 
 | Date        | Change                                                                                                   |
 | ----------- | -------------------------------------------------------------------------------------------------------- |
+| 25 Oct 2026 | Page builder (P7-C1, P7-C2, P7-C3 in progress): pages of typed blocks with server validation, templates, autosaved drafts, maker-checker publishing, version restore, duplicate, archive and ordering; Studio editor with drag-and-drop, block forms, live and full-page previews, undo/redo; shared `PageBlocks` renderer with container-query layouts; published-only public API. Fixed horizontal overflow on phones in the Branding and page editors. |
 | 24 Oct 2026 | Africa expansion map (P7-MAP1): Nairobi origin with the FigBud symbol and product logos from the registry and brand profiles; per-product map visibility setting (`sites.show_on_map`, audited); shared tap-to-reveal and call-to-action helpers used by the hero and the map. |
 | 24 Oct 2026 | Ziwa LMS (P7-ZW1/ZW2): registered as the fifth website (coming soon) and shown across the corporate site; enquiries, admin filters and email routing accept it; proposed logo concept and teal palette; product registry documented (`docs/PRODUCT_REGISTRY.md`). Count-free headings ("Distinct platforms") so adding products needs no copy change. Smart action buttons (P7-UX1) across the Studio. |
 | 24 Oct 2026 | Icons and branded Studio (P7-BR8, P7-BR12): browser tabs, home-screen icons, admin header, sign-in, 404 and Studio website cards now show the official symbols from the published brand profiles; icons were added to the live profiles as version 2 ("Favicon and app icon from the official symbol"). Admin site list and detail return each website's published brand. |

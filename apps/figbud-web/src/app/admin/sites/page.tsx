@@ -1,5 +1,5 @@
 import { buttonClasses } from "@figbud/ui";
-import { ArrowUpRight, Globe, Palette, Plus, Settings2 } from "lucide-react";
+import { ArrowUpRight, FileStack, Globe, Palette, Plus, Settings2 } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
@@ -141,6 +141,13 @@ async function Sites() {
                     >
                       <Palette aria-hidden className="size-4" />
                       Branding<span className="sr-only"> for {site.name}</span>
+                    </Link>
+                    <Link
+                      href={`/admin/sites/${site.slug}/pages`}
+                      className={buttonClasses("ghost", "md", "px-4")}
+                    >
+                      <FileStack aria-hidden className="size-4" />
+                      Pages<span className="sr-only"> of {site.name}</span>
                     </Link>
                     {target && (
                       <a
