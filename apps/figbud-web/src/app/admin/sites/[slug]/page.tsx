@@ -44,7 +44,7 @@ async function Site({ params }: Pick<PageProps<"/admin/sites/[slug]">, "params">
         / <span className="font-mono">{site.slug}</span>
       </p>
       <div className="mt-3 flex flex-wrap items-center gap-4">
-        <SiteMark slug={site.slug} name={site.name} />
+        <SiteMark slug={site.slug} name={site.name} brand={site.brand} />
         <h1 className="font-display text-3xl font-semibold tracking-tight text-text">{site.name}</h1>
         {site.archived_at ? (
           <span className="rounded-full border border-line px-2.5 py-0.5 text-xs text-subtle">Archived</span>

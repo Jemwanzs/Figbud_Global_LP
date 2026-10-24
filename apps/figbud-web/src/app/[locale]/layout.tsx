@@ -1,5 +1,6 @@
 import { company, publicProducts } from "@figbud/brand";
 import { isLocale, localeInfo, locales } from "@figbud/i18n";
+import { brandIcons } from "@figbud/site-kit";
 import { MotionProvider, themeInitScript } from "@figbud/ui";
 import type { Metadata, Viewport } from "next";
 import { IBM_Plex_Sans_Arabic, Outfit } from "next/font/google";
@@ -46,6 +47,7 @@ export async function generateMetadata({ params }: LayoutProps<"/[locale]">): Pr
   const dict = await getDictionary(locale);
   return {
     metadataBase: new URL(siteOrigin),
+    icons: brandIcons((await getBrands()).figbud),
     title: { default: dict.meta.title, template: `%s · ${dict.meta.siteName}` },
     description: dict.meta.description,
     applicationName: dict.meta.siteName,
@@ -72,7 +74,7 @@ export default async function LocaleLayout({ children, params }: LayoutProps<"/[
     "@type": "Organization",
     name: company.name,
     url: siteOrigin,
-    logo: `${siteOrigin}/icon.svg`,
+    logo: `${siteOrigin}/apple-icon.png`,
     slogan: company.tagline,
     brand: publicProducts.map((p) => ({ "@type": "Brand", name: p.name })),
   };

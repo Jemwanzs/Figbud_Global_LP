@@ -32,6 +32,15 @@ These are in `services/api/seed/brand/` and are produced by `scripts/brand/prepa
 | `zirahr-supplied-incomplete.png` | ZiraHR file, margins trimmed | Kept in the library for reference only; not used anywhere |
 | `jasiri-horizontal-on-dark-official.png` | Jasiri file, margins trimmed (518 × 267) | Jasiri product card (dark theme) |
 
+**Icons** (24 Oct 2026) place the official symbols, unmodified, on plain squares:
+
+| File | Use |
+| ---- | --- |
+| `figbud-favicon-official.png` (64 px), `figbud-app-icon-official.png` (180 px) | FigBud symbol on FigBud ink (#15120F), so the white symbol reads on light and dark browser tabs. The app icon is upscaled from the small supplied file and is slightly soft; an SVG would fix this (Q18). |
+| `zirahr-favicon-official.png`, `zirahr-app-icon-official.png` | ZiraHR symbol on transparent (favicon) and on a dark tile (app icon; iOS fills transparency with black). |
+
+The same images are the websites' built-in fallbacks (`public/favicon.ico`, `icon.png`, `apple-icon.png`). Pages declare the published favicon and app icon from the brand profile; published files have unique, immutable URLs, so a newly published icon appears without waiting for caches. Older profiles received the icons once, as a recorded revision ("Favicon and app icon from the official symbol"), only where none was set; an icon removed later in the Studio is not brought back.
+
 **Proposed** files need FigBud's approval. They sit in each website's brand *draft* and are not public until someone submits the draft and an owner or reviewer approves it.
 
 | File | What it is |
@@ -93,4 +102,4 @@ Each website's brand profile also stores primary, secondary and accent colours. 
 2. **FigBud Global:** an SVG or larger PNG, a version for light backgrounds, and the stacked "Figbud / GLOBAL" lockup if there is one. Should the header show "Figbud" alone (as supplied) or with "GLOBAL"?
 3. **Jasiri LMS:** an SVG, and a light-background version, or approval of the proposed recolour.
 4. **Expense Now:** approve, adjust or replace the proposed concept.
-5. **Favicons and app icons** for each brand (the current site icons remain until then).
+5. **Favicons and app icons:** the current ones are made from the supplied symbols; vector or larger artwork would make the home-screen icons sharper.

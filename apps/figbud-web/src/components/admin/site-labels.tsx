@@ -1,3 +1,5 @@
+import type { ProductSlug } from "@figbud/brand";
+import { BrandLogo, type BrandProfile, ProductGlyph, hasLogo } from "@figbud/site-kit";
 import { cn } from "@figbud/ui";
 
 export type SiteStatus = "draft" | "coming_soon" | "beta" | "active" | "retired";
@@ -18,6 +20,8 @@ export interface AdminSite {
   version: number;
   updated_at: string;
   pending_to_status?: SiteStatus | null;
+  /** Published brand profile (list responses only). */
+  brand?: BrandProfile | null;
 }
 
 export const LIFECYCLE: { value: SiteStatus; label: string; hint: string }[] = [
@@ -98,16 +102,43 @@ export function SiteStatusPill({ status }: { status: SiteStatus }) {
   );
 }
 
-/** Website identity tile: the product's accent when it has one, otherwise the FigBud copper. */
-export function SiteMark({ slug, name }: { slug: string; name: string }) {
-  const known = ["figbud", "zirahr", "jasiri", "expense_now"].includes(slug);
+/** Whether a website has a published logo (symbol or horizontal) to show. */
+export const hasPublishedLogo = (brand?: BrandProfile | null) =>
+  hasLogo(brand?.logos.symbol) || hasLogo(brand?.logos.horizontal);
+
+/**
+ * Website identity in the Studio: its published symbol, else its published
+ * logo, on a dark tile (the official files are made for dark backgrounds).
+ * Without a published logo, the temporary built-in icon is shown.
+ */
+export function SiteMark({ slug, name, brand }: { slug: string; name: string; brand?: BrandProfile | null }) {
+  const tile =
+    "flex h-12 shrink-0 items-center justify-center rounded-xl bg-[#15120f] shadow-[0_0_0_1px_var(--line-strong)]";
+  if (hasLogo(brand?.logos.symbol)) {
+    return (
+      <span className={cn(tile, "w-12")}>
+        <BrandLogo pair={brand!.logos.symbol} on="dark" height={30} maxWidth={32} alt={`${name} logo`} />
+      </span>
+    );
+  }
+  if (hasLogo(brand?.logos.horizontal)) {
+    return (
+      <span className={cn(tile, "px-3")}>
+        <BrandLogo pair={brand!.logos.horizontal} on="dark" height={30} maxWidth={96} alt={`${name} logo`} />
+      </span>
+    );
+  }
+  if (isProductSlug(slug)) return <ProductGlyph slug={slug} size="lg" className="size-12" />;
   return (
     <span
       aria-hidden
-      data-product={known ? slug : "figbud"}
-      className="inline-flex size-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-product to-product-2 text-base font-semibold text-product-ink"
+      data-product="figbud"
+      className="inline-flex size-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-product to-product-2 text-base font-semibold text-product-ink"
     >
       {name.trim().charAt(0).toUpperCase()}
     </span>
   );
 }
+
+const isProductSlug = (slug: string): slug is ProductSlug =>
+  ["zirahr", "jasiri", "expense_now"].includes(slug);

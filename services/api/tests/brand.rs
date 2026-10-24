@@ -162,6 +162,27 @@ async fn seeded_official_logos_are_published_and_proposals_stay_in_draft() {
         "the Expense Now concept is not approved"
     );
 
+    // Favicons and app icons from the official symbols (added once, as a
+    // recorded revision, for profiles seeded before icons existed).
+    for slug in ["figbud", "zirahr"] {
+        let brand = &site(slug)["brand"];
+        assert!(brand["favicon"]["url"].is_string(), "{slug} favicon");
+        assert!(brand["app_icon"]["url"].is_string(), "{slug} app icon");
+        assert_eq!(
+            brand["favicon"]["width"], brand["favicon"]["height"],
+            "favicons are square"
+        );
+    }
+    brand::seed::run(&s.pool).await.unwrap();
+    let markers: i64 = sqlx::query_scalar(
+        "SELECT count(*) FROM audit_log a JOIN sites s ON s.id = a.site_id
+          WHERE s.slug = 'figbud' AND a.action = 'brand.icons_seeded'",
+    )
+    .fetch_one(&s.pool)
+    .await
+    .unwrap();
+    assert_eq!(markers, 1, "the icon upgrade runs once");
+
     // Published files are public (and cache forever); renditions are WebP.
     let url = logo["url"].as_str().unwrap();
     let get = |uri: String| Request::builder().uri(uri).body(Body::empty()).unwrap();

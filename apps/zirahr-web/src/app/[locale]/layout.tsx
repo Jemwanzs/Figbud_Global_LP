@@ -1,6 +1,6 @@
 import { getProduct } from "@figbud/brand";
 import { isLocale, locales } from "@figbud/i18n";
-import { ProductHeader } from "@figbud/site-kit";
+import { ProductHeader, brandIcons } from "@figbud/site-kit";
 import { ProductFooter } from "@figbud/site-kit/footer";
 import { MotionProvider, themeInitScript } from "@figbud/ui";
 import type { Metadata, Viewport } from "next";
@@ -32,6 +32,7 @@ export async function generateMetadata({ params }: LayoutProps<"/[locale]">): Pr
   const dict = getDictionary(locale);
   return {
     metadataBase: new URL(siteOrigin),
+    icons: brandIcons(await getBrand()),
     title: { default: dict.meta.title, template: `%s · ${dict.meta.siteName}` },
     description: dict.meta.description,
     applicationName: dict.meta.siteName,

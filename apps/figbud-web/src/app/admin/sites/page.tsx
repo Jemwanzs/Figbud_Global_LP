@@ -1,5 +1,5 @@
 import { buttonClasses } from "@figbud/ui";
-import { Plus } from "lucide-react";
+import { ArrowUpRight, Globe, Palette, Plus, Settings2 } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
@@ -10,9 +10,11 @@ import {
   SiteMark,
   SiteStatusPill,
   categoryLabel,
+  hasPublishedLogo,
   statusLabel,
 } from "@/components/admin/site-labels";
 import { adminGet, requireAdmin } from "@/lib/admin-server";
+import { websiteOrigin } from "@/lib/site";
 
 export const metadata: Metadata = { title: "Websites" };
 
@@ -23,6 +25,16 @@ export default function SitesPage() {
     </Suspense>
   );
 }
+
+/** Where the website can be opened: its custom domain, else the URL it is served at today. */
+function destination(site: AdminSite): { url: string; kind: "custom" | "railway" | "website" } | null {
+  if (site.primary_domain) return { url: `https://${site.primary_domain}`, kind: "custom" };
+  const origin = websiteOrigin(site.slug);
+  if (!origin) return null;
+  return { url: origin, kind: origin.includes(".up.railway.app") ? "railway" : "website" };
+}
+
+const host = (url: string) => url.replace(/^https?:\/\//, "");
 
 async function Sites() {
   const user = await requireAdmin();
@@ -53,39 +65,100 @@ async function Sites() {
       {!sites ? (
         <p className="mt-10 text-muted">Websites could not be loaded. Please try again.</p>
       ) : (
-        <ul className="mt-8 grid gap-5 md:grid-cols-2">
-          {sites.map((site) => (
-            <li key={site.id}>
-              <Link
-                href={`/admin/sites/${site.slug}`}
-                className="flex h-full flex-col rounded-[var(--radius-panel)] border border-line bg-surface p-6 transition-colors hover:border-line-strong"
-              >
-                <div className="flex items-start gap-4">
-                  <SiteMark slug={site.slug} name={site.name} />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-lg font-semibold text-text">{site.name}</p>
-                    <p className="text-sm text-subtle">{categoryLabel(site.category)}</p>
+        <ul className="mt-8 grid gap-5 md:grid-cols-2" aria-label="Websites">
+          {sites.map((site) => {
+            const target = destination(site);
+            return (
+              <li key={site.id}>
+                <article
+                  aria-labelledby={`site-${site.id}`}
+                  className="relative flex h-full flex-col rounded-[var(--radius-panel)] border border-line bg-surface p-6 transition-colors focus-within:border-line-strong hover:border-line-strong"
+                >
+                  <div className="flex items-start gap-4">
+                    <SiteMark slug={site.slug} name={site.name} brand={site.brand} />
+                    <div className="min-w-0 flex-1">
+                      <h2 id={`site-${site.id}`} className="truncate text-lg font-semibold text-text">
+                        {/* The whole card opens the website's settings. */}
+                        <Link
+                          href={`/admin/sites/${site.slug}`}
+                          className="rounded-sm after:absolute after:inset-0 after:rounded-[var(--radius-panel)]"
+                        >
+                          {site.name}
+                        </Link>
+                      </h2>
+                      <p className="text-sm text-subtle">{categoryLabel(site.category)}</p>
+                    </div>
+                    {site.archived_at ? (
+                      <span className="rounded-full border border-line px-2.5 py-0.5 text-xs text-subtle">
+                        Archived
+                      </span>
+                    ) : (
+                      <SiteStatusPill status={site.status} />
+                    )}
                   </div>
-                  {site.archived_at ? (
-                    <span className="rounded-full border border-line px-2.5 py-0.5 text-xs text-subtle">
-                      Archived
-                    </span>
-                  ) : (
-                    <SiteStatusPill status={site.status} />
+                  {site.tagline && <p className="mt-4 text-muted">{site.tagline}</p>}
+
+                  <dl className="mt-5 grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
+                    <div>
+                      <dt className="text-subtle">Custom domain</dt>
+                      <dd className="mt-0.5 text-text">{site.primary_domain ?? "No custom domain"}</dd>
+                    </div>
+                    <div className="min-w-0">
+                      <dt className="text-subtle">Website</dt>
+                      <dd className="mt-0.5 truncate text-text">
+                        {target
+                          ? `${host(target.url)}${target.kind === "railway" ? " (Railway URL)" : ""}`
+                          : "No website destination yet"}
+                      </dd>
+                    </div>
+                  </dl>
+                  {(!hasPublishedLogo(site.brand) || site.pending_to_status) && (
+                    <p className="mt-3 flex flex-wrap gap-2 text-xs">
+                      {!hasPublishedLogo(site.brand) && (
+                        <span className="rounded-full border border-line px-2 py-0.5 text-subtle">
+                          Temporary icon · no approved logo yet
+                        </span>
+                      )}
+                      {site.pending_to_status && (
+                        <span className="rounded-full border border-warning/40 bg-warning/10 px-2 py-0.5 text-warning">
+                          Pending: {statusLabel(site.pending_to_status)}
+                        </span>
+                      )}
+                    </p>
                   )}
-                </div>
-                {site.tagline && <p className="mt-4 text-muted">{site.tagline}</p>}
-                <p className="mt-auto pt-5 text-sm text-subtle">
-                  {site.primary_domain ?? "No domain yet"}
-                  {site.pending_to_status && (
-                    <span className="ms-2 rounded-full border border-warning/40 bg-warning/10 px-2 py-0.5 text-xs text-warning">
-                      Pending: {statusLabel(site.pending_to_status)}
-                    </span>
-                  )}
-                </p>
-              </Link>
-            </li>
-          ))}
+
+                  <div className="relative z-10 mt-auto flex flex-wrap gap-2 pt-5">
+                    <Link
+                      href={`/admin/sites/${site.slug}`}
+                      className={buttonClasses("secondary", "md", "px-4")}
+                    >
+                      <Settings2 aria-hidden className="size-4" />
+                      Manage<span className="sr-only"> {site.name}</span>
+                    </Link>
+                    <Link
+                      href={`/admin/sites/${site.slug}/brand`}
+                      className={buttonClasses("ghost", "md", "px-4")}
+                    >
+                      <Palette aria-hidden className="size-4" />
+                      Branding<span className="sr-only"> for {site.name}</span>
+                    </Link>
+                    {target && (
+                      <a
+                        href={target.url}
+                        target="_blank"
+                        rel="noopener"
+                        className={buttonClasses("ghost", "md", "px-4")}
+                      >
+                        <Globe aria-hidden className="size-4" />
+                        Open website<span className="sr-only"> {site.name} (opens in a new tab)</span>
+                        <ArrowUpRight aria-hidden className="size-3.5" />
+                      </a>
+                    )}
+                  </div>
+                </article>
+              </li>
+            );
+          })}
         </ul>
       )}
     </AdminShell>

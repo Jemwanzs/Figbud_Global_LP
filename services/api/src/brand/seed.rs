@@ -10,7 +10,7 @@
 //! Websites that already have a profile are never touched again, so changes
 //! made in the Studio are never overwritten.
 
-use serde_json::json;
+use serde_json::{Value, json};
 use sqlx::PgPool;
 use uuid::Uuid;
 
@@ -43,6 +43,7 @@ enum Slot {
     Stacked,
     Symbol,
     Favicon,
+    AppIcon,
     LibraryOnly,
 }
 
@@ -85,6 +86,20 @@ fn plan(slug: &str) -> (&'static str, Vec<Placed>) {
                     false,
                 ),
                 placed(
+                    seed!("figbud-favicon-official.png", "official"),
+                    "FigBud favicon (official symbol on a dark tile)",
+                    Favicon,
+                    false,
+                    false,
+                ),
+                placed(
+                    seed!("figbud-app-icon-official.png", "official"),
+                    "FigBud app icon (official symbol on a dark tile)",
+                    AppIcon,
+                    false,
+                    false,
+                ),
+                placed(
                     seed!("figbud-horizontal-on-light-proposed.png", "proposed"),
                     "FigBud logo for light backgrounds (proposed recolour)",
                     Horizontal,
@@ -109,6 +124,20 @@ fn plan(slug: &str) -> (&'static str, Vec<Placed>) {
                     Symbol,
                     true,
                     true,
+                ),
+                placed(
+                    seed!("zirahr-favicon-official.png", "official"),
+                    "ZiraHR favicon (official symbol)",
+                    Favicon,
+                    false,
+                    false,
+                ),
+                placed(
+                    seed!("zirahr-app-icon-official.png", "official"),
+                    "ZiraHR app icon (official symbol on a dark tile)",
+                    AppIcon,
+                    false,
+                    false,
                 ),
                 placed(
                     seed!("zirahr-supplied-incomplete.png", "official"),
@@ -203,6 +232,7 @@ fn assign(config: &mut BrandConfig, slot: Slot, id: Uuid, on_dark: bool, on_ligh
         Slot::Stacked => set(&mut config.logos.stacked),
         Slot::Symbol => set(&mut config.logos.symbol),
         Slot::Favicon => config.favicon = Some(id),
+        Slot::AppIcon => config.app_icon = Some(id),
         Slot::LibraryOnly => {}
     }
 }
@@ -296,8 +326,139 @@ pub async fn run(pool: &PgPool) -> Result<(), Box<dyn std::error::Error + Send +
         .bind(site_id)
         .execute(&mut *tx)
         .await?;
+        mark_icons_seeded(&mut tx, site_id, false).await?;
         tx.commit().await?;
         tracing::info!(%slug, has_official, "brand profile seeded");
+    }
+    upgrade_icons(pool).await
+}
+
+async fn mark_icons_seeded(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    site_id: Uuid,
+    published: bool,
+) -> Result<(), sqlx::Error> {
+    sqlx::query(
+        "INSERT INTO audit_log (id, action, target_type, target_id, detail, site_id)
+         VALUES ($1, 'brand.icons_seeded', 'site', $2, $3, $4)",
+    )
+    .bind(Uuid::now_v7())
+    .bind(site_id.to_string())
+    .bind(json!({ "published": published }))
+    .bind(site_id)
+    .execute(&mut **tx)
+    .await?;
+    Ok(())
+}
+
+/// One-time upgrade for profiles seeded before favicons and app icons
+/// existed: adds the official icons where none was ever set and publishes
+/// that as a recorded revision. The audit marker means it never runs twice,
+/// so an icon an admin later removes is not brought back.
+async fn upgrade_icons(pool: &PgPool) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    for slug in ["figbud", "zirahr"] {
+        let pending: Option<Uuid> = sqlx::query_scalar(
+            "SELECT s.id FROM sites s JOIN site_brands b ON b.site_id = s.id
+              WHERE s.slug = $1 AND NOT EXISTS (
+                    SELECT 1 FROM audit_log a WHERE a.site_id = s.id AND a.action = 'brand.icons_seeded')",
+        )
+        .bind(slug)
+        .fetch_optional(pool)
+        .await?;
+        let Some(site_id) = pending else { continue };
+        let (name, files) = plan(slug);
+        let mut icons = Vec::new();
+        for file in files
+            .into_iter()
+            .filter(|f| matches!(f.slot, Slot::Favicon | Slot::AppIcon))
+        {
+            let processed = process(file.seed.bytes, Kind::Png)
+                .map_err(|r| format!("{}: {}", file.seed.file, r.message()))?;
+            let (_, id) = store(
+                pool,
+                site_id,
+                &processed,
+                file.label,
+                name,
+                file.seed.origin,
+                None,
+            )
+            .await
+            .map_err(|e| format!("{}: {e}", file.seed.file))?;
+            icons.push((file.slot, id));
+        }
+        let fill = |config: &mut BrandConfig| {
+            let mut changed = false;
+            for (slot, id) in &icons {
+                let target = match slot {
+                    Slot::Favicon => &mut config.favicon,
+                    _ => &mut config.app_icon,
+                };
+                if target.is_none() {
+                    *target = Some(*id);
+                    changed = true;
+                }
+            }
+            changed
+        };
+
+        let mut tx = pool.begin().await?;
+        let row: (Value, Option<Value>) =
+            sqlx::query_as("SELECT draft, published FROM site_brands WHERE site_id = $1 FOR UPDATE")
+                .bind(site_id)
+                .fetch_one(&mut *tx)
+                .await?;
+        let already: bool = sqlx::query_scalar(
+            "SELECT EXISTS (SELECT 1 FROM audit_log WHERE site_id = $1 AND action = 'brand.icons_seeded')",
+        )
+        .bind(site_id)
+        .fetch_one(&mut *tx)
+        .await?;
+        if already {
+            tx.rollback().await?;
+            continue;
+        }
+        let mut published_changed = false;
+        if let Some(mut published) = row.1.and_then(|v| serde_json::from_value::<BrandConfig>(v).ok())
+            && fill(&mut published)
+        {
+            let value = serde_json::to_value(&published)?;
+            let revision = Uuid::now_v7();
+            sqlx::query(
+                "INSERT INTO brand_revisions (id, site_id, number, config, note, state, decided_at)
+                 VALUES ($1, $2, COALESCE((SELECT max(number) FROM brand_revisions WHERE site_id = $2), 0) + 1,
+                         $3, 'Favicon and app icon from the official symbol', 'published', now())",
+            )
+            .bind(revision)
+            .bind(site_id)
+            .bind(&value)
+            .execute(&mut *tx)
+            .await?;
+            sqlx::query(
+                "UPDATE site_brands SET published = $2, published_revision = $3, published_at = now() WHERE site_id = $1",
+            )
+            .bind(site_id)
+            .bind(&value)
+            .bind(revision)
+            .execute(&mut *tx)
+            .await?;
+            published_changed = true;
+        }
+        if let Ok(mut draft) = serde_json::from_value::<BrandConfig>(row.0)
+            && fill(&mut draft)
+        {
+            sqlx::query(
+                "UPDATE site_brands SET draft = $2, draft_version = draft_version + 1, draft_updated_at = now()
+                  WHERE site_id = $1",
+            )
+            .bind(site_id)
+            .bind(serde_json::to_value(&draft)?)
+            .execute(&mut *tx)
+            .await?;
+        }
+        mark_icons_seeded(&mut tx, site_id, published_changed).await?;
+        tx.commit().await?;
+        tracing::info!(%slug, published_changed, "brand icons added");
     }
     Ok(())
 }

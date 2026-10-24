@@ -37,8 +37,9 @@ test("create a product website, launch it with approval and manage its settings"
   await signInAsOwner(page);
   await page.getByRole("navigation", { name: "Admin" }).getByRole("link", { name: "Websites" }).click();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Websites & products");
-  await expect(page.getByRole("link", { name: /FigBud Global.*Corporate website/ })).toBeVisible();
-  await expect(page.getByRole("link", { name: /Expense Now.*Coming soon/ })).toBeVisible();
+  const card = (name: string | RegExp) => page.getByRole("article", { name });
+  await expect(card("FigBud Global")).toContainText("Corporate website");
+  await expect(card("Expense Now")).toContainText("Coming soon");
 
   // Guided creation: the identifier follows the name, the template follows the category.
   const run = randomBytes(3).toString("hex");
@@ -93,9 +94,9 @@ test("create a product website, launch it with approval and manage its settings"
   await status(page, "Website restored.");
 
   await page.goto("/admin/sites");
-  await expect(
-    page.getByRole("link", { name: new RegExp(`PayFlow ${run}.*Lending & Credit`) }),
-  ).toContainText("Lending, simplified twice.");
+  await expect(page.getByRole("article", { name: `PayFlow ${run}` })).toContainText(
+    "Lending, simplified twice.",
+  );
 });
 
 test("the corporate website is always active and cannot be archived", async ({ page }) => {

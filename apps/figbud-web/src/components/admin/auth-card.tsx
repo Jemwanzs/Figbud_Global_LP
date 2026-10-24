@@ -1,5 +1,6 @@
-import { FigBudWordmark } from "@figbud/ui";
 import type { ReactNode } from "react";
+
+import { FigBudBrand } from "@/components/figbud-brand";
 
 /** Centred card for the sign-in and invite pages. */
 export function AuthCard({ title, lead, children }: { title: string; lead: string; children: ReactNode }) {
@@ -9,7 +10,7 @@ export function AuthCard({ title, lead, children }: { title: string; lead: strin
         <div className="absolute start-1/2 top-0 h-[32rem] w-[48rem] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(closest-side,var(--glow),transparent)]" />
       </div>
       <div className="w-full max-w-md">
-        <FigBudWordmark />
+        <FigBudBrand />
         <div className="fb-panel mt-8 rounded-[var(--radius-panel)] p-7 sm:p-9">
           <h1 className="font-display text-2xl font-semibold tracking-tight text-text">{title}</h1>
           <p className="mt-2 leading-relaxed text-muted">{lead}</p>

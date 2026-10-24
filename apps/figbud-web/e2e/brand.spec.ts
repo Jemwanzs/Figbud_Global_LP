@@ -205,3 +205,71 @@ test.describe("admin branding", () => {
     expect(results.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target).join(" ")}`)).toEqual([]);
   });
 });
+
+test.describe("icons and Studio cards", () => {
+  test("browser icons come from the published brand", async ({ page, request }) => {
+    await page.goto("/en");
+    const icon = page.locator('head link[rel="icon"]').first();
+    await expect(icon).toHaveAttribute("href", /^\/brand\/assets\/[0-9a-f-]{36}/);
+    await expect(page.locator('head link[rel="apple-touch-icon"]').first()).toHaveAttribute(
+      "href",
+      /^\/brand\/assets\/[0-9a-f-]{36}/,
+    );
+    const file = await request.get((await icon.getAttribute("href"))!);
+    expect(file.status()).toBe(200);
+    expect(file.headers()["content-type"]).toBe("image/png");
+    // Built-in fallbacks (same official symbol) for browsers that ask for them directly.
+    expect((await request.get("/favicon.ico")).status()).toBe(200);
+    expect((await request.get("/icon.png")).headers()["content-type"]).toBe("image/png");
+    // The old generated icon is gone.
+    expect((await request.get("/icon.svg")).status()).toBe(404);
+
+    await page.goto("/admin/login");
+    await expect(page.locator('head link[rel="icon"]').first()).toHaveAttribute("href", /^\/brand\/assets\//);
+    await expect(page.getByRole("main").locator('img[src^="/brand/assets/"]').first()).toBeVisible();
+  });
+});
+
+test.describe("Studio website cards", () => {
+  test.beforeEach(({ browserName }) => {
+    test.skip(browserName !== "chromium", "virtual authenticators are a Chromium DevTools feature");
+  });
+
+  test("cards show published logos, destinations and actions", async ({ page }) => {
+    const cdp = await page.context().newCDPSession(page);
+    await cdp.send("WebAuthn.enable");
+    await cdp.send("WebAuthn.addVirtualAuthenticator", {
+      options: {
+        protocol: "ctap2",
+        transport: "internal",
+        hasResidentKey: true,
+        hasUserVerification: true,
+        isUserVerified: true,
+        automaticPresenceSimulation: true,
+      },
+    });
+    await page.goto(`/admin/invite#token=${randomBytes(32).toString("hex")}`);
+    await page.getByLabel("Your name").fill("Olu Owner");
+    await page.getByRole("button", { name: "Create passkey and sign in" }).click();
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Welcome, Olu");
+
+    // The admin header carries the official symbol.
+    await expect(page.getByRole("banner").locator('img[src^="/brand/assets/"]')).toBeVisible();
+
+    await page.goto("/admin/sites");
+    const card = (name: string) => page.getByRole("article", { name });
+    await expect(card("ZiraHR").getByRole("img", { name: "ZiraHR logo" })).toBeVisible();
+    await expect(card("Jasiri LMS").getByRole("img", { name: "Jasiri LMS logo" })).toBeVisible();
+    await expect(card("FigBud Global").getByRole("img", { name: "FigBud Global logo" })).toBeVisible();
+    await expect(card("Expense Now")).toContainText("Temporary icon · no approved logo yet");
+
+    await expect(card("ZiraHR")).toContainText("No custom domain");
+    await expect(card("ZiraHR")).toContainText("No website destination yet");
+    await expect(card("FigBud Global").getByRole("link", { name: /Open website/ })).toHaveAttribute(
+      "target",
+      "_blank",
+    );
+    await card("Jasiri LMS").getByRole("link", { name: "Branding for Jasiri LMS" }).click();
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Jasiri LMS branding");
+  });
+});

@@ -275,7 +275,7 @@ const publicSites = () =>
         Object.entries(s).filter(([k]) => !["requests", "archived_at", "version"].includes(k)),
       ),
       cta: SITE_CTA[s.status],
-      brand: brands.get(s.slug)?.published ? resolveBrand(brands.get(s.slug).published) : null,
+      brand: publishedBrand(s.slug),
     }));
 const RANKS = { viewer: 0, editor: 1, reviewer: 2, owner: 3 };
 
@@ -303,7 +303,8 @@ function siteRoutes(path, req, body, user, send) {
     return errors;
   };
 
-  if (path === "sites" && req.method === "GET") return send(200, sites.map(siteRow));
+  const withBrand = (s) => ({ ...siteRow(s), brand: publishedBrand(s.slug) });
+  if (path === "sites" && req.method === "GET") return send(200, sites.map(withBrand));
   if (path === "sites" && req.method === "POST") {
     if (user.role !== "owner") return forbidden();
     const errors = fieldsOf(body, true);
@@ -347,7 +348,7 @@ function siteRoutes(path, req, body, user, send) {
   if (!site) return notFound();
   const [, , action, requestId, decision] = m;
   if (!action && req.method === "GET") {
-    return send(200, { site: siteRow(site), status_requests: site.requests.slice().reverse() });
+    return send(200, { site: withBrand(site), status_requests: site.requests.slice().reverse() });
   }
   const touch = () =>
     Object.assign(site, { version: site.version + 1, updated_at: new Date().toISOString() });
@@ -517,6 +518,20 @@ const BRAND_SEED = {
         ["on_dark"],
       ],
       [
+        "figbud-favicon-official.png",
+        "official",
+        "FigBud favicon (official symbol on a dark tile)",
+        "favicon",
+        [],
+      ],
+      [
+        "figbud-app-icon-official.png",
+        "official",
+        "FigBud app icon (official symbol on a dark tile)",
+        "app_icon",
+        [],
+      ],
+      [
         "figbud-horizontal-on-light-proposed.png",
         "proposed",
         "FigBud logo for light backgrounds (proposed recolour)",
@@ -541,6 +556,14 @@ const BRAND_SEED = {
         "ZiraHR symbol (official)",
         "symbol",
         ["on_dark", "on_light"],
+      ],
+      ["zirahr-favicon-official.png", "official", "ZiraHR favicon (official symbol)", "favicon", []],
+      [
+        "zirahr-app-icon-official.png",
+        "official",
+        "ZiraHR app icon (official symbol on a dark tile)",
+        "app_icon",
+        [],
       ],
       [
         "zirahr-supplied-incomplete.png",
@@ -600,7 +623,7 @@ const BRAND_SEED = {
 };
 
 function assign(config, slot, themes, id) {
-  if (slot === "favicon") config.favicon = id;
+  if (slot === "favicon" || slot === "app_icon") config[slot] = id;
   else if (slot) for (const theme of themes) config.logos[slot][theme] = id;
 }
 
@@ -772,6 +795,11 @@ function serveAsset(res, asset) {
     "content-security-policy": "default-src 'none'; style-src 'unsafe-inline'; sandbox",
   });
   res.end(asset.data);
+}
+
+function publishedBrand(slug) {
+  const published = brands.get(slug)?.published;
+  return published ? resolveBrand(published) : null;
 }
 
 function brandRoutes(path, req, res, url, body, raw, user, send) {

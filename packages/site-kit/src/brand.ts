@@ -59,3 +59,18 @@ export function brandImageSources(
   const two = pick(cssWidth * 2);
   return { src: one, srcSet: one === two ? undefined : `${one} 1x, ${two} 2x` };
 }
+
+/**
+ * Browser icons for a website: its published favicon and app icon, else the
+ * built-in files in the app's `public/` (`icon.png`, `apple-icon.png`,
+ * `favicon.ico`), which are made from the same official symbols. Published
+ * files have unique, immutable URLs, so a new icon is never hidden by caches.
+ */
+export function brandIcons(brand?: BrandProfile | null) {
+  const file = (asset: BrandAsset) => ({ url: `${BRAND_ASSET_PATH}${asset.id}`, type: asset.content_type });
+  return {
+    icon: brand?.favicon ? [file(brand.favicon)] : [{ url: "/icon.png", type: "image/png" }],
+    apple: brand?.app_icon ? [file(brand.app_icon)] : [{ url: "/apple-icon.png", type: "image/png" }],
+    shortcut: [{ url: "/favicon.ico" }],
+  };
+}

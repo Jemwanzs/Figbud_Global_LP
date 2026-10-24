@@ -81,3 +81,21 @@ test.describe("ZiraHR website", () => {
     }
   });
 });
+
+test("uses the official ZiraHR icons (built-in fallback when no brand is published)", async ({
+  page,
+  request,
+}) => {
+  await page.goto("/en");
+  await expect(page.locator('head link[rel="icon"]').first()).toHaveAttribute(
+    "href",
+    /^\/icon\.png|^\/brand\/assets\//,
+  );
+  await expect(page.locator('head link[rel="apple-touch-icon"]').first()).toHaveAttribute(
+    "href",
+    /apple-icon\.png|brand\/assets/,
+  );
+  expect((await request.get("/favicon.ico")).status()).toBe(200);
+  expect((await request.get("/icon.png")).headers()["content-type"]).toBe("image/png");
+  expect((await request.get("/icon.svg")).status()).toBe(404);
+});

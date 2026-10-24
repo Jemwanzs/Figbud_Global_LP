@@ -22,6 +22,15 @@ const productOrigins: Record<ProductSlug, string | undefined> = {
   expense_now: process.env.NEXT_PUBLIC_EXPENSE_NOW_URL,
 };
 
+/**
+ * Where a website is served today (its Railway or custom URL), if anywhere:
+ * the corporate site's own origin, or a product site's configured origin.
+ */
+export function websiteOrigin(slug: string): string | undefined {
+  if (slug === "figbud") return siteOrigin;
+  return (productOrigins as Record<string, string | undefined>)[slug]?.replace(/\/$/, "");
+}
+
 export interface ProductLink {
   href: string;
   /** External product websites open in a new tab. */

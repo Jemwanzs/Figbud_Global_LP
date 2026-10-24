@@ -172,7 +172,18 @@ async fn list(
     ))
     .fetch_all(&state.pool)
     .await?;
-    Ok(Json(rows))
+    // Each website with its published brand (logos for the Studio cards); drafts never show here.
+    let mut brands = crate::brand::published_by_slug(&state.pool).await?;
+    let sites: Vec<Value> = rows
+        .into_iter()
+        .map(|site| {
+            let brand = brands.remove(&site.slug).unwrap_or(Value::Null);
+            let mut value = serde_json::to_value(site).unwrap_or(Value::Null);
+            value["brand"] = brand;
+            value
+        })
+        .collect();
+    Ok(Json(sites))
 }
 
 async fn load(pool: &PgPool, slug: &str) -> Result<AdminSite, ApiError> {
@@ -217,6 +228,12 @@ async fn read(
     .bind(site.id)
     .fetch_all(&state.pool)
     .await?;
+    let brand = crate::brand::published_by_slug(&state.pool)
+        .await?
+        .remove(&site.slug)
+        .unwrap_or(Value::Null);
+    let mut site = serde_json::to_value(site).unwrap_or(Value::Null);
+    site["brand"] = brand;
     Ok(Json(json!({ "site": site, "status_requests": requests })))
 }
 

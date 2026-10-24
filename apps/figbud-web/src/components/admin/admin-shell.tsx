@@ -1,7 +1,8 @@
-import { FigBudWordmark, cn } from "@figbud/ui";
+import { cn } from "@figbud/ui";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
+import { FigBudBrand } from "@/components/figbud-brand";
 import { type AdminUser, ROLE_LABELS } from "@/lib/admin-client";
 
 import { AuthCard } from "./auth-card";
@@ -29,18 +30,18 @@ export function AdminShell({
       <header className="border-b border-line">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-6 gap-y-3 px-5 py-3 sm:px-8">
           <Link href="/admin" className="flex items-center gap-3 rounded-lg">
-            <FigBudWordmark />
+            <FigBudBrand />
             <span className="rounded-full border border-line px-2.5 py-0.5 text-xs text-subtle">Admin</span>
           </Link>
           <nav aria-label="Admin" className="order-last w-full sm:order-none sm:w-auto">
-            <ul className="flex gap-1">
+            <ul className="-mx-2 flex [scrollbar-width:none] gap-1 overflow-x-auto px-2">
               {NAV.map((item) => (
                 <li key={item.href}>
                   <Link
                     href={item.href}
                     aria-current={item.href === active ? "page" : undefined}
                     className={cn(
-                      "inline-flex min-h-11 items-center rounded-full px-4 text-sm transition-colors",
+                      "inline-flex min-h-11 items-center rounded-full px-3 text-sm whitespace-nowrap transition-colors sm:px-4",
                       item.href === active ? "bg-surface-2 text-text" : "text-muted hover:text-text",
                     )}
                   >
