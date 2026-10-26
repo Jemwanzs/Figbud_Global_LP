@@ -11,7 +11,7 @@
   },
   "peerDependencies": {
     "lucide-react": "^1",
-    "motion": "^14",
+    "motion": "^14.6.0",
     "react": "^19"
   },
   "devDependencies": {
