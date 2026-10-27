@@ -485,3 +485,210 @@ async fn pages_of_unlisted_websites_are_never_public() {
     let (status, _) = s.call("GET", &format!("/v1/sites/{slug}/page"), None, None).await;
     assert_eq!(status, StatusCode::NOT_FOUND, "the website is still a draft");
 }
+
+#[tokio::test]
+async fn category_templates_and_scheduled_publishing() {
+    let Some(s) = Studio::new().await else {
+        eprintln!("skipping: TEST_DATABASE_URL not set");
+        return;
+    };
+    let (owner, editor, reviewer) = (
+        s.admin("owner").await,
+        s.admin("editor").await,
+        s.admin("reviewer").await,
+    );
+    let slug = s.listed_site(&owner).await;
+    let pages = format!("/v1/admin/sites/{slug}/pages");
+    let save = |document: Value, version: Value| json!({ "title": "Home", "path": "", "document": document, "version": version });
+
+    // A lending website is offered the lending set first, never another category's.
+    let (_, list) = s.call("GET", &pages, Some(&editor), None).await;
+    let offered: Vec<&str> = list["templates"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|t| t["id"].as_str().unwrap())
+        .collect();
+    assert_eq!(offered[0], "lending_home", "{offered:?}");
+    assert!(offered.contains(&"borrower_journey") && !offered.contains(&"hr_home"));
+    assert_eq!(list["templates"][0]["path"], "");
+    let (status, _) = s
+        .call(
+            "POST",
+            &pages,
+            Some(&editor),
+            Some(json!({ "title": "Home", "path": "", "template": "hr_home" })),
+        )
+        .await;
+    assert_eq!(
+        status,
+        StatusCode::UNPROCESSABLE_ENTITY,
+        "templates stay with their category"
+    );
+
+    // The lending home page; its calls to action suit a coming-soon website.
+    let (status, created) = s
+        .call(
+            "POST",
+            &pages,
+            Some(&editor),
+            Some(json!({ "title": "Home", "path": "", "template": "lending_home" })),
+        )
+        .await;
+    assert_eq!(status, StatusCode::CREATED);
+    let id = created["id"].as_str().unwrap().to_owned();
+    let (_, detail) = s
+        .call("GET", &format!("/v1/admin/pages/{id}"), Some(&editor), None)
+        .await;
+    let hero = &detail["page"]["draft"]["sections"][0];
+    assert_eq!(
+        hero["primary"],
+        json!({ "label": "Join the waitlist", "href": "/enquire" })
+    );
+
+    // Scheduling: the time must be in the future and within a year.
+    let submit = format!("/v1/admin/pages/{id}/submit");
+    for at in [
+        chrono::Utc::now() - chrono::Duration::hours(1),
+        chrono::Utc::now() + chrono::Duration::days(400),
+    ] {
+        let (status, body) = s
+            .call(
+                "POST",
+                &submit,
+                Some(&editor),
+                Some(json!({ "note": "Launch", "publish_at": at })),
+            )
+            .await;
+        assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY, "{body}");
+        assert_eq!(body["error"]["fields"][0]["field"], "publish_at", "{body}");
+    }
+    let at = chrono::Utc::now() + chrono::Duration::hours(2);
+    let (status, created) = s
+        .call(
+            "POST",
+            &submit,
+            Some(&editor),
+            Some(json!({ "note": "Launch", "publish_at": at })),
+        )
+        .await;
+    assert_eq!(status, StatusCode::CREATED);
+    let revision = created["id"].as_str().unwrap().to_owned();
+
+    // Approval schedules it; nothing goes live yet, and nothing else can be submitted.
+    let (status, approved) = s
+        .call(
+            "POST",
+            &format!("/v1/admin/pages/{id}/revisions/{revision}/approve"),
+            Some(&reviewer),
+            None,
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(approved["state"], "scheduled");
+    let (status, _) = s.call("GET", &format!("/v1/sites/{slug}/page"), None, None).await;
+    assert_eq!(
+        status,
+        StatusCode::NOT_FOUND,
+        "scheduled changes wait for their time"
+    );
+    let (status, _) = s
+        .call("POST", &submit, Some(&editor), Some(json!({ "note": "Another" })))
+        .await;
+    assert_eq!(status, StatusCode::CONFLICT, "one change in flight per page");
+    let (_, list) = s.call("GET", &pages, Some(&editor), None).await;
+    assert!(list["pages"][0]["scheduled_at"].is_string(), "{list}");
+
+    // Not due yet: the scheduler leaves it alone. Once due, it publishes it.
+    figbud_api::pages::publish_due(&s.pool).await.unwrap();
+    let (status, _) = s.call("GET", &format!("/v1/sites/{slug}/page"), None, None).await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+    sqlx::query("UPDATE page_revisions SET publish_at = now() - interval '1 second' WHERE id = $1")
+        .bind(Uuid::parse_str(&revision).unwrap())
+        .execute(&s.pool)
+        .await
+        .unwrap();
+    assert!(figbud_api::pages::publish_due(&s.pool).await.unwrap() >= 1);
+    let (status, public) = s.call("GET", &format!("/v1/sites/{slug}/page"), None, None).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(public["sections"][0]["primary"]["href"], "/enquire");
+    let (actor, detail): (Option<Uuid>, Value) = sqlx::query_as(
+        "SELECT actor_user_id, detail FROM audit_log WHERE action = 'page.published' AND target_id = $1",
+    )
+    .bind(&id)
+    .fetch_one(&s.pool)
+    .await
+    .unwrap();
+    assert!(actor.is_none() && detail["scheduled_for"].is_string(), "{detail}");
+
+    // A schedule can be called off by a reviewer, not by another editor;
+    // archiving the page cancels any schedule.
+    let (_, detail) = s
+        .call("GET", &format!("/v1/admin/pages/{id}"), Some(&editor), None)
+        .await;
+    let mut changed = detail["page"]["draft"].clone();
+    changed["sections"][0]["heading"] = json!("A later headline");
+    let (status, _) = s
+        .call(
+            "POST",
+            &format!("/v1/admin/pages/{id}/draft"),
+            Some(&editor),
+            Some(save(changed, detail["page"]["draft_version"].clone())),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK);
+    let (_, created) = s
+        .call(
+            "POST",
+            &submit,
+            Some(&reviewer),
+            Some(json!({ "note": "Later", "publish_at": at })),
+        )
+        .await;
+    let later = created["id"].as_str().unwrap().to_owned();
+    s.call(
+        "POST",
+        &format!("/v1/admin/pages/{id}/revisions/{later}/approve"),
+        Some(&owner),
+        None,
+    )
+    .await;
+    let cancel = format!("/v1/admin/pages/{id}/revisions/{later}/cancel");
+    let (status, _) = s.call("POST", &cancel, Some(&editor), None).await;
+    assert_eq!(status, StatusCode::FORBIDDEN);
+    let (status, body) = s.call("POST", &cancel, Some(&reviewer), None).await;
+    assert_eq!(
+        (status, body["state"].as_str()),
+        (StatusCode::OK, Some("cancelled"))
+    );
+
+    let (_, created) = s
+        .call(
+            "POST",
+            &submit,
+            Some(&editor),
+            Some(json!({ "note": "Later again", "publish_at": at })),
+        )
+        .await;
+    let again = created["id"].as_str().unwrap().to_owned();
+    s.call(
+        "POST",
+        &format!("/v1/admin/pages/{id}/revisions/{again}/approve"),
+        Some(&reviewer),
+        None,
+    )
+    .await;
+    s.call(
+        "POST",
+        &format!("/v1/admin/pages/{id}/archive"),
+        Some(&reviewer),
+        None,
+    )
+    .await;
+    let state: String = sqlx::query_scalar("SELECT state FROM page_revisions WHERE id = $1")
+        .bind(Uuid::parse_str(&again).unwrap())
+        .fetch_one(&s.pool)
+        .await
+        .unwrap();
+    assert_eq!(state, "cancelled", "archiving cancels the schedule");
+}

@@ -5,6 +5,7 @@ import { buttonClasses, cn } from "@figbud/ui";
 import {
   ArrowDown,
   ArrowUp,
+  CalendarClock,
   ChevronDown,
   CircleAlert,
   CircleCheck,
@@ -27,6 +28,7 @@ import { type AdminUser, AdminError, adminFetch, hasRole } from "@/lib/admin-cli
 import { sameValue, useSavedBaseline, useUnsavedChangesWarning } from "@/lib/form-state";
 
 import { ActionButton } from "./action-button";
+import { LocalTime, fromLocalInput, localInputFromNow } from "./local-time";
 import {
   BLOCKS,
   type BlockType,
@@ -43,11 +45,22 @@ type SaveState = "saved" | "unsaved" | "saving" | "invalid" | "conflict" | "erro
 const when = (iso: string) => `${new Date(iso).toUTCString().slice(5, 22)} UTC`;
 const STATE_LABELS = {
   pending: "Awaiting approval",
+  scheduled: "Scheduled",
   published: "Published",
   rejected: "Rejected",
   cancelled: "Cancelled",
 };
 const KNOWN = ["figbud", "zirahr", "jasiri", "expense_now", "ziwa"];
+
+/** Why a requested go-live time can't be used, or null (mirrors the API's rule). */
+function scheduleProblem(iso: string | null): string | null {
+  if (!iso) return "Choose when it goes live";
+  const at = new Date(iso).getTime();
+  if (at <= Date.now() + 60_000) return "Choose a time at least a minute from now";
+  if (at > Date.now() + 366 * 864e5) return "Choose a time within the next year";
+  return null;
+}
+const isPast = (iso: string) => new Date(iso).getTime() <= Date.now();
 const inputClass =
   "mt-1.5 min-h-11 w-full rounded-xl border border-line-strong bg-surface px-3 text-sm text-text disabled:opacity-60";
 
@@ -514,6 +527,8 @@ export function PageEditor({ slug, user, initial }: { slug: string; user: AdminU
   const [dragging, setDragging] = useState<number | null>(null);
   const [device, setDevice] = useState<"desktop" | "mobile">("desktop");
   const [note, setNote] = useState("");
+  const [timing, setTiming] = useState<"approval" | "scheduled">("approval");
+  const [publishAt, setPublishAt] = useState("");
   const [decisionNote, setDecisionNote] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
@@ -624,6 +639,8 @@ export function PageEditor({ slug, user, initial }: { slug: string; user: AdminU
       setMessage({ tone: "ok", text: success });
       setNote("");
       setDecisionNote("");
+      setTiming("approval");
+      setPublishAt("");
       if (after) after();
       else await reload(resetDraft);
     } catch (err) {
@@ -661,6 +678,11 @@ export function PageEditor({ slug, user, initial }: { slug: string; user: AdminU
   const ownPending = pending?.requested_by_id === user.id;
   const canDecide = pending && hasRole(user, "reviewer") && (!ownPending || user.role === "owner");
   const canCancel = pending && (ownPending || user.role === "owner");
+  const scheduled = data.revisions.find((r) => r.state === "scheduled");
+  const canUnschedule = scheduled && (scheduled.requested_by_id === user.id || hasRole(user, "reviewer"));
+  // A pending change asked to go live later is scheduled on approval.
+  const pendingLater = pending?.publish_at && !isPast(pending.publish_at) ? pending.publish_at : null;
+  const publishAtIso = timing === "scheduled" ? fromLocalInput(publishAt) : null;
   const pathValid = PATH_PATTERN.test(draft.path.trim().replace(/^\/+|\/+$/g, ""));
   const submitBlocker =
     save === "unsaved" || save === "saving"
@@ -675,7 +697,9 @@ export function PageEditor({ slug, user, initial }: { slug: string; user: AdminU
               ? "The draft matches the published page"
               : !note.trim()
                 ? "Say what changed"
-                : null;
+                : timing === "scheduled"
+                  ? scheduleProblem(publishAtIso)
+                  : null;
 
   const saveText: Record<SaveState, string> = {
     saved: "Draft saved",
@@ -1017,6 +1041,23 @@ export function PageEditor({ slug, user, initial }: { slug: string; user: AdminU
                 <p className="mt-1 text-xs text-subtle">
                   Submitted by {pending.requested_by ?? "a former admin"} · {when(pending.created_at)}
                 </p>
+                {pending.publish_at && (
+                  <p className="mt-2 flex items-start gap-2 text-sm text-text">
+                    <CalendarClock aria-hidden className="mt-0.5 size-4 shrink-0 text-accent" />
+                    <span>
+                      {pendingLater ? (
+                        <>
+                          Goes live <LocalTime iso={pendingLater} /> once approved.
+                        </>
+                      ) : (
+                        <>
+                          The requested time (<LocalTime iso={pending.publish_at} />) has passed: approving
+                          publishes it now.
+                        </>
+                      )}
+                    </span>
+                  </p>
+                )}
                 {canDecide && (
                   <TextField
                     label="Note (optional)"
@@ -1036,11 +1077,17 @@ export function PageEditor({ slug, user, initial }: { slug: string; user: AdminU
                             "approve",
                             `pages/${pageId}/revisions/${pending.id}/approve`,
                             { note: decisionNote || null },
-                            "Page published.",
+                            pendingLater ? "Approved and scheduled." : "Page published.",
                           )
                         }
                       >
-                        {ownPending ? "Publish my change" : "Approve and publish"}
+                        {pendingLater
+                          ? ownPending
+                            ? "Schedule my change"
+                            : "Approve and schedule"
+                          : ownPending
+                            ? "Publish my change"
+                            : "Approve and publish"}
                       </ActionButton>
                       <ActionButton
                         variant="secondary"
@@ -1083,16 +1130,114 @@ export function PageEditor({ slug, user, initial }: { slug: string; user: AdminU
                   </p>
                 )}
               </div>
+            ) : scheduled ? (
+              <div className="mt-4 rounded-xl border border-accent/40 bg-accent-soft/50 p-4">
+                <p className="flex items-start gap-2 text-sm font-medium text-text">
+                  <CalendarClock aria-hidden className="mt-0.5 size-4 shrink-0 text-accent" />
+                  <span>
+                    Version {scheduled.number} goes live <LocalTime iso={scheduled.publish_at!} />
+                  </span>
+                </p>
+                <p className="mt-1 text-sm text-muted">{scheduled.note}</p>
+                <p className="mt-1 text-xs text-subtle">
+                  Approved by {scheduled.decided_by ?? "a former admin"}
+                  {scheduled.decided_at && (
+                    <>
+                      {" · "}
+                      <LocalTime iso={scheduled.decided_at} />
+                    </>
+                  )}
+                  . The current version stays live until then; draft edits made now are not part of it.
+                </p>
+                {canUnschedule && (
+                  <div className="mt-4">
+                    <ActionButton
+                      variant="secondary"
+                      ready={!busy}
+                      busy={busy === "unschedule"}
+                      onClick={() =>
+                        run(
+                          "unschedule",
+                          `pages/${pageId}/revisions/${scheduled.id}/cancel`,
+                          {},
+                          "Schedule cancelled. Submit again when you're ready.",
+                        )
+                      }
+                    >
+                      Cancel schedule
+                    </ActionButton>
+                  </div>
+                )}
+              </div>
             ) : canEdit ? (
               <form
-                className="mt-4 space-y-3"
+                className="mt-4 space-y-4"
                 onSubmit={(e) => {
                   e.preventDefault();
                   if (submitBlocker === null && !busy)
-                    run("submit", `pages/${pageId}/submit`, { note }, "Sent for approval.");
+                    run(
+                      "submit",
+                      `pages/${pageId}/submit`,
+                      { note, publish_at: publishAtIso },
+                      publishAtIso
+                        ? "Sent for approval, to go live at the time you chose."
+                        : "Sent for approval.",
+                    );
                 }}
               >
                 <TextField label="What changed?" value={note} max={300} multiline onChange={setNote} />
+                <fieldset>
+                  <legend className="text-xs font-medium text-muted">When should it go live?</legend>
+                  <div className="mt-1.5 grid gap-2 sm:grid-cols-2">
+                    {(
+                      [
+                        ["approval", "When approved"],
+                        ["scheduled", "At a set time"],
+                      ] as const
+                    ).map(([value, label]) => (
+                      <label
+                        key={value}
+                        className={cn(
+                          "flex min-h-11 cursor-pointer items-center gap-2.5 rounded-xl border px-3 text-sm transition-colors has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-accent",
+                          timing === value
+                            ? "border-accent bg-accent-soft/60 text-text"
+                            : "border-line text-muted hover:border-line-strong",
+                        )}
+                      >
+                        <input
+                          type="radio"
+                          name={`${uid}-timing`}
+                          value={value}
+                          checked={timing === value}
+                          onChange={() => {
+                            setTiming(value);
+                            if (value === "scheduled" && !publishAt) setPublishAt(localInputFromNow(60));
+                          }}
+                          className="size-4 accent-[var(--color-accent)]"
+                        />
+                        {label}
+                      </label>
+                    ))}
+                  </div>
+                  {timing === "scheduled" && (
+                    <div className="mt-3">
+                      <label htmlFor={`${uid}-publish-at`} className="block text-xs font-medium text-muted">
+                        Go-live time <span className="font-normal">(your time zone)</span>
+                      </label>
+                      <input
+                        id={`${uid}-publish-at`}
+                        type="datetime-local"
+                        value={publishAt}
+                        onChange={(e) => setPublishAt(e.target.value)}
+                        className={inputClass}
+                      />
+                      <p className="mt-1.5 text-xs text-subtle">
+                        It still needs approval. Once approved it waits, and the current version stays live
+                        until then.
+                      </p>
+                    </div>
+                  )}
+                </fieldset>
                 <div className="flex flex-wrap items-center gap-2">
                   <ActionButton
                     type="submit"
@@ -1167,6 +1312,12 @@ export function PageEditor({ slug, user, initial }: { slug: string; user: AdminU
                   <li key={r.id}>
                     <p className="text-text">
                       Version {r.number} · {STATE_LABELS[r.state]}
+                      {r.state === "scheduled" && r.publish_at && (
+                        <>
+                          {" "}
+                          for <LocalTime iso={r.publish_at} />
+                        </>
+                      )}
                       {r.id === data.page.published_revision && (
                         <span className="ms-2 rounded-full border border-success/30 px-2 py-0.5 text-xs text-success">
                           Live

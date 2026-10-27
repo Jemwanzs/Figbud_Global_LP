@@ -34,7 +34,11 @@ async function signInAsOwner(page: Page) {
 async function newSite(page: Page) {
   const run = randomBytes(3).toString("hex");
   await page.goto("/admin/sites/new");
-  await page.getByLabel("Website name").fill(`Pageful ${run}`);
+  // Typing before hydration finishes would skip the identifier suggestion; retry until it appears.
+  await expect(async () => {
+    await page.getByLabel("Website name").fill(`Pageful ${run}`);
+    await expect(page.getByLabel("Identifier")).not.toHaveValue("", { timeout: 1_000 });
+  }).toPass();
   await page.getByRole("button", { name: "Create draft website" }).click();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(`Pageful ${run}`);
   return run;
@@ -50,11 +54,19 @@ test("build a page from a template, publish it, and manage pages", async ({ page
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(`Pageful ${run} pages`);
   await expect(page.getByText("No pages yet. Start with a home page.")).toBeVisible();
 
-  // Create from a template; the address follows the title.
+  // The website's category set comes first, with a suggested title and address.
   const create = page.getByRole("button", { name: "Create page" });
+  await expect(page.getByText("For HR & Workforce websites")).toBeVisible();
+  await expect(page.getByRole("radio", { name: /HR home page/ })).toBeChecked();
+  await expect(page.getByLabel("Page title")).toHaveValue("Home");
+  await page.getByRole("radio", { name: /Integrations/ }).check();
+  await expect(page.getByLabel("Page title")).toHaveValue("Integrations");
+  await expect(page.getByLabel("Address")).toHaveValue("integrations");
+
+  // Create from a template; the address follows the title.
+  await page.getByRole("radio", { name: /^Home page/ }).check();
   await page.getByLabel("Page title").fill("Platform");
   await expect(page.getByLabel("Address")).toHaveValue("platform");
-  await page.getByLabel("Start from").selectOption("home");
   await create.click();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Platform");
   const sections = page.getByRole("list", { name: "Sections" });
@@ -139,12 +151,67 @@ test("build a page from a template, publish it, and manage pages", async ({ page
   await expect(page.getByRole("region", { name: "Archived" })).toContainText("Platform (copy)");
   await page.getByRole("button", { name: "Restore Platform (copy)" }).click();
   await expect(page.getByRole("status").filter({ hasText: "Page restored." })).toBeVisible();
+
+  // An address already in use is caught before creating.
+  await page.getByRole("radio", { name: /^Blank page/ }).check();
+  await page.getByRole("textbox", { name: "Page title" }).fill("Platform");
+  await expect(page.getByText("/platform is already used by “Platform”")).toBeVisible();
+  await expect(create).toBeDisabled();
+});
+
+test("schedule a change, approve it for later, and call it off", async ({ page }) => {
+  await signInAsOwner(page);
+  await newSite(page);
+  await page.getByRole("link", { name: "Pages" }).click();
+  await page.getByRole("button", { name: "Create page" }).click();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Home");
+
+  // Choosing "At a set time" suggests an hour from now; past times are refused.
+  const publishing = page.getByRole("region", { name: "Publishing" });
+  await publishing.getByLabel("What changed?").fill("Launch copy");
+  await publishing.getByRole("radio", { name: "At a set time" }).check();
+  const goLive = publishing.getByLabel(/Go-live time/);
+  await expect(goLive).not.toHaveValue("");
+  await goLive.fill("2020-01-01T09:00");
+  await expect(publishing.getByText("Choose a time at least a minute from now")).toBeVisible();
+  await expect(publishing.getByRole("button", { name: "Submit for publishing" })).toBeDisabled();
+  await goLive.fill(`${new Date().getFullYear() + 1}-01-15T09:00`);
+  await publishing.getByRole("button", { name: "Submit for publishing" }).click();
+
+  // Approval schedules it; the current version stays as it is until then.
+  await expect(publishing).toContainText("Version 1 is awaiting approval");
+  await expect(publishing).toContainText("once approved");
+  await publishing.getByRole("button", { name: "Schedule my change" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Approved and scheduled." })).toBeVisible();
+  await expect(publishing).toContainText("Version 1 goes live");
+  await expect(page.getByRole("region", { name: "Version history" })).toContainText(
+    "Version 1 · Scheduled for",
+  );
+  const results = await new AxeBuilder({ page })
+    .include(`section[aria-labelledby$="-publish"]`)
+    .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa", "best-practice"])
+    .analyze();
+  expect(results.violations.map((v) => v.id)).toEqual([]);
+
+  // The pages list shows it; then it is called off.
+  await page.goto(page.url().replace(/\/pages\/[0-9a-f-]+$/, "/pages"));
+  await expect(page.getByRole("list", { name: "Pages" })).toContainText("Scheduled ·");
+  await page.getByRole("list", { name: "Pages" }).getByRole("link", { name: "Edit Home" }).click();
+  await publishing.getByRole("button", { name: "Cancel schedule" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Schedule cancelled." })).toBeVisible();
+  await expect(publishing.getByRole("button", { name: "Submit for publishing" })).toBeVisible();
 });
 
 test("the page editor is accessible", async ({ page }) => {
   await signInAsOwner(page);
   await newSite(page);
   await page.getByRole("link", { name: "Pages" }).click();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(/ pages$/);
+  // The new-page form, template gallery included, passes the same checks.
+  const list = await new AxeBuilder({ page })
+    .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa", "best-practice"])
+    .analyze();
+  expect(list.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target).join(" ")}`)).toEqual([]);
   await page.getByLabel("Page title").fill("Home");
   await page.getByLabel("Address").fill("");
   await page.getByRole("button", { name: "Create page" }).click();

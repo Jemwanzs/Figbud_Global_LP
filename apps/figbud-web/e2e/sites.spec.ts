@@ -47,7 +47,11 @@ test("create a product website, launch it with approval and manage its settings"
   // Create stays disabled, and says why, until the required fields are filled.
   await expect(page.getByRole("button", { name: "Create draft website" })).toBeDisabled();
   await expect(page.getByText("Enter a name and a valid identifier")).toBeVisible();
-  await page.getByLabel("Website name").fill(`PayFlow ${run}`);
+  // Retry until hydrated, so the identifier suggestion follows the name.
+  await expect(async () => {
+    await page.getByLabel("Website name").fill(`PayFlow ${run}`);
+    await expect(page.getByLabel("Identifier")).not.toHaveValue("", { timeout: 1_000 });
+  }).toPass();
   await expect(page.getByLabel("Identifier")).toHaveValue(`payflow_${run}`);
   await page.getByRole("radio", { name: "Lending & Credit" }).click();
   await expect(page.getByLabel("Starting template")).toHaveValue("lending");

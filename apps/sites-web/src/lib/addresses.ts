@@ -61,7 +61,8 @@ export function enquiryHref(site: Pick<ListedSite, "slug" | "cta">) {
 
 /**
  * Block links on this website: published pages get the right prefix;
- * `/contact` without a contact page goes to the corporate enquiry form;
+ * `/enquire` (the templates' calls to action) always goes to the corporate
+ * enquiry form, and so does `/contact` when there is no contact page;
  * https links stay as they are.
  */
 export function hrefResolver(
@@ -76,7 +77,7 @@ export function hrefResolver(
     const cut = href.search(/[?#]/);
     const rest = cut === -1 ? "" : href.slice(cut);
     const path = (cut === -1 ? href : href.slice(0, cut)).replace(/^\/+|\/+$/g, "");
-    if (path === "contact" && !published.has("contact")) return enquiryHref(site);
+    if (path === "enquire" || (path === "contact" && !published.has("contact"))) return enquiryHref(site);
     return `${pageHref(site.slug, ownDomain, path)}${rest}`;
   };
 }

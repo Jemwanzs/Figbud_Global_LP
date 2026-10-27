@@ -43,8 +43,22 @@ All tables use UUID keys, foreign keys, check constraints and indexes for their 
 **Pages (Phase C, delivered 25 Oct 2026).** `pages` (one row per page and website: address, title, order, working draft, published document, archive flag) and `page_revisions` (submissions and version history). A page document is a list of sections, each a typed block from the approved library:
 - **Blocks:** hero, text (Markdown), feature grid, steps, figures, questions and call to action.
 - **Validation (`services/api/src/pages/blocks.rs`):** the API validates every block. It refuses unknown block types and fields, and allows only site paths or https links. Figures need a stated source, so unverified numbers aren't published. Markdown goes through the article sanitiser.
-- **Templates:** blank, home, platform overview, features, and contact. They fill in the website's name and tagline, and mark placeholder text for replacement.
+- **Templates (`services/api/src/pages/templates.rs`, 28 Oct 2026):**
+  - **Every website:** blank, home, platform overview, features, integrations, resources, and contact.
+  - **Lending & Credit (the shared lending template, P4-L1):** lending home (the loan lifecycle), lending solutions, and the borrower journey (apply, assess, approve, disburse, repay). Jasiri LMS and Ziwa LMS use the same set, each with its own brand, copy and publishing.
+  - **HR & Workforce:** HR home, modules, employee journey.
+  - **Finance & Payments:** finance home, spend journey.
+  - A website is offered its category's set first, then the general set. Templates written for another category are refused by the API.
+  - Each template has a description and a suggested title and address. The Studio fills these in unless the admin has typed their own, and warns before creating a page at an address that's already used.
+  - Templates fill in the website's name and tagline. Their placeholder text is marked "Replace…" and makes no claims: capabilities, integrations and figures are left for editors to state once verified.
+  - Calls to action are labelled for the website's launch status (Join the waitlist, Request early access, Request a demo) and link to `/enquire`. The renderer always sends `/enquire` to the website's enquiry form, even when the website has its own contact page.
 - **Workflow:** the same as Branding. Drafts autosave and are never public. Publishing is a submission someone else approves, and owners may approve their own, which is recorded in the audit log. Restoring a published version copies it into the draft. Archiving takes a page off the website. Every action is audited with previous and new values.
+- **Scheduled publishing (28 Oct 2026):**
+  - When submitting, an editor chooses "When approved" or "At a set time". The time is entered in their own time zone and must be at least a minute ahead and within a year.
+  - Approval is still required. An approved change waits as *scheduled* while the current version stays live; the Studio shows "Version N goes live …", and the pages list shows a Scheduled badge.
+  - If the requested time has passed by the time it's approved, approving publishes it immediately, and the Studio says so before approval.
+  - The API's scheduler (every 15 seconds) publishes due changes. Each is claimed by one instance only (`FOR UPDATE SKIP LOCKED`) and audited as `page.published` by the system, with `scheduled_for`.
+  - A schedule can be cancelled by its requester, a reviewer or an owner. Archiving the page cancels it. Only one change per page can be awaiting approval or scheduled at a time.
 - **Public reads:** `GET /v1/sites/{slug}/pages` and `GET /v1/sites/{slug}/page?path=` return published pages of listed websites only.
 - **Rendering:** the shared `PageBlocks` renderer in `@figbud/site-kit` draws the Studio preview, the full-page draft preview and, once P7-E3 lands, the product websites. Blocks size themselves to their container, so the preview matches the website at the same width.
 
@@ -57,7 +71,7 @@ All tables use UUID keys, foreign keys, check constraints and indexes for their 
   - The header shows the website's published logo (or its name), its published pages as navigation, and its call to action: waitlist, early access or demo, all through the corporate enquiry form (D14).
   - The footer links back to FigBud Global.
   - Brand colours, favicon and app icon come from the published brand.
-- **Content:** pages are drawn by the shared `PageBlocks`. Block links get the right prefix, and `/contact` goes to the enquiry form unless the website publishes its own contact page.
+- **Content:** pages are drawn by the shared `PageBlocks`. Block links get the right prefix. `/enquire` always goes to the enquiry form, and `/contact` does too unless the website publishes its own contact page.
 - **Missing pages:** unknown addresses and unlisted websites return a real 404. A listed website with no published home page shows a holding page built from the registry: its name, tagline, description and call to action, not indexed.
 - **SEO:** canonical URLs, search titles and descriptions per page, a host-aware sitemap and robots rules. Pages are not indexed unless `NEXT_PUBLIC_ALLOW_INDEXING` is on. Product websites are English, `lang="en"` (D15).
 - **Freshness:** pages and the registry are cached for minutes and refresh on their own after publishing.

@@ -47,6 +47,8 @@ describe("site addresses", () => {
     expect(prefixed("/contact")).toMatch(/\/en\/contact\?kind=waitlist&product=ziwa$/);
     const own = hrefResolver(ziwa, true, [{ path: "contact" }]);
     expect(own("/contact")).toBe("/contact");
+    // Calls to action reach the enquiry form even when a contact page exists.
+    expect(own("/enquire")).toMatch(/\/en\/contact\?kind=waitlist&product=ziwa$/);
     expect(own("/platform#top")).toBe("/platform#top");
   });
 });

@@ -1,7 +1,7 @@
 "use client";
 
 import { buttonClasses, cn } from "@figbud/ui";
-import { ArrowDown, ArrowUp, Copy, GripVertical, Pencil, Plus } from "lucide-react";
+import { ArrowDown, ArrowUp, CalendarClock, Copy, GripVertical, Pencil, Plus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useId, useState } from "react";
@@ -10,7 +10,9 @@ import { type AdminUser, AdminError, type FieldError, adminFetch, hasRole } from
 import { useSavedBaseline } from "@/lib/form-state";
 
 import { ActionButton } from "./action-button";
-import { PATH_PATTERN, type PageList, type PageSummary, toPath } from "./page-types";
+import { LocalTime } from "./local-time";
+import { PATH_PATTERN, type PageList, type PageSummary, type PageTemplate, toPath } from "./page-types";
+import { categoryLabel } from "./site-labels";
 
 function PageState({ page }: { page: PageSummary }) {
   const badge = "rounded-full border px-2 py-0.5 text-xs";
@@ -24,6 +26,13 @@ function PageState({ page }: { page: PageSummary }) {
       </span>
       {page.pending ? (
         <span className={cn(badge, "border-warning/40 bg-warning/10 text-warning")}>Awaiting approval</span>
+      ) : page.scheduled_at ? (
+        <span
+          className={cn(badge, "inline-flex items-center gap-1 border-accent/40 bg-accent-soft/60 text-text")}
+        >
+          <CalendarClock aria-hidden className="size-3.5 text-accent" />
+          Scheduled · <LocalTime iso={page.scheduled_at} />
+        </span>
       ) : (
         page.published &&
         page.draft_differs && <span className={cn(badge, "border-line text-muted")}>Draft changes</span>
@@ -48,17 +57,35 @@ export function PagesManager({ slug, user, initial }: { slug: string; user: Admi
   );
   const [dragging, setDragging] = useState<number | null>(null);
 
-  const [title, setTitle] = useState("");
-  const [path, setPath] = useState("");
+  // Suggested title and address for a template, unless the address is already used.
+  const suggestion = (t: PageTemplate | undefined) =>
+    t && t.id !== "blank" && !live.some((p) => p.path === t.path)
+      ? { title: t.title, path: t.path }
+      : { title: "", path: "" };
+  const first = initial.templates[0];
+  const [template, setTemplate] = useState(first?.id ?? "blank");
+  const [title, setTitle] = useState(suggestion(first).title);
+  const [path, setPath] = useState(suggestion(first).path);
+  const [titleTouched, setTitleTouched] = useState(false);
   const [pathTouched, setPathTouched] = useState(false);
-  const [template, setTemplate] = useState("home");
   const [fields, setFields] = useState<FieldError[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
 
   const byId = new Map(initial.pages.map((p) => [p.id, p]));
   const errorFor = (field: string) => fields.find((f) => f.field === field)?.message;
-  const creatable = title.trim() !== "" && PATH_PATTERN.test(path.trim().replace(/^\/+|\/+$/g, ""));
+  const normalPath = path.trim().replace(/^\/+|\/+$/g, "");
+  const takenBy = live.find((p) => p.path === normalPath);
+  const creatable = title.trim() !== "" && PATH_PATTERN.test(normalPath) && !takenBy;
+  const own = initial.templates.filter((t) => t.category);
+  const general = initial.templates.filter((t) => !t.category);
+  const choose = (t: PageTemplate) => {
+    setTemplate(t.id);
+    const next = suggestion(t);
+    if (!titleTouched) setTitle(next.title);
+    // Once the title is the admin's own, the address keeps following it.
+    if (!pathTouched) setPath(titleTouched ? toPath(title) : next.path);
+  };
 
   const move = (from: number, to: number) => {
     if (to < 0 || to >= order.length || from === to) return;
@@ -119,77 +146,107 @@ export function PagesManager({ slug, user, initial }: { slug: string; user: Admi
               e.preventDefault();
               if (creatable && !busy) create();
             }}
-            className="mt-4 grid gap-4 md:grid-cols-[1fr_1fr_14rem_auto] md:items-end"
+            className="mt-4 space-y-5"
           >
-            <div>
-              <label htmlFor={`${uid}-title`} className="block text-sm font-medium text-text">
-                Page title
-              </label>
-              <input
-                id={`${uid}-title`}
-                value={title}
-                maxLength={120}
-                onChange={(e) => {
-                  setTitle(e.target.value);
-                  if (!pathTouched) setPath(toPath(e.target.value));
-                }}
-                aria-invalid={errorFor("title") ? true : undefined}
-                className={inputClass}
-              />
-            </div>
-            <div>
-              <label htmlFor={`${uid}-path`} className="block text-sm font-medium text-text">
-                Address
-              </label>
-              <input
-                id={`${uid}-path`}
-                value={path}
-                maxLength={180}
-                onChange={(e) => {
-                  setPathTouched(true);
-                  setPath(e.target.value);
-                }}
-                aria-invalid={errorFor("path") ? true : undefined}
-                aria-describedby={`${uid}-path-hint`}
-                className={cn(inputClass, "font-mono text-sm")}
-              />
-            </div>
-            <div>
-              <label htmlFor={`${uid}-template`} className="block text-sm font-medium text-text">
-                Start from
-              </label>
-              <select
-                id={`${uid}-template`}
-                value={template}
-                onChange={(e) => setTemplate(e.target.value)}
-                className={cn(inputClass, "px-3")}
-              >
-                {initial.templates.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.label}
-                  </option>
+            <fieldset>
+              <legend className="text-sm font-medium text-text">Start from</legend>
+              {[
+                {
+                  heading: own.length ? `For ${categoryLabel(initial.site.category)} websites` : null,
+                  list: own,
+                },
+                { heading: own.length ? "For any website" : null, list: general },
+              ]
+                .filter((group) => group.list.length > 0)
+                .map((group) => (
+                  <div key={group.heading ?? "all"} className="mt-3">
+                    {group.heading && <p className="mb-2 text-xs font-medium text-subtle">{group.heading}</p>}
+                    <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                      {group.list.map((t) => (
+                        <label
+                          key={t.id}
+                          className={cn(
+                            "flex cursor-pointer items-start gap-3 rounded-xl border p-3.5 transition-colors has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-accent",
+                            template === t.id
+                              ? "border-accent bg-accent-soft/60"
+                              : "border-line hover:border-line-strong",
+                          )}
+                        >
+                          <input
+                            type="radio"
+                            name={`${uid}-template`}
+                            value={t.id}
+                            checked={template === t.id}
+                            onChange={() => choose(t)}
+                            className="mt-0.5 size-4 shrink-0 accent-[var(--color-accent)]"
+                          />
+                          <span className="min-w-0">
+                            <span className="block text-sm font-medium text-text">{t.label}</span>
+                            <span className="block text-sm text-muted">{t.description}</span>
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
                 ))}
-              </select>
+            </fieldset>
+            <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] md:items-end">
+              <div>
+                <label htmlFor={`${uid}-title`} className="block text-sm font-medium text-text">
+                  Page title
+                </label>
+                <input
+                  id={`${uid}-title`}
+                  value={title}
+                  maxLength={120}
+                  onChange={(e) => {
+                    setTitleTouched(true);
+                    setTitle(e.target.value);
+                    if (!pathTouched) setPath(toPath(e.target.value));
+                  }}
+                  aria-invalid={errorFor("title") ? true : undefined}
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label htmlFor={`${uid}-path`} className="block text-sm font-medium text-text">
+                  Address
+                </label>
+                <input
+                  id={`${uid}-path`}
+                  value={path}
+                  maxLength={180}
+                  onChange={(e) => {
+                    setPathTouched(true);
+                    setPath(e.target.value);
+                  }}
+                  aria-invalid={errorFor("path") ? true : undefined}
+                  aria-describedby={`${uid}-path-hint`}
+                  className={cn(inputClass, "font-mono text-sm")}
+                />
+              </div>
+              <ActionButton
+                type="submit"
+                ready={creatable}
+                busy={busy === "create"}
+                icon={<Plus aria-hidden className="size-4" />}
+              >
+                Create page
+              </ActionButton>
             </div>
-            <ActionButton
-              type="submit"
-              ready={creatable}
-              busy={busy === "create"}
-              icon={<Plus aria-hidden className="size-4" />}
-            >
-              Create page
-            </ActionButton>
           </form>
           <p
             id={`${uid}-path-hint`}
             className={cn(
               "mt-2 text-sm",
-              errorFor("path") || errorFor("title") ? "text-danger" : "text-subtle",
+              errorFor("path") || errorFor("title") || takenBy ? "text-danger" : "text-subtle",
             )}
           >
             {errorFor("path") ??
               errorFor("title") ??
-              `/${path.trim() || ""} · leave the address empty for the home page. New pages are drafts until approved.`}
+              (takenBy
+                ? `/${normalPath} is already used by “${takenBy.title}”. Choose another address.`
+                : `/${normalPath} · leave the address empty for the home page. New pages are drafts until approved.`)}
           </p>
         </section>
       )}

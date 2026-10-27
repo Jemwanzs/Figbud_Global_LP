@@ -5,6 +5,10 @@
 //! versions. Publishing is a revision a second person approves (maker-checker;
 //! owners may approve their own, audited). Restoring a version copies it into
 //! the draft for review. Websites read published documents only.
+//!
+//! A submission may ask to go live at a set time (`publish_at`). Approval is
+//! still required; an approved change then waits as `scheduled` while the
+//! current version stays live, until [`publish_due`] publishes it.
 
 pub mod blocks;
 pub mod templates;
@@ -57,10 +61,12 @@ struct SiteRef {
     slug: String,
     name: String,
     tagline: Option<String>,
+    category: String,
+    status: String,
 }
 
 async fn site(pool: &PgPool, slug: &str) -> Result<SiteRef, ApiError> {
-    sqlx::query_as("SELECT id, slug, name, tagline FROM sites WHERE slug = $1")
+    sqlx::query_as("SELECT id, slug, name, tagline, category, status FROM sites WHERE slug = $1")
         .bind(slug)
         .fetch_optional(pool)
         .await?
@@ -231,6 +237,7 @@ struct Revision {
     decision_note: Option<String>,
     created_at: DateTime<Utc>,
     decided_at: Option<DateTime<Utc>>,
+    publish_at: Option<DateTime<Utc>>,
 }
 
 async fn list(
@@ -247,9 +254,9 @@ async fn list(
     .bind(site.id)
     .fetch_all(&state.pool)
     .await?;
-    let pending: Vec<Uuid> = sqlx::query_scalar(
-        "SELECT r.page_id FROM page_revisions r JOIN pages p ON p.id = r.page_id
-          WHERE p.site_id = $1 AND r.state = 'pending'",
+    let in_flight: Vec<(Uuid, String, Option<DateTime<Utc>>)> = sqlx::query_as(
+        "SELECT r.page_id, r.state, r.publish_at FROM page_revisions r JOIN pages p ON p.id = r.page_id
+          WHERE p.site_id = $1 AND r.state IN ('pending', 'scheduled')",
     )
     .bind(site.id)
     .fetch_all(&state.pool)
@@ -262,18 +269,21 @@ async fn list(
                 "sections": p.draft["sections"].as_array().map_or(0, Vec::len),
                 "published": p.published.is_some(), "published_at": p.published_at,
                 "draft_differs": p.published.as_ref() != Some(&p.draft),
-                "pending": pending.contains(&p.id),
+                "pending": in_flight.iter().any(|(page, state, _)| *page == p.id && state == "pending"),
+                "scheduled_at": in_flight
+                    .iter()
+                    .find(|(page, state, _)| *page == p.id && state == "scheduled")
+                    .and_then(|(_, _, at)| *at),
                 "archived_at": p.archived_at, "draft_updated_at": p.draft_updated_at,
             })
         })
         .collect();
-    let templates: Vec<Value> = templates::TEMPLATES
-        .iter()
-        .map(|(id, label)| json!({ "id": id, "label": label }))
-        .collect();
-    Ok(Json(
-        json!({ "site": { "slug": site.slug, "name": site.name }, "pages": pages, "templates": templates }),
-    ))
+    let templates: Vec<&templates::Template> = templates::for_category(&site.category).collect();
+    Ok(Json(json!({
+        "site": { "slug": site.slug, "name": site.name, "category": site.category },
+        "pages": pages,
+        "templates": templates,
+    })))
 }
 
 #[derive(Deserialize)]
@@ -296,7 +306,13 @@ async fn create(
     let path = input.path.trim().trim_matches('/').to_owned();
     validate_meta(&input.title, &path)?;
     let template = input.template.as_deref().unwrap_or("blank");
-    let doc = templates::document(template, &site.name, site.tagline.as_deref()).ok_or_else(|| {
+    let context = templates::Context {
+        site_name: &site.name,
+        tagline: site.tagline.as_deref(),
+        category: &site.category,
+        status: &site.status,
+    };
+    let doc = templates::document(template, &context).ok_or_else(|| {
         ApiError::Validation(vec![FieldError {
             field: "template",
             code: "unknown",
@@ -341,7 +357,7 @@ async fn read(
         .await?;
     let revisions: Vec<Revision> = sqlx::query_as(
         "SELECT r.id, r.number, r.note, r.state, rq.name AS requested_by, r.requested_by AS requested_by_id,
-                dc.name AS decided_by, r.decision_note, r.created_at, r.decided_at
+                dc.name AS decided_by, r.decision_note, r.created_at, r.decided_at, r.publish_at
            FROM page_revisions r
            LEFT JOIN admin_users rq ON rq.id = r.requested_by
            LEFT JOIN admin_users dc ON dc.id = r.decided_by
@@ -427,7 +443,13 @@ async fn save_draft(
 #[derive(Deserialize)]
 struct SubmitInput {
     note: String,
+    /// When the approved change should go live; omitted means on approval.
+    #[serde(default)]
+    publish_at: Option<DateTime<Utc>>,
 }
+
+/// The furthest ahead a change can be scheduled.
+const MAX_SCHEDULE_DAYS: i64 = 366;
 
 async fn submit(
     State(state): State<SharedState>,
@@ -455,21 +477,39 @@ async fn submit(
     if page.published.as_ref() == Some(&page.draft) {
         return Err(ApiError::Conflict("The draft is the same as the published page."));
     }
+    if let Some(at) = input.publish_at {
+        let now = Utc::now();
+        let message = if at <= now + chrono::Duration::minutes(1) {
+            Some("Choose a time at least a minute from now.")
+        } else if at > now + chrono::Duration::days(MAX_SCHEDULE_DAYS) {
+            Some("Choose a time within the next year.")
+        } else {
+            None
+        };
+        if let Some(message) = message {
+            return Err(ApiError::Validation(vec![FieldError {
+                field: "publish_at",
+                code: "range",
+                message,
+            }]));
+        }
+    }
     let revision = Uuid::now_v7();
     sqlx::query(
-        "INSERT INTO page_revisions (id, page_id, number, document, note, requested_by)
-         VALUES ($1, $2, COALESCE((SELECT max(number) FROM page_revisions WHERE page_id = $2), 0) + 1, $3, $4, $5)",
+        "INSERT INTO page_revisions (id, page_id, number, document, note, requested_by, publish_at)
+         VALUES ($1, $2, COALESCE((SELECT max(number) FROM page_revisions WHERE page_id = $2), 0) + 1, $3, $4, $5, $6)",
     )
     .bind(revision)
     .bind(id)
     .bind(&page.draft)
     .bind(note)
     .bind(session.user.id)
+    .bind(input.publish_at)
     .execute(&state.pool)
     .await
     .map_err(|err| match &err {
         sqlx::Error::Database(db) if db.constraint() == Some("page_revisions_one_pending") => {
-            ApiError::Conflict("A change to this page is already waiting for approval.")
+            ApiError::Conflict("A change to this page is already waiting for approval or scheduled.")
         }
         _ => err.into(),
     })?;
@@ -478,7 +518,7 @@ async fn submit(
         &session,
         page.site_id,
         "page.submitted",
-        json!({ "page": id, "revision": revision, "note": note }),
+        json!({ "page": id, "revision": revision, "note": note, "publish_at": input.publish_at }),
     )
     .await?;
     Ok((StatusCode::CREATED, Json(json!({ "id": revision }))))
@@ -496,14 +536,28 @@ async fn revision_action(
     body: Option<Json<DecisionInput>>,
 ) -> Result<impl IntoResponse, ApiError> {
     let page = page(&state.pool, id).await?;
-    let row: Option<(Value, String, Option<Uuid>, i32)> = sqlx::query_as(
-        "SELECT document, state, requested_by, number FROM page_revisions WHERE id = $1 AND page_id = $2",
+    #[derive(FromRow)]
+    struct Decided {
+        document: Value,
+        state: String,
+        requested_by: Option<Uuid>,
+        number: i32,
+        publish_at: Option<DateTime<Utc>>,
+    }
+    let row: Option<Decided> = sqlx::query_as(
+        "SELECT document, state, requested_by, number, publish_at FROM page_revisions WHERE id = $1 AND page_id = $2",
     )
     .bind(revision)
     .bind(id)
     .fetch_optional(&state.pool)
     .await?;
-    let (document, current, requested_by, number) = row.ok_or(ApiError::NotFound)?;
+    let Decided {
+        document,
+        state: current,
+        requested_by,
+        number,
+        publish_at,
+    } = row.ok_or(ApiError::NotFound)?;
     let note = body.and_then(|b| trimmed(b.0.note.as_deref()));
     if note.as_ref().is_some_and(|n| n.chars().count() > 300) {
         return Err(ApiError::BadRequest("note is too long"));
@@ -535,7 +589,9 @@ async fn revision_action(
         .await?;
         return Ok(Json(json!({ "restored": number })));
     }
-    if current != "pending" {
+    // A scheduled change can still be called off before it goes live.
+    let open = current == "pending" || (current == "scheduled" && action == "cancel");
+    if !open {
         return Err(ApiError::Conflict("This change has already been decided."));
     }
     let outcome = match action.as_str() {
@@ -548,6 +604,21 @@ async fn revision_action(
             }
             decode(document.clone())?;
             let mut tx = state.pool.begin().await?;
+            if publish_at.is_some_and(|at| at > Utc::now()) {
+                // Approved for later: the current version stays live until then.
+                mark(&mut tx, revision, "scheduled", &session, &note).await?;
+                tx.commit().await?;
+                audit_site(
+                    &state.pool,
+                    &session,
+                    page.site_id,
+                    "page.scheduled",
+                    json!({ "page": id, "revision": revision, "number": number, "publish_at": publish_at,
+                            "self_approved": own, "note": note }),
+                )
+                .await?;
+                return Ok(Json(json!({ "state": "scheduled", "publish_at": publish_at })));
+            }
             mark(&mut tx, revision, "published", &session, &note).await?;
             sqlx::query("UPDATE pages SET published = $2, published_revision = $3, published_at = now() WHERE id = $1")
                 .bind(id)
@@ -566,7 +637,9 @@ async fn revision_action(
             "rejected"
         }
         "cancel" => {
-            if !own && session.user.role != Role::Owner {
+            // Reviewers may also call off a schedule that was approved.
+            let unschedule = current == "scheduled" && session.user.role >= Role::Reviewer;
+            if !own && session.user.role != Role::Owner && !unschedule {
                 return Err(ApiError::NotPermitted(
                     "Only the requester or an owner can cancel this change.",
                 ));
@@ -604,7 +677,7 @@ async fn mark(
 ) -> Result<(), sqlx::Error> {
     sqlx::query(
         "UPDATE page_revisions SET state = $2, decided_by = $3, decision_note = $4, decided_at = now()
-          WHERE id = $1 AND state = 'pending'",
+          WHERE id = $1 AND state IN ('pending', 'scheduled')",
     )
     .bind(id)
     .bind(state)
@@ -633,7 +706,7 @@ async fn page_action(
                 .bind(id)
                 .execute(&state.pool)
                 .await?;
-            sqlx::query("UPDATE page_revisions SET state = 'cancelled', decided_at = now() WHERE page_id = $1 AND state = 'pending'")
+            sqlx::query("UPDATE page_revisions SET state = 'cancelled', decided_at = now() WHERE page_id = $1 AND state IN ('pending', 'scheduled')")
                 .bind(id)
                 .execute(&state.pool)
                 .await?;
@@ -769,4 +842,89 @@ async fn reorder(
     )
     .await?;
     Ok(StatusCode::NO_CONTENT)
+}
+
+/// Publishes approved changes whose time has come. Safe to run on several API
+/// instances at once: each due change is claimed by exactly one of them.
+/// Changes to archived pages were cancelled when the page was archived.
+pub async fn publish_due(pool: &PgPool) -> Result<usize, sqlx::Error> {
+    let mut tx = pool.begin().await?;
+    #[derive(FromRow)]
+    struct Due {
+        id: Uuid,
+        page_id: Uuid,
+        site_id: Uuid,
+        number: i32,
+        document: Value,
+        publish_at: DateTime<Utc>,
+        published: Option<Value>,
+    }
+    let due: Vec<Due> = sqlx::query_as(
+        "SELECT r.id, r.page_id, p.site_id, r.number, r.document, r.publish_at, p.published
+           FROM page_revisions r JOIN pages p ON p.id = r.page_id
+          WHERE r.state = 'scheduled' AND r.publish_at <= now() AND p.archived_at IS NULL
+          ORDER BY r.publish_at
+          LIMIT 50
+            FOR UPDATE OF r SKIP LOCKED",
+    )
+    .fetch_all(&mut *tx)
+    .await?;
+    for Due {
+        id: revision,
+        page_id: page,
+        site_id: site,
+        number,
+        document,
+        publish_at,
+        published: previous,
+    } in &due
+    {
+        sqlx::query("UPDATE page_revisions SET state = 'published' WHERE id = $1")
+            .bind(revision)
+            .execute(&mut *tx)
+            .await?;
+        sqlx::query(
+            "UPDATE pages SET published = $2, published_revision = $3, published_at = now() WHERE id = $1",
+        )
+        .bind(page)
+        .bind(document)
+        .bind(revision)
+        .execute(&mut *tx)
+        .await?;
+        sqlx::query(
+            "INSERT INTO audit_log (id, action, target_type, target_id, detail, site_id)
+             VALUES ($1, 'page.published', 'page', $2, $3, $4)",
+        )
+        .bind(Uuid::now_v7())
+        .bind(page.to_string())
+        .bind(
+            json!({ "page": page, "revision": revision, "number": number, "from": previous,
+                      "to": document, "scheduled_for": publish_at }),
+        )
+        .bind(site)
+        .execute(&mut *tx)
+        .await?;
+    }
+    tx.commit().await?;
+    Ok(due.len())
+}
+
+/// Runs [`publish_due`] every `every` until `shutdown` flips to `true`.
+pub async fn run_scheduler(
+    pool: PgPool,
+    every: std::time::Duration,
+    mut shutdown: tokio::sync::watch::Receiver<bool>,
+) {
+    let mut ticker = tokio::time::interval(every);
+    ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+    loop {
+        tokio::select! {
+            _ = ticker.tick() => match publish_due(&pool).await {
+                Ok(0) => {}
+                Ok(count) => tracing::info!(count, "published scheduled page changes"),
+                Err(err) => tracing::warn!(error = %err, "scheduled publishing pass failed"),
+            },
+            _ = shutdown.changed() => break,
+        }
+    }
 }

@@ -833,16 +833,52 @@ function serveAsset(res, asset) {
 // Pages built from typed blocks (services/api/src/pages): drafts, approval,
 // versions. Validation mirrors the API's main rules; rendering is simplified.
 const pages = new Map(); // id -> page
+// A subset of services/api/src/pages/templates.rs: the general set and the lending set.
 const PAGE_TEMPLATES = [
-  { id: "blank", label: "Blank page" },
-  { id: "home", label: "Home page" },
-  { id: "overview", label: "Platform overview" },
-  { id: "features", label: "Features" },
-  { id: "contact", label: "Contact and demo" },
+  ["blank", "Blank page", "An empty page to build section by section.", "", "", null],
+  ["home", "Home page", "Promise, capabilities, how it works and a call to action.", "Home", "", null],
+  ["overview", "Platform overview", "How the platform fits together.", "Platform", "platform", null],
+  ["features", "Features", "A grid of features with common questions.", "Features", "features", null],
+  [
+    "integrations",
+    "Integrations",
+    "The systems the product connects to today.",
+    "Integrations",
+    "integrations",
+    null,
+  ],
+  ["contact", "Contact and demo", "What happens after someone gets in touch.", "Contact", "contact", null],
+  ["lending_home", "Lending home page", "For lenders: the loan lifecycle.", "Home", "", "lending_credit"],
+  [
+    "borrower_journey",
+    "Borrower journey",
+    "Apply, assess, approve, disburse and repay.",
+    "How it works",
+    "how-it-works",
+    "lending_credit",
+  ],
+  ["hr_home", "HR home page", "For people teams: the employee lifecycle.", "Home", "", "hr_workforce"],
+].map(([id, label, description, title, path, category]) => ({
+  id,
+  label,
+  description,
+  title,
+  path,
+  category,
+}));
+const templatesFor = (category) => [
+  ...PAGE_TEMPLATES.filter((t) => t.category === category),
+  ...PAGE_TEMPLATES.filter((t) => !t.category),
 ];
+const CTA_LABELS = {
+  coming_soon: "Join the waitlist",
+  beta: "Request early access",
+  active: "Request a demo",
+};
 const sid = () => randomUUID().replace(/-/g, "");
 function pageTemplate(template, site) {
   if (template === "blank") return { sections: [] };
+  const cta = CTA_LABELS[site.status] ?? "Get in touch";
   return {
     sections: [
       {
@@ -851,7 +887,7 @@ function pageTemplate(template, site) {
         eyebrow: site.name,
         heading: site.tagline || "Replace with a one-line promise.",
         lead: "Replace with two sentences on who the product is for.",
-        primary: { label: "Request a demo", href: "/contact" },
+        primary: { label: cta, href: "/enquire" },
       },
       {
         id: sid(),
@@ -863,7 +899,7 @@ function pageTemplate(template, site) {
         id: sid(),
         type: "call_to_action",
         heading: `See ${site.name} in action`,
-        cta: { label: "Request a demo", href: "/contact" },
+        cta: { label: cta, href: "/enquire" },
       },
     ],
   };
@@ -915,6 +951,7 @@ const pageSummary = (p) => ({
   published_at: p.published_at,
   draft_differs: JSON.stringify(p.draft) !== JSON.stringify(p.published),
   pending: p.revisions.some((r) => r.state === "pending"),
+  scheduled_at: p.revisions.find((r) => r.state === "scheduled")?.publish_at ?? null,
   archived_at: p.archived_at,
   draft_updated_at: p.draft_updated_at,
 });
@@ -938,7 +975,24 @@ const pageDetail = (p) => ({
   revisions: p.revisions.slice().sort((a, b) => b.number - a.number),
 });
 
+/** Stands in for the API's scheduler: publishes approved changes that are due. */
+function publishDuePages() {
+  for (const page of pages.values()) {
+    const due = page.revisions.find(
+      (r) => r.state === "scheduled" && r.publish_at <= new Date().toISOString(),
+    );
+    if (!due || page.archived_at) continue;
+    due.state = "published";
+    Object.assign(page, {
+      published: structuredClone(due.document),
+      published_revision: due.id,
+      published_at: new Date().toISOString(),
+    });
+  }
+}
+
 function pagesRoutes(path, req, body, user, send) {
+  publishDuePages();
   const notFound = () => send(404, { error: { code: "not_found", message: "Not found." } });
   const forbidden = (message = "You don't have permission to do that.") =>
     send(403, { error: { code: "forbidden", message } });
@@ -957,11 +1011,11 @@ function pagesRoutes(path, req, body, user, send) {
     const mine = [...pages.values()].filter((p) => p.site === site);
     if (!siteMatch[2] && req.method === "GET") {
       return send(200, {
-        site: { slug: site.slug, name: site.name },
+        site: { slug: site.slug, name: site.name, category: site.category },
         pages: mine
           .sort((a, b) => Boolean(a.archived_at) - Boolean(b.archived_at) || a.position - b.position)
           .map(pageSummary),
-        templates: PAGE_TEMPLATES,
+        templates: templatesFor(site.category),
       });
     }
     if (rank < RANKS.editor) return forbidden();
@@ -995,6 +1049,9 @@ function pagesRoutes(path, req, body, user, send) {
         code: "taken",
         message: "Another page on this website already uses this address.",
       });
+    const template = body.template ?? "blank";
+    if (!templatesFor(site.category).some((t) => t.id === template))
+      errors.push({ field: "template", code: "unknown", message: "Choose a template." });
     if (errors.length) return invalid(errors);
     const page = {
       id: randomUUID(),
@@ -1055,8 +1112,17 @@ function pagesRoutes(path, req, body, user, send) {
         { field: "note", code: "length", message: "Say what changed in up to 300 characters." },
       ]);
     if (!page.draft.sections.length) return conflict("Add at least one section before submitting.");
-    if (page.revisions.some((r) => r.state === "pending"))
-      return conflict("A change to this page is already waiting for approval.");
+    if (page.revisions.some((r) => r.state === "pending" || r.state === "scheduled"))
+      return conflict("A change to this page is already waiting for approval or scheduled.");
+    const at = body.publish_at ? new Date(body.publish_at) : null;
+    if (at && (Number.isNaN(at.getTime()) || at.getTime() <= Date.now() + 60_000))
+      return invalid([
+        { field: "publish_at", code: "range", message: "Choose a time at least a minute from now." },
+      ]);
+    if (at && at.getTime() > Date.now() + 366 * 864e5)
+      return invalid([
+        { field: "publish_at", code: "range", message: "Choose a time within the next year." },
+      ]);
     const revision = {
       id: randomUUID(),
       number: Math.max(0, ...page.revisions.map((r) => r.number)) + 1,
@@ -1069,6 +1135,7 @@ function pagesRoutes(path, req, body, user, send) {
       decision_note: null,
       created_at: now(),
       decided_at: null,
+      publish_at: at ? at.toISOString() : null,
     };
     page.revisions.push(revision);
     return send(201, { id: revision.id });
@@ -1079,7 +1146,9 @@ function pagesRoutes(path, req, body, user, send) {
       return conflict("Another page now uses this address.");
     page.archived_at = action === "archive" ? now() : null;
     if (action === "archive")
-      page.revisions.filter((r) => r.state === "pending").forEach((r) => (r.state = "cancelled"));
+      page.revisions
+        .filter((r) => r.state === "pending" || r.state === "scheduled")
+        .forEach((r) => (r.state = "cancelled"));
     return send(200, { id: page.id });
   }
   if (action === "duplicate") {
@@ -1111,19 +1180,24 @@ function pagesRoutes(path, req, body, user, send) {
     page.draft_version += 1;
     return send(200, { restored: revision.number });
   }
-  if (revision.state !== "pending") return conflict("This change has already been decided.");
+  const unschedule = revision.state === "scheduled" && revisionAction === "cancel";
+  if (revision.state !== "pending" && !unschedule) return conflict("This change has already been decided.");
   const own = revision.requested_by_id === user.id;
-  if (revisionAction === "cancel" && !own && user.role !== "owner") return forbidden();
+  if (revisionAction === "cancel" && !own && user.role !== "owner" && !(unschedule && rank >= RANKS.reviewer))
+    return forbidden("Only the requester or an owner can cancel this change.");
   if (revisionAction !== "cancel" && rank < RANKS.reviewer) return forbidden();
   if (revisionAction === "approve" && own && user.role !== "owner")
     return forbidden("A different reviewer must approve your own change (maker-checker).");
+  const later = revisionAction === "approve" && revision.publish_at && revision.publish_at > now();
   Object.assign(revision, {
-    state: { approve: "published", reject: "rejected", cancel: "cancelled" }[revisionAction],
+    state: later
+      ? "scheduled"
+      : { approve: "published", reject: "rejected", cancel: "cancelled" }[revisionAction],
     decided_by: user.name,
     decision_note: body.note ?? null,
     decided_at: now(),
   });
-  if (revisionAction === "approve") {
+  if (revisionAction === "approve" && !later) {
     Object.assign(page, {
       published: structuredClone(revision.document),
       published_revision: revision.id,
@@ -1215,6 +1289,7 @@ seedPublishedPage("ziwa", "platform", "Platform", {
 const listedSite = (slug) => sites.find((s) => s.slug === slug && !s.archived_at && SITE_CTA[s.status]);
 
 function publicPages(url, send) {
+  publishDuePages();
   const list = /^\/v1\/sites\/([a-z0-9_-]+)\/pages$/.exec(url.pathname);
   const one = /^\/v1\/sites\/([a-z0-9_-]+)\/page$/.exec(url.pathname);
   const slug = (list ?? one)?.[1];

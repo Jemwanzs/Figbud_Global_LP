@@ -265,7 +265,8 @@ export function SiteForm({ site, canEdit }: { site?: AdminSite; canEdit: boolean
                 ))}
               </ul>
               <p className="mt-3 text-xs text-subtle">
-                Pages are built in the page builder once it ships; nothing is published from here.
+                Create these from the website’s Pages once it exists, starting from templates for its
+                category. Nothing is published from here.
               </p>
             </div>
           )}

@@ -12,27 +12,44 @@ export interface PageSummary {
   published_at: string | null;
   draft_differs: boolean;
   pending: boolean;
+  /** When an approved change goes live, if one is scheduled. */
+  scheduled_at: string | null;
   archived_at: string | null;
   draft_updated_at: string;
 }
 
+/** A starting point for a new page (services/api/src/pages/templates.rs). */
+export interface PageTemplate {
+  id: string;
+  label: string;
+  description: string;
+  /** Suggested title and address ("" is the home page). */
+  title: string;
+  path: string;
+  /** The website category it is written for; null suits every website. */
+  category: string | null;
+}
+
 export interface PageList {
-  site: { slug: string; name: string };
+  site: { slug: string; name: string; category: string };
   pages: PageSummary[];
-  templates: { id: string; label: string }[];
+  /** The website's category set first, then the general set. */
+  templates: PageTemplate[];
 }
 
 export interface PageRevision {
   id: string;
   number: number;
   note: string;
-  state: "pending" | "published" | "rejected" | "cancelled";
+  state: "pending" | "scheduled" | "published" | "rejected" | "cancelled";
   requested_by: string | null;
   requested_by_id: string | null;
   decided_by: string | null;
   decision_note: string | null;
   created_at: string;
   decided_at: string | null;
+  /** The requested go-live time; the change waits as "scheduled" once approved. */
+  publish_at: string | null;
 }
 
 export interface PageDetail {

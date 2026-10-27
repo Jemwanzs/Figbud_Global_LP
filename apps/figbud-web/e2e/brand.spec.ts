@@ -88,7 +88,11 @@ test.describe("admin branding", () => {
   async function newSite(page: Page) {
     const run = randomBytes(3).toString("hex");
     await page.goto("/admin/sites/new");
-    await page.getByLabel("Website name").fill(`Brandly ${run}`);
+    // Retry until hydrated, so the identifier suggestion follows the name.
+    await expect(async () => {
+      await page.getByLabel("Website name").fill(`Brandly ${run}`);
+      await expect(page.getByLabel("Identifier")).not.toHaveValue("", { timeout: 1_000 });
+    }).toPass();
     await page.getByRole("button", { name: "Create draft website" }).click();
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(`Brandly ${run}`);
     return run;

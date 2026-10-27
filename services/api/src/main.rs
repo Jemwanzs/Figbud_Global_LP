@@ -41,7 +41,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             pool.clone(),
             Arc::from(sender),
             config.email.clone(),
-            shutdown_rx,
+            shutdown_rx.clone(),
         ))),
         None => {
             tracing::warn!(
@@ -50,6 +50,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             None
         }
     };
+
+    // Publishes approved page changes at their scheduled time.
+    let scheduler = tokio::spawn(figbud_api::pages::run_scheduler(
+        pool.clone(),
+        std::time::Duration::from_secs(15),
+        shutdown_rx,
+    ));
 
     let bind_addr = config.bind_addr;
     let state = Arc::new(AppState::new(config, pool)?);
@@ -64,6 +71,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     .await?;
 
     let _ = shutdown_tx.send(true);
+    let _ = scheduler.await;
     if let Some(worker) = worker {
         let _ = worker.await;
     }
