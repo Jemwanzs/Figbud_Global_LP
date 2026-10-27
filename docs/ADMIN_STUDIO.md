@@ -48,6 +48,20 @@ All tables use UUID keys, foreign keys, check constraints and indexes for their 
 - **Public reads:** `GET /v1/sites/{slug}/pages` and `GET /v1/sites/{slug}/page?path=` return published pages of listed websites only.
 - **Rendering:** the shared `PageBlocks` renderer in `@figbud/site-kit` draws the Studio preview, the full-page draft preview and, once P7-E3 lands, the product websites. Blocks size themselves to their container, so the preview matches the website at the same width.
 
+**Product-site renderer (D16, built 27 Oct 2026; not deployed yet).** `apps/sites-web` serves every listed product website from the Studio's data: the registry, published pages and published brand. Nothing in it is specific to one product.
+- **Addresses:**
+  - On the shared domain, websites live at `/{site}/{path}`.
+  - A website whose domain is set in the registry is served from that domain's root. The proxy rewrites those requests internally to `/~{site}`, which can't be requested directly.
+  - `/` on the shared domain sends visitors to FigBud Global.
+- **Page layout:**
+  - The header shows the website's published logo (or its name), its published pages as navigation, and its call to action: waitlist, early access or demo, all through the corporate enquiry form (D14).
+  - The footer links back to FigBud Global.
+  - Brand colours, favicon and app icon come from the published brand.
+- **Content:** pages are drawn by the shared `PageBlocks`. Block links get the right prefix, and `/contact` goes to the enquiry form unless the website publishes its own contact page.
+- **Missing pages:** unknown addresses and unlisted websites return a real 404. A listed website with no published home page shows a holding page built from the registry: its name, tagline, description and call to action, not indexed.
+- **SEO:** canonical URLs, search titles and descriptions per page, a host-aware sitemap and robots rules. Pages are not indexed unless `NEXT_PUBLIC_ALLOW_INDEXING` is on. Product websites are English, `lang="en"` (D15).
+- **Freshness:** pages and the registry are cached for minutes and refresh on their own after publishing.
+
 ## Permissions
 
 Global roles remain: owner (platform owner), reviewer, editor, viewer. Phase F adds per-site grants that narrow them: website administrator, product manager, content editor, reviewer / approver, publisher, viewer, scoped to one site. Every administrative endpoint authorises the actor against the site it touches.

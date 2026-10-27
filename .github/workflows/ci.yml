@@ -37,6 +37,8 @@ jobs:
       - run: npm run test:e2e
       - name: ZiraHR website e2e
         run: npm run test:e2e -w zirahr-web
+      - name: Product-site renderer e2e
+        run: npm run test:e2e -w sites-web
 
   lighthouse:
     name: Lighthouse (production build, mobile)

@@ -12,7 +12,7 @@
   },
   "scripts": {
     "dev": "npm run dev -w figbud-web",
-    "build": "npm run build -w figbud-web && npm run build -w zirahr-web",
+    "build": "npm run build -w figbud-web && npm run build -w zirahr-web && npm run build -w sites-web",
     "start": "npm run start -w figbud-web",
     "lint": "npm run lint --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",

@@ -1,0 +1,38 @@
+{
+  "name": "sites-web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --port 3200",
+    "build": "next build",
+    "start": "next start --port ${PORT:-3200}",
+    "lint": "eslint",
+    "typecheck": "next typegen && tsc --noEmit",
+    "test:e2e": "playwright test",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@figbud/brand": "*",
+    "@figbud/site-kit": "*",
+    "@figbud/ui": "*",
+    "lucide-react": "^1.61.0",
+    "next": "16.4.2",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.14.0",
+    "@playwright/test": "^1.64.1",
+    "@tailwindcss/postcss": "^4.3.3",
+    "@tailwindcss/turbopack": "^4.3.3",
+    "@types/node": "^22",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.4.2",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^5.9.3",
+    "vitest": "^5.0.5"
+  },
+  "description": "Product websites rendered from the Admin Studio (one renderer for every product site, D16)"
+}

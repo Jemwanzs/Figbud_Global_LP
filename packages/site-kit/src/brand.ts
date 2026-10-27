@@ -33,6 +33,10 @@ export interface ListedSite {
   slug: string;
   kind: "corporate" | "product";
   name: string;
+  tagline?: string | null;
+  description?: string | null;
+  category?: string;
+  primary_domain?: string | null;
   status: "coming_soon" | "beta" | "active";
   cta: "waitlist" | "early_access" | "demo";
   brand: BrandProfile | null;

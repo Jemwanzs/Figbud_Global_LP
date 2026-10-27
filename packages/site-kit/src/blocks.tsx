@@ -54,7 +54,20 @@ export interface PageDocument {
 /** `preview`: links don't navigate (the Studio); `live`: real links on the website. */
 type Mode = "live" | "preview";
 
-function Action({ cta, mode, primary }: { cta: PageCta; mode: Mode; primary?: boolean }) {
+/** Maps a block link (a site path or https URL) to where it should point on this website. */
+export type HrefResolver = (href: string) => string;
+
+function Action({
+  cta,
+  mode,
+  primary,
+  resolve,
+}: {
+  cta: PageCta;
+  mode: Mode;
+  primary?: boolean;
+  resolve?: HrefResolver;
+}) {
   const className = buttonClasses(primary ? "product" : "secondary", "lg");
   const content = (
     <>
@@ -70,7 +83,7 @@ function Action({ cta, mode, primary }: { cta: PageCta; mode: Mode; primary?: bo
     );
   }
   return (
-    <a href={cta.href} className={className}>
+    <a href={resolve ? resolve(cta.href) : cta.href} className={className}>
       {content}
     </a>
   );
@@ -98,7 +111,17 @@ function Heading({ children, level = 2 }: { children: ReactNode; level?: 1 | 2 }
   );
 }
 
-function Block({ section, mode, top }: { section: PageSection; mode: Mode; top: 1 | 2 }) {
+function Block({
+  section,
+  mode,
+  top,
+  resolve,
+}: {
+  section: PageSection;
+  mode: Mode;
+  top: 1 | 2;
+  resolve?: HrefResolver;
+}) {
   switch (section.type) {
     case "hero":
       return (
@@ -114,8 +137,8 @@ function Block({ section, mode, top }: { section: PageSection; mode: Mode; top: 
           {section.lead && <p className="mt-6 text-lead text-muted">{section.lead}</p>}
           {(section.primary || section.secondary) && (
             <div className="mt-9 flex flex-col gap-3 @lg:flex-row">
-              {section.primary && <Action cta={section.primary} mode={mode} primary />}
-              {section.secondary && <Action cta={section.secondary} mode={mode} />}
+              {section.primary && <Action cta={section.primary} mode={mode} resolve={resolve} primary />}
+              {section.secondary && <Action cta={section.secondary} mode={mode} resolve={resolve} />}
             </div>
           )}
         </div>
@@ -221,7 +244,7 @@ function Block({ section, mode, top }: { section: PageSection; mode: Mode; top: 
             <Heading>{section.heading}</Heading>
             {section.body && <p className="mt-4 text-muted">{section.body}</p>}
             <div className="mt-8">
-              <Action cta={section.cta} mode={mode} primary />
+              <Action cta={section.cta} mode={mode} resolve={resolve} primary />
             </div>
           </div>
         </div>
@@ -235,12 +258,15 @@ export function PageBlocks({
   mode = "live",
   className,
   firstHeading = 1,
+  resolveHref,
 }: {
   document: PageDocument;
   mode?: Mode;
   className?: string;
   /** Level of a leading hero heading: 1 on a page of its own, 2 when embedded under another title. */
   firstHeading?: 1 | 2;
+  /** Live mode: rewrites site paths for where the website is served (a path prefix or its own domain). */
+  resolveHref?: HrefResolver;
 }) {
   return (
     // Blocks respond to the space they are given (container queries), so the
@@ -248,7 +274,7 @@ export function PageBlocks({
     <div className={cn("@container space-y-16 sm:space-y-20", className)}>
       {document.sections.map((section, i) => (
         <section key={section.id} data-section={section.type}>
-          <Block section={section} mode={mode} top={i === 0 ? firstHeading : 2} />
+          <Block section={section} mode={mode} top={i === 0 ? firstHeading : 2} resolve={resolveHref} />
         </section>
       ))}
     </div>

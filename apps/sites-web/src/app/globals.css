@@ -1,0 +1,6 @@
+@import "tailwindcss";
+@import "@figbud/brand/tokens.css";
+@import "@figbud/site-kit/styles.css";
+
+@source "../../../../packages/ui/src";
+@source "../../../../packages/site-kit/src";

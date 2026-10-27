@@ -1133,6 +1133,112 @@ function pagesRoutes(path, req, body, user, send) {
   return send(200, { state: revision.state });
 }
 
+// Published pages for the product-site renderer's tests (synthetic copy).
+function seedPublishedPage(slug, path, title, document) {
+  const site = sites.find((s) => s.slug === slug);
+  const revision = randomUUID();
+  const at = new Date().toISOString();
+  pages.set(randomUUID(), {
+    id: randomUUID(),
+    site,
+    path,
+    title,
+    position: pages.size,
+    draft: document,
+    draft_version: 1,
+    draft_updated_at: at,
+    published: document,
+    published_revision: revision,
+    published_at: at,
+    archived_at: null,
+    revisions: [
+      {
+        id: revision,
+        number: 1,
+        document,
+        note: "Seeded for tests",
+        state: "published",
+        requested_by: null,
+        requested_by_id: null,
+        decided_by: null,
+        decision_note: null,
+        created_at: at,
+        decided_at: at,
+      },
+    ],
+  });
+}
+seedPublishedPage("ziwa", "", "Home", {
+  seo_title: "Ziwa LMS — Lending that flows with your business",
+  seo_description: "From application to repayment, one configurable lending platform.",
+  sections: [
+    {
+      id: "hero",
+      type: "hero",
+      eyebrow: "Ziwa LMS",
+      heading: "Every loan. A smoother journey.",
+      lead: "From application to repayment, Ziwa brings your lending operations together in one intelligent, configurable platform.",
+      primary: { label: "Explore Ziwa", href: "/platform" },
+      secondary: { label: "Request a demo", href: "/contact" },
+    },
+    {
+      id: "features",
+      type: "feature_grid",
+      heading: "Built for the whole journey",
+      items: [
+        { title: "Guided onboarding", body: "Applications that collect what credit teams need." },
+        { title: "Configurable products", body: "Fees, interest and schedules you define." },
+      ],
+    },
+    {
+      id: "faq",
+      type: "faq",
+      heading: "Questions",
+      items: [
+        { question: "Is Ziwa available today?", answer: "Ziwa is **coming soon**. Join the waitlist." },
+      ],
+    },
+  ],
+});
+seedPublishedPage("ziwa", "platform", "Platform", {
+  sections: [
+    { id: "p-hero", type: "hero", eyebrow: "Platform", heading: "One platform for lending operations" },
+    {
+      id: "p-text",
+      type: "text",
+      heading: "How it fits together",
+      body: "Origination, servicing and collections share **one record**.",
+    },
+  ],
+});
+
+const listedSite = (slug) => sites.find((s) => s.slug === slug && !s.archived_at && SITE_CTA[s.status]);
+
+function publicPages(url, send) {
+  const list = /^\/v1\/sites\/([a-z0-9_-]+)\/pages$/.exec(url.pathname);
+  const one = /^\/v1\/sites\/([a-z0-9_-]+)\/page$/.exec(url.pathname);
+  const slug = (list ?? one)?.[1];
+  if (!slug) return false;
+  const site = listedSite(slug);
+  const live = site
+    ? [...pages.values()].filter((p) => p.site === site && p.published && !p.archived_at)
+    : [];
+  if (list) {
+    send(
+      200,
+      live
+        .sort((a, b) => a.position - b.position)
+        .map((p) => ({ path: p.path, title: p.title, published_at: p.published_at })),
+    );
+    return true;
+  }
+  const path = (url.searchParams.get("path") ?? "").replace(/^\/+|\/+$/g, "");
+  const page = live.find((p) => p.path === path);
+  if (!page) send(404, { error: { code: "not_found", message: "Not found." } });
+  else send(200, { ...renderDoc(page.published), title: page.title, published_at: page.published_at });
+  return true;
+}
+
 function publishedBrand(slug) {
   const published = brands.get(slug)?.published;
   return published ? resolveBrand(published) : null;
@@ -1640,6 +1746,7 @@ createServer(async (req, res) => {
   if (url.pathname.startsWith("/v1/admin/")) return admin(req, res, url, body, send, raw);
   if (url.pathname === "/v1/articles") return send(200, list(url));
   if (url.pathname === "/v1/sites") return send(200, publicSites());
+  if (publicPages(url, send)) return;
   const logo = /^\/v1\/brand\/assets\/([0-9a-f-]{36})$/.exec(url.pathname);
   if (logo) {
     const asset = brandAssets.get(logo[1]);

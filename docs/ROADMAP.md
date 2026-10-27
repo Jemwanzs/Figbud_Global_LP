@@ -416,7 +416,7 @@ Items marked **Blocking** stop the listed tasks; everything else proceeds with t
 | P7-D2  | Media library: uploads, variants, required alt text, usage tracking                          | ⬜ |
 | P7-E1  | Theme configuration with token guard rails (contrast checks, brand limits); brand colours done (P7-BR4/6) | 🔄 In progress |
 | P7-E2  | Navigation and footer configuration per website                                              | ⬜ |
-| P7-E3  | Multi-site renderer (D16); ZiraHR website moves onto registry-driven pages                   | ⬜ |
+| P7-E3  | Multi-site renderer (D16); ZiraHR website moves onto registry-driven pages: renderer built and tested (`apps/sites-web`: path prefix or own domain, published pages, brand, navigation, calls to action, SEO, sitemap, holding pages); deployment needs a Railway service (your approval); ZiraHR's move onto it remains | 🔄 In progress |
 | P7-F1  | Per-website permissions (site grants) on top of global roles                                 | ⬜ |
 | P7-F2  | Approval queue across websites; audit with previous and new values; rollback                 | ⬜ |
 | P7-G1  | SEO per page: titles, descriptions, social images, canonical URLs, redirects, sitemap        | ⬜ |
@@ -468,6 +468,7 @@ Items marked **Blocking** stop the listed tasks; everything else proceeds with t
 
 | Date        | Change                                                                                                   |
 | ----------- | -------------------------------------------------------------------------------------------------------- |
+| 27 Oct 2026 | Product-site renderer (P7-E3, in progress): `apps/sites-web` serves listed product websites from the Studio's registry, published pages and brands, under `/{site}` or the website's own domain; header navigation from published pages, status-based calls to action, holding pages, canonical URLs, sitemap and robots; tested in five browsers and in CI. Not deployed: a Railway service needs approval. Fixed: block links lost their #fragment when they also had a ?query. |
 | 25 Oct 2026 | Page builder (P7-C1, P7-C2, P7-C3 in progress): pages of typed blocks with server validation, templates, autosaved drafts, maker-checker publishing, version restore, duplicate, archive and ordering; Studio editor with drag-and-drop, block forms, live and full-page previews, undo/redo; shared `PageBlocks` renderer with container-query layouts; published-only public API. Fixed horizontal overflow on phones in the Branding and page editors. |
 | 24 Oct 2026 | Africa expansion map (P7-MAP1): Nairobi origin with the FigBud symbol and product logos from the registry and brand profiles; per-product map visibility setting (`sites.show_on_map`, audited); shared tap-to-reveal and call-to-action helpers used by the hero and the map. |
 | 24 Oct 2026 | Ziwa LMS (P7-ZW1/ZW2): registered as the fifth website (coming soon) and shown across the corporate site; enquiries, admin filters and email routing accept it; proposed logo concept and teal palette; product registry documented (`docs/PRODUCT_REGISTRY.md`). Count-free headings ("Distinct platforms") so adding products needs no copy change. Smart action buttons (P7-UX1) across the Studio. |
