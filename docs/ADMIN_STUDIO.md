@@ -93,6 +93,14 @@ Every Studio form uses the same pattern (`apps/figbud-web/src/lib/form-state.ts`
 - **Unsaved changes** trigger a warning before the page is left (`useUnsavedChangesWarning`). Autosaved drafts (Branding) never publish. Publishing is always a separate, approved step. Version checks refuse conflicting edits with a way to reload.
 - **Where it is used:** website creation and settings, the lifecycle request form, Branding (autosave skips unchanged drafts; Submit explains what's missing; Discard draft changes), brand file uploads, the Insights editor, enquiry follow-up status, the inbox filters, admin invites and sign-in.
 
+## Studio shell and continuous polish
+
+Studio UI polish is a standing priority (P7-UX2): every milestone reviews the screens it touches for spacing, consistency, accessibility and needless steps.
+- **Header:** the official symbol and "FigBud Global", a divider and "Studio"; the section navigation (scrolls sideways on phones); the account menu on the right.
+- **Account menu:** a disclosure button (initials, name and role; initials only on phones) opening a panel with the admin's email, role and Sign out. Escape or a click outside closes it, and focus returns to the button.
+- **Invites (owners):** a full-width work email field, the four roles as cards that say what each can do, and a note that the link works once and expires after 7 days.
+- **Recent activity:** every audited action has a readable label; actions without one are turned into words rather than shown as codes. Entries name the website they concern (`site_name` in `GET /v1/admin/audit`).
+
 ## Safety rules
 
 - No executable content from the CMS; Markdown and typed properties only, validated server-side.

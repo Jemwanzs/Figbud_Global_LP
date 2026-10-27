@@ -1,6 +1,6 @@
 "use client";
 
-import { buttonClasses } from "@figbud/ui";
+import { buttonClasses, cn } from "@figbud/ui";
 import { Check, Copy, UserPlus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -49,46 +49,64 @@ export function InviteAdminForm() {
 
   return (
     <div>
-      <form onSubmit={onSubmit} className="grid gap-4 sm:grid-cols-[1fr_auto_auto] sm:items-end">
+      <form onSubmit={onSubmit} className="grid gap-6">
         <div>
           <label htmlFor="invite-email" className="block text-sm font-medium text-text">
-            Email
+            Work email
           </label>
           <input
             id="invite-email"
             type="email"
             required
+            autoComplete="off"
+            spellCheck={false}
+            placeholder="name@company.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="mt-2 min-h-11 w-full rounded-xl border border-line-strong bg-surface px-4 text-text"
+            className="mt-2 min-h-12 w-full rounded-xl border border-line-strong bg-surface px-4 text-text placeholder:text-subtle"
           />
         </div>
-        <div>
-          <label htmlFor="invite-role" className="block text-sm font-medium text-text">
-            Role
-          </label>
-          <select
-            id="invite-role"
-            value={role}
-            onChange={(e) => setRole(e.target.value)}
-            className="mt-2 min-h-11 w-full rounded-xl border border-line-strong bg-surface px-3 text-text"
-          >
+        <fieldset>
+          <legend className="text-sm font-medium text-text">Role</legend>
+          <div className="mt-2 grid gap-2 sm:grid-cols-2">
             {ROLES.map((r) => (
-              <option key={r.value} value={r.value}>
-                {r.label} · {r.hint}
-              </option>
+              <label
+                key={r.value}
+                className={cn(
+                  "flex cursor-pointer items-start gap-3 rounded-xl border p-3.5 transition-colors has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-accent",
+                  role === r.value
+                    ? "border-accent bg-accent-soft/60"
+                    : "border-line hover:border-line-strong",
+                )}
+              >
+                <input
+                  type="radio"
+                  name="invite-role"
+                  value={r.value}
+                  checked={role === r.value}
+                  onChange={() => setRole(r.value)}
+                  className="mt-0.5 size-4 shrink-0 accent-[var(--color-accent)]"
+                />
+                <span className="min-w-0">
+                  <span className="block text-sm font-medium text-text">{r.label}</span>
+                  <span className="block text-sm text-muted">{r.hint}</span>
+                </span>
+              </label>
             ))}
-          </select>
+          </div>
+        </fieldset>
+        <div className="flex flex-col gap-3 border-t border-line pt-5 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-subtle">The link works once and expires after 7 days.</p>
+          <ActionButton
+            type="submit"
+            ready={validEmail(email)}
+            busy={busy}
+            hint="Enter their work email"
+            icon={<UserPlus aria-hidden className="size-4" />}
+          >
+            Create invite
+          </ActionButton>
         </div>
-        <ActionButton
-          type="submit"
-          ready={validEmail(email)}
-          busy={busy}
-          hint="Enter their work email"
-          icon={<UserPlus aria-hidden className="size-4" />}
-        >
-          Create invite
-        </ActionButton>
       </form>
       {error && (
         <p role="alert" className="mt-3 text-sm text-danger">
@@ -114,7 +132,7 @@ export function InviteAdminForm() {
               {copied ? "Copied" : "Copy link"}
             </button>
           </div>
-          <p className="mt-2 text-subtle">Expires {invite.expires}.</p>
+          <p className="mt-2 text-muted">Expires {invite.expires}.</p>
         </div>
       )}
     </div>

@@ -14,6 +14,7 @@ interface AuditEntry {
   id: string;
   action: string;
   actor_email?: string;
+  site_name?: string | null;
   detail: Record<string, unknown>;
   created_at: string;
 }
@@ -43,7 +44,36 @@ const ACTIONS: Record<string, string> = {
   "site.status_approved": "Approved a website status change",
   "site.status_rejected": "Rejected a website status change",
   "site.status_cancelled": "Cancelled a website status change",
+  "brand.seeded": "Installed the official brand",
+  "brand.icons_seeded": "Generated website icons",
+  "brand.draft_saved": "Saved a brand draft",
+  "brand.submitted": "Submitted a brand for approval",
+  "brand.published": "Published a brand",
+  "brand.rejected": "Sent a brand back for changes",
+  "brand.cancelled": "Withdrew a brand change",
+  "brand.version_restored": "Restored a brand version",
+  "brand.asset_uploaded": "Uploaded a brand asset",
+  "brand.asset_archived": "Archived a brand asset",
+  "brand.asset_restored": "Restored a brand asset",
+  "page.created": "Created a page",
+  "page.draft_saved": "Saved a page draft",
+  "page.duplicated": "Duplicated a page",
+  "page.reordered": "Reordered pages",
+  "page.submitted": "Submitted a page for approval",
+  "page.published": "Published a page",
+  "page.rejected": "Sent a page back for changes",
+  "page.cancelled": "Withdrew a page change",
+  "page.archived": "Archived a page",
+  "page.restored": "Restored a page",
+  "page.version_restored": "Restored a page version",
 };
+
+/** A readable label for any action, including ones added after this list. */
+function describeAction(action: string) {
+  if (ACTIONS[action]) return ACTIONS[action];
+  const words = action.replace(/[._]+/g, " ").trim();
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
 
 export default function AdminHomePage() {
   return (
@@ -182,7 +212,10 @@ async function Dashboard() {
               <ol className="mt-4 divide-y divide-line">
                 {audit.data.slice(0, 12).map((entry) => (
                   <li key={entry.id} className="py-3 text-sm">
-                    <p className="text-text">{ACTIONS[entry.action] ?? entry.action}</p>
+                    <p className="text-text">
+                      {describeAction(entry.action)}
+                      {entry.site_name && <span className="text-muted"> · {entry.site_name}</span>}
+                    </p>
                     <p className="mt-0.5 text-subtle">
                       {entry.actor_email ?? "System"} ·{" "}
                       <time dateTime={entry.created_at}>

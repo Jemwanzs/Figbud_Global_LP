@@ -411,6 +411,8 @@ struct AuditEntry {
     id: Uuid,
     action: String,
     actor_email: Option<String>,
+    /// The website the action concerns, when there is one.
+    site_name: Option<String>,
     target_type: Option<String>,
     target_id: Option<String>,
     detail: Value,
@@ -423,8 +425,11 @@ async fn audit_log(
 ) -> Result<impl IntoResponse, ApiError> {
     session.require(Role::Owner)?;
     let entries: Vec<AuditEntry> = sqlx::query_as(
-        "SELECT a.id, a.action, u.email AS actor_email, a.target_type, a.target_id, a.detail, a.created_at
-           FROM audit_log a LEFT JOIN admin_users u ON u.id = a.actor_user_id
+        "SELECT a.id, a.action, u.email AS actor_email, s.name AS site_name, a.target_type, a.target_id,
+                a.detail, a.created_at
+           FROM audit_log a
+           LEFT JOIN admin_users u ON u.id = a.actor_user_id
+           LEFT JOIN sites s ON s.id = a.site_id
           ORDER BY a.created_at DESC LIMIT 200",
     )
     .fetch_all(&state.pool)

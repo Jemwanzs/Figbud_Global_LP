@@ -46,13 +46,26 @@ test("invite → passkey → dashboard → invite a colleague → sign out → s
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Welcome, Ada");
   await expect(page.getByText(`Signed in as ${email} · Owner`)).toBeVisible();
 
-  await page.getByLabel("Email").fill("colleague@figbud.test");
-  await page.getByLabel("Role").selectOption("reviewer");
+  await page.getByLabel("Work email").fill("colleague@figbud.test");
+  await page.getByRole("radio", { name: /Reviewer/ }).check();
   await page.getByRole("button", { name: "Create invite" }).click();
   await expect(page.getByRole("status")).toContainText("Invite created");
   await expect(page.getByRole("status").locator("code")).toContainText("/admin/invite#token=");
   await expect(page.getByRole("region", { name: "Recent activity" })).toContainText("Created an invite");
 
+  // The account menu holds Sign out; Escape closes it and returns focus.
+  const account = page.getByRole("button", { name: /Ada/ });
+  await account.click();
+  await expect(account).toHaveAttribute("aria-expanded", "true");
+  await expect(page.getByText(email, { exact: true })).toBeVisible();
+  const results = await new AxeBuilder({ page })
+    .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa", "best-practice"])
+    .analyze();
+  expect(results.violations.map((v) => v.id)).toEqual([]);
+  await page.keyboard.press("Escape");
+  await expect(account).toHaveAttribute("aria-expanded", "false");
+  await expect(account).toBeFocused();
+  await account.click();
   await page.getByRole("button", { name: "Sign out" }).click();
   await expect(page).toHaveURL(/\/admin\/login$/);
   await page.goto("/admin");

@@ -3,10 +3,10 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { FigBudBrand } from "@/components/figbud-brand";
-import { type AdminUser, ROLE_LABELS } from "@/lib/admin-client";
+import type { AdminUser } from "@/lib/admin-client";
 
+import { AccountMenu } from "./account-menu";
 import { AuthCard } from "./auth-card";
-import { SignOutButton } from "./sign-out-button";
 
 const NAV = [
   { href: "/admin", label: "Overview" },
@@ -29,9 +29,10 @@ export function AdminShell({
     <div className="min-h-dvh">
       <header className="border-b border-line">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-6 gap-y-3 px-5 py-3 sm:px-8">
-          <Link href="/admin" className="flex items-center gap-3 rounded-lg">
+          <Link href="/admin" className="flex shrink-0 items-center gap-3 rounded-lg py-1">
             <FigBudBrand />
-            <span className="rounded-full border border-line px-2.5 py-0.5 text-xs text-subtle">Admin</span>
+            <span aria-hidden className="h-6 w-px bg-line-strong" />
+            <span className="text-sm font-medium tracking-wide text-accent">Studio</span>
           </Link>
           <nav aria-label="Admin" className="order-last w-full sm:order-none sm:w-auto">
             <ul className="-mx-2 flex [scrollbar-width:none] gap-1 overflow-x-auto px-2">
@@ -51,12 +52,8 @@ export function AdminShell({
               ))}
             </ul>
           </nav>
-          <div className="ms-auto flex items-center gap-3">
-            <p className="hidden text-end text-sm leading-tight md:block">
-              <span className="block text-text">{user.name}</span>
-              <span className="text-subtle">{ROLE_LABELS[user.role]}</span>
-            </p>
-            <SignOutButton />
+          <div className="ms-auto">
+            <AccountMenu user={user} />
           </div>
         </div>
       </header>

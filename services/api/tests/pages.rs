@@ -427,6 +427,17 @@ async fn build_publish_restore_and_archive_a_page() {
     ] {
         assert!(actions.iter().any(|a| a == expected), "{expected} in {actions:?}");
     }
+
+    // The owner's activity feed names the website each action concerns.
+    let (status, log) = s.call("GET", "/v1/admin/audit", Some(&owner), None).await;
+    assert_eq!(status, StatusCode::OK);
+    let archived = log
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|e| e["action"] == "page.archived" && e["detail"]["page"] == id.as_str())
+        .expect("page.archived in the feed");
+    assert_eq!(archived["site_name"], "Page Site");
 }
 
 #[tokio::test]

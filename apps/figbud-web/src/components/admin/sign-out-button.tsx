@@ -22,10 +22,10 @@ export function SignOutButton() {
           router.refresh();
         }
       }}
-      className="inline-flex min-h-11 items-center gap-2 rounded-full border border-line px-4 text-sm text-muted transition-colors hover:border-line-strong hover:text-text"
+      className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-sm text-muted transition-colors hover:bg-surface-2 hover:text-text disabled:opacity-60"
     >
       <LogOut aria-hidden className="size-4" />
-      Sign out
+      {busy ? "Signing out…" : "Sign out"}
     </button>
   );
 }
