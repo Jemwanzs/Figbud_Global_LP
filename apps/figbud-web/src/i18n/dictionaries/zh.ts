@@ -30,7 +30,7 @@ const zh: DeepPartial<Dictionary> = {
       requestDemo: "预约演示",
     },
     status: { active: "已上线", coming_soon: "即将推出", planned: "规划中" },
-    theme: { toLight: "切换到浅色主题", toDark: "切换到深色主题" },
+    theme: { label: "主题", light: "浅色", dark: "深色", system: "跟随系统" },
     language: { label: "语言", inReview: "审校中" },
     menu: { open: "打开菜单", close: "关闭菜单" },
     opensInNewTab: "在新标签页中打开",

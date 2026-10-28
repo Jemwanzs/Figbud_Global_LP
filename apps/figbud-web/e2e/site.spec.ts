@@ -43,7 +43,8 @@ test.describe("homepage", () => {
     const tabs = page.getByRole("tablist");
     const logo = (name: RegExp) => tabs.getByRole("tab", { name }).locator('img[src^="/brand/assets/"]');
     // Symbols for ZiraHR and Ziwa LMS; Jasiri's official logo carries its name.
-    for (const name of [/ZiraHR/, /Ziwa LMS/, /Jasiri LMS/]) await expect(logo(name).first()).toBeVisible();
+    for (const name of [/ZiraHR/, /Ziwa LMS/, /Jasiri LMS/])
+      await expect(logo(name).filter({ visible: true }).first()).toBeVisible();
     await expect(
       tabs
         .getByRole("tab", { name: /Jasiri LMS/ })
@@ -56,7 +57,7 @@ test.describe("homepage", () => {
     await tabs.getByRole("tab", { name: /Ziwa LMS/ }).click();
     const panel = page.getByRole("tabpanel");
     await expect(panel.getByRole("heading", { name: "Ziwa LMS" })).toBeVisible();
-    await expect(panel.locator('img[src^="/brand/assets/"]').first()).toBeVisible();
+    await expect(panel.locator('img[src^="/brand/assets/"]').filter({ visible: true }).first()).toBeVisible();
     // On phones the tabs scroll sideways inside their row; the page never does.
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth),
@@ -65,13 +66,31 @@ test.describe("homepage", () => {
 });
 
 test.describe("theme and language", () => {
-  test("defaults to dark and remembers light mode", async ({ page }) => {
+  test("follows the device until a theme is chosen, and remembers the choice", async ({ page }) => {
+    const html = page.locator("html");
+    const theme = page.getByRole("radiogroup", { name: "Theme" });
+    await page.emulateMedia({ colorScheme: "light" });
     await page.goto("/en");
-    await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
-    await page.getByRole("button", { name: "Switch to light theme" }).click();
-    await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+    await expect(html).toHaveAttribute("data-theme", "light");
+    await expect(theme.getByRole("radio", { name: "System" })).toHaveAttribute("aria-checked", "true");
+    // System follows the device live.
+    await page.emulateMedia({ colorScheme: "dark" });
+    await expect(html).toHaveAttribute("data-theme", "dark");
+    // A chosen theme wins over the device and is remembered.
+    await expect(async () => {
+      await theme.getByRole("radio", { name: "Light" }).click();
+      await expect(html).toHaveAttribute("data-theme", "light", { timeout: 1_000 });
+    }).toPass();
     await page.reload();
-    await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+    await expect(html).toHaveAttribute("data-theme", "light");
+    await expect(theme.getByRole("radio", { name: "Light" })).toHaveAttribute("aria-checked", "true");
+    // Arrow keys move through the options.
+    await theme.getByRole("radio", { name: "Light" }).focus();
+    await page.keyboard.press("ArrowRight");
+    await expect(html).toHaveAttribute("data-theme", "dark");
+    await expect(theme.getByRole("radio", { name: "Dark" })).toBeFocused();
+    await page.keyboard.press("ArrowRight");
+    await expect(html).toHaveAttribute("data-theme-preference", "system");
   });
 
   test("Arabic renders right-to-left with a review notice", async ({ page }) => {

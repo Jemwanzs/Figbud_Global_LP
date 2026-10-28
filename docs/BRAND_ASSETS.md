@@ -89,7 +89,7 @@ Product accent tokens (`packages/brand/src/tokens.css`) now follow each product'
 
 | Product | Accent | Second | Text on dark | Text on light |
 | ------- | ------ | ------ | ------------ | ------------- |
-| FigBud Global | #F0A65D amber | #A66538 copper | #F0A65D | #9A5A2E |
+| FigBud Global (parent palette, 28 Oct 2026) | #22C55E emerald (navy text on it) | #3B82F6 electric blue | #22C55E | #15803D |
 | ZiraHR | #22D3EE cyan | #0891B2 | #67E8F9 | #0E7490 |
 | Jasiri LMS | #22C55E green | #7C3AED purple | #4ADE80 | #15803D |
 | Expense Now (proposed) | #F97316 orange | #C2410C | #FB923C | #C2410C |

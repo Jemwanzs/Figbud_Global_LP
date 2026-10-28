@@ -441,7 +441,7 @@ const brandAssets = new Map(); // id -> asset (with data Buffer)
 const brands = new Map(); // site slug -> profile
 
 const BRAND_DEFAULTS = {
-  figbud: ["#f0a65d", "#a66538", "#f6bd82"],
+  figbud: ["#22c55e", "#3b82f6", "#a855f7"],
   zirahr: ["#22d3ee", "#0891b2", "#11e6ff"],
   jasiri: ["#22c55e", "#7c3aed", "#4ade80"],
   expense_now: ["#f97316", "#ea580c", "#fdba74"],
@@ -780,8 +780,8 @@ const ratio = (a, b) => {
 };
 
 function brandChecks(c) {
-  const dark = ratio(c.colors.primary, "#120f0d");
-  const light = ratio(c.colors.primary, "#fbf7f1");
+  const dark = ratio(c.colors.primary, "#020617");
+  const light = ratio(c.colors.primary, "#f8fafc");
   return [
     {
       id: "logo_on_dark",

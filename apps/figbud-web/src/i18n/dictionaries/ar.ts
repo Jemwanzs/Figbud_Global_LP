@@ -30,7 +30,7 @@ const ar: DeepPartial<Dictionary> = {
       requestDemo: "اطلب عرضًا توضيحيًا",
     },
     status: { active: "متاح", coming_soon: "قريبًا", planned: "مخطط" },
-    theme: { toLight: "التبديل إلى السمة الفاتحة", toDark: "التبديل إلى السمة الداكنة" },
+    theme: { label: "السمة", light: "فاتحة", dark: "داكنة", system: "حسب النظام" },
     language: { label: "اللغة", inReview: "قيد المراجعة" },
     menu: { open: "فتح القائمة", close: "إغلاق القائمة" },
     opensInNewTab: "يفتح في علامة تبويب جديدة",

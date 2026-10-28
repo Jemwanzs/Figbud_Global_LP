@@ -1,6 +1,6 @@
 "use client";
 
-import { cn } from "@figbud/ui";
+import { ThemeToggle, cn } from "@figbud/ui";
 import { ChevronDown } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 
@@ -87,6 +87,10 @@ export function AccountMenu({ user }: { user: AdminUser }) {
           <p className="mt-2 inline-flex rounded-full bg-surface-2 px-2.5 py-0.5 text-xs text-muted">
             {ROLE_LABELS[user.role]}
           </p>
+        </div>
+        <div className="flex items-center justify-between gap-3 border-t border-line px-3 py-2.5">
+          <span className="text-sm text-muted">Appearance</span>
+          <ThemeToggle labels={{ label: "Appearance", light: "Light", dark: "Dark", system: "System" }} />
         </div>
         <div className="border-t border-line pt-2">
           <SignOutButton />

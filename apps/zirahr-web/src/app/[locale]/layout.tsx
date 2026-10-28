@@ -1,4 +1,4 @@
-import { getProduct } from "@figbud/brand";
+import { getProduct, themeColorViewport } from "@figbud/brand";
 import { isLocale, locales } from "@figbud/i18n";
 import { ProductHeader, brandIcons } from "@figbud/site-kit";
 import { ProductFooter } from "@figbud/site-kit/footer";
@@ -19,10 +19,7 @@ export async function generateStaticParams() {
 }
 
 export const viewport: Viewport = {
-  themeColor: [
-    { media: "(prefers-color-scheme: dark)", color: "#120f0d" },
-    { media: "(prefers-color-scheme: light)", color: "#fbf7f1" },
-  ],
+  themeColor: themeColorViewport,
   colorScheme: "dark light",
 };
 

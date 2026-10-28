@@ -82,7 +82,10 @@ test("fits phones and is accessible", async ({ page }) => {
 test("the website's own favicons, touch icon and app manifest", async ({ page, request }) => {
   await page.goto("/ziwa");
   // The approved Ziwa LMS logo in the header.
-  await expect(page.getByRole("banner").locator('img[src^="/brand/assets/"]').first()).toBeVisible();
+  // Whichever of its two variants suits the theme in use.
+  await expect(
+    page.getByRole("banner").locator('img[src^="/brand/assets/"]').filter({ visible: true }).first(),
+  ).toBeVisible();
   const icons = page.locator('link[rel="icon"]');
   await expect(icons.first()).toHaveAttribute("type", "image/svg+xml");
   for (const size of [16, 32, 48]) {

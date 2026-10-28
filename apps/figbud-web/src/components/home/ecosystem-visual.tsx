@@ -113,8 +113,8 @@ export function EcosystemVisual({ locale, labels, common, copy, caption, product
           <svg aria-hidden viewBox={`0 0 ${W} ${H}`} className="absolute inset-0 size-full" fill="none">
             <defs>
               <radialGradient id="eco-core" cx="50%" cy="50%" r="50%">
-                <stop offset="0" stopColor="var(--fb-amber)" stopOpacity="0.35" />
-                <stop offset="1" stopColor="var(--fb-amber)" stopOpacity="0" />
+                <stop offset="0" stopColor="var(--fb-emerald)" stopOpacity="0.35" />
+                <stop offset="1" stopColor="var(--fb-emerald)" stopOpacity="0" />
               </radialGradient>
             </defs>
 
@@ -170,7 +170,7 @@ export function EcosystemVisual({ locale, labels, common, copy, caption, product
           >
             {hasLogo(figbudSymbol) ? (
               // The official symbol is drawn for dark backgrounds, so it sits on a dark tile in both themes.
-              <span className="flex size-14 items-center justify-center rounded-[18px] bg-[#15120f] shadow-[0_0_0_1px_rgb(240_166_93/0.35),0_12px_40px_-8px_var(--glow)] sm:size-16">
+              <span className="flex size-14 items-center justify-center rounded-[18px] bg-fb-ink shadow-[0_0_0_1px_rgb(34_197_94/0.35),0_12px_40px_-8px_var(--glow)] sm:size-16">
                 <BrandLogo pair={figbudSymbol} on="dark" height={30} maxWidth={36} alt="FigBud Global" />
               </span>
             ) : (

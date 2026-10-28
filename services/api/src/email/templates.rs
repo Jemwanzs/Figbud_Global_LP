@@ -39,14 +39,14 @@ pub fn team_notification(enquiry: &Enquiry, reference: &str) -> RenderedEmail {
     let mut text = format!("New {} for {product}\n\n", enquiry.kind.label().to_lowercase());
     for (label, value) in present {
         table.push_str(&format!(
-            r#"<tr><td style="padding:8px 16px 8px 0;color:#7a6556;font-size:13px;white-space:nowrap;vertical-align:top">{label}</td><td style="padding:8px 0;color:#15120f;font-size:14px">{}</td></tr>"#,
+            r#"<tr><td style="padding:8px 16px 8px 0;color:#64748b;font-size:13px;white-space:nowrap;vertical-align:top">{label}</td><td style="padding:8px 0;color:#0f172a;font-size:14px">{}</td></tr>"#,
             escape_html(value)
         ));
         text.push_str(&format!("{label}: {value}\n"));
     }
     if let Some(message) = &enquiry.message {
         table.push_str(&format!(
-            r#"<tr><td colspan="2" style="padding:16px 0 0"><div style="color:#7a6556;font-size:13px;margin-bottom:6px">Message</div><div style="color:#15120f;font-size:14px;line-height:1.6;white-space:pre-wrap;background:#fbf6ef;border-radius:10px;padding:14px 16px">{}</div></td></tr>"#,
+            r#"<tr><td colspan="2" style="padding:16px 0 0"><div style="color:#64748b;font-size:13px;margin-bottom:6px">Message</div><div style="color:#0f172a;font-size:14px;line-height:1.6;white-space:pre-wrap;background:#f8fafc;border-radius:10px;padding:14px 16px">{}</div></td></tr>"#,
             escape_html(message)
         ));
         text.push_str(&format!("\nMessage:\n{message}\n"));
@@ -54,8 +54,8 @@ pub fn team_notification(enquiry: &Enquiry, reference: &str) -> RenderedEmail {
     text.push_str("\nReply directly to this email to respond to the sender.\n");
 
     let body = format!(
-        r#"<p style="margin:0 0 4px;color:#a66538;font-size:12px;letter-spacing:.12em;text-transform:uppercase">{product}</p>
-<h1 style="margin:0 0 20px;font-size:22px;color:#15120f">New {}</h1>
+        r#"<p style="margin:0 0 4px;color:#15803d;font-size:12px;letter-spacing:.12em;text-transform:uppercase">{product}</p>
+<h1 style="margin:0 0 20px;font-size:22px;color:#0f172a">New {}</h1>
 <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse">{table}</table>"#,
         escape_html(&enquiry.kind.label().to_lowercase())
     );
@@ -109,11 +109,11 @@ pub fn visitor_acknowledgement(enquiry: &Enquiry, reference: &str) -> RenderedEm
     };
 
     let body = format!(
-        r#"<h1 style="margin:0 0 16px;font-size:22px;color:#15120f">{}</h1>
-<p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#39261d">Hi {},</p>
-<p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#39261d">{}</p>
-<p style="margin:0 0 24px;font-size:14px;line-height:1.6;color:#5c4a3d">Your reference is <strong style="color:#15120f;font-family:ui-monospace,Menlo,monospace">{}</strong>. Quote it if you need to follow up.</p>
-<p style="margin:0;font-size:13px;line-height:1.6;color:#7a6556">If you didn't submit this request, you can safely ignore this email.</p>"#,
+        r#"<h1 style="margin:0 0 16px;font-size:22px;color:#0f172a">{}</h1>
+<p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#334155">Hi {},</p>
+<p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#334155">{}</p>
+<p style="margin:0 0 24px;font-size:14px;line-height:1.6;color:#475569">Your reference is <strong style="color:#0f172a;font-family:ui-monospace,Menlo,monospace">{}</strong>. Quote it if you need to follow up.</p>
+<p style="margin:0;font-size:13px;line-height:1.6;color:#64748b">If you didn't submit this request, you can safely ignore this email.</p>"#,
         escape_html(&headline),
         escape_html(first_name),
         escape_html(&next_steps),
@@ -135,12 +135,12 @@ pub fn visitor_acknowledgement(enquiry: &Enquiry, reference: &str) -> RenderedEm
 fn layout(body: &str) -> String {
     format!(
         r#"<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>FigBud Global</title></head>
-<body style="margin:0;padding:0;background:#f6e9d8;font-family:Outfit,'Segoe UI',Helvetica,Arial,sans-serif">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f6e9d8;padding:32px 16px"><tr><td align="center">
+<body style="margin:0;padding:0;background:#f1f5f9;font-family:Outfit,'Segoe UI',Helvetica,Arial,sans-serif">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9;padding:32px 16px"><tr><td align="center">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px">
-<tr><td style="padding:0 8px 16px;font-size:16px;font-weight:600;color:#15120f">FigBud <span style="color:#a66538">Global</span></td></tr>
+<tr><td style="padding:0 8px 16px;font-size:16px;font-weight:600;color:#0f172a">FigBud <span style="color:#15803d">Global</span></td></tr>
 <tr><td style="background:#ffffff;border-radius:16px;padding:32px">{body}</td></tr>
-<tr><td style="padding:16px 8px 0;font-size:12px;color:#7a6556">FigBud Global · From vision to value, we deliver.</td></tr>
+<tr><td style="padding:16px 8px 0;font-size:12px;color:#64748b">FigBud Global · From vision to value, we deliver.</td></tr>
 </table></td></tr></table></body></html>"#
     )
 }

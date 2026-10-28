@@ -1,3 +1,4 @@
+import { themeColorViewport } from "@figbud/brand";
 import { brandIcons } from "@figbud/site-kit";
 import { themeInitScript } from "@figbud/ui";
 import type { Metadata, Viewport } from "next";
@@ -20,10 +21,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export const viewport: Viewport = {
-  themeColor: [
-    { media: "(prefers-color-scheme: dark)", color: "#15120f" },
-    { media: "(prefers-color-scheme: light)", color: "#fbf7f1" },
-  ],
+  themeColor: themeColorViewport,
 };
 
 export default function AdminLayout({ children }: { children: ReactNode }) {

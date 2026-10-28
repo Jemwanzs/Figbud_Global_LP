@@ -71,8 +71,8 @@ export function AfricaMap({
               <circle cx="6" cy="6" r="2.1" fill="var(--text-subtle)" fillOpacity="0.45" />
             </pattern>
             <radialGradient id="africa-hub-glow">
-              <stop offset="0" stopColor="var(--fb-amber)" stopOpacity="0.5" />
-              <stop offset="1" stopColor="var(--fb-amber)" stopOpacity="0" />
+              <stop offset="0" stopColor="var(--fb-emerald)" stopOpacity="0.5" />
+              <stop offset="1" stopColor="var(--fb-emerald)" stopOpacity="0" />
             </radialGradient>
           </defs>
 
@@ -90,7 +90,7 @@ export function AfricaMap({
               <m.path
                 d={arc(hub, point)}
                 fill="none"
-                stroke="var(--fb-amber)"
+                stroke="var(--fb-emerald)"
                 strokeWidth="1.6"
                 strokeLinecap="round"
                 strokeOpacity="0.7"
@@ -104,7 +104,7 @@ export function AfricaMap({
                 cy={point.y}
                 r="5"
                 fill="var(--bg)"
-                stroke="var(--fb-amber)"
+                stroke="var(--fb-emerald)"
                 strokeWidth="2"
                 initial={{ opacity: 0 }}
                 whileInView={{ opacity: 1 }}
@@ -142,11 +142,11 @@ export function AfricaMap({
             cy={hub.y}
             r="16"
             fill="none"
-            stroke="var(--fb-amber)"
+            stroke="var(--fb-emerald)"
             strokeOpacity="0.5"
             className="origin-center [transform-box:fill-box] motion-safe:animate-[fb-orbit-glow_3.2s_ease-in-out_infinite]"
           />
-          <circle cx={hub.x} cy={hub.y} r="8" fill="var(--fb-amber)" />
+          <circle cx={hub.x} cy={hub.y} r="8" fill="var(--fb-emerald)" />
         </svg>
 
         {/* Origin: sits to the left of Nairobi so it never overflows narrow screens. */}
@@ -157,7 +157,7 @@ export function AfricaMap({
           <div className="fb-panel flex items-center gap-2.5 rounded-2xl py-2 ps-2 pe-3.5 whitespace-nowrap shadow-[0_12px_32px_-14px_var(--glow)]">
             {hasLogo(figbudSymbol) ? (
               // The official symbol is drawn for dark backgrounds, so it sits on a dark tile in both themes.
-              <span className="flex size-9 shrink-0 items-center justify-center rounded-[11px] bg-[#15120f] shadow-[0_0_0_1px_rgb(240_166_93/0.35),0_0_18px_-4px_var(--fb-amber)]">
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-[11px] bg-fb-ink shadow-[0_0_0_1px_rgb(34_197_94/0.35),0_0_18px_-4px_var(--fb-emerald)]">
                 <BrandLogo pair={figbudSymbol} on="dark" height={22} maxWidth={24} alt="" />
               </span>
             ) : (
@@ -223,7 +223,7 @@ export function AfricaMap({
 function MarkerLogo({ slug, name, brand }: { slug: ProductSlug; name: string; brand?: BrandProfile | null }) {
   if (productLogoKind(brand) === "wordmark") {
     return (
-      <span className="flex h-9 shrink-0 items-center rounded-[11px] bg-[#15120f] px-2">
+      <span className="flex h-9 shrink-0 items-center rounded-[11px] bg-fb-ink px-2">
         <ProductLogo slug={slug} brand={brand} name={name} on="dark" size="sm" maxWidth={52} />
       </span>
     );

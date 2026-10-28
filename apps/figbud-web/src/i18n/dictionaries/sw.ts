@@ -30,7 +30,7 @@ const sw: DeepPartial<Dictionary> = {
       requestDemo: "Omba onyesho",
     },
     status: { active: "Inatumika", coming_soon: "Inakuja hivi karibuni", planned: "Imepangwa" },
-    theme: { toLight: "Badilisha kwenda mandhari angavu", toDark: "Badilisha kwenda mandhari meusi" },
+    theme: { label: "Mandhari", light: "Angavu", dark: "Meusi", system: "Ya mfumo" },
     language: { label: "Lugha", inReview: "Inakaguliwa" },
     menu: { open: "Fungua menyu", close: "Funga menyu" },
     opensInNewTab: "hufunguka kwenye kichupo kipya",

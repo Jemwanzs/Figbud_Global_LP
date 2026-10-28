@@ -2,7 +2,7 @@
 
 import { type ProductSlug, getProduct, productSites } from "@figbud/brand";
 import { type Locale, localizePath, stripLocale } from "@figbud/i18n";
-import { ThemeToggle, buttonClasses, cn } from "@figbud/ui";
+import { type ThemeLabels, ThemeToggle, buttonClasses, cn } from "@figbud/ui";
 import { ArrowLeft, ArrowUpRight, Menu, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -23,7 +23,7 @@ export interface ProductHeaderLabels {
   backToFigbud: string;
   opensInNewTab: string;
   menu: { open: string; close: string };
-  theme: { toLight: string; toDark: string };
+  theme: ThemeLabels;
   language: LanguageLabels;
 }
 

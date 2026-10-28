@@ -26,7 +26,7 @@ export function AssetThumb({ asset, className }: { asset: LibraryAsset; classNam
     <span
       className={cn(
         "flex items-center justify-center rounded-lg border border-line p-2",
-        light ? "bg-[#fbf7f1]" : "bg-[#120f0d]",
+        light ? "bg-[var(--fb-paper)]" : "bg-fb-ink",
         className,
       )}
     >

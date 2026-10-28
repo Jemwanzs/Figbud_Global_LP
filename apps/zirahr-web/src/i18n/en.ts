@@ -25,7 +25,7 @@ const en = {
     backToFigbud: "Back to FigBud Global",
     opensInNewTab: "opens in a new tab",
     menu: { open: "Open menu", close: "Close menu" },
-    theme: { toLight: "Switch to light theme", toDark: "Switch to dark theme" },
+    theme: { label: "Theme", light: "Light", dark: "Dark", system: "System" },
     language: { label: "Language", inReview: "In review" },
   },
   footer: {

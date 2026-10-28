@@ -1,3 +1,4 @@
+import { publicProducts, themeBackground } from "@figbud/brand";
 import { ImageResponse } from "next/og";
 
 export const alt = "FigBud Global — Built for complexity. Designed for progress.";
@@ -14,21 +15,13 @@ export default function OpengraphImage() {
         flexDirection: "column",
         justifyContent: "space-between",
         padding: 80,
-        background: "radial-gradient(circle at 85% 10%, rgba(240,166,93,0.35), transparent 55%), #120f0d",
-        color: "#f6ece0",
+        background: `radial-gradient(circle at 85% 10%, rgba(34,197,94,0.28), transparent 55%), radial-gradient(circle at 10% 95%, rgba(59,130,246,0.22), transparent 50%), ${themeBackground.dark}`,
+        color: "#f8fafc",
       }}
     >
       <div style={{ display: "flex", alignItems: "center", gap: 18, fontSize: 34 }}>
-        <div
-          style={{
-            width: 56,
-            height: 56,
-            borderRadius: 16,
-            background: "linear-gradient(135deg, #F6BD82, #F0A65D 55%, #A66538)",
-          }}
-        />
         <span style={{ fontWeight: 600 }}>FigBud</span>
-        <span style={{ color: "#c2b2a1" }}>Global</span>
+        <span style={{ color: "#94a3b8" }}>Global</span>
       </div>
       <div
         style={{
@@ -40,14 +33,16 @@ export default function OpengraphImage() {
         }}
       >
         <span>Built for complexity.</span>
-        <span style={{ color: "#f0a65d" }}>Designed for progress.</span>
+        <span style={{ color: "#22c55e" }}>Designed for progress.</span>
       </div>
-      <div style={{ display: "flex", gap: 28, fontSize: 26, color: "#c2b2a1" }}>
-        <span>ZiraHR</span>
-        <span>·</span>
-        <span>Jasiri LMS</span>
-        <span>·</span>
-        <span>Expense Now</span>
+      <div style={{ display: "flex", gap: 28, fontSize: 26, color: "#94a3b8" }}>
+        {/* Every product in the registry, so a new product is never left out. */}
+        {publicProducts.map((product, i) => (
+          <span key={product.slug} style={{ display: "flex", gap: 28 }}>
+            {i > 0 && <span>·</span>}
+            <span>{product.name}</span>
+          </span>
+        ))}
       </div>
     </div>,
     size,

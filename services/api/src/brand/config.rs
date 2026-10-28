@@ -9,8 +9,8 @@ use uuid::Uuid;
 use crate::error::FieldError;
 
 /// Background colours of the shared site themes (packages/brand/src/tokens.css).
-pub const DARK_BACKGROUND: &str = "#120f0d";
-pub const LIGHT_BACKGROUND: &str = "#fbf7f1";
+pub const DARK_BACKGROUND: &str = "#020617";
+pub const LIGHT_BACKGROUND: &str = "#f8fafc";
 pub const LOGO_HEIGHT: std::ops::RangeInclusive<u8> = 20..=48;
 
 /// One logo slot: the file for dark backgrounds and the file for light ones.
@@ -77,13 +77,14 @@ impl BrandConfig {
     /// The starting profile for a website: its current token colours, no logos.
     pub fn default_for(slug: &str) -> Self {
         let (primary, secondary, accent) = match slug {
-            "figbud" => ("#f0a65d", "#a66538", "#f6bd82"),
+            // The FigBud Global parent palette: emerald, electric blue, violet.
+            "figbud" => ("#22c55e", "#3b82f6", "#a855f7"),
             "zirahr" => ("#22d3ee", "#0891b2", "#11e6ff"),
             "jasiri" => ("#22c55e", "#7c3aed", "#4ade80"),
             "expense_now" => ("#f97316", "#ea580c", "#fdba74"),
             // The approved Ziwa LMS palette: primary blue, primary green, gold accent.
             "ziwa" => ("#0b6edb", "#10b981", "#c9a87a"),
-            _ => ("#f0a65d", "#a66538", "#f6bd82"),
+            _ => ("#22c55e", "#3b82f6", "#a855f7"),
         };
         Self {
             logos: Logos::default(),

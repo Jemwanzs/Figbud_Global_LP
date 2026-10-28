@@ -26,7 +26,8 @@ test.describe("public websites", () => {
 
     await page.evaluate(() => (document.documentElement.dataset.theme = "light"));
     const plate = header.locator(".fb-brand-solo").filter({ visible: true }).first();
-    await expect(plate).toHaveCSS("background-color", "rgb(21, 18, 15)");
+    // The plate is the parent palette's midnight navy (--fb-ink).
+    await expect(plate).toHaveCSS("background-color", "rgb(2, 6, 23)");
   });
 
   test("product cards use the published logos and symbols", async ({ page }) => {

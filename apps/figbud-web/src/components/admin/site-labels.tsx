@@ -117,7 +117,7 @@ export const hasPublishedLogo = (brand?: BrandProfile | null) =>
  */
 export function SiteMark({ slug, name, brand }: { slug: string; name: string; brand?: BrandProfile | null }) {
   const tile =
-    "flex h-12 shrink-0 items-center justify-center rounded-xl bg-[#15120f] shadow-[0_0_0_1px_var(--line-strong)]";
+    "flex h-12 shrink-0 items-center justify-center rounded-xl bg-fb-ink shadow-[0_0_0_1px_var(--line-strong)]";
   if (hasLogo(brand?.logos.symbol)) {
     return (
       <span className={cn(tile, "w-12")}>

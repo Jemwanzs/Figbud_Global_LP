@@ -40,10 +40,7 @@ const en = {
       coming_soon: "Coming soon",
       planned: "Planned",
     },
-    theme: {
-      toLight: "Switch to light theme",
-      toDark: "Switch to dark theme",
-    },
+    theme: { label: "Theme", light: "Light", dark: "Dark", system: "System" },
     language: {
       label: "Language",
       inReview: "In review",

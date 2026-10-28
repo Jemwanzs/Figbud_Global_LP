@@ -1,3 +1,4 @@
+import { themeBackground } from "@figbud/brand";
 import { brandManifestIcons } from "@figbud/site-kit";
 
 import { getSite, pageHref } from "@/lib/sites";
@@ -18,8 +19,8 @@ export async function GET(request: Request) {
     description: site.tagline ?? undefined,
     start_url: pageHref(site.slug, query.get("own") === "1", ""),
     display: "standalone",
-    background_color: "#120f0d",
-    theme_color: site.brand?.colors.primary ?? "#120f0d",
+    background_color: themeBackground.dark,
+    theme_color: site.brand?.colors.primary ?? themeBackground.dark,
     icons: brandManifestIcons(site.brand) ?? [{ src: "/icon.png", type: "image/png", sizes: "64x64" }],
   };
   return Response.json(manifest, {

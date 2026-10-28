@@ -15,6 +15,23 @@ if (busy) {
   console.error(`Port ${PORT} is already in use (a running mock API?). Stop it and retry.`);
   process.exit(1);
 }
+// The e2e servers (playwright.config.ts) are reused when already running. One
+// left over from an earlier build serves old HTML against this build's
+// scripts, which shows up as hydration errors; refuse to build under it.
+for (const [app, port] of [
+  ["figbud-web", 3100],
+  ["zirahr-web", 3110],
+  ["sites-web", 3210],
+]) {
+  const stale = await fetch(`http://localhost:${port}/`, { signal: AbortSignal.timeout(2000) }).then(
+    () => true,
+    () => false,
+  );
+  if (stale) {
+    console.error(`An e2e server for ${app} is still running on port ${port}. Stop it and retry.`);
+    process.exit(1);
+  }
+}
 const mock = spawn(process.execPath, ["apps/figbud-web/e2e/mock-api.mjs"], {
   env: { ...process.env, MOCK_API_PORT: String(PORT) },
   stdio: "inherit",

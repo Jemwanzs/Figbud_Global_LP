@@ -67,26 +67,26 @@ const page = `<title>FigBud Global Roadmap</title>
 <style>
 /* Layout: sticky contents rail beside one reading column; tables scroll inside their own frame. */
 :root {
-  --ink: #15120f; --espresso: #39261d; --copper: #9a5a2e; --amber: #f0a65d; --cream: #f6e9d8;
-  --bg: #fbf7f1; --surface: #ffffff; --surface-2: #f4ebdf; --line: rgb(57 38 29 / .12);
-  --fg: #15120f; --muted: #5c4a3d; --subtle: #7a6556; --accent: #9a5a2e;
-  --done-bg: #e3f4ea; --done-fg: #17603f; --prog-bg: #fbecd9; --prog-fg: #8a4b17;
-  --block-bg: #fbe3e1; --block-fg: #9b2a20; --todo-bg: #eee8e1; --todo-fg: #5c4a3d;
+  /* FigBud Global parent palette (packages/brand/src/tokens.css). */
+  --bg: #f8fafc; --surface: #ffffff; --surface-2: #f1f5f9; --line: rgb(15 23 42 / .1);
+  --fg: #0f172a; --muted: #475569; --subtle: #556377; --accent: #15803d;
+  --done-bg: #dcfce7; --done-fg: #166534; --prog-bg: #dbeafe; --prog-fg: #1d4ed8;
+  --block-bg: #fee2e2; --block-fg: #b91c1c; --todo-bg: #f1f5f9; --todo-fg: #475569;
   --display: "Outfit", ui-sans-serif, system-ui, "Segoe UI", sans-serif;
   --body: "Outfit", ui-sans-serif, system-ui, "Segoe UI", sans-serif;
   --mono: "JetBrains Mono", ui-monospace, "Cascadia Code", Menlo, monospace;
 }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
-  --bg: #120f0d; --surface: #1c1714; --surface-2: #241e19; --line: rgb(246 233 216 / .1);
-  --fg: #f6ece0; --muted: #c2b2a1; --subtle: #9c8b7a; --accent: #f0a65d;
-  --done-bg: rgb(95 211 161 / .14); --done-fg: #7fe0b6; --prog-bg: rgb(240 166 93 / .16); --prog-fg: #f6bd82;
-  --block-bg: rgb(242 139 130 / .16); --block-fg: #f5a59e; --todo-bg: rgb(246 233 216 / .08); --todo-fg: #c2b2a1;
+  --bg: #020617; --surface: #0f172a; --surface-2: #162033; --line: rgb(148 163 184 / .14);
+  --fg: #f8fafc; --muted: #cbd5e1; --subtle: #94a3b8; --accent: #22c55e;
+  --done-bg: rgb(34 197 94 / .14); --done-fg: #4ade80; --prog-bg: rgb(59 130 246 / .16); --prog-fg: #93c5fd;
+  --block-bg: rgb(248 113 113 / .16); --block-fg: #fca5a5; --todo-bg: rgb(148 163 184 / .1); --todo-fg: #cbd5e1;
   color-scheme: dark; } }
 :root[data-theme="dark"] {
-  --bg: #120f0d; --surface: #1c1714; --surface-2: #241e19; --line: rgb(246 233 216 / .1);
-  --fg: #f6ece0; --muted: #c2b2a1; --subtle: #9c8b7a; --accent: #f0a65d;
-  --done-bg: rgb(95 211 161 / .14); --done-fg: #7fe0b6; --prog-bg: rgb(240 166 93 / .16); --prog-fg: #f6bd82;
-  --block-bg: rgb(242 139 130 / .16); --block-fg: #f5a59e; --todo-bg: rgb(246 233 216 / .08); --todo-fg: #c2b2a1;
+  --bg: #020617; --surface: #0f172a; --surface-2: #162033; --line: rgb(148 163 184 / .14);
+  --fg: #f8fafc; --muted: #cbd5e1; --subtle: #94a3b8; --accent: #22c55e;
+  --done-bg: rgb(34 197 94 / .14); --done-fg: #4ade80; --prog-bg: rgb(59 130 246 / .16); --prog-fg: #93c5fd;
+  --block-bg: rgb(248 113 113 / .16); --block-fg: #fca5a5; --todo-bg: rgb(148 163 184 / .1); --todo-fg: #cbd5e1;
   color-scheme: dark; }
 
 * { box-sizing: border-box; }
@@ -96,7 +96,7 @@ body { background: var(--bg); color: var(--fg); font: 400 16px/1.65 var(--body);
 @media (min-width: 1100px) { .shell { grid-template-columns: 15rem minmax(0, 1fr); } }
 
 .mark { display: flex; align-items: center; gap: 10px; font: 600 15px var(--display); color: var(--fg); }
-.mark i { width: 26px; height: 26px; border-radius: 8px; background: linear-gradient(135deg, #f6bd82, #f0a65d 55%, #a66538); display: inline-block; }
+.mark i { width: 26px; height: 26px; border-radius: 8px; background: linear-gradient(135deg, #4ade80, #22c55e 45%, #3b82f6); display: inline-block; }
 .mark span { color: var(--subtle); font-weight: 400; }
 
 nav.toc { position: relative; }

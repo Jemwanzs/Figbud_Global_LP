@@ -392,7 +392,101 @@ pub async fn run(pool: &PgPool) -> Result<(), Box<dyn std::error::Error + Send +
         tracing::info!(%slug, has_official, "brand profile seeded");
     }
     upgrade_icons(pool).await?;
-    upgrade_ziwa_identity(pool).await
+    upgrade_ziwa_identity(pool).await?;
+    upgrade_figbud_palette(pool).await
+}
+
+/// The FigBud Global palette before 28 Oct 2026 (amber, copper).
+const FIGBUD_AMBER: [&str; 3] = ["#f0a65d", "#a66538", "#f6bd82"];
+
+/// One-time upgrade to the FigBud Global parent palette (emerald, electric
+/// blue, violet; 28 Oct 2026). Only colours still at the old defaults change,
+/// so a palette chosen in the Studio is kept; logos are never touched. The new
+/// colours are published as a recorded revision and the audit marker means
+/// it never runs twice.
+async fn upgrade_figbud_palette(pool: &PgPool) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let mut tx = pool.begin().await?;
+    let row: Option<(Uuid, Value, Option<Value>)> = sqlx::query_as(
+        "SELECT b.site_id, b.draft, b.published FROM site_brands b JOIN sites s ON s.id = b.site_id
+          WHERE s.slug = 'figbud' AND NOT EXISTS (
+                SELECT 1 FROM audit_log a WHERE a.site_id = s.id AND a.action = 'brand.figbud_palette_seeded')
+            FOR UPDATE OF b",
+    )
+    .fetch_optional(&mut *tx)
+    .await?;
+    let Some((site_id, draft, published)) = row else {
+        return Ok(());
+    };
+    let already: bool = sqlx::query_scalar(
+        "SELECT EXISTS (SELECT 1 FROM audit_log WHERE site_id = $1 AND action = 'brand.figbud_palette_seeded')",
+    )
+    .bind(site_id)
+    .fetch_one(&mut *tx)
+    .await?;
+    if already {
+        // Another replica got there first.
+        return Ok(());
+    }
+    let colors = BrandConfig::default_for("figbud").colors;
+    let old = |c: &BrandConfig| {
+        [&c.colors.primary, &c.colors.secondary, &c.colors.accent]
+            .iter()
+            .zip(FIGBUD_AMBER)
+            .all(|(a, b)| a.eq_ignore_ascii_case(b))
+    };
+    let mut published_changed = false;
+    if let Some(mut config) = published.and_then(|v| serde_json::from_value::<BrandConfig>(v).ok())
+        && old(&config)
+    {
+        config.colors = colors.clone();
+        let value = serde_json::to_value(&config)?;
+        let revision = Uuid::now_v7();
+        sqlx::query(
+            "INSERT INTO brand_revisions (id, site_id, number, config, note, state, decided_at)
+             VALUES ($1, $2, COALESCE((SELECT max(number) FROM brand_revisions WHERE site_id = $2), 0) + 1,
+                     $3, 'FigBud Global parent palette: emerald, electric blue, violet', 'published', now())",
+        )
+        .bind(revision)
+        .bind(site_id)
+        .bind(&value)
+        .execute(&mut *tx)
+        .await?;
+        sqlx::query(
+            "UPDATE site_brands SET published = $2, published_revision = $3, published_at = now() WHERE site_id = $1",
+        )
+        .bind(site_id)
+        .bind(&value)
+        .bind(revision)
+        .execute(&mut *tx)
+        .await?;
+        published_changed = true;
+    }
+    if let Ok(mut config) = serde_json::from_value::<BrandConfig>(draft)
+        && old(&config)
+    {
+        config.colors = colors;
+        sqlx::query(
+            "UPDATE site_brands SET draft = $2, draft_version = draft_version + 1, draft_updated_at = now()
+              WHERE site_id = $1",
+        )
+        .bind(site_id)
+        .bind(serde_json::to_value(&config)?)
+        .execute(&mut *tx)
+        .await?;
+    }
+    sqlx::query(
+        "INSERT INTO audit_log (id, action, target_type, target_id, detail, site_id)
+         VALUES ($1, 'brand.figbud_palette_seeded', 'site', $2, $3, $4)",
+    )
+    .bind(Uuid::now_v7())
+    .bind(site_id.to_string())
+    .bind(json!({ "published": published_changed }))
+    .bind(site_id)
+    .execute(&mut *tx)
+    .await?;
+    tx.commit().await?;
+    tracing::info!(published_changed, "FigBud Global palette applied");
+    Ok(())
 }
 
 async fn mark_ziwa_identity(

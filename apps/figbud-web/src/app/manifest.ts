@@ -1,3 +1,4 @@
+import { themeBackground } from "@figbud/brand";
 import { brandManifestIcons } from "@figbud/site-kit";
 import type { MetadataRoute } from "next";
 
@@ -11,8 +12,8 @@ export default async function manifest(): Promise<MetadataRoute.Manifest> {
     description: "Enterprise software built for complexity, designed for progress.",
     start_url: "/",
     display: "standalone",
-    background_color: "#120f0d",
-    theme_color: "#120f0d",
+    background_color: themeBackground.dark,
+    theme_color: themeBackground.dark,
     icons: brandManifestIcons((await getBrands()).figbud) ?? [
       { src: "/icon.png", type: "image/png", sizes: "64x64" },
       { src: "/apple-icon.png", type: "image/png", sizes: "180x180" },

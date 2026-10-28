@@ -17,6 +17,8 @@ export default defineConfig({
   use: {
     baseURL: `http://localhost:${PORT}`,
     trace: "retain-on-failure",
+    // Sites follow the device theme; test as a dark-mode device unless a test says otherwise.
+    colorScheme: "dark",
   },
   projects: [
     { name: "desktop", use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 } } },

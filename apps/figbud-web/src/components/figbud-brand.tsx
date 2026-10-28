@@ -13,7 +13,7 @@ export async function FigBudBrand() {
   if (!hasLogo(symbol)) return <FigBudWordmark />;
   return (
     <span className="inline-flex items-center gap-2.5">
-      <span className="flex size-8 shrink-0 items-center justify-center rounded-[10px] bg-[#15120f] shadow-[0_0_0_1px_rgb(240_166_93/0.35)]">
+      <span className="flex size-8 shrink-0 items-center justify-center rounded-[10px] bg-fb-ink shadow-[0_0_0_1px_rgb(34_197_94/0.35)]">
         {/* The name follows, so the symbol itself is decorative. */}
         <BrandLogo pair={symbol} on="dark" height={20} maxWidth={22} alt="" />
       </span>

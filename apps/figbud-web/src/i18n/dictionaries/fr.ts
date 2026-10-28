@@ -30,7 +30,7 @@ const fr: DeepPartial<Dictionary> = {
       requestDemo: "Demander une démo",
     },
     status: { active: "Disponible", coming_soon: "Bientôt disponible", planned: "Prévu" },
-    theme: { toLight: "Passer au thème clair", toDark: "Passer au thème sombre" },
+    theme: { label: "Thème", light: "Clair", dark: "Sombre", system: "Système" },
     language: { label: "Langue", inReview: "En relecture" },
     menu: { open: "Ouvrir le menu", close: "Fermer le menu" },
     opensInNewTab: "s'ouvre dans un nouvel onglet",

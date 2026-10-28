@@ -91,7 +91,7 @@ function HeroBackdrop() {
   return (
     <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
       <div className="absolute end-[-10%] -top-40 h-[42rem] w-[42rem] rounded-full bg-[radial-gradient(closest-side,var(--glow),transparent)]" />
-      <div className="absolute start-[-20%] top-[30%] h-[30rem] w-[30rem] rounded-full bg-[radial-gradient(closest-side,rgb(166_101_56/0.12),transparent)]" />
+      <div className="absolute start-[-20%] top-[30%] h-[30rem] w-[30rem] rounded-full bg-[radial-gradient(closest-side,rgb(59_130_246/0.1),transparent)]" />
       <div className="fb-grid absolute inset-0 [mask-image:radial-gradient(ellipse_70%_60%_at_60%_30%,black,transparent_75%)] opacity-60" />
     </div>
   );

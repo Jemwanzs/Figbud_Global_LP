@@ -1,7 +1,7 @@
 "use client";
 
 import { BrandLogo, type BrandPair } from "@figbud/site-kit";
-import { buttonClasses, cn } from "@figbud/ui";
+import { ThemeToggle, buttonClasses, cn } from "@figbud/ui";
 import { ArrowRight } from "lucide-react";
 import { usePathname } from "next/navigation";
 
@@ -77,10 +77,16 @@ export function SiteHeader({
             </ul>
           </nav>
         )}
-        <a href={cta.href} className={buttonClasses("product", "md", "ms-auto")}>
-          {cta.label}
-          <ArrowRight aria-hidden className="size-4 rtl:rotate-180" />
-        </a>
+        <div className="ms-auto flex items-center gap-2 sm:gap-3">
+          <ThemeToggle
+            labels={{ label: "Theme", light: "Light", dark: "Dark", system: "System" }}
+            className="max-sm:hidden"
+          />
+          <a href={cta.href} className={buttonClasses("product", "md")}>
+            {cta.label}
+            <ArrowRight aria-hidden className="size-4 rtl:rotate-180" />
+          </a>
+        </div>
       </div>
     </header>
   );

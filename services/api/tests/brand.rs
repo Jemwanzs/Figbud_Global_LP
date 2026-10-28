@@ -236,6 +236,59 @@ async fn seeded_official_logos_are_published_and_proposals_stay_in_draft() {
     .unwrap();
     assert!(note.is_none(), "the concept draft is replaced");
 
+    // The FigBud Global parent palette replaces the old amber defaults once;
+    // a palette chosen in the Studio would be kept.
+    let figbud_colours = || async {
+        sqlx::query_scalar::<_, String>(
+            "SELECT b.published->'colors'->>'primary' FROM site_brands b JOIN sites s ON s.id = b.site_id
+              WHERE s.slug = 'figbud'",
+        )
+        .fetch_one(&s.pool)
+        .await
+        .unwrap()
+    };
+    assert_eq!(figbud_colours().await, "#22c55e");
+    let set_figbud = |primary: &'static str| {
+        sqlx::query(
+            "UPDATE site_brands SET published = jsonb_set(jsonb_set(jsonb_set(published,
+                    '{colors,primary}', to_jsonb($1::text)), '{colors,secondary}', '\"#a66538\"'),
+                    '{colors,accent}', '\"#f6bd82\"')
+              WHERE site_id = (SELECT id FROM sites WHERE slug = 'figbud')",
+        )
+        .bind(primary)
+    };
+    let clear_marker = || {
+        sqlx::query(
+            "DELETE FROM audit_log WHERE action = 'brand.figbud_palette_seeded'
+                AND site_id = (SELECT id FROM sites WHERE slug = 'figbud')",
+        )
+    };
+    set_figbud("#f0a65d").execute(&s.pool).await.unwrap();
+    clear_marker().execute(&s.pool).await.unwrap();
+    brand::seed::run(&s.pool).await.unwrap();
+    assert_eq!(
+        figbud_colours().await,
+        "#22c55e",
+        "old amber defaults are upgraded"
+    );
+    set_figbud("#123456").execute(&s.pool).await.unwrap();
+    clear_marker().execute(&s.pool).await.unwrap();
+    brand::seed::run(&s.pool).await.unwrap();
+    assert_eq!(
+        figbud_colours().await,
+        "#123456",
+        "a palette chosen in the Studio is kept"
+    );
+    // Leave the shared test database on the parent palette.
+    sqlx::query(
+        "UPDATE site_brands SET published = jsonb_set(published, '{colors}',
+                '{\"primary\":\"#22c55e\",\"secondary\":\"#3b82f6\",\"accent\":\"#a855f7\"}')
+          WHERE site_id = (SELECT id FROM sites WHERE slug = 'figbud')",
+    )
+    .execute(&s.pool)
+    .await
+    .unwrap();
+
     // Published files are public (and cache forever); renditions are WebP.
     let url = logo["url"].as_str().unwrap();
     let get = |uri: String| Request::builder().uri(uri).body(Body::empty()).unwrap();

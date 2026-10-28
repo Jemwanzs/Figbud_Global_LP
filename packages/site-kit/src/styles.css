@@ -69,14 +69,21 @@
   }
 
   .fb-text-gradient {
-    background: linear-gradient(100deg, var(--fb-amber) 0%, #f6bd82 40%, var(--fb-copper) 100%);
+    /* Emerald into blue, finishing in a touch of violet. */
+    background: linear-gradient(
+      100deg,
+      var(--accent-strong) 0%,
+      var(--accent) 38%,
+      var(--accent-2) 78%,
+      var(--accent-3) 100%
+    );
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
   }
 
   [data-theme="light"] .fb-text-gradient {
-    background: linear-gradient(100deg, #b4651f 0%, var(--fb-copper) 55%, #7e4521 100%);
+    background: linear-gradient(100deg, var(--accent) 0%, var(--accent-2) 70%, var(--accent-3) 100%);
     -webkit-background-clip: text;
     background-clip: text;
   }
@@ -263,10 +270,10 @@
   display: none;
 }
 [data-theme="light"] .fb-brand-on-dark.fb-brand-solo {
-  background: #15120f;
+  background: var(--fb-ink);
   padding: 0.3rem 0.5rem;
 }
 [data-theme="dark"] .fb-brand-on-light.fb-brand-solo {
-  background: #fbf7f1;
+  background: var(--fb-paper);
   padding: 0.3rem 0.5rem;
 }
