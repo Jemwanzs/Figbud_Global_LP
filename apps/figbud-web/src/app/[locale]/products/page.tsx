@@ -8,7 +8,7 @@ import Link from "next/link";
 
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { PageHeader } from "@/components/page-header";
-import { BrandLogo, ProductMark, hasLogo } from "@figbud/site-kit";
+import { BrandLogo, ProductIdentity, ProductMark, hasLogo } from "@figbud/site-kit";
 import { fill } from "@/lib/format";
 import { getBrands, getPublicProducts } from "@/lib/products";
 import { resolvePage } from "@/lib/page";
@@ -145,8 +145,9 @@ export default async function ProductsPage({ params }: PageProps<"/[locale]/prod
                   className="rounded-[var(--radius-panel)] border border-line bg-surface p-5"
                 >
                   <div className="flex items-center gap-3">
-                    <ProductMark slug={product.slug} brand={brands[product.slug]} size="sm" />
-                    <h3 className="font-semibold text-text">{product.name}</h3>
+                    <h3 className="font-semibold text-text">
+                      <ProductIdentity slug={product.slug} brand={brands[product.slug]} name={product.name} />
+                    </h3>
                     <StatusBadge
                       status={product.status}
                       label={common.status[product.status]}
@@ -192,10 +193,7 @@ export default async function ProductsPage({ params }: PageProps<"/[locale]/prod
                       data-product={product.slug}
                       className="p-4 text-start font-semibold text-text sm:p-5"
                     >
-                      <span className="flex items-center gap-3">
-                        <ProductMark slug={product.slug} brand={brands[product.slug]} size="sm" />
-                        {product.name}
-                      </span>
+                      <ProductIdentity slug={product.slug} brand={brands[product.slug]} name={product.name} />
                     </th>
                   ))}
                 </tr>

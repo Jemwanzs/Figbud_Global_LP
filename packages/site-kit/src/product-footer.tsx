@@ -6,7 +6,7 @@ import Link from "next/link";
 
 import { figbudLink, linkProps, productSiteLink } from "./cross-site";
 import type { BrandProfile } from "./brand";
-import { ProductMark } from "./brand-logo";
+import { ProductIdentity } from "./brand-logo";
 
 export interface ProductFooterLabels {
   nav: Record<string, string>;
@@ -49,10 +49,13 @@ export async function ProductFooter({
     <footer className="border-t border-line">
       <div className="mx-auto grid max-w-[92rem] gap-12 px-5 py-14 sm:px-8 md:px-10 lg:grid-cols-12 lg:px-16 lg:py-20">
         <div className="lg:col-span-4">
-          <div className="flex items-center gap-3">
-            <ProductMark slug={slug} brand={brand} size="sm" />
-            <span className="text-lg font-semibold text-text">{product.name}</span>
-          </div>
+          <ProductIdentity
+            slug={slug}
+            brand={brand}
+            name={product.name}
+            maxWidth={140}
+            nameClassName="text-lg font-semibold text-text"
+          />
           <p className="mt-4 max-w-sm leading-relaxed text-muted">{labels.tagline}</p>
         </div>
         <nav aria-label={labels.explore} className="lg:col-span-3">

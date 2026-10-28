@@ -136,3 +136,95 @@ export function ProductMark({
     </span>
   );
 }
+
+/** What a product shows in a compact space, from its published brand profile. */
+export type ProductLogoKind = "symbol" | "wordmark" | "builtin";
+
+/**
+ * The published symbol; else the published logo, which carries the name (so
+ * callers drop their own name text); else the built-in icon, only until the
+ * product has an approved logo.
+ */
+export function productLogoKind(brand?: BrandProfile | null): ProductLogoKind {
+  if (hasLogo(brand?.logos.symbol)) return "symbol";
+  if (hasLogo(brand?.logos.horizontal)) return "wordmark";
+  return "builtin";
+}
+
+/**
+ * A product's identity for compact spaces (tabs, menus, map markers, cards),
+ * always from the brand profile published in the Studio; see
+ * `productLogoKind`. Proportions are never altered: the symbol fits a square
+ * of the given size and the logo fits `maxWidth`. `on` pins a fixed-colour
+ * surface; otherwise the variant follows the page theme.
+ */
+export function ProductLogo({
+  slug,
+  brand,
+  name,
+  size = "md",
+  maxWidth,
+  on,
+  className,
+}: {
+  slug: ProductSlug;
+  brand?: BrandProfile | null;
+  /** The product's name: the logo's text alternative when it carries the name. */
+  name: string;
+  size?: "sm" | "md" | "lg";
+  /** The widest the full logo may be (default: 2.6 x the symbol size). */
+  maxWidth?: number;
+  on?: "dark" | "light";
+  className?: string;
+}) {
+  const kind = productLogoKind(brand);
+  const side = MARK_SIZE[size];
+  if (kind === "builtin") return <ProductGlyph slug={slug} size={size} className={className} />;
+  if (kind === "symbol") {
+    return (
+      <span aria-hidden className={cn("inline-flex shrink-0", className)}>
+        <BrandLogo pair={brand!.logos.symbol} height={side} maxWidth={side} alt="" on={on} />
+      </span>
+    );
+  }
+  return (
+    <BrandLogo
+      pair={brand!.logos.horizontal}
+      height={Math.round(side * 0.9)}
+      maxWidth={maxWidth ?? Math.round(side * 2.6)}
+      alt={name}
+      on={on}
+      className={className}
+    />
+  );
+}
+
+/**
+ * A product's mark and name as one unit: its symbol (or built-in icon) beside
+ * the name, or its published logo alone when the logo carries the name.
+ */
+export function ProductIdentity({
+  slug,
+  brand,
+  name,
+  size = "sm",
+  maxWidth,
+  nameClassName,
+  className,
+}: {
+  slug: ProductSlug;
+  brand?: BrandProfile | null;
+  name: string;
+  size?: "sm" | "md" | "lg";
+  maxWidth?: number;
+  nameClassName?: string;
+  className?: string;
+}) {
+  const logo = <ProductLogo slug={slug} brand={brand} name={name} size={size} maxWidth={maxWidth} />;
+  return (
+    <span className={cn("inline-flex min-w-0 items-center gap-3", className)}>
+      {logo}
+      {productLogoKind(brand) !== "wordmark" && <span className={nameClassName}>{name}</span>}
+    </span>
+  );
+}

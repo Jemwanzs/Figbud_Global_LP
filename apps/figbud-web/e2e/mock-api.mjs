@@ -445,6 +445,7 @@ const BRAND_DEFAULTS = {
   zirahr: ["#22d3ee", "#0891b2", "#11e6ff"],
   jasiri: ["#22c55e", "#7c3aed", "#4ade80"],
   expense_now: ["#f97316", "#ea580c", "#fdba74"],
+  ziwa: ["#0b6edb", "#10b981", "#c9a87a"],
 };
 const emptyPair = () => ({ on_dark: null, on_light: null });
 const defaultBrand = (slug) => {
@@ -632,25 +633,46 @@ const BRAND_SEED = {
       ["expense-now-favicon-proposed.svg", "proposed", "Expense Now favicon concept", "favicon", []],
     ],
   ],
+  // The approved Ziwa LMS identity (services/api/src/brand/seed.rs).
   ziwa: [
     "Ziwa LMS",
     [
       [
-        "ziwa-horizontal-on-dark-proposed.svg",
-        "proposed",
-        "Ziwa LMS logo concept (dark backgrounds)",
+        "ziwa-horizontal-on-light-official.svg",
+        "official",
+        "Ziwa LMS logo (approved, for light backgrounds)",
+        "horizontal",
+        ["on_light"],
+      ],
+      [
+        "ziwa-horizontal-on-dark-official.svg",
+        "official",
+        "Ziwa LMS logo (approved, for dark backgrounds)",
         "horizontal",
         ["on_dark"],
       ],
       [
-        "ziwa-horizontal-on-light-proposed.svg",
-        "proposed",
-        "Ziwa LMS logo concept (light backgrounds)",
-        "horizontal",
-        ["on_light"],
+        "ziwa-symbol-official.svg",
+        "official",
+        "Ziwa LMS symbol (approved)",
+        "symbol",
+        ["on_dark", "on_light"],
       ],
-      ["ziwa-symbol-proposed.svg", "proposed", "Ziwa LMS symbol concept", "symbol", ["on_dark", "on_light"]],
-      ["ziwa-favicon-proposed.svg", "proposed", "Ziwa LMS favicon concept", "favicon", []],
+      ["ziwa-favicon-official.svg", "official", "Ziwa LMS favicon (approved symbol)", "favicon", []],
+      [
+        "ziwa-app-icon-official.svg",
+        "official",
+        "Ziwa LMS app icon (approved symbol on a white tile)",
+        "app_icon",
+        [],
+      ],
+      [
+        "ziwa-horizontal-one-colour-official.svg",
+        "official",
+        "Ziwa LMS logo, one colour (approved)",
+        null,
+        [],
+      ],
     ],
   ],
 };
@@ -696,7 +718,7 @@ for (const [slug, [name, files]] of Object.entries(BRAND_SEED)) {
     draft,
     draft_version: 1,
     draft_note:
-      slug === "expense_now" || slug === "ziwa"
+      slug === "expense_now"
         ? `Proposed ${name} logo concept: not approved. Review before submitting.`
         : JSON.stringify(draft) !== JSON.stringify(published)
           ? "Proposed light-background versions of the official logos: review before submitting."
@@ -821,7 +843,17 @@ function resolveBrand(c) {
 const publicAsset = (a) =>
   Object.fromEntries(Object.entries(a).filter(([key]) => key !== "data" && key !== "site"));
 
-function serveAsset(res, asset) {
+// Stands in for the API's square PNG icons (`?icon=`): any small PNG will do.
+const ICON_PNG = readFileSync(new URL("../public/icon.png", import.meta.url));
+
+function serveAsset(res, asset, url) {
+  if (url?.searchParams.has("icon")) {
+    res.writeHead(200, {
+      "content-type": "image/png",
+      "cache-control": "public, max-age=31536000, immutable",
+    });
+    return res.end(ICON_PNG);
+  }
   res.writeHead(200, {
     "content-type": asset.content_type,
     "cache-control": "public, max-age=31536000, immutable",
@@ -1826,7 +1858,9 @@ createServer(async (req, res) => {
   if (logo) {
     const asset = brandAssets.get(logo[1]);
     const live = asset && assetIds(brands.get(asset.site)?.published).includes(asset.id);
-    return live ? serveAsset(res, asset) : send(404, { error: { code: "not_found", message: "Not found." } });
+    return live
+      ? serveAsset(res, asset, url)
+      : send(404, { error: { code: "not_found", message: "Not found." } });
   }
   if (url.pathname === "/v1/categories") {
     const en = (url.searchParams.get("locale") ?? "en") === "en";

@@ -21,7 +21,7 @@ Rules that apply to every website:
 
 ## Ziwa LMS (added 24 October 2026)
 
-**Status:** listed as **coming soon** (waitlist), pending confirmation of its commercial launch readiness (Q19). Its logo is a proposed concept, not approved (BRAND_ASSETS.md §3b).
+**Status:** listed as **coming soon** (waitlist), pending confirmation of its commercial launch readiness (Q19). Its logo was approved on 28 Oct 2026 and is published (BRAND_ASSETS.md §3b).
 
 **Positioning:** Lending that flows with your business.
 

@@ -37,6 +37,31 @@ test.describe("homepage", () => {
     await expect(page.getByRole("tab", { name: /Ziwa LMS/ })).toHaveAttribute("aria-selected", "true");
     await expect(page.getByRole("tabpanel").getByRole("link", { name: /Join the waitlist/ })).toBeVisible();
   });
+
+  test("platform tabs show each product's published logo", async ({ page }) => {
+    await page.goto("/en#platforms");
+    const tabs = page.getByRole("tablist");
+    const logo = (name: RegExp) => tabs.getByRole("tab", { name }).locator('img[src^="/brand/assets/"]');
+    // Symbols for ZiraHR and Ziwa LMS; Jasiri's official logo carries its name.
+    for (const name of [/ZiraHR/, /Ziwa LMS/, /Jasiri LMS/]) await expect(logo(name).first()).toBeVisible();
+    await expect(
+      tabs
+        .getByRole("tab", { name: /Jasiri LMS/ })
+        .getByRole("img", { name: "Jasiri LMS" })
+        .first(),
+    ).toBeVisible();
+    // Expense Now has no approved logo yet, so it keeps its temporary icon.
+    await expect(logo(/Expense Now/)).toHaveCount(0);
+    // The panel follows the tab, with the same logo.
+    await tabs.getByRole("tab", { name: /Ziwa LMS/ }).click();
+    const panel = page.getByRole("tabpanel");
+    await expect(panel.getByRole("heading", { name: "Ziwa LMS" })).toBeVisible();
+    await expect(panel.locator('img[src^="/brand/assets/"]').first()).toBeVisible();
+    // On phones the tabs scroll sideways inside their row; the page never does.
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth),
+    ).toBeLessThanOrEqual(0);
+  });
 });
 
 test.describe("theme and language", () => {

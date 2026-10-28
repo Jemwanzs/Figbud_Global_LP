@@ -78,3 +78,29 @@ test("fits phones and is accessible", async ({ page }) => {
     .analyze();
   expect(results.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target).join(" ")}`)).toEqual([]);
 });
+
+test("the website's own favicons, touch icon and app manifest", async ({ page, request }) => {
+  await page.goto("/ziwa");
+  // The approved Ziwa LMS logo in the header.
+  await expect(page.getByRole("banner").locator('img[src^="/brand/assets/"]').first()).toBeVisible();
+  const icons = page.locator('link[rel="icon"]');
+  await expect(icons.first()).toHaveAttribute("type", "image/svg+xml");
+  for (const size of [16, 32, 48]) {
+    await expect(page.locator(`link[rel="icon"][sizes="${size}x${size}"]`)).toHaveAttribute(
+      "href",
+      new RegExp(`^/brand/assets/[0-9a-f-]+[?]icon=${size}$`),
+    );
+  }
+  const apple = await page.locator('link[rel="apple-touch-icon"]').getAttribute("href");
+  expect(apple).toMatch(/\?icon=180$/);
+  expect((await request.get(apple!)).headers()["content-type"]).toBe("image/png");
+  // Never another site's favicon.ico.
+  await expect(page.locator('link[href="/favicon.ico"]')).toHaveCount(0);
+
+  const manifestHref = await page.locator('link[rel="manifest"]').getAttribute("href");
+  expect(manifestHref).toBe("/manifest.webmanifest?site=ziwa");
+  const manifest = await (await request.get(manifestHref!)).json();
+  expect(manifest).toMatchObject({ name: "Ziwa LMS", start_url: "/ziwa", theme_color: "#0b6edb" });
+  expect(manifest.icons.map((i: { sizes: string }) => i.sizes)).toEqual(["192x192", "512x512"]);
+  expect((await request.get("/manifest.webmanifest?site=nope")).status()).toBe(404);
+});

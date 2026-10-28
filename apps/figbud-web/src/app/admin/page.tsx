@@ -46,6 +46,7 @@ const ACTIONS: Record<string, string> = {
   "site.status_cancelled": "Cancelled a website status change",
   "brand.seeded": "Installed the official brand",
   "brand.icons_seeded": "Generated website icons",
+  "brand.ziwa_identity_seeded": "Published the approved Ziwa LMS identity",
   "brand.draft_saved": "Saved a brand draft",
   "brand.submitted": "Submitted a brand for approval",
   "brand.published": "Published a brand",

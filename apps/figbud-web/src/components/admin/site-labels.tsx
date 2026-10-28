@@ -111,7 +111,9 @@ export const hasPublishedLogo = (brand?: BrandProfile | null) =>
 /**
  * Website identity in the Studio: its published symbol, else its published
  * logo, on a dark tile (the official files are made for dark backgrounds).
- * Without a published logo, the temporary built-in icon is shown.
+ * Without a published logo, the temporary built-in icon is shown. This is
+ * `ProductLogo`'s rule (symbol, else logo, else built-in), drawn here on a
+ * tile because it also covers the corporate site, which isn't a product.
  */
 export function SiteMark({ slug, name, brand }: { slug: string; name: string; brand?: BrandProfile | null }) {
   const tile =

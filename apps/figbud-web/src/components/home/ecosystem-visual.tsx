@@ -2,7 +2,7 @@
 
 import type { Product, ProductSlug } from "@figbud/brand";
 import type { Locale } from "@figbud/i18n";
-import { BrandLogo, type BrandProfile, ProductMark, hasLogo } from "@figbud/site-kit";
+import { BrandLogo, type BrandProfile, ProductLogo, hasLogo, productLogoKind } from "@figbud/site-kit";
 import { FigBudMark, cn } from "@figbud/ui";
 import { ArrowRight, ArrowUpRight } from "lucide-react";
 import { AnimatePresence, m, useInView, useReducedMotion } from "motion/react";
@@ -257,7 +257,7 @@ function ProductNode({
   const { ref, open, onClick } = useRevealOnTap();
   const { link, label: cta } = productCta(product, locale, common, exploreLabel);
   // A product without a symbol but with a full logo shows the logo in place of its name.
-  const horizontal = !hasLogo(brand?.logos.symbol) && hasLogo(brand?.logos.horizontal);
+  const horizontal = productLogoKind(brand) === "wordmark";
 
   return (
     <div
@@ -277,11 +277,14 @@ function ProductNode({
           status !== "active" && "opacity-90",
         )}
       >
-        {horizontal ? (
-          <BrandLogo pair={brand!.logos.horizontal} height={28} maxWidth={84} alt={name} className="ps-1.5" />
-        ) : (
-          <ProductMark slug={slug} brand={brand} size="sm" className="size-7 sm:size-8" />
-        )}
+        <ProductLogo
+          slug={slug}
+          brand={brand}
+          name={name}
+          size="sm"
+          maxWidth={84}
+          className={horizontal ? "ps-1.5" : "size-7 sm:size-8"}
+        />
         <span className="leading-tight">
           {!horizontal && (
             <span className="block text-[0.72rem] font-medium whitespace-nowrap text-text sm:text-[0.8rem]">

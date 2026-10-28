@@ -61,15 +61,27 @@ Expense Now has no official logo yet. The concept is original artwork made for F
 
 The concept is in the Expense Now brand draft, labelled "Proposed … not approved". To adopt it, review it in the Studio, submit it, and approve it. To replace it, upload the final artwork into the same slots.
 
-## 3b. Ziwa LMS: proposed logo concept (not approved)
+## 3b. Ziwa LMS: approved identity (28 October 2026)
 
-Ziwa LMS (added 24 Oct 2026, see [PRODUCT_REGISTRY.md](PRODUCT_REGISTRY.md)) has no official logo yet. The concept is original artwork made for FigBud:
+The owner approved the Ziwa LMS brand sheet on 28 Oct 2026. It replaces the earlier concept, whose files are archived in Ziwa's library.
 
-- **Symbol:** a deep navy tile (#0B1F3A) carrying a "Z" drawn as two flowing water lines joined by a current, in a teal-to-emerald gradient (#5EEAD4 → #2DD4BF → #10B981). "Ziwa" is Swahili for lake. It reads at favicon size and differs clearly from ZiraHR's cyan square.
-- **Wordmark:** "Ziwa **LMS**" in Outfit SemiBold, converted to outlines. "LMS" is in teal (#2DD4BF on dark, #0F766E on light).
-- **Variations:** horizontal and stacked (dark and light backgrounds), symbol only, favicon (`services/api/seed/brand/ziwa-*-proposed.svg`).
-
-It sits in the Ziwa brand draft, labelled "Proposed … not approved". Until it is approved, the corporate site shows Ziwa's built-in wave icon.
+- **The identity:**
+  - **Symbol:** blue and green flowing drops, each folded once, with a small dot beside each.
+  - **Wordmark:** "Ziwa" in a heavy geometric sans, with a green leaf over the i, and "LMS" spaced in gold between two rules.
+  - **Colours:** Primary Blue #0B6EDB, Primary Green #10B981, Brand Brown #4E2D17, Accent Gold #C9A87A.
+- **How the files were made.** The sheet is a picture, not a set of files, so the logos were rebuilt as clean vectors (`scripts/brand/ziwa/build.py` from `geometry.json`). Nothing was cropped from the sheet, and the sheet is never embedded.
+  - **Symbol:** the outlines were traced from the sheet and smoothed, and each drop's gradients were fitted to the sheet's colours either side of its fold. Rendered beside the sheet, the shapes overlap by 97% and the colours differ by under 6/255 on average.
+  - **Wordmark:** Outfit outlines fitted to the sheet's letter boxes (92% overlap), so the files need no font. The wordmark uses the official brown and gold.
+  - If FigBud has the designer's original vector files, uploading them in the Studio replaces these in the same slots.
+- **Files (`services/api/seed/brand/ziwa-*-official.svg`):**
+  - logo for light backgrounds (brown wordmark, the primary logo);
+  - logo for dark backgrounds (white wordmark);
+  - symbol;
+  - favicon (the symbol, square);
+  - app icon (the symbol on the sheet's white rounded tile);
+  - one-colour brown logo and symbol, in the library only.
+  - No stacked layout: the sheet doesn't show one.
+- **Publishing.** New databases publish these files as Ziwa's first brand revision. Existing databases were upgraded once on start-up: the files were published as a recorded revision ("Approved Ziwa LMS identity"), the concept draft was replaced, any pending brand change was withdrawn as superseded, and the concept files were archived. Later Studio changes are never overwritten.
 
 ## 4. Product colours
 
@@ -81,7 +93,27 @@ Product accent tokens (`packages/brand/src/tokens.css`) now follow each product'
 | ZiraHR | #22D3EE cyan | #0891B2 | #67E8F9 | #0E7490 |
 | Jasiri LMS | #22C55E green | #7C3AED purple | #4ADE80 | #15803D |
 | Expense Now (proposed) | #F97316 orange | #C2410C | #FB923C | #C2410C |
-| Ziwa LMS (proposed) | #2DD4BF teal | #0E7490 deep teal | #5EEAD4 | #0F766E |
+| Ziwa LMS (approved 28 Oct 2026) | #0B6EDB blue (white text on it) | #10B981 green | #5AA9F6 | #0A5FC0 |
+
+Ziwa's brown and gold appear in its logo; its brand profile stores blue, green and gold as primary, secondary and accent.
+
+## 4b. One way to show a product's logo
+
+`ProductLogo` (`@figbud/site-kit`) is the only way pages and the Studio show a product's identity. It always reads the brand profile published in the Studio:
+1. the published symbol;
+2. else the published logo, which carries the name, so the name isn't repeated beside it (Jasiri LMS today);
+3. else the built-in icon, only while a product has no approved logo (Expense Now today).
+
+`ProductIdentity` pairs it with the name. Both follow the page's light or dark theme, or a fixed surface, and never stretch a file.
+
+Where it is used: the "Distinct platforms" tabs and panels, the hero ecosystem, the Africa map, product menus (desktop and mobile), the Products page and comparison table, product-site headers and footers, and the Studio's website cards.
+
+**Browser icons.** The API renders any published logo as a square PNG at 16, 32, 48, 180, 192 or 512 px (`/v1/brand/assets/{id}?icon=32`), centred without distortion and cached permanently. Each website declares:
+- its SVG favicon, plus 16, 32 and 48 px PNGs;
+- a 180 px Apple touch icon;
+- a web manifest with 192 and 512 px icons.
+
+A website with its own favicon never falls back to another site's `favicon.ico`. Asset URLs are unique per file, so publishing a new logo or icon is never hidden by caches.
 
 Each website's brand profile also stores primary, secondary and accent colours. The Studio previews them and checks their contrast.
 

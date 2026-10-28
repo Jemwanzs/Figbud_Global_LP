@@ -47,12 +47,13 @@ export const viewport: Viewport = {
 };
 
 export async function generateMetadata({ params }: LayoutProps<"/[site]">): Promise<Metadata> {
-  const { slug } = parseSiteParam((await params).site);
+  const { slug, ownDomain } = parseSiteParam((await params).site);
   const site = await getSite(slug);
   if (!site) return { robots: { index: false, follow: false } };
   return {
     metadataBase: new URL(rendererOrigin),
     icons: brandIcons(site.brand),
+    manifest: `/manifest.webmanifest?site=${site.slug}${ownDomain ? "&own=1" : ""}`,
     title: {
       default: site.tagline ? `${site.name} — ${site.tagline}` : site.name,
       template: `%s · ${site.name}`,

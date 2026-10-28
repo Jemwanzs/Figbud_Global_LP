@@ -76,7 +76,7 @@
 }
 /* Product palettes follow each product's official logo (docs/BRAND_ASSETS.md):
    ZiraHR cyan, Jasiri green with purple, Expense Now orange (proposed),
-   Ziwa LMS teal (proposed). */
+   Ziwa LMS blue with green (approved 28 Oct 2026; brown and gold stay in its logo). */
 [data-product="zirahr"] {
   --product: #22d3ee;
   --product-2: #0891b2;
@@ -99,11 +99,11 @@
   --product-soft: rgb(249 115 22 / 0.13);
 }
 [data-product="ziwa"] {
-  --product: #2dd4bf;
-  --product-2: #0e7490;
-  --product-ink: #04201d;
-  --product-text: #5eead4;
-  --product-soft: rgb(45 212 191 / 0.12);
+  --product: #0b6edb;
+  --product-2: #10b981;
+  --product-ink: #ffffff;
+  --product-text: #5aa9f6;
+  --product-soft: rgb(11 110 219 / 0.14);
 }
 [data-theme="light"] [data-product="zirahr"],
 [data-theme="light"][data-product="zirahr"] {
@@ -115,7 +115,7 @@
 }
 [data-theme="light"] [data-product="ziwa"],
 [data-theme="light"][data-product="ziwa"] {
-  --product-text: #0f766e;
+  --product-text: #0a5fc0;
 }
 [data-theme="light"] [data-product="expense_now"],
 [data-theme="light"][data-product="expense_now"] {

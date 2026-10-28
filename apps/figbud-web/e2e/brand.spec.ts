@@ -273,7 +273,9 @@ test.describe("Studio website cards", () => {
     await expect(card("FigBud Global").getByRole("img", { name: "FigBud Global logo" })).toBeVisible();
     await expect(card("Expense Now")).toContainText("Temporary icon · no approved logo yet");
     await expect(card("Ziwa LMS")).toContainText("Lending & Credit");
-    await expect(card("Ziwa LMS")).toContainText("Temporary icon · no approved logo yet");
+    // The approved Ziwa LMS identity, published.
+    await expect(card("Ziwa LMS").getByRole("img", { name: "Ziwa LMS logo" })).toBeVisible();
+    await expect(card("Ziwa LMS")).not.toContainText("Temporary icon");
     const order = await page
       .getByRole("article")
       .evaluateAll((cards) => cards.map((c) => c.querySelector("h2")?.textContent));

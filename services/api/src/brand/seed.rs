@@ -214,55 +214,66 @@ fn plan(slug: &str) -> (&'static str, Vec<Placed>) {
                 ),
             ],
         ),
-        "ziwa" => (
-            "Ziwa LMS",
-            vec![
-                placed(
-                    seed!("ziwa-horizontal-on-dark-proposed.svg", "proposed"),
-                    "Ziwa LMS logo concept (dark backgrounds)",
-                    Horizontal,
-                    true,
-                    false,
-                ),
-                placed(
-                    seed!("ziwa-horizontal-on-light-proposed.svg", "proposed"),
-                    "Ziwa LMS logo concept (light backgrounds)",
-                    Horizontal,
-                    false,
-                    true,
-                ),
-                placed(
-                    seed!("ziwa-stacked-on-dark-proposed.svg", "proposed"),
-                    "Ziwa LMS stacked concept (dark backgrounds)",
-                    Stacked,
-                    true,
-                    false,
-                ),
-                placed(
-                    seed!("ziwa-stacked-on-light-proposed.svg", "proposed"),
-                    "Ziwa LMS stacked concept (light backgrounds)",
-                    Stacked,
-                    false,
-                    true,
-                ),
-                placed(
-                    seed!("ziwa-symbol-proposed.svg", "proposed"),
-                    "Ziwa LMS symbol concept",
-                    Symbol,
-                    true,
-                    true,
-                ),
-                placed(
-                    seed!("ziwa-favicon-proposed.svg", "proposed"),
-                    "Ziwa LMS favicon concept",
-                    Favicon,
-                    false,
-                    false,
-                ),
-            ],
-        ),
+        "ziwa" => ("Ziwa LMS", ziwa_files()),
         _ => ("", Vec::new()),
     }
+}
+
+/// The approved Ziwa LMS identity (owner-approved 28 Oct 2026), rebuilt as
+/// vectors from the approved brand sheet by scripts/brand/ziwa/build.py.
+fn ziwa_files() -> Vec<Placed> {
+    use Slot::*;
+    vec![
+        placed(
+            seed!("ziwa-horizontal-on-light-official.svg", "official"),
+            "Ziwa LMS logo (approved, for light backgrounds)",
+            Horizontal,
+            false,
+            true,
+        ),
+        placed(
+            seed!("ziwa-horizontal-on-dark-official.svg", "official"),
+            "Ziwa LMS logo (approved, for dark backgrounds)",
+            Horizontal,
+            true,
+            false,
+        ),
+        placed(
+            seed!("ziwa-symbol-official.svg", "official"),
+            "Ziwa LMS symbol (approved)",
+            Symbol,
+            true,
+            true,
+        ),
+        placed(
+            seed!("ziwa-favicon-official.svg", "official"),
+            "Ziwa LMS favicon (approved symbol)",
+            Favicon,
+            false,
+            false,
+        ),
+        placed(
+            seed!("ziwa-app-icon-official.svg", "official"),
+            "Ziwa LMS app icon (approved symbol on a white tile)",
+            AppIcon,
+            false,
+            false,
+        ),
+        placed(
+            seed!("ziwa-horizontal-one-colour-official.svg", "official"),
+            "Ziwa LMS logo, one colour (approved)",
+            LibraryOnly,
+            false,
+            false,
+        ),
+        placed(
+            seed!("ziwa-symbol-one-colour-official.svg", "official"),
+            "Ziwa LMS symbol, one colour (approved)",
+            LibraryOnly,
+            false,
+            false,
+        ),
+    ]
 }
 
 fn assign(config: &mut BrandConfig, slot: Slot, id: Uuid, on_dark: bool, on_light: bool) {
@@ -323,7 +334,6 @@ pub async fn run(pool: &PgPool) -> Result<(), Box<dyn std::error::Error + Send +
             "expense_now" => {
                 Some("Proposed Expense Now logo concept: not approved. Review before submitting.")
             }
-            "ziwa" => Some("Proposed Ziwa LMS logo concept: not approved. Review before submitting."),
             _ if draft != published => {
                 Some("Proposed light-background versions of the official logos: review before submitting.")
             }
@@ -375,10 +385,133 @@ pub async fn run(pool: &PgPool) -> Result<(), Box<dyn std::error::Error + Send +
         .execute(&mut *tx)
         .await?;
         mark_icons_seeded(&mut tx, site_id, false).await?;
+        if slug == "ziwa" {
+            mark_ziwa_identity(&mut tx, site_id, false).await?;
+        }
         tx.commit().await?;
         tracing::info!(%slug, has_official, "brand profile seeded");
     }
-    upgrade_icons(pool).await
+    upgrade_icons(pool).await?;
+    upgrade_ziwa_identity(pool).await
+}
+
+async fn mark_ziwa_identity(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    site_id: Uuid,
+    published: bool,
+) -> Result<(), sqlx::Error> {
+    sqlx::query(
+        "INSERT INTO audit_log (id, action, target_type, target_id, detail, site_id)
+         VALUES ($1, 'brand.ziwa_identity_seeded', 'site', $2, $3, $4)",
+    )
+    .bind(Uuid::now_v7())
+    .bind(site_id.to_string())
+    .bind(json!({ "published": published }))
+    .bind(site_id)
+    .execute(&mut **tx)
+    .await?;
+    Ok(())
+}
+
+/// One-time upgrade for databases seeded with the earlier Ziwa concept. The
+/// owner approved the Ziwa LMS identity on 28 Oct 2026, so its files are
+/// stored and published as a recorded revision (logos, favicon, app icon and
+/// colours); the concept draft is replaced, a pending brand change it
+/// supersedes is withdrawn and the concept files are archived. The audit
+/// marker means it never runs twice, so later Studio changes are kept.
+async fn upgrade_ziwa_identity(pool: &PgPool) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let pending: Option<Uuid> = sqlx::query_scalar(
+        "SELECT s.id FROM sites s JOIN site_brands b ON b.site_id = s.id
+          WHERE s.slug = 'ziwa' AND NOT EXISTS (
+                SELECT 1 FROM audit_log a WHERE a.site_id = s.id AND a.action = 'brand.ziwa_identity_seeded')",
+    )
+    .fetch_optional(pool)
+    .await?;
+    let Some(site_id) = pending else {
+        return Ok(());
+    };
+    let mut placed = Vec::new();
+    for file in ziwa_files() {
+        let processed = process(file.seed.bytes, Kind::Svg)
+            .map_err(|r| format!("{}: {}", file.seed.file, r.message()))?;
+        let (_, id) = store(
+            pool,
+            site_id,
+            &processed,
+            file.label,
+            "Ziwa LMS",
+            file.seed.origin,
+            None,
+        )
+        .await
+        .map_err(|e| format!("{}: {e}", file.seed.file))?;
+        placed.push((file.slot, id, file.on_dark, file.on_light));
+    }
+
+    let mut tx = pool.begin().await?;
+    let current: Option<Value> =
+        sqlx::query_scalar("SELECT published FROM site_brands WHERE site_id = $1 FOR UPDATE")
+            .bind(site_id)
+            .fetch_one(&mut *tx)
+            .await?;
+    let already: bool = sqlx::query_scalar(
+        "SELECT EXISTS (SELECT 1 FROM audit_log WHERE site_id = $1 AND action = 'brand.ziwa_identity_seeded')",
+    )
+    .bind(site_id)
+    .fetch_one(&mut *tx)
+    .await?;
+    if already {
+        // Another replica got there first.
+        tx.rollback().await?;
+        return Ok(());
+    }
+    let defaults = BrandConfig::default_for("ziwa");
+    let mut config = current
+        .and_then(|v| serde_json::from_value::<BrandConfig>(v).ok())
+        .unwrap_or_else(|| defaults.clone());
+    config.logos = Default::default();
+    config.colors = defaults.colors;
+    for (slot, id, on_dark, on_light) in placed {
+        assign(&mut config, slot, id, on_dark, on_light);
+    }
+    let value = serde_json::to_value(&config)?;
+    sqlx::query(
+        "UPDATE brand_revisions SET state = 'cancelled', decided_at = now(),
+                decision_note = 'Superseded by the approved Ziwa LMS identity'
+          WHERE site_id = $1 AND state = 'pending'",
+    )
+    .bind(site_id)
+    .execute(&mut *tx)
+    .await?;
+    let revision = Uuid::now_v7();
+    sqlx::query(
+        "INSERT INTO brand_revisions (id, site_id, number, config, note, state, decided_at)
+         VALUES ($1, $2, COALESCE((SELECT max(number) FROM brand_revisions WHERE site_id = $2), 0) + 1,
+                 $3, 'Approved Ziwa LMS identity (approved by the owner, 28 Oct 2026)', 'published', now())",
+    )
+    .bind(revision)
+    .bind(site_id)
+    .bind(&value)
+    .execute(&mut *tx)
+    .await?;
+    sqlx::query(
+        "UPDATE site_brands SET published = $2, published_revision = $3, published_at = now(),
+                draft = $2, draft_note = NULL, draft_version = draft_version + 1, draft_updated_at = now()
+          WHERE site_id = $1",
+    )
+    .bind(site_id)
+    .bind(&value)
+    .bind(revision)
+    .execute(&mut *tx)
+    .await?;
+    sqlx::query("UPDATE brand_assets SET archived_at = now() WHERE site_id = $1 AND origin = 'proposed' AND archived_at IS NULL")
+        .bind(site_id)
+        .execute(&mut *tx)
+        .await?;
+    mark_ziwa_identity(&mut tx, site_id, true).await?;
+    tx.commit().await?;
+    tracing::info!("approved Ziwa LMS identity published");
+    Ok(())
 }
 
 async fn mark_icons_seeded(

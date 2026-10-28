@@ -66,17 +66,47 @@ export function brandImageSources(
   return { src: one, srcSet: one === two ? undefined : `${one} 1x, ${two} 2x` };
 }
 
+/** A square PNG icon rendered by the API from a published file. */
+const iconPng = (asset: BrandAsset, size: number) => ({
+  url: `${BRAND_ASSET_PATH}${asset.id}?icon=${size}`,
+  type: "image/png",
+  sizes: `${size}x${size}`,
+});
+
 /**
- * Browser icons for a website: its published favicon and app icon, else the
+ * Browser icons for a website from its published favicon and app icon: the
+ * SVG itself where the favicon is an SVG, PNGs at 16, 32 and 48 px for other
+ * browsers, and a 180 px Apple touch icon. Without published icons, the
  * built-in files in the app's `public/` (`icon.png`, `apple-icon.png`,
- * `favicon.ico`), which are made from the same official symbols. Published
- * files have unique, immutable URLs, so a new icon is never hidden by caches.
+ * `favicon.ico`), made from the same official symbols. Published files have
+ * unique, immutable URLs, so a new icon is never hidden by caches.
  */
 export function brandIcons(brand?: BrandProfile | null) {
-  const file = (asset: BrandAsset) => ({ url: `${BRAND_ASSET_PATH}${asset.id}`, type: asset.content_type });
+  const favicon = brand?.favicon;
+  const app = brand?.app_icon ?? favicon;
   return {
-    icon: brand?.favicon ? [file(brand.favicon)] : [{ url: "/icon.png", type: "image/png" }],
-    apple: brand?.app_icon ? [file(brand.app_icon)] : [{ url: "/apple-icon.png", type: "image/png" }],
-    shortcut: [{ url: "/favicon.ico" }],
+    icon: favicon
+      ? [
+          ...(favicon.content_type === "image/svg+xml"
+            ? [{ url: `${BRAND_ASSET_PATH}${favicon.id}`, type: "image/svg+xml", sizes: "any" }]
+            : []),
+          iconPng(favicon, 32),
+          iconPng(favicon, 16),
+          iconPng(favicon, 48),
+        ]
+      : [{ url: "/icon.png", type: "image/png" }],
+    apple: app ? [iconPng(app, 180)] : [{ url: "/apple-icon.png", type: "image/png" }],
+    // Never fall back to another site's favicon.ico once this one has its own.
+    shortcut: favicon ? [iconPng(favicon, 32)] : [{ url: "/favicon.ico" }],
   };
+}
+
+/** Installable-app icons (192 and 512 px) from the published app icon, for web manifests. */
+export function brandManifestIcons(brand?: BrandProfile | null) {
+  const app = brand?.app_icon ?? brand?.favicon;
+  if (!app) return null;
+  return [192, 512].map((size) => {
+    const { url, type, sizes } = iconPng(app, size);
+    return { src: url, type, sizes, purpose: "any" as const };
+  });
 }

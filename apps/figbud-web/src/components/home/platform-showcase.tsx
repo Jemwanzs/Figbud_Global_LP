@@ -5,13 +5,13 @@ import type { Locale } from "@figbud/i18n";
 import { StatusBadge, buttonClasses, cn } from "@figbud/ui";
 import { ArrowRight, ArrowUpRight, Check } from "lucide-react";
 import { AnimatePresence, m } from "motion/react";
-import { type KeyboardEvent, useId, useRef, useState } from "react";
+import { type CSSProperties, type KeyboardEvent, useId, useRef, useState } from "react";
 
 import type { Dictionary } from "@/i18n/get-dictionary";
 import { fill } from "@/lib/format";
 import { productLink } from "@/lib/site";
 
-import { type BrandProfile, ProductMark } from "@figbud/site-kit";
+import { type BrandProfile, ProductLogo, productLogoKind } from "@figbud/site-kit";
 import { ExpensePreview, JasiriPreview, ZiraPreview, ZiwaPreview } from "./product-previews";
 
 type Props = {
@@ -42,8 +42,14 @@ export function PlatformShowcase({ locale, platforms, products, items, brands, c
     if (event.key === "End") next = last;
     if (next === null) return;
     event.preventDefault();
-    setActive(items[next]!.slug);
+    select(next);
     tabRefs.current[next]?.focus();
+  };
+
+  // On phones the tabs scroll sideways; keep the chosen one in view.
+  const select = (index: number) => {
+    setActive(items[index]!.slug);
+    tabRefs.current[index]?.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "smooth" });
   };
 
   return (
@@ -51,11 +57,12 @@ export function PlatformShowcase({ locale, platforms, products, items, brands, c
       <div
         role="tablist"
         aria-label={platforms.tabsLabel}
-        style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}
-        className="grid gap-2 rounded-[1.4rem] border border-line bg-surface/50 p-1.5 sm:gap-3 md:p-2"
+        style={{ "--tabs": items.length } as CSSProperties}
+        className="flex snap-x snap-mandatory scroll-px-1.5 [scrollbar-width:none] gap-2 overflow-x-auto rounded-[1.4rem] border border-line bg-surface/50 p-1.5 md:grid md:snap-none md:grid-cols-[repeat(var(--tabs),minmax(0,1fr))] md:gap-3 md:overflow-visible md:p-2"
       >
         {items.map((product, index) => {
           const selected = product.slug === active;
+          const wordmark = productLogoKind(brands[product.slug]) === "wordmark";
           return (
             <button
               key={product.slug}
@@ -69,10 +76,10 @@ export function PlatformShowcase({ locale, platforms, products, items, brands, c
               aria-controls={`${baseId}-panel-${product.slug}`}
               tabIndex={selected ? 0 : -1}
               data-product={product.slug}
-              onClick={() => setActive(product.slug)}
+              onClick={() => select(index)}
               onKeyDown={(event) => onKeyDown(event, index)}
               className={cn(
-                "relative flex min-h-14 items-center justify-center gap-3 rounded-2xl px-2 py-2.5 text-start transition-colors sm:justify-start sm:px-4 md:py-3.5",
+                "relative flex min-h-16 shrink-0 snap-start items-center gap-3 rounded-2xl px-3.5 py-2.5 text-start transition-colors md:min-w-0 md:px-4 md:py-3.5",
                 selected ? "text-text" : "text-muted hover:bg-surface-2/60 hover:text-text",
               )}
             >
@@ -83,17 +90,24 @@ export function PlatformShowcase({ locale, platforms, products, items, brands, c
                   selected ? "scale-100 opacity-100" : "scale-95 opacity-0",
                 )}
               />
-              <ProductMark
+              <ProductLogo
                 slug={product.slug}
                 brand={brands[product.slug]}
+                name={product.name}
                 size="sm"
-                className="max-sm:hidden"
+                maxWidth={88}
+                className={cn(
+                  "relative transition-[opacity,filter] duration-300",
+                  !selected && "opacity-80 saturate-[.85]",
+                )}
               />
               <span className="relative min-w-0">
-                <span className="block text-sm font-medium whitespace-nowrap sm:text-base">
-                  {product.name}
-                </span>
-                <span className="hidden truncate text-xs text-subtle md:block">
+                {!wordmark && (
+                  <span className="block text-sm font-medium whitespace-nowrap md:text-base">
+                    {product.name}
+                  </span>
+                )}
+                <span className="hidden truncate text-xs text-subtle lg:block">
                   {products[product.slug].category}
                 </span>
               </span>
@@ -132,11 +146,34 @@ export function PlatformShowcase({ locale, platforms, products, items, brands, c
                   className="flex flex-col lg:col-span-5"
                 >
                   <div className="flex flex-wrap items-center gap-3">
-                    <ProductMark slug={product.slug} brand={brands[product.slug]} size="lg" />
-                    <div>
-                      <h3 className="text-2xl font-semibold tracking-tight text-text">{product.name}</h3>
-                      <p className="text-sm text-product-text">{copy.category}</p>
-                    </div>
+                    {productLogoKind(brands[product.slug]) === "wordmark" ? (
+                      <div>
+                        {/* The logo carries the name; it is the heading's text alternative. */}
+                        <h3 className="text-2xl font-semibold tracking-tight text-text">
+                          <ProductLogo
+                            slug={product.slug}
+                            brand={brands[product.slug]}
+                            name={product.name}
+                            size="lg"
+                            maxWidth={170}
+                          />
+                        </h3>
+                        <p className="mt-1 text-sm text-product-text">{copy.category}</p>
+                      </div>
+                    ) : (
+                      <>
+                        <ProductLogo
+                          slug={product.slug}
+                          brand={brands[product.slug]}
+                          name={product.name}
+                          size="lg"
+                        />
+                        <div>
+                          <h3 className="text-2xl font-semibold tracking-tight text-text">{product.name}</h3>
+                          <p className="text-sm text-product-text">{copy.category}</p>
+                        </div>
+                      </>
+                    )}
                     <StatusBadge
                       status={product.status}
                       label={common.status[product.status]}

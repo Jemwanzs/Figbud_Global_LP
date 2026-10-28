@@ -337,3 +337,69 @@ mod tests {
         );
     }
 }
+
+/// Square icon sizes the websites ask for: browser tabs (16, 32, 48), the
+/// Apple touch icon (180) and installable-app icons (192, 512).
+pub const ICON_SIZES: [u32; 6] = [16, 32, 48, 180, 192, 512];
+
+/// A stored logo as a `size` x `size` PNG: fitted without distortion and
+/// centred on a transparent square. Stored files are already validated, so
+/// this only fails for unknown sizes or unreadable data.
+pub fn icon_png(content_type: &str, data: &[u8], size: u32) -> Option<Vec<u8>> {
+    if !ICON_SIZES.contains(&size) {
+        return None;
+    }
+    let source = if content_type == "image/svg+xml" {
+        let tree = usvg::Tree::from_data(data, &usvg::Options::default()).ok()?;
+        let (w, h) = (tree.size().width(), tree.size().height());
+        // Render at twice the size, then downscale, for smooth small icons.
+        let scale = (size * 2) as f32 / w.max(h);
+        let (pw, ph) = (
+            ((w * scale).round() as u32).max(1),
+            ((h * scale).round() as u32).max(1),
+        );
+        let mut pixmap = resvg::tiny_skia::Pixmap::new(pw, ph)?;
+        resvg::render(
+            &tree,
+            resvg::tiny_skia::Transform::from_scale(scale, scale),
+            &mut pixmap.as_mut(),
+        );
+        DynamicImage::ImageRgba8(image::RgbaImage::from_raw(pw, ph, demultiply(pixmap.data()))?)
+    } else {
+        ImageReader::new(Cursor::new(data))
+            .with_guessed_format()
+            .ok()?
+            .decode()
+            .ok()?
+    };
+    let fitted = source.resize(size, size, FilterType::Lanczos3).to_rgba8();
+    let mut canvas = image::RgbaImage::new(size, size);
+    let (x, y) = ((size - fitted.width()) / 2, (size - fitted.height()) / 2);
+    image::imageops::overlay(&mut canvas, &fitted, x.into(), y.into());
+    let mut out = Vec::new();
+    DynamicImage::ImageRgba8(canvas)
+        .write_to(&mut Cursor::new(&mut out), ImageFormat::Png)
+        .ok()?;
+    Some(out)
+}
+
+#[cfg(test)]
+mod icon_tests {
+    use super::*;
+
+    #[test]
+    fn icons_are_square_pngs_of_the_requested_size() {
+        let svg = br##"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 20"><rect width="40" height="20" fill="#0b6edb"/></svg>"##;
+        for size in ICON_SIZES {
+            let png = icon_png("image/svg+xml", svg, size).expect("renders");
+            let decoded = image::load_from_memory(&png).unwrap();
+            assert_eq!((decoded.width(), decoded.height()), (size, size));
+            // A wide logo is centred, not stretched: the top row stays transparent.
+            assert_eq!(decoded.to_rgba8().get_pixel(size / 2, 0).0[3], 0);
+        }
+        assert!(
+            icon_png("image/svg+xml", svg, 100).is_none(),
+            "only the listed sizes"
+        );
+    }
+}

@@ -169,6 +169,20 @@ pub async fn published_by_slug(pool: &PgPool) -> Result<HashMap<String, Value>, 
 #[derive(Deserialize)]
 struct SizeQuery {
     w: Option<i32>,
+    /// A square PNG icon of this size (see `image::ICON_SIZES`).
+    icon: Option<u32>,
+}
+
+/// The asset itself, a rendition, or a square PNG icon rendered from it.
+async fn delivered(pool: &PgPool, id: Uuid, size: &SizeQuery) -> Result<(String, Vec<u8>), ApiError> {
+    if let Some(icon) = size.icon {
+        let (content_type, data) = asset_bytes(pool, id, None).await?;
+        let png = image::icon_png(&content_type, &data, icon).ok_or(ApiError::BadRequest(
+            "icon sizes are 16, 32, 48, 180, 192 and 512",
+        ))?;
+        return Ok(("image/png".to_owned(), png));
+    }
+    asset_bytes(pool, id, size.w).await
 }
 
 async fn asset_bytes(pool: &PgPool, id: Uuid, width: Option<i32>) -> Result<(String, Vec<u8>), ApiError> {
@@ -225,7 +239,7 @@ async fn public_asset(
         return Err(ApiError::NotFound);
     }
     Ok(image_response(
-        asset_bytes(&state.pool, id, size.w).await?,
+        delivered(&state.pool, id, &size).await?,
         "public, max-age=31536000, immutable",
     ))
 }
@@ -238,7 +252,7 @@ async fn admin_asset(
 ) -> Result<Response, ApiError> {
     session.require(Role::Viewer)?;
     Ok(image_response(
-        asset_bytes(&state.pool, id, size.w).await?,
+        delivered(&state.pool, id, &size).await?,
         "private, max-age=86400",
     ))
 }

@@ -11,7 +11,7 @@ import { useRef } from "react";
 import { enquiryLink, figbudLink, linkProps } from "./cross-site";
 import { type LanguageLabels, LanguageSwitcher } from "./language-switcher";
 import type { BrandProfile } from "./brand";
-import { ProductMark } from "./brand-logo";
+import { ProductIdentity } from "./brand-logo";
 
 export interface ProductHeaderLabels {
   /** Navigation label for each `productSites[slug].nav` key. */
@@ -63,8 +63,13 @@ export function ProductHeader({
       </div>
       <div className="mx-auto flex h-[4.5rem] max-w-[92rem] items-center gap-6 px-5 sm:px-8 md:px-10 lg:px-16">
         <Link href={localizePath(locale)} className="flex items-center gap-3 rounded-xl">
-          <ProductMark slug={slug} brand={brand} size="sm" />
-          <span className="text-[1.15rem] font-semibold tracking-[-0.02em] text-text">{product.name}</span>
+          <ProductIdentity
+            slug={slug}
+            brand={brand}
+            name={product.name}
+            maxWidth={140}
+            nameClassName="text-[1.15rem] font-semibold tracking-[-0.02em] text-text"
+          />
         </Link>
 
         <nav aria-label={labels.navLabel} className="hidden flex-1 lg:block">
@@ -143,10 +148,13 @@ function MobileMenu({
       >
         <div className="ms-auto flex h-full w-full max-w-md flex-col overflow-y-auto bg-bg-elevated shadow-2xl sm:border-s sm:border-line">
           <div className="flex h-[4.5rem] shrink-0 items-center justify-between px-5 sm:px-8">
-            <span className="flex items-center gap-3">
-              <ProductMark slug={slug} brand={brand} size="sm" />
-              <span className="text-lg font-semibold">{product.name}</span>
-            </span>
+            <ProductIdentity
+              slug={slug}
+              brand={brand}
+              name={product.name}
+              maxWidth={140}
+              nameClassName="text-lg font-semibold"
+            />
             <button
               type="button"
               onClick={close}

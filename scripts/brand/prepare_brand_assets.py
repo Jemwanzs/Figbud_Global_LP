@@ -134,28 +134,8 @@ def expense_now(font: TTFont) -> None:
     )
 
 
-# Ziwa LMS concept symbol (64 x 64): "ziwa" is Swahili for lake. A "Z" drawn as
-# two flowing water lines joined by a current, teal to emerald on deep navy.
-# Original artwork for FigBud; not yet approved.
-def ziwa_symbol(prefix: str, x=0.0, y=0.0, s=1.0) -> str:
-    t = f'transform="translate({x} {y}) scale({s})"'
-    return f"""<g {t}>
-    <defs><linearGradient id="{prefix}z" x1="12" y1="14" x2="52" y2="50" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#5EEAD4"/><stop offset="0.5" stop-color="#2DD4BF"/><stop offset="1" stop-color="#10B981"/>
-    </linearGradient></defs>
-    <rect width="64" height="64" rx="16" fill="#0B1F3A"/>
-    <path d="M15 21.5C22 16.5 28 26.5 35 21.5S45 17.5 49 20.5L16 43.5C20 46.5 27 47.5 32 43S42 37.5 49 42.5" fill="none" stroke="url(#{prefix}z)" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round"/>
-  </g>"""
-
-
-def ziwa(font: TTFont) -> None:
-    concept(
-        font,
-        "ziwa",
-        "Ziwa LMS",
-        [("Ziwa", "#F0FDFA", "#0B1F3A"), ("LMS", "#2DD4BF", "#0F766E")],
-        ziwa_symbol,
-    )
+# Ziwa LMS: the owner approved its identity on 28 Oct 2026; its files are
+# built by scripts/brand/ziwa/build.py.
 
 
 def on_tile(symbol: Image.Image, size: int, symbol_height: int, background, radius: int) -> Image.Image:
@@ -231,7 +211,6 @@ def main() -> None:
     font = TTFont(font)
     instantiateVariableFont(font, {"wght": 600}, inplace=True)
     expense_now(font)
-    ziwa(font)
 
 
 if __name__ == "__main__":

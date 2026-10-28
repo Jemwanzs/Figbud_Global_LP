@@ -2,7 +2,7 @@
 
 import type { Product, ProductSlug } from "@figbud/brand";
 import type { Locale } from "@figbud/i18n";
-import { BrandLogo, type BrandProfile, ProductMark, hasLogo } from "@figbud/site-kit";
+import { BrandLogo, type BrandProfile, ProductLogo, hasLogo, productLogoKind } from "@figbud/site-kit";
 import { FigBudMark, StatusBadge, cn } from "@figbud/ui";
 import { ArrowRight, ArrowUpRight } from "lucide-react";
 import { m } from "motion/react";
@@ -221,14 +221,14 @@ export function AfricaMap({
 
 /** A product's published symbol, its full logo when it has no symbol, else its built-in icon. */
 function MarkerLogo({ slug, name, brand }: { slug: ProductSlug; name: string; brand?: BrandProfile | null }) {
-  if (!hasLogo(brand?.logos.symbol) && hasLogo(brand?.logos.horizontal)) {
+  if (productLogoKind(brand) === "wordmark") {
     return (
       <span className="flex h-9 shrink-0 items-center rounded-[11px] bg-[#15120f] px-2">
-        <BrandLogo pair={brand!.logos.horizontal} on="dark" height={24} maxWidth={52} alt={name} />
+        <ProductLogo slug={slug} brand={brand} name={name} on="dark" size="sm" maxWidth={52} />
       </span>
     );
   }
-  return <ProductMark slug={slug} brand={brand} size="sm" className="size-9" />;
+  return <ProductLogo slug={slug} brand={brand} name={name} size="sm" className="size-9" />;
 }
 
 function MapMarker({

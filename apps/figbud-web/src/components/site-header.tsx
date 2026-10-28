@@ -8,7 +8,15 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 
-import { BrandLogo, type BrandProfile, LanguageSwitcher, ProductMark, useDismiss } from "@figbud/site-kit";
+import {
+  BrandLogo,
+  type BrandProfile,
+  LanguageSwitcher,
+  ProductIdentity,
+  ProductLogo,
+  productLogoKind,
+  useDismiss,
+} from "@figbud/site-kit";
 
 import type { Dictionary } from "@/i18n/get-dictionary";
 import { productLink, routes } from "@/lib/site";
@@ -177,10 +185,22 @@ function ProductsMenu({ locale, common, products, brands, active }: HeaderProps 
                     onClick={close}
                     className="group flex items-start gap-3.5 rounded-2xl p-3 transition-colors hover:bg-surface-2"
                   >
-                    <ProductMark slug={product.slug} brand={brands[product.slug]} />
+                    {productLogoKind(brands[product.slug]) !== "wordmark" && (
+                      <ProductLogo slug={product.slug} brand={brands[product.slug]} name={product.name} />
+                    )}
                     <span className="min-w-0 flex-1">
                       <span className="flex items-center gap-2">
-                        <span className="font-medium text-text">{product.name}</span>
+                        {productLogoKind(brands[product.slug]) === "wordmark" ? (
+                          <ProductLogo
+                            slug={product.slug}
+                            brand={brands[product.slug]}
+                            name={product.name}
+                            size="sm"
+                            maxWidth={96}
+                          />
+                        ) : (
+                          <span className="font-medium text-text">{product.name}</span>
+                        )}
                         <StatusBadge
                           status={product.status}
                           label={common.status[product.status]}
@@ -303,9 +323,14 @@ function MobileMenu({
                       onClick={close}
                       className="flex min-h-14 items-center gap-3 rounded-2xl border border-line bg-surface p-3"
                     >
-                      <ProductMark slug={product.slug} brand={brands[product.slug]} size="sm" />
                       <span className="flex-1">
-                        <span className="block font-medium">{product.name}</span>
+                        <ProductIdentity
+                          slug={product.slug}
+                          brand={brands[product.slug]}
+                          name={product.name}
+                          maxWidth={96}
+                          nameClassName="font-medium"
+                        />
                         <span className="block text-sm text-muted">{products[product.slug].category}</span>
                       </span>
                       <StatusBadge status={product.status} label={common.status[product.status]} />

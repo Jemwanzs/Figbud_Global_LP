@@ -161,10 +161,22 @@ async fn seeded_official_logos_are_published_and_proposals_stay_in_draft() {
         site("expense_now")["brand"].is_null(),
         "the Expense Now concept is not approved"
     );
-    assert!(
-        site("ziwa")["brand"].is_null(),
-        "the Ziwa LMS concept is not approved"
+    // The approved Ziwa LMS identity (28 Oct 2026) is published.
+    let ziwa = site("ziwa")["brand"].clone();
+    for slot in [
+        &ziwa["logos"]["horizontal"]["on_dark"],
+        &ziwa["logos"]["horizontal"]["on_light"],
+        &ziwa["logos"]["symbol"]["on_dark"],
+        &ziwa["favicon"],
+        &ziwa["app_icon"],
+    ] {
+        assert_eq!(slot["content_type"], "image/svg+xml", "{ziwa}");
+    }
+    assert_ne!(
+        ziwa["logos"]["horizontal"]["on_dark"]["url"], ziwa["logos"]["horizontal"]["on_light"]["url"],
+        "white and brown wordmarks"
     );
+    assert_eq!(ziwa["colors"]["primary"], "#0b6edb");
 
     // Favicons and app icons from the official symbols (added once, as a
     // recorded revision, for profiles seeded before icons existed).
@@ -187,6 +199,43 @@ async fn seeded_official_logos_are_published_and_proposals_stay_in_draft() {
     .unwrap();
     assert_eq!(markers, 1, "the icon upgrade runs once");
 
+    // Databases seeded with the earlier Ziwa concept are upgraded once: the
+    // approved identity is published as a new revision and replaces the draft.
+    sqlx::query(
+        "DELETE FROM audit_log WHERE action = 'brand.ziwa_identity_seeded'
+            AND site_id = (SELECT id FROM sites WHERE slug = 'ziwa')",
+    )
+    .execute(&s.pool)
+    .await
+    .unwrap();
+    sqlx::query(
+        "UPDATE site_brands SET draft_note = 'Proposed Ziwa LMS logo concept: not approved.'
+          WHERE site_id = (SELECT id FROM sites WHERE slug = 'ziwa')",
+    )
+    .execute(&s.pool)
+    .await
+    .unwrap();
+    let revisions = || async {
+        sqlx::query_scalar::<_, i64>(
+            "SELECT count(*) FROM brand_revisions r JOIN sites s ON s.id = r.site_id
+              WHERE s.slug = 'ziwa' AND r.state = 'published'",
+        )
+        .fetch_one(&s.pool)
+        .await
+        .unwrap()
+    };
+    let before = revisions().await;
+    brand::seed::run(&s.pool).await.unwrap();
+    brand::seed::run(&s.pool).await.unwrap();
+    assert_eq!(revisions().await, before + 1, "the Ziwa upgrade runs once");
+    let note: Option<String> = sqlx::query_scalar(
+        "SELECT b.draft_note FROM site_brands b JOIN sites s ON s.id = b.site_id WHERE s.slug = 'ziwa'",
+    )
+    .fetch_one(&s.pool)
+    .await
+    .unwrap();
+    assert!(note.is_none(), "the concept draft is replaced");
+
     // Published files are public (and cache forever); renditions are WebP.
     let url = logo["url"].as_str().unwrap();
     let get = |uri: String| Request::builder().uri(uri).body(Body::empty()).unwrap();
@@ -196,6 +245,25 @@ async fn seeded_official_logos_are_published_and_proposals_stay_in_draft() {
         (StatusCode::OK, Some("image/png"))
     );
     assert!(bytes.starts_with(b"\x89PNG"));
+    // Square PNG icons for browsers and devices, rendered from any published logo.
+    let favicon = site("ziwa")["brand"]["favicon"]["url"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    for size in [16u32, 32, 180, 512] {
+        let (status, bytes, content_type) = s.send(get(format!("{favicon}?icon={size}"))).await;
+        assert_eq!(
+            (status, content_type.as_deref()),
+            (StatusCode::OK, Some("image/png"))
+        );
+        assert_eq!(
+            &bytes[16..24],
+            [size.to_be_bytes(), size.to_be_bytes()].concat(),
+            "{size}x{size}"
+        );
+    }
+    let (status, _, _) = s.send(get(format!("{favicon}?icon=100"))).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
     let (status, _, content_type) = s.send(get(format!("{url}?w=64"))).await;
     assert_eq!(
         (status, content_type.as_deref()),

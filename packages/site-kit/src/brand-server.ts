@@ -28,13 +28,21 @@ export function brandAssetRoute(apiBase: string) {
   const base = apiBase.replace(/\/$/, "");
   return async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
     const { id } = await params;
-    const width = new URL(request.url).searchParams.get("w");
-    if (!UUID.test(id) || (width !== null && !/^\d{1,4}$/.test(width))) {
+    const query = new URL(request.url).searchParams;
+    const width = query.get("w");
+    // A square PNG icon size (the API allows 16, 32, 48, 180, 192 and 512).
+    const icon = query.get("icon");
+    if (
+      !UUID.test(id) ||
+      (width !== null && !/^\d{1,4}$/.test(width)) ||
+      (icon !== null && !/^\d{2,3}$/.test(icon))
+    ) {
       return new Response("Not found", { status: 404 });
     }
+    const suffix = icon ? `?icon=${icon}` : width ? `?w=${width}` : "";
     let upstream: Response;
     try {
-      upstream = await fetch(`${base}/v1/brand/assets/${id}${width ? `?w=${width}` : ""}`, {
+      upstream = await fetch(`${base}/v1/brand/assets/${id}${suffix}`, {
         signal: AbortSignal.timeout(10_000),
       });
     } catch {
