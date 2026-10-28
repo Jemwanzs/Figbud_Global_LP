@@ -240,7 +240,9 @@ fn process_svg(bytes: &[u8]) -> Result<Processed, Rejection> {
 
 /// tiny-skia stores premultiplied RGBA; image expects straight alpha.
 fn demultiply(data: &[u8]) -> Vec<u8> {
-    data.chunks_exact(4)
+    let (pixels, _) = data.as_chunks::<4>();
+    pixels
+        .iter()
         .flat_map(|px| {
             let a = px[3] as u16;
             if a == 0 {

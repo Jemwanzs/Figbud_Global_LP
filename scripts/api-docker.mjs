@@ -11,11 +11,16 @@
  * Compose Postgres (`npm run db:up`).
  */
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
-const image = "figbud-rust-dev";
+// Tagged by the Dockerfile's content, so changing it (e.g. the Rust version,
+// kept in step with CI) rebuilds the image instead of reusing a stale one.
+const dockerfile = readFileSync(path.join(root, "infra/rust-dev/Dockerfile"));
+const image = `figbud-rust-dev:${createHash("sha256").update(dockerfile).digest("hex").slice(0, 12)}`;
 const args = process.argv.slice(2);
 if (args.length === 0) {
   console.error("usage: npm run api:docker -- <command> [args...]");

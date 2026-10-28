@@ -61,14 +61,7 @@ jobs:
       # Median scores per page as run annotations, readable on the run page.
       - name: Summarise scores
         if: always()
-        working-directory: apps/figbud-web
-        run: |
-          node -e '
-            const runs = require("./.lighthouseci/manifest.json").filter((r) => r.isRepresentativeRun);
-            for (const r of runs) {
-              const s = Object.entries(r.summary).map(([k, v]) => `${k} ${Math.round(v * 100)}`).join(" · ");
-              console.log(`::notice title=Lighthouse ${new URL(r.url).pathname}::${s}`);
-            }'
+        run: node scripts/lighthouse-summary.mjs apps/figbud-web/.lighthouseci
 
   api:
     name: API (fmt, clippy, tests with PostgreSQL)
@@ -93,7 +86,9 @@ jobs:
       - uses: actions/checkout@v4
       # webauthn-rs links OpenSSL; installed explicitly so runner image changes cannot break it.
       - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libssl-dev pkg-config
-      - uses: dtolnay/rust-toolchain@stable
+      # Pinned to the version in services/api/Dockerfile and infra/rust-dev, so new
+      # Clippy lints arrive with a deliberate upgrade, not on a random push.
+      - uses: dtolnay/rust-toolchain@1.99
         with:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
