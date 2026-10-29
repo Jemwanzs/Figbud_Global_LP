@@ -219,8 +219,9 @@ fn plan(slug: &str) -> (&'static str, Vec<Placed>) {
     }
 }
 
-/// The approved Ziwa LMS identity (owner-approved 28 Oct 2026), rebuilt as
-/// vectors from the approved brand sheet by scripts/brand/ziwa/build.py.
+/// The final Ziwa LMS identity (orange and yellow symbol, brown wordmark;
+/// owner-approved 29 Oct 2026), rebuilt as vectors from the approved brand
+/// sheet by scripts/brand/ziwa/build.py.
 fn ziwa_files() -> Vec<Placed> {
     use Slot::*;
     vec![
@@ -247,15 +248,29 @@ fn ziwa_files() -> Vec<Placed> {
         ),
         placed(
             seed!("ziwa-favicon-official.svg", "official"),
-            "Ziwa LMS favicon (approved symbol)",
+            "Ziwa LMS favicon (approved symbol on an ivory tile)",
             Favicon,
             false,
             false,
         ),
         placed(
             seed!("ziwa-app-icon-official.svg", "official"),
-            "Ziwa LMS app icon (approved symbol on a white tile)",
+            "Ziwa LMS app icon (approved symbol on an ivory tile)",
             AppIcon,
+            false,
+            false,
+        ),
+        placed(
+            seed!("ziwa-favicon-dark-official.svg", "official"),
+            "Ziwa LMS favicon on brown (approved)",
+            LibraryOnly,
+            false,
+            false,
+        ),
+        placed(
+            seed!("ziwa-app-icon-dark-official.svg", "official"),
+            "Ziwa LMS app icon on brown (approved)",
+            LibraryOnly,
             false,
             false,
         ),
@@ -496,7 +511,7 @@ async fn mark_ziwa_identity(
 ) -> Result<(), sqlx::Error> {
     sqlx::query(
         "INSERT INTO audit_log (id, action, target_type, target_id, detail, site_id)
-         VALUES ($1, 'brand.ziwa_identity_seeded', 'site', $2, $3, $4)",
+         VALUES ($1, 'brand.ziwa_final_identity_seeded', 'site', $2, $3, $4)",
     )
     .bind(Uuid::now_v7())
     .bind(site_id.to_string())
@@ -507,17 +522,19 @@ async fn mark_ziwa_identity(
     Ok(())
 }
 
-/// One-time upgrade for databases seeded with the earlier Ziwa concept. The
-/// owner approved the Ziwa LMS identity on 28 Oct 2026, so its files are
-/// stored and published as a recorded revision (logos, favicon, app icon and
-/// colours); the concept draft is replaced, a pending brand change it
-/// supersedes is withdrawn and the concept files are archived. The audit
-/// marker means it never runs twice, so later Studio changes are kept.
+/// One-time upgrade for databases seeded with an earlier Ziwa identity (the
+/// concept, or the blue and green version approved on 28 Oct 2026). The owner
+/// approved the final orange, yellow and brown identity on 29 Oct 2026, so its
+/// files are stored and published as a recorded revision (logos, favicon, app
+/// icon and colours); the draft is replaced, a pending brand change it
+/// supersedes is withdrawn, and the superseded seeded files and concepts are
+/// archived (files uploaded in the Studio are kept). The audit marker means it
+/// never runs twice, so later Studio changes are kept.
 async fn upgrade_ziwa_identity(pool: &PgPool) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let pending: Option<Uuid> = sqlx::query_scalar(
         "SELECT s.id FROM sites s JOIN site_brands b ON b.site_id = s.id
           WHERE s.slug = 'ziwa' AND NOT EXISTS (
-                SELECT 1 FROM audit_log a WHERE a.site_id = s.id AND a.action = 'brand.ziwa_identity_seeded')",
+                SELECT 1 FROM audit_log a WHERE a.site_id = s.id AND a.action = 'brand.ziwa_final_identity_seeded')",
     )
     .fetch_optional(pool)
     .await?;
@@ -549,7 +566,7 @@ async fn upgrade_ziwa_identity(pool: &PgPool) -> Result<(), Box<dyn std::error::
             .fetch_one(&mut *tx)
             .await?;
     let already: bool = sqlx::query_scalar(
-        "SELECT EXISTS (SELECT 1 FROM audit_log WHERE site_id = $1 AND action = 'brand.ziwa_identity_seeded')",
+        "SELECT EXISTS (SELECT 1 FROM audit_log WHERE site_id = $1 AND action = 'brand.ziwa_final_identity_seeded')",
     )
     .bind(site_id)
     .fetch_one(&mut *tx)
@@ -565,13 +582,14 @@ async fn upgrade_ziwa_identity(pool: &PgPool) -> Result<(), Box<dyn std::error::
         .unwrap_or_else(|| defaults.clone());
     config.logos = Default::default();
     config.colors = defaults.colors;
+    let kept: Vec<Uuid> = placed.iter().map(|(_, id, _, _)| *id).collect();
     for (slot, id, on_dark, on_light) in placed {
         assign(&mut config, slot, id, on_dark, on_light);
     }
     let value = serde_json::to_value(&config)?;
     sqlx::query(
         "UPDATE brand_revisions SET state = 'cancelled', decided_at = now(),
-                decision_note = 'Superseded by the approved Ziwa LMS identity'
+                decision_note = 'Superseded by the final Ziwa LMS identity'
           WHERE site_id = $1 AND state = 'pending'",
     )
     .bind(site_id)
@@ -581,7 +599,7 @@ async fn upgrade_ziwa_identity(pool: &PgPool) -> Result<(), Box<dyn std::error::
     sqlx::query(
         "INSERT INTO brand_revisions (id, site_id, number, config, note, state, decided_at)
          VALUES ($1, $2, COALESCE((SELECT max(number) FROM brand_revisions WHERE site_id = $2), 0) + 1,
-                 $3, 'Approved Ziwa LMS identity (approved by the owner, 28 Oct 2026)', 'published', now())",
+                 $3, 'Final Ziwa LMS identity: orange, yellow and brown (approved by the owner, 29 Oct 2026)', 'published', now())",
     )
     .bind(revision)
     .bind(site_id)
@@ -598,13 +616,18 @@ async fn upgrade_ziwa_identity(pool: &PgPool) -> Result<(), Box<dyn std::error::
     .bind(revision)
     .execute(&mut *tx)
     .await?;
-    sqlx::query("UPDATE brand_assets SET archived_at = now() WHERE site_id = $1 AND origin = 'proposed' AND archived_at IS NULL")
-        .bind(site_id)
-        .execute(&mut *tx)
-        .await?;
+    sqlx::query(
+        "UPDATE brand_assets SET archived_at = now()
+          WHERE site_id = $1 AND archived_at IS NULL AND origin <> 'upload'
+            AND NOT (id = ANY($2))",
+    )
+    .bind(site_id)
+    .bind(&kept)
+    .execute(&mut *tx)
+    .await?;
     mark_ziwa_identity(&mut tx, site_id, true).await?;
     tx.commit().await?;
-    tracing::info!("approved Ziwa LMS identity published");
+    tracing::info!("final Ziwa LMS identity published");
     Ok(())
 }
 

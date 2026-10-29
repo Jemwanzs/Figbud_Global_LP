@@ -161,7 +161,7 @@ async fn seeded_official_logos_are_published_and_proposals_stay_in_draft() {
         site("expense_now")["brand"].is_null(),
         "the Expense Now concept is not approved"
     );
-    // The approved Ziwa LMS identity (28 Oct 2026) is published.
+    // The final Ziwa LMS identity (29 Oct 2026) is published.
     let ziwa = site("ziwa")["brand"].clone();
     for slot in [
         &ziwa["logos"]["horizontal"]["on_dark"],
@@ -176,7 +176,8 @@ async fn seeded_official_logos_are_published_and_proposals_stay_in_draft() {
         ziwa["logos"]["horizontal"]["on_dark"]["url"], ziwa["logos"]["horizontal"]["on_light"]["url"],
         "white and brown wordmarks"
     );
-    assert_eq!(ziwa["colors"]["primary"], "#0b6edb");
+    assert_eq!(ziwa["colors"]["primary"], "#fb7a1a");
+    assert_eq!(ziwa["colors"]["secondary"], "#ffc642");
 
     // Favicons and app icons from the official symbols (added once, as a
     // recorded revision, for profiles seeded before icons existed).
@@ -199,13 +200,42 @@ async fn seeded_official_logos_are_published_and_proposals_stay_in_draft() {
     .unwrap();
     assert_eq!(markers, 1, "the icon upgrade runs once");
 
-    // Databases seeded with the earlier Ziwa concept are upgraded once: the
-    // approved identity is published as a new revision and replaces the draft.
+    // Databases seeded with an earlier Ziwa identity are upgraded once: the
+    // final identity is published as a new revision and replaces the draft,
+    // and the superseded seeded files are archived (Studio uploads are kept).
     sqlx::query(
-        "DELETE FROM audit_log WHERE action = 'brand.ziwa_identity_seeded'
+        "DELETE FROM audit_log WHERE action = 'brand.ziwa_final_identity_seeded'
             AND site_id = (SELECT id FROM sites WHERE slug = 'ziwa')",
     )
     .execute(&s.pool)
+    .await
+    .unwrap();
+    let ziwa_site: Uuid = sqlx::query_scalar("SELECT id FROM sites WHERE slug = 'ziwa'")
+        .fetch_one(&s.pool)
+        .await
+        .unwrap();
+    let old_seeded: Uuid = sqlx::query_scalar(
+        "INSERT INTO brand_assets (id, site_id, label, alt_text, content_type, width, height, has_alpha,
+                                   byte_size, sha256, data, origin)
+         VALUES ($1, $2, 'Ziwa LMS logo (blue and green)', 'Ziwa LMS', 'image/svg+xml', 40, 20, true, 4,
+                 'old-ziwa', 'test', 'official')
+         RETURNING id",
+    )
+    .bind(Uuid::now_v7())
+    .bind(ziwa_site)
+    .fetch_one(&s.pool)
+    .await
+    .unwrap();
+    let uploaded: Uuid = sqlx::query_scalar(
+        "INSERT INTO brand_assets (id, site_id, label, alt_text, content_type, width, height, has_alpha,
+                                   byte_size, sha256, data, origin)
+         VALUES ($1, $2, 'Campaign banner', 'Ziwa LMS', 'image/svg+xml', 40, 20, true, 4,
+                 'studio-upload', 'test', 'upload')
+         RETURNING id",
+    )
+    .bind(Uuid::now_v7())
+    .bind(ziwa_site)
+    .fetch_one(&s.pool)
     .await
     .unwrap();
     sqlx::query(
@@ -235,6 +265,26 @@ async fn seeded_official_logos_are_published_and_proposals_stay_in_draft() {
     .await
     .unwrap();
     assert!(note.is_none(), "the concept draft is replaced");
+    let archived: bool = sqlx::query_scalar("SELECT archived_at IS NOT NULL FROM brand_assets WHERE id = $1")
+        .bind(old_seeded)
+        .fetch_one(&s.pool)
+        .await
+        .unwrap();
+    assert!(archived, "the blue and green files are archived");
+    let kept: bool = sqlx::query_scalar("SELECT archived_at IS NULL FROM brand_assets WHERE id = $1")
+        .bind(uploaded)
+        .fetch_one(&s.pool)
+        .await
+        .unwrap();
+    assert!(kept, "files uploaded in the Studio are kept");
+    let live: i64 = sqlx::query_scalar(
+        "SELECT count(*) FROM brand_assets WHERE site_id = $1 AND archived_at IS NULL AND origin = 'official'",
+    )
+    .bind(ziwa_site)
+    .fetch_one(&s.pool)
+    .await
+    .unwrap();
+    assert_eq!(live, 9, "the final identity's nine files stay in the library");
 
     // The FigBud Global parent palette replaces the old amber defaults once;
     // a palette chosen in the Studio would be kept.

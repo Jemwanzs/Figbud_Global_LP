@@ -47,6 +47,7 @@ const ACTIONS: Record<string, string> = {
   "brand.seeded": "Installed the official brand",
   "brand.icons_seeded": "Generated website icons",
   "brand.ziwa_identity_seeded": "Published the approved Ziwa LMS identity",
+  "brand.ziwa_final_identity_seeded": "Published the final Ziwa LMS identity (orange, yellow and brown)",
   "brand.draft_saved": "Saved a brand draft",
   "brand.submitted": "Submitted a brand for approval",
   "brand.published": "Published a brand",

@@ -61,27 +61,33 @@ Expense Now has no official logo yet. The concept is original artwork made for F
 
 The concept is in the Expense Now brand draft, labelled "Proposed … not approved". To adopt it, review it in the Studio, submit it, and approve it. To replace it, upload the final artwork into the same slots.
 
-## 3b. Ziwa LMS: approved identity (28 October 2026)
+## 3b. Ziwa LMS: final identity (29 October 2026)
 
-The owner approved the Ziwa LMS brand sheet on 28 Oct 2026. It replaces the earlier concept, whose files are archived in Ziwa's library.
+The owner approved the final Ziwa LMS brand sheet on 29 Oct 2026: an orange and yellow symbol with a brown wordmark. It replaces the blue and green identity approved on 28 Oct, and the earlier concept. The superseded files are archived in Ziwa's library and stay in its revision history.
 
 - **The identity:**
-  - **Symbol:** blue and green flowing drops, each folded once, with a small dot beside each.
-  - **Wordmark:** "Ziwa" in a heavy geometric sans, with a green leaf over the i, and "LMS" spaced in gold between two rules.
-  - **Colours:** Primary Blue #0B6EDB, Primary Green #10B981, Brand Brown #4E2D17, Accent Gold #C9A87A.
+  - **Symbol:** one flowing shape folded across its middle (an orange upper lobe over a yellow lower lobe), with an orange dot beside each lobe.
+  - **Wordmark:** "Ziwa" in a heavy geometric sans, brown on light backgrounds and white on dark, with an orange-to-yellow leaf over the i; "LMS" spaced in tan between two rules.
+  - **Colours:** Primary Orange #FB7A1A, Accent Yellow #FFC642, Brand Brown #4E2D17, Neutral Tan #D4A97A. These colours belong to Ziwa LMS only, not the FigBud Global parent brand or the other products.
 - **How the files were made.** The sheet is a picture, not a set of files, so the logos were rebuilt as clean vectors (`scripts/brand/ziwa/build.py` from `geometry.json`). Nothing was cropped from the sheet, and the sheet is never embedded.
-  - **Symbol:** the outlines were traced from the sheet and smoothed, and each drop's gradients were fitted to the sheet's colours either side of its fold. Rendered beside the sheet, the shapes overlap by 97% and the colours differ by under 6/255 on average.
-  - **Wordmark:** Outfit outlines fitted to the sheet's letter boxes (92% overlap), so the files need no font. The wordmark uses the official brown and gold.
+  - **Symbol:** the outline was traced from the sheet and smoothed, then split at its fold. Each lobe's and dot's gradient was fitted to the sheet. The sheet renders its own swatches more saturated than their stated hex values (#FFC642 shows as #FEC133, for example), so the fitted colours were corrected channel by channel to the stated palette. Rendered beside the sheet, the symbol overlaps it by 99%.
+  - **Wordmark:** Outfit outlines fitted to the sheet's letter boxes (92% overlap), so the files need no font, in the official brown (or white) and tan.
+  - **Tiles:** the favicon and app icon use the sheet's rounded tiles, ivory (#FDF9F4) or brown (#4E2D17 shading to #3D2312). The symbol fills half the tile at every size, as on the sheet.
   - If FigBud has the designer's original vector files, uploading them in the Studio replaces these in the same slots.
 - **Files (`services/api/seed/brand/ziwa-*-official.svg`):**
   - logo for light backgrounds (brown wordmark, the primary logo);
   - logo for dark backgrounds (white wordmark);
-  - symbol;
-  - favicon (the symbol, square);
-  - app icon (the symbol on the sheet's white rounded tile);
-  - one-colour brown logo and symbol, in the library only.
+  - symbol (orange and yellow, transparent background);
+  - favicon (the symbol on an ivory tile);
+  - app icon (the symbol on an ivory tile);
+  - in the library only: favicon and app icon on brown, and the one-colour brown logo and symbol.
   - No stacked layout: the sheet doesn't show one.
-- **Publishing.** New databases publish these files as Ziwa's first brand revision. Existing databases were upgraded once on start-up: the files were published as a recorded revision ("Approved Ziwa LMS identity"), the concept draft was replaced, any pending brand change was withdrawn as superseded, and the concept files were archived. Later Studio changes are never overwritten.
+- **Icon sizes.** Browsers and devices get square PNGs rendered from the published favicon and app icon (16, 32, 48, 180, 192 and 512 px, via `?icon=`), plus the SVG itself, which scales to any other size on the sheet (64, 128 and 256 px).
+- **Publishing.** New databases publish these files as Ziwa's first brand revision. Existing databases are upgraded once on start-up (audit marker `brand.ziwa_final_identity_seeded`):
+  - the files are published as a recorded revision ("Final Ziwa LMS identity: orange, yellow and brown"), with the new colours;
+  - the draft is replaced, and any pending brand change is withdrawn as superseded;
+  - the superseded seeded files (blue and green, and the concept) are archived;
+  - files uploaded in the Studio are kept, and later Studio changes are never overwritten.
 
 ## 4. Product colours
 
@@ -93,9 +99,9 @@ Product accent tokens (`packages/brand/src/tokens.css`) now follow each product'
 | ZiraHR | #22D3EE cyan | #0891B2 | #67E8F9 | #0E7490 |
 | Jasiri LMS | #22C55E green | #7C3AED purple | #4ADE80 | #15803D |
 | Expense Now (proposed) | #F97316 orange | #C2410C | #FB923C | #C2410C |
-| Ziwa LMS (approved 28 Oct 2026) | #0B6EDB blue (white text on it) | #10B981 green | #5AA9F6 | #0A5FC0 |
+| Ziwa LMS (final, 29 Oct 2026) | #FB7A1A orange (deep brown #2B1609 text on it) | #FFC642 yellow | #FB7A1A | #A8480C |
 
-Ziwa's brown and gold appear in its logo; its brand profile stores blue, green and gold as primary, secondary and accent.
+Ziwa's brand profile stores orange, yellow and tan as primary, secondary and accent; brown is its wordmark and button-text colour. Orange #FB7A1A is 2.5:1 on the light theme, so light pages use the darker #A8480C for orange text.
 
 ## 4b. One way to show a product's logo
 

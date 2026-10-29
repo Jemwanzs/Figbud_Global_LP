@@ -81,7 +81,7 @@ test("Ziwa LMS appears across the corporate site as coming soon", async ({ page 
   const node = hero(page).getByRole("link", { name: /Ziwa LMS/ });
   await expect(node).toHaveAttribute("href", "/en/contact?kind=waitlist&product=ziwa");
   await expect(node).toContainText("Coming soon");
-  // The approved Ziwa LMS symbol (28 Oct 2026), from its published brand.
+  // The final Ziwa LMS symbol (29 Oct 2026), from its published brand.
   await expect(node.locator('img[src^="/brand/assets/"]').filter({ visible: true }).first()).toBeVisible();
 
   await page.goto("/en/products");

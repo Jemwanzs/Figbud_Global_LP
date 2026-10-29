@@ -82,8 +82,8 @@ impl BrandConfig {
             "zirahr" => ("#22d3ee", "#0891b2", "#11e6ff"),
             "jasiri" => ("#22c55e", "#7c3aed", "#4ade80"),
             "expense_now" => ("#f97316", "#ea580c", "#fdba74"),
-            // The approved Ziwa LMS palette: primary blue, primary green, gold accent.
-            "ziwa" => ("#0b6edb", "#10b981", "#c9a87a"),
+            // The final Ziwa LMS palette: primary orange, accent yellow, neutral tan.
+            "ziwa" => ("#fb7a1a", "#ffc642", "#d4a97a"),
             _ => ("#22c55e", "#3b82f6", "#a855f7"),
         };
         Self {

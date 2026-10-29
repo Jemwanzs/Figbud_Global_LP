@@ -462,7 +462,7 @@ const BRAND_DEFAULTS = {
   zirahr: ["#22d3ee", "#0891b2", "#11e6ff"],
   jasiri: ["#22c55e", "#7c3aed", "#4ade80"],
   expense_now: ["#f97316", "#ea580c", "#fdba74"],
-  ziwa: ["#0b6edb", "#10b981", "#c9a87a"],
+  ziwa: ["#fb7a1a", "#ffc642", "#d4a97a"],
 };
 const emptyPair = () => ({ on_dark: null, on_light: null });
 const defaultBrand = (slug) => {
@@ -650,7 +650,7 @@ const BRAND_SEED = {
       ["expense-now-favicon-proposed.svg", "proposed", "Expense Now favicon concept", "favicon", []],
     ],
   ],
-  // The approved Ziwa LMS identity (services/api/src/brand/seed.rs).
+  // The final Ziwa LMS identity (services/api/src/brand/seed.rs).
   ziwa: [
     "Ziwa LMS",
     [
@@ -675,14 +675,22 @@ const BRAND_SEED = {
         "symbol",
         ["on_dark", "on_light"],
       ],
-      ["ziwa-favicon-official.svg", "official", "Ziwa LMS favicon (approved symbol)", "favicon", []],
+      [
+        "ziwa-favicon-official.svg",
+        "official",
+        "Ziwa LMS favicon (approved symbol on an ivory tile)",
+        "favicon",
+        [],
+      ],
       [
         "ziwa-app-icon-official.svg",
         "official",
-        "Ziwa LMS app icon (approved symbol on a white tile)",
+        "Ziwa LMS app icon (approved symbol on an ivory tile)",
         "app_icon",
         [],
       ],
+      ["ziwa-favicon-dark-official.svg", "official", "Ziwa LMS favicon on brown (approved)", null, []],
+      ["ziwa-app-icon-dark-official.svg", "official", "Ziwa LMS app icon on brown (approved)", null, []],
       [
         "ziwa-horizontal-one-colour-official.svg",
         "official",

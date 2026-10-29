@@ -4,12 +4,15 @@ Usage (fontTools required):
 
     python scripts/brand/ziwa/build.py <Outfit[wght].ttf>
 
-The owner approved the Ziwa LMS brand sheet on 28 Oct 2026. The sheet is a
-picture, not a set of files, so the logos are rebuilt as clean vectors from
-`geometry.json`: the symbol's outlines were traced from the sheet and
-smoothed, its gradients fitted to the sheet's colours, and the wordmark set
-in Outfit outlines fitted to the sheet's letter boxes (no <text>, so no font
-is needed to display them). Layout, proportions and colours follow the sheet.
+The owner approved the final Ziwa LMS brand sheet on 29 Oct 2026 (orange and
+yellow symbol, brown wordmark, tan LMS), replacing the blue and green version
+approved the day before. The sheet is a picture, not a set of files, so the
+logos are rebuilt as clean vectors from `geometry.json`: the symbol's outline
+was traced from the sheet and smoothed, split at its fold into the orange
+upper lobe and the yellow lower lobe, and each part's gradient fitted to the
+sheet and corrected to the stated palette; the wordmark is set in Outfit
+outlines fitted to the sheet's letter boxes (no <text>, so no font is needed
+to display them). Layout, proportions and colours follow the sheet.
 
 Writes services/api/seed/brand/ziwa-*-official.svg, which the API seeds and
 publishes (services/api/src/brand/seed.rs). See docs/BRAND_ASSETS.md.
@@ -28,7 +31,7 @@ from fontTools.varLib.instancer import instantiateVariableFont
 ROOT = Path(__file__).resolve().parents[3]
 SEED = ROOT / "services/api/seed/brand"
 GEO = json.loads((Path(__file__).parent / "geometry.json").read_text(encoding="utf-8"))
-SYM, LEAF, WORD, COLOURS = GEO["symbol"], GEO["leaf"], GEO["wordmark"], GEO["colours"]
+SYM, LEAF, WORD, COLOURS, TILE = GEO["symbol"], GEO["leaf"], GEO["wordmark"], GEO["colours"], GEO["tile"]
 WHITE = "#FFFFFF"
 
 
@@ -42,39 +45,24 @@ def gradient(id_: str, g: dict) -> str:
 
 def symbol(p: str, mono: str | None = None) -> str:
     """The symbol in sheet coordinates. `p` keeps gradient ids unique within a file."""
-    bx, by, br = SYM["blue_dot"]
-    gx, gy, gr = SYM["green_dot"]
-    blue, green = SYM["blue_drop"], SYM["green_drop"]
-    ox, oy = SYM["origin"]
+    shape, dots = SYM["shape"], SYM["dots"]
     if mono:
-        shapes = (
-            f'<path fill="{mono}" d="{blue}"/><circle fill="{mono}" cx="{bx}" cy="{by}" r="{br}"/>'
-            f'<path fill="{mono}" d="{green}"/><circle fill="{mono}" cx="{gx}" cy="{gy}" r="{gr}"/>'
-        )
-        return f'<g transform="translate({ox} {oy})">{shapes}</g>'
-    g, s = SYM["gradients"], SYM["sheen"]
+        circles = "".join(f'<circle fill="{mono}" cx="{d["cx"]}" cy="{d["cy"]}" r="{d["r"]}"/>' for d in dots)
+        return f'<path fill="{mono}" d="{shape}"/>{circles}'
     defs = (
-        gradient(p + "m", g["main"]) + gradient(p + "t", g["tail"]) + gradient(p + "u", g["gupper"])
-        + gradient(p + "l", g["glower"]) + gradient(p + "b", g["bdot"]) + gradient(p + "g", g["gdot"])
-        + f'<radialGradient id="{p}h" cx="{s["cx"]}" cy="{s["cy"]}" r="{s["r"]}" gradientUnits="userSpaceOnUse">'
-        f'<stop offset="0" stop-color="{s["color"]}" stop-opacity="{s["opacity"]}"/>'
-        f'<stop offset="1" stop-color="{s["color"]}" stop-opacity="0"/></radialGradient>'
-        f'<clipPath id="{p}tc"><path d="{SYM["folds"]["blue"]}"/></clipPath>'
-        f'<clipPath id="{p}lc"><path d="{SYM["folds"]["green"]}"/></clipPath>'
-        f'<clipPath id="{p}tp"><path d="{blue}"/></clipPath>'
+        gradient(p + "u", SYM["upper"])
+        + gradient(p + "l", SYM["lower"])
+        + "".join(gradient(f"{p}d{i}", d["gradient"]) for i, d in enumerate(dots))
+        + f'<clipPath id="{p}f"><path d="{SYM["fold"]}"/></clipPath>'
     )
-    shapes = (
-        # Blue drop: the body, a sheen at the neck, then the tail below its fold.
-        f'<path fill="url(#{p}m)" d="{blue}"/>'
-        f'<circle fill="url(#{p}h)" clip-path="url(#{p}tp)" cx="{s["cx"]}" cy="{s["cy"]}" r="{s["r"]}"/>'
-        f'<path fill="url(#{p}t)" clip-path="url(#{p}tc)" d="{blue}"/>'
-        f'<circle fill="url(#{p}b)" cx="{bx}" cy="{by}" r="{br}"/>'
-        # Green drop: the upper lobe, then the lower lobe below its fold.
-        f'<path fill="url(#{p}u)" d="{green}"/>'
-        f'<path fill="url(#{p}l)" clip-path="url(#{p}lc)" d="{green}"/>'
-        f'<circle fill="url(#{p}g)" cx="{gx}" cy="{gy}" r="{gr}"/>'
+    circles = "".join(
+        f'<circle fill="url(#{p}d{i})" cx="{d["cx"]}" cy="{d["cy"]}" r="{d["r"]}"/>' for i, d in enumerate(dots)
     )
-    return f'<defs>{defs}</defs><g transform="translate({ox} {oy})">{shapes}</g>'
+    # The orange upper lobe, then the yellow lower lobe below its fold, then the dots.
+    return (
+        f'<defs>{defs}</defs><path fill="url(#{p}u)" d="{shape}"/>'
+        f'<path fill="url(#{p}l)" clip-path="url(#{p}f)" d="{shape}"/>{circles}'
+    )
 
 
 def glyphs(font: TTFont, letters) -> str:
@@ -92,17 +80,10 @@ def glyphs(font: TTFont, letters) -> str:
 
 
 def wordmark(heavy: TTFont, medium: TTFont, p: str, word: str, lms: str, mono: str | None = None) -> str:
-    g = LEAF["gradient"]
     leaf_fill = mono or f"url(#{p}leaf)"
-    defs = (
-        ""
-        if mono
-        else f'<defs><linearGradient id="{p}leaf" x1="{g["x1"]}" y1="{g["y1"]}" x2="{g["x2"]}" y2="{g["y2"]}" '
-        f'gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="{g["c1"]}"/>'
-        f'<stop offset=".5" stop-color="{g["cm"]}"/><stop offset="1" stop-color="{g["c2"]}"/></linearGradient></defs>'
-    )
+    defs = "" if mono else f"<defs>{gradient(p + 'leaf', LEAF['gradient'])}</defs>"
     rules = "".join(
-        f'<rect fill="{lms}" x="{x}" y="{y}" width="{w}" height="{h}" rx="{h / 2}"/>' for x, y, w, h in WORD["rules"]
+        f'<rect fill="{lms}" x="{x}" y="{y}" width="{w}" height="{h}" rx="{h / 2:g}"/>' for x, y, w, h in WORD["rules"]
     )
     return (
         f'{defs}<path fill="{word}" d="{glyphs(heavy, WORD["ziwa"])}"/>'
@@ -130,34 +111,44 @@ def main() -> None:
         return instantiateVariableFont(TTFont(sys.argv[1]), {"wght": weight})
 
     heavy, medium = font(WORD["ziwa_weight"]), font(WORD["lms_weight"])
-    brown, gold = COLOURS["brown"], COLOURS["gold"]
-    ox, oy = SYM["origin"]
+    brown, tan = COLOURS["brown"], COLOURS["tan"]
     x0, y0, x1, y1 = SYM["box"]
     pad = 6
     # The symbol's box in sheet coordinates, padded.
-    sbox = (ox + x0 - pad, oy + y0 - pad, x1 - x0 + 2 * pad, y1 - y0 + 2 * pad)
+    sbox = (round(x0 - pad, 2), round(y0 - pad, 2), round(x1 - x0 + 2 * pad, 2), round(y1 - y0 + 2 * pad, 2))
     # Horizontal logo: symbol and wordmark as laid out on the sheet.
-    hbox = (sbox[0], sbox[1], 940 - sbox[0], sbox[3])
+    right = max(b[2] for _, b in WORD["ziwa"]) + pad
+    bottom = max(y1, max(b[3] for _, b in WORD["lms"])) + pad
+    top = min(y0, LEAF["box"][1]) - pad
+    hbox = (sbox[0], round(min(sbox[1], top), 2), round(right - sbox[0], 2), round(bottom - min(sbox[1], top), 2))
 
-    write("ziwa-horizontal-on-light-official.svg", svg(hbox, symbol("a") + wordmark(heavy, medium, "a", brown, gold)))
-    write("ziwa-horizontal-on-dark-official.svg", svg(hbox, symbol("a") + wordmark(heavy, medium, "a", WHITE, gold)))
+    write("ziwa-horizontal-on-light-official.svg", svg(hbox, symbol("a") + wordmark(heavy, medium, "a", brown, tan)))
+    write("ziwa-horizontal-on-dark-official.svg", svg(hbox, symbol("a") + wordmark(heavy, medium, "a", WHITE, tan)))
     write("ziwa-symbol-official.svg", svg(sbox, symbol("a")))
     write(
         "ziwa-horizontal-one-colour-official.svg",
-        svg(hbox, symbol("a", brown) + wordmark(heavy, medium, "a", brown, gold, mono=brown)),
+        svg(hbox, symbol("a", brown) + wordmark(heavy, medium, "a", brown, brown, mono=brown)),
     )
     write("ziwa-symbol-one-colour-official.svg", svg(sbox, symbol("a", brown)))
 
-    # Favicon: the symbol centred in a square so it fills browser tabs.
+    # Favicons and app icons: the symbol on the sheet's rounded tiles, ivory
+    # (the default) and brown, at the sheet's proportions.
     side = max(sbox[2], sbox[3])
-    fav = (sbox[0] - (side - sbox[2]) / 2, sbox[1] - (side - sbox[3]) / 2, side, side)
-    write("ziwa-favicon-official.svg", svg(fav, symbol("a"), (64, 64)))
-
-    # App icon: the symbol on the sheet's white rounded tile.
-    tile = side / 0.72
-    tx, ty = fav[0] - (tile - side) / 2, fav[1] - (tile - side) / 2
-    body = f'<rect fill="#FFFFFF" x="{tx:.2f}" y="{ty:.2f}" width="{tile:.2f}" height="{tile:.2f}" rx="{tile * 0.225:.2f}"/>'
-    write("ziwa-app-icon-official.svg", svg((tx, ty, tile, tile), body + symbol("a"), (512, 512)))
+    cx, cy = sbox[0] + sbox[2] / 2, sbox[1] + sbox[3] / 2
+    tile = side / TILE["symbol_ratio"]
+    tx, ty = cx - tile / 2, cy - tile / 2
+    view = (round(tx, 2), round(ty, 2), round(tile, 2), round(tile, 2))
+    rect = f'x="{tx:.2f}" y="{ty:.2f}" width="{tile:.2f}" height="{tile:.2f}" rx="{tile * TILE["radius_ratio"]:.2f}"'
+    light = f'<rect fill="{COLOURS["ivory"]}" {rect}/>'
+    dark = (
+        f'<defs><linearGradient id="bt" x1="{tx:.2f}" y1="{ty:.2f}" x2="{tx + tile:.2f}" y2="{ty + tile:.2f}" '
+        f'gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="{brown}"/>'
+        f'<stop offset="1" stop-color="{COLOURS["brown_deep"]}"/></linearGradient></defs><rect fill="url(#bt)" {rect}/>'
+    )
+    write("ziwa-favicon-official.svg", svg(view, light + symbol("a"), (64, 64)))
+    write("ziwa-favicon-dark-official.svg", svg(view, dark + symbol("a"), (64, 64)))
+    write("ziwa-app-icon-official.svg", svg(view, light + symbol("a"), (512, 512)))
+    write("ziwa-app-icon-dark-official.svg", svg(view, dark + symbol("a"), (512, 512)))
 
 
 if __name__ == "__main__":

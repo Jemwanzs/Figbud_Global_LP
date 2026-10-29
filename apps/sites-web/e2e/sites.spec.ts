@@ -103,7 +103,7 @@ test("the website's own favicons, touch icon and app manifest", async ({ page, r
   const manifestHref = await page.locator('link[rel="manifest"]').getAttribute("href");
   expect(manifestHref).toBe("/manifest.webmanifest?site=ziwa");
   const manifest = await (await request.get(manifestHref!)).json();
-  expect(manifest).toMatchObject({ name: "Ziwa LMS", start_url: "/ziwa", theme_color: "#0b6edb" });
+  expect(manifest).toMatchObject({ name: "Ziwa LMS", start_url: "/ziwa", theme_color: "#fb7a1a" });
   expect(manifest.icons.map((i: { sizes: string }) => i.sizes)).toEqual(["192x192", "512x512"]);
   expect((await request.get("/manifest.webmanifest?site=nope")).status()).toBe(404);
 });
