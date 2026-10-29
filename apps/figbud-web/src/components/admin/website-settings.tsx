@@ -27,7 +27,13 @@ const toForm = (s: Partial<WebsiteSettings>): WebsiteSettings => ({
   navigation: { mode: s.navigation?.mode ?? "pages", items: s.navigation?.items ?? [] },
   footer: { note: s.footer?.note ?? "", links: s.footer?.links ?? [] },
   enquiries: { open: s.enquiries?.open ?? true, closed_message: s.enquiries?.closed_message ?? "" },
+  theme: { brand_section: s.theme?.brand_section ?? "", soft_section: s.theme?.soft_section ?? "" },
 });
+
+const HEX = /^#[0-9a-f]{6}$/i;
+/** A valid colour, or the neutral fallback (for the band previews). */
+const swatch = (value: string | null | undefined, fallback: string) =>
+  value && HEX.test(value) ? value : fallback;
 
 /**
  * A website's navigation, footer and enquiry form (P7-E2). Reviewers change
@@ -303,6 +309,92 @@ export function WebsiteSettingsForm({
         ) : (
           links("navigation", form.navigation.items, "Menu links", "navigation.items")
         )}
+      </fieldset>
+
+      <fieldset className="space-y-5">
+        <legend className="font-semibold text-text">Theme</legend>
+        <p className="text-sm text-muted">
+          Colours for the bands editors can put behind page sections (Pages → a section → Section style).
+          Leave empty for the neutral design-system bands. Colours that would make text hard to read are
+          refused.
+        </p>
+        <div className="grid gap-5 sm:grid-cols-2">
+          {(
+            [
+              {
+                key: "brand_section",
+                label: "Brand band",
+                hint: "White text sits on it, e.g. a deep brand colour.",
+                placeholder: "#4e2d17",
+              },
+              {
+                key: "soft_section",
+                label: "Soft band (light mode)",
+                hint: "Dark text sits on it, e.g. an ivory or pale tint.",
+                placeholder: "#fdf9f4",
+              },
+            ] as const
+          ).map((c) => {
+            const value = form.theme?.[c.key] ?? "";
+            const id = `${uid}-${c.key}`;
+            const error = errorFor(`theme.${c.key}`);
+            return (
+              <div key={c.key}>
+                <label htmlFor={id} className="block text-sm font-medium text-text">
+                  {c.label}
+                </label>
+                <div className="mt-2 flex items-center gap-3">
+                  <input
+                    type="color"
+                    aria-label={`${c.label} colour picker`}
+                    value={HEX.test(value) ? value : c.placeholder}
+                    disabled={disabled}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, theme: { ...f.theme, [c.key]: e.target.value } }))
+                    }
+                    className="h-11 w-14 shrink-0 cursor-pointer rounded-xl border border-line-strong bg-surface p-1 disabled:opacity-60"
+                  />
+                  <input
+                    id={id}
+                    value={value}
+                    placeholder={c.placeholder}
+                    maxLength={7}
+                    disabled={disabled}
+                    aria-invalid={error ? true : undefined}
+                    aria-describedby={`${id}-hint`}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, theme: { ...f.theme, [c.key]: e.target.value } }))
+                    }
+                    className={cn(inputClass, "font-mono text-sm")}
+                  />
+                </div>
+                <p id={`${id}-hint`} className={cn("mt-1.5 text-sm", error ? "text-danger" : "text-subtle")}>
+                  {error ?? c.hint}
+                </p>
+              </div>
+            );
+          })}
+        </div>
+        <div aria-hidden className="grid gap-3 sm:grid-cols-2">
+          <div
+            style={{
+              background: swatch(form.theme?.brand_section, "#1e293b"),
+            }}
+            className="rounded-2xl p-5 text-white"
+          >
+            <p className="font-semibold">Brand band</p>
+            <p className="mt-1 text-sm text-white/80">How a brand section reads.</p>
+          </div>
+          <div
+            style={{
+              background: swatch(form.theme?.soft_section, "#f1f5f9"),
+            }}
+            className="rounded-2xl p-5 text-[#0f172a]"
+          >
+            <p className="font-semibold">Soft band</p>
+            <p className="mt-1 text-sm text-[#475569]">How a soft section reads.</p>
+          </div>
+        </div>
       </fieldset>
 
       <fieldset className="space-y-5">

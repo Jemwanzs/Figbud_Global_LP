@@ -246,6 +246,16 @@ test("hide a section, and manage a page's visibility without losing it", async (
   await expect(page.getByRole("region", { name: "Live preview" }).locator("[data-hidden]")).toHaveCount(1);
   await expect(page.getByRole("status").filter({ hasText: "Draft saved" })).toBeVisible({ timeout: 10_000 });
 
+  // A section style puts it on a band in the website's theme colours (part of the draft).
+  await sections.getByRole("button", { name: /^Hero/ }).click();
+  const style = page.getByRole("radiogroup", { name: "Hero section style" });
+  await expect(style.getByRole("radio", { name: /Default/ })).toHaveAttribute("aria-checked", "true");
+  await style.getByRole("radio", { name: /Brand band/ }).click();
+  await expect(page.getByRole("region", { name: "Live preview" }).locator('[data-tone="brand"]')).toHaveCount(
+    1,
+  );
+  await expect(page.getByRole("status").filter({ hasText: "Draft saved" })).toBeVisible({ timeout: 10_000 });
+
   // Visibility switches change the page at once; the home page can't go offline.
   const visibility = page.getByRole("region", { name: "Visibility" });
   const online = visibility.getByRole("switch", { name: "Online" });

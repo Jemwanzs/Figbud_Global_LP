@@ -43,6 +43,29 @@ export interface WebsiteSettings {
   navigation: { mode: "pages" | "custom"; items: SiteLink[] };
   footer: { note?: string | null; links: SiteLink[] };
   enquiries: { open: boolean; closed_message?: string | null };
+  /** Section band colours (P7-E1); unset means the design system's neutral bands. */
+  theme?: SiteTheme;
+}
+
+export interface SiteTheme {
+  /** Behind "brand" sections, with white text on it. */
+  brand_section?: string | null;
+  /** Behind "soft" sections in light mode; dark mode uses a deep tint of the brand band. */
+  soft_section?: string | null;
+}
+
+const HEX = /^#[0-9a-f]{6}$/i;
+
+/**
+ * CSS custom properties for a website's section bands, set on the element
+ * that wraps its pages (the renderer, Studio previews). Only valid hex
+ * colours pass, so nothing else reaches a style attribute.
+ */
+export function siteThemeStyle(theme?: SiteTheme | null): Record<string, string> {
+  const style: Record<string, string> = {};
+  if (theme?.brand_section && HEX.test(theme.brand_section)) style["--section-brand"] = theme.brand_section;
+  if (theme?.soft_section && HEX.test(theme.soft_section)) style["--section-soft"] = theme.soft_section;
+  return style;
 }
 
 /** Whether the website takes enquiries (open unless the Studio closed them). */

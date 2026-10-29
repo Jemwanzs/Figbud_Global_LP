@@ -1,5 +1,11 @@
 import { themeColorViewport } from "@figbud/brand";
-import { CookieConsent, ENGLISH_CONSENT_LABELS, brandIcons, enquiriesOpen } from "@figbud/site-kit";
+import {
+  CookieConsent,
+  ENGLISH_CONSENT_LABELS,
+  brandIcons,
+  enquiriesOpen,
+  siteThemeStyle,
+} from "@figbud/site-kit";
 import { themeInitScript } from "@figbud/ui";
 import type { Metadata, Viewport } from "next";
 import { Outfit } from "next/font/google";
@@ -87,12 +93,13 @@ export default async function SiteLayout({ children, params }: LayoutProps<"/[si
     href: siteLinkHref(slug, ownDomain, l.href),
     label: l.label,
   }));
-  const colours = site.brand
-    ? ({
-        "--product": site.brand.colors.primary,
-        "--product-2": site.brand.colors.secondary,
-      } as CSSProperties)
-    : undefined;
+  // Brand accents, plus the section band colours from the website's theme (P7-E1).
+  const colours = {
+    ...(site.brand
+      ? { "--product": site.brand.colors.primary, "--product-2": site.brand.colors.secondary }
+      : {}),
+    ...siteThemeStyle(site.settings?.theme),
+  } as CSSProperties;
 
   return (
     <html lang="en" data-theme="dark" suppressHydrationWarning className={outfit.variable}>

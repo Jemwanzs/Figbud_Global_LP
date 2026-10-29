@@ -1,4 +1,4 @@
-import { PageBlocks } from "@figbud/site-kit";
+import { PageBlocks, siteThemeStyle } from "@figbud/site-kit";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -32,7 +32,11 @@ async function Preview({ params }: Pick<PageProps<"/admin/sites/[slug]/pages/[id
   if (!data?.preview) return <AdminUnavailable />;
 
   return (
-    <div data-product={KNOWN.includes(slug) ? slug : "figbud"} className="min-h-dvh">
+    <div
+      data-product={KNOWN.includes(slug) ? slug : "figbud"}
+      style={siteThemeStyle(data.site.theme)}
+      className="min-h-dvh"
+    >
       <div className="sticky top-0 z-10 border-b border-warning/40 bg-warning/10 px-5 py-2.5 text-center text-sm text-text backdrop-blur">
         Draft preview of <strong>{data.page.title}</strong> on {data.site.name} · not public ·{" "}
         <Link href={`/admin/sites/${slug}/pages/${id}`} className="font-medium text-accent hover:underline">

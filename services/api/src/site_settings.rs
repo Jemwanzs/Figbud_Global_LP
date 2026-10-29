@@ -22,6 +22,7 @@ use uuid::Uuid;
 
 use crate::{
     admin::{AdminSession, Role},
+    brand::config::{contrast, parse_hex},
     error::{ApiError, FieldError},
     privacy::valid_link,
     routes::SharedState,
@@ -80,12 +81,58 @@ impl Default for Enquiries {
     }
 }
 
+/// Colours of the section bands editors can give page sections (P7-E1).
+/// Unset means the shared design system's neutral bands.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Default)]
+#[serde(default, deny_unknown_fields)]
+pub struct Theme {
+    /// Behind "brand" sections, with white text on it (at least 4.5:1).
+    pub brand_section: Option<String>,
+    /// Behind "soft" sections in light mode, with the theme's dark text
+    /// on it (at least 4.5:1); dark mode uses a deep tint of the brand band.
+    pub soft_section: Option<String>,
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Default)]
 #[serde(default, deny_unknown_fields)]
 pub struct WebsiteSettings {
     pub navigation: Navigation,
     pub footer: Footer,
     pub enquiries: Enquiries,
+    pub theme: Theme,
+}
+
+/// Body and muted text colours of the light theme (packages/brand/src/tokens.css).
+const LIGHT_TEXT: [&str; 2] = ["#0f172a", "#475569"];
+
+fn check_colour(
+    errors: &mut Vec<FieldError>,
+    value: &mut Option<String>,
+    field: &'static str,
+    against: &[&str],
+    message: &'static str,
+) {
+    *value = value
+        .as_deref()
+        .map(|v| v.trim().to_ascii_lowercase())
+        .filter(|v| !v.is_empty());
+    let Some(colour) = value.as_deref() else { return };
+    if parse_hex(colour).is_none() {
+        errors.push(FieldError {
+            field,
+            code: "format",
+            message: "Use a six-digit hex colour such as #4e2d17.",
+        });
+    } else if against
+        .iter()
+        .any(|text| contrast(colour, text).unwrap_or(0.0) < 4.5)
+    {
+        errors.push(FieldError {
+            field,
+            code: "contrast",
+            message,
+        });
+    }
 }
 
 fn check_links(errors: &mut Vec<FieldError>, links: &mut [Link], field: &'static str) {
@@ -156,6 +203,20 @@ impl WebsiteSettings {
             "enquiries.closed_message",
             300,
         );
+        check_colour(
+            &mut e,
+            &mut self.theme.brand_section,
+            "theme.brand_section",
+            &["#ffffff"],
+            "Too light: white text on it must stay readable (at least 4.5:1).",
+        );
+        check_colour(
+            &mut e,
+            &mut self.theme.soft_section,
+            "theme.soft_section",
+            &LIGHT_TEXT,
+            "Too dark: the page's text on it must stay readable (at least 4.5:1).",
+        );
         if corporate && !self.enquiries.open {
             e.push(FieldError {
                 field: "enquiries.open",
@@ -172,6 +233,7 @@ impl WebsiteSettings {
             "navigation": self.navigation,
             "footer": self.footer,
             "enquiries": self.enquiries,
+            "theme": self.theme,
         })
     }
 }
@@ -349,6 +411,37 @@ mod tests {
             .map(|e| e.code)
             .collect();
         assert!(fields.contains(&"label") && fields.contains(&"href"));
+    }
+
+    #[test]
+    fn theme_colours_keep_text_readable() {
+        let theme = |brand: &str, soft: &str| WebsiteSettings {
+            theme: Theme {
+                brand_section: Some(brand.into()),
+                soft_section: Some(soft.into()),
+            },
+            ..WebsiteSettings::default()
+        };
+        // Ziwa's brown and ivory.
+        let ok = theme(" #4E2D17 ", "#FDF9F4").normalise(false).unwrap();
+        assert_eq!(ok.theme.brand_section.as_deref(), Some("#4e2d17"));
+        let codes: Vec<_> = theme("#ffc642", "#4e2d17")
+            .normalise(false)
+            .unwrap_err()
+            .iter()
+            .map(|e| (e.field, e.code))
+            .collect();
+        assert_eq!(
+            codes,
+            [
+                ("theme.brand_section", "contrast"),
+                ("theme.soft_section", "contrast")
+            ]
+        );
+        assert_eq!(
+            theme("brown", "#fff").normalise(false).unwrap_err()[0].code,
+            "format"
+        );
     }
 
     #[test]

@@ -160,6 +160,31 @@ async fn navigation_footer_and_enquiries_are_managed_per_website() {
     .await;
     assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY, "{body}");
 
+    // Ziwa's brown and ivory bands (migration 14) reach its website.
+    let (_, sites) = call(&app, "GET", "/v1/sites", None, None).await;
+    let ziwa = sites
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|s| s["slug"] == "ziwa")
+        .unwrap()
+        .clone();
+    assert_eq!(ziwa["settings"]["theme"]["brand_section"], "#4e2d17");
+    assert_eq!(ziwa["settings"]["theme"]["soft_section"], "#fdf9f4");
+    // A band too light for white text is refused.
+    let mut pale = settings.clone();
+    pale["theme"] = json!({ "brand_section": "#ffc642" });
+    let (status, body) = call(
+        &app,
+        "POST",
+        SITE,
+        Some(&reviewer),
+        Some(json!({ "settings": pale, "version": saved["version"] })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
+    assert_eq!(body["error"]["fields"][0]["code"], "contrast");
+
     // The websites see the settings.
     let (_, sites) = call(&app, "GET", "/v1/sites", None, None).await;
     let expense = sites

@@ -1,6 +1,14 @@
 "use client";
 
-import { PageBlocks, type PageCta, type PageDocument, type PageSection } from "@figbud/site-kit";
+import {
+  PageBlocks,
+  type PageCta,
+  type PageDocument,
+  type PageSection,
+  type SectionTone,
+  type SiteTheme,
+  siteThemeStyle,
+} from "@figbud/site-kit";
 import { buttonClasses, cn } from "@figbud/ui";
 import {
   ArrowDown,
@@ -226,6 +234,69 @@ function Items<T>({
           Add {noun.toLowerCase()}
         </button>
       )}
+    </div>
+  );
+}
+
+const TONES: { value: SectionTone | undefined; label: string; hint: string }[] = [
+  { value: undefined, label: "Default", hint: "On the page background" },
+  { value: "brand", label: "Brand band", hint: "White text on the website's brand colour" },
+  { value: "soft", label: "Soft band", hint: "A light tint (a deep tint in dark mode)" },
+];
+
+/** A section's style: none, or a band in the website's theme colours (Navigation & forms → Theme). */
+function ToneField({
+  tone,
+  label,
+  theme,
+  disabled,
+  onChange,
+}: {
+  tone?: SectionTone;
+  label: string;
+  theme?: SiteTheme;
+  disabled: boolean;
+  onChange: (tone: SectionTone | undefined) => void;
+}) {
+  return (
+    <div className="mt-5 border-t border-line pt-4">
+      <p className="text-sm font-medium text-text">Section style</p>
+      <div role="radiogroup" aria-label={`${label} section style`} className="mt-2 grid gap-2 sm:grid-cols-3">
+        {TONES.map((t) => {
+          const selected = tone === t.value;
+          return (
+            <button
+              key={t.label}
+              type="button"
+              role="radio"
+              aria-checked={selected}
+              disabled={disabled}
+              onClick={() => onChange(t.value)}
+              className={cn(
+                "flex items-start gap-2.5 rounded-xl border px-3 py-2.5 text-start transition-colors disabled:opacity-60",
+                selected ? "border-accent bg-accent-soft" : "border-line hover:border-line-strong",
+              )}
+            >
+              <span
+                aria-hidden
+                style={{
+                  background:
+                    t.value === "brand"
+                      ? (theme?.brand_section ?? "#1e293b")
+                      : t.value === "soft"
+                        ? (theme?.soft_section ?? "#f1f5f9")
+                        : "transparent",
+                }}
+                className="mt-0.5 size-4 shrink-0 rounded-full border border-line-strong"
+              />
+              <span>
+                <span className="block text-sm text-text">{t.label}</span>
+                <span className="block text-xs text-subtle">{t.hint}</span>
+              </span>
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -964,6 +1035,15 @@ export function PageEditor({ slug, user, initial }: { slug: string; user: AdminU
                             setSections(sections.map((s) => (s.id === section.id ? next : s)))
                           }
                         />
+                        <ToneField
+                          tone={section.tone}
+                          label={blockLabel(section.type)}
+                          theme={initial.site.theme}
+                          disabled={!canEdit}
+                          onChange={(tone) =>
+                            setSections(sections.map((s) => (s.id === section.id ? { ...s, tone } : s)))
+                          }
+                        />
                       </div>
                     )}
                   </li>
@@ -1042,6 +1122,7 @@ export function PageEditor({ slug, user, initial }: { slug: string; user: AdminU
             </div>
             <div
               data-product={KNOWN.includes(slug) ? slug : "figbud"}
+              style={siteThemeStyle(initial.site.theme)}
               tabIndex={0}
               role="group"
               aria-label="Page preview (scrollable)"

@@ -133,6 +133,8 @@ Studio UI polish is a standing priority (P7-UX2): every milestone reviews the sc
 | Show in navigation | page | Left out of the menu but still reachable at its address | reviewer | immediately, audited, reversible |
 | Menu: website's pages / links I choose | website | Pages marked for navigation, or up to 8 chosen links (page paths or https:// addresses) | reviewer | immediately, audited |
 | Footer note and links | website | A line under the name and up to 8 links (otherwise the menu); FigBud Global's legal links always stay | reviewer | immediately, audited |
+| Section style | section | Default, Brand band or Soft band, in the website's theme colours | editor (part of the draft) | when the draft is published |
+| Theme: brand and soft bands | website | Colours of the section bands; refused if text on them would be hard to read (4.5:1) | reviewer | immediately, audited |
 | Enquiries on / off | website | Off removes the enquiry button, shows a notice on the contact form and makes the API refuse the product (409 `enquiries_closed`); received enquiries are kept. The corporate website is always on | reviewer (confirms before closing) | immediately, audited as `site.enquiries_closed` / `site.enquiries_opened` |
 
 **Navigation, footer & forms** (P7-E2, 29 Oct 2026): Websites → a website → Navigation & forms. Settings live in `sites.settings` (validated by `services/api/src/site_settings.rs`; an empty document means the defaults), are read and saved at `GET/POST /v1/admin/sites/{slug}/settings` with a version check, and reach the websites through `GET /v1/sites` (`settings`). The editor suggests the website's published pages as destinations.
@@ -144,8 +146,8 @@ Studio UI polish is a standing priority (P7-UX2): every milestone reviews the sc
 - **Import:** every home section maps to an existing block, so the API imported the page once into the Studio, word for word, as published version 1 ("Imported from the ZiraHR website", `pages/import.rs`). It now renders from the Studio on the product-site renderer (`/zirahr`). The import runs only if ZiraHR had no Studio pages, so Studio work is never overwritten.
 - **One change from the original:** the "Explore the modules" button was left out, because it pointed at a placeholder page.
 - **Done since:** navigation and footer settings and the enquiry switch (P7-E2, above), for ZiraHR and every other website.
+- **Done since:** per-site themes (P7-E1): section bands in each website's colours; Ziwa uses brown and ivory.
 - **Remaining:**
-  - per-site theme settings (P7-E1);
   - the media library (P7-D2);
   - deploying the renderer (approval needed), after which `apps/zirahr-web` can be retired.
 

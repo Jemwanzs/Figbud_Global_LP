@@ -361,10 +361,13 @@ async fn read(
 ) -> Result<impl IntoResponse, ApiError> {
     session.require(Role::Viewer)?;
     let page = page(&state.pool, id).await?;
-    let site: (String, String) = sqlx::query_as("SELECT slug, name FROM sites WHERE id = $1")
-        .bind(page.site_id)
-        .fetch_one(&state.pool)
-        .await?;
+    let site: (String, String, Value) =
+        sqlx::query_as("SELECT slug, name, settings FROM sites WHERE id = $1")
+            .bind(page.site_id)
+            .fetch_one(&state.pool)
+            .await?;
+    // The website's section band colours, so previews look like the website.
+    let theme = crate::site_settings::WebsiteSettings::from_stored(site.2).theme;
     let revisions: Vec<Revision> = sqlx::query_as(
         "SELECT r.id, r.number, r.note, r.state, rq.name AS requested_by, r.requested_by AS requested_by_id,
                 dc.name AS decided_by, r.decision_note, r.created_at, r.decided_at, r.publish_at
@@ -382,7 +385,7 @@ async fn read(
         .ok();
     Ok(Json(json!({
         "page": page,
-        "site": { "slug": site.0, "name": site.1 },
+        "site": { "slug": site.0, "name": site.1, "theme": theme },
         "draft_differs": draft_differs,
         "preview": preview,
         "revisions": revisions,

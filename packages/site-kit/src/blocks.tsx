@@ -18,7 +18,11 @@ interface Base {
   id: string;
   /** Kept in the document but not shown on the website (the API never sends it there). */
   hidden?: boolean;
+  /** A band behind the section in the website's theme colours (unset: none). */
+  tone?: SectionTone;
 }
+
+export type SectionTone = "brand" | "soft";
 
 export type PageSection = Base &
   (
@@ -282,7 +286,9 @@ export function PageBlocks({
             key={section.id}
             data-section={section.type}
             data-hidden={section.hidden || undefined}
+            data-tone={section.tone}
             className={cn(
+              section.tone && `fb-tone fb-tone-${section.tone}`,
               section.hidden && "relative rounded-2xl border border-dashed border-line-strong p-4 opacity-50",
             )}
           >

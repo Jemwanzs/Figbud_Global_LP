@@ -1,4 +1,4 @@
-import type { PageDocument, PageSection } from "@figbud/site-kit";
+import type { PageDocument, PageSection, SiteTheme } from "@figbud/site-kit";
 
 /** Admin view of pages (services/api/src/pages). */
 
@@ -74,7 +74,8 @@ export interface PageDetail {
     offline: boolean;
     show_in_nav: boolean;
   };
-  site: { slug: string; name: string };
+  /** `theme`: the website's section band colours, for previews. */
+  site: { slug: string; name: string; theme?: SiteTheme };
   draft_differs: boolean;
   /** The saved draft as websites would receive it (Markdown rendered). */
   preview: PageDocument | null;

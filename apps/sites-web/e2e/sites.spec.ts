@@ -181,3 +181,27 @@ test("the Studio's menu, footer note and closed enquiries reach the website", as
   await page.goto("/ziwa");
   await expect(page.getByRole("banner").getByRole("link", { name: "Join the waitlist" })).toBeVisible();
 });
+
+test("sections styled in the Studio sit on the website's theme bands, in both themes", async ({ page }) => {
+  // Mock fixture: Ziwa's feature grid is on its brand band; Ziwa's theme is brown and ivory.
+  await page.goto("/ziwa");
+  const band = page.locator('section[data-tone="brand"]');
+  await expect(band).toHaveCSS("background-color", "rgb(78, 45, 23)");
+  await expect(band.getByRole("heading", { name: "Built for the whole journey" })).toHaveCSS(
+    "color",
+    "rgb(255, 255, 255)",
+  );
+  // The brand band stays brown with white text in light mode.
+  await page.getByRole("button", { name: "Switch to light theme" }).click();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+  await expect(band).toHaveCSS("background-color", "rgb(78, 45, 23)");
+  await expect(band.getByRole("heading", { name: "Built for the whole journey" })).toHaveCSS(
+    "color",
+    "rgb(255, 255, 255)",
+  );
+  const results = await new AxeBuilder({ page })
+    .include('section[data-tone="brand"]')
+    .withTags(["wcag2aa"])
+    .analyze();
+  expect(results.violations.map((v) => v.id)).toEqual([]);
+});

@@ -285,3 +285,31 @@
     transform: translateY(1rem);
   }
 }
+
+/* Section bands (P7-E1): a section editors give the "brand" or "soft" style
+   sits on a band in its website's theme colours (siteThemeStyle sets
+   --section-brand and --section-soft; the API checks their contrast). Blocks
+   inside use the same tokens, re-pointed here so their text stays readable. */
+.fb-tone {
+  border-radius: var(--radius-panel, 1.75rem);
+  padding: clamp(1.75rem, 5cqi, 3.5rem);
+}
+.fb-tone-brand {
+  --text: #ffffff;
+  --text-muted: rgb(255 255 255 / 0.8);
+  --text-subtle: rgb(255 255 255 / 0.7);
+  --line: rgb(255 255 255 / 0.16);
+  --line-strong: rgb(255 255 255 / 0.3);
+  --surface: rgb(255 255 255 / 0.07);
+  --surface-2: rgb(255 255 255 / 0.11);
+  --product-text: #ffffff;
+  background: var(--section-brand, #1e293b);
+  color: var(--text);
+}
+.fb-tone-soft {
+  background: color-mix(in oklab, var(--section-brand, #1e293b) 32%, var(--bg));
+  color: var(--text);
+}
+[data-theme="light"] .fb-tone-soft {
+  background: var(--section-soft, #f1f5f9);
+}

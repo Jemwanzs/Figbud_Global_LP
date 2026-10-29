@@ -109,8 +109,21 @@ pub struct Section {
     /// sent to websites. Omitted when false, so existing documents are unchanged.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub hidden: bool,
+    /// A band behind the section in the website's theme colours (P7-E1).
+    /// Omitted for the default, so existing documents are unchanged.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tone: Option<Tone>,
     #[serde(flatten)]
     pub block: Block,
+}
+
+/// Section styles: the website's brand band (light text on its brand
+/// colour) or its soft band (a light tint; a deep tint in dark mode).
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum Tone {
+    Brand,
+    Soft,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
@@ -374,6 +387,24 @@ mod tests {
                 .unwrap()
                 .contains("<h2")
         );
+    }
+
+    #[test]
+    fn section_styles_are_kept_and_limited_to_the_theme_bands() {
+        let page = doc(json!([
+            { "id": "a", "type": "text", "heading": "Why Ziwa", "body": "x", "tone": "brand" },
+            { "id": "b", "type": "text", "body": "y", "tone": "soft" },
+            { "id": "c", "type": "text", "body": "z" },
+        ]))
+        .unwrap();
+        let rendered = page.render(false);
+        assert_eq!(rendered["sections"][0]["tone"], "brand");
+        assert_eq!(rendered["sections"][1]["tone"], "soft");
+        assert!(
+            rendered["sections"][2].get("tone").is_none(),
+            "default sections stay unchanged"
+        );
+        assert!(doc(json!([{ "id": "a", "type": "text", "body": "x", "tone": "#ff0000" }])).is_err());
     }
 
     #[test]

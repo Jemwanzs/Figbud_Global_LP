@@ -224,6 +224,7 @@ const seedSite = (n, slug, kind, name, tagline, category, template, status) => (
     navigation: { mode: "pages", items: [] },
     footer: { note: null, links: [] },
     enquiries: { open: true, closed_message: null },
+    theme: { brand_section: null, soft_section: null },
   },
   settings_version: 1,
 });
@@ -296,6 +297,8 @@ Object.assign(sites[2].settings, {
   enquiries: { open: false, closed_message: "Jasiri LMS is taking enquiries through its partners for now." },
 });
 // The admin row has no settings: they have their own endpoint (sites/{slug}/settings).
+// Ziwa LMS's brown and ivory section bands (migration 14).
+sites[4].settings.theme = { brand_section: "#4e2d17", soft_section: "#fdf9f4" };
 const siteRow = ({ requests, ...s }) => ({
   ...Object.fromEntries(Object.entries(s).filter(([k]) => !["settings", "settings_version"].includes(k))),
   pending_to_status: requests.find((r) => r.decision === "pending")?.to_status ?? null,
@@ -1060,7 +1063,7 @@ const pageDetail = (p) => ({
     offline: Boolean(p.offline),
     show_in_nav: p.show_in_nav !== false,
   },
-  site: { slug: p.site.slug, name: p.site.name },
+  site: { slug: p.site.slug, name: p.site.name, theme: p.site.settings.theme },
   draft_differs: JSON.stringify(p.draft) !== JSON.stringify(p.published),
   preview: renderDoc(p.draft),
   revisions: p.revisions.slice().sort((a, b) => b.number - a.number),
@@ -1359,6 +1362,8 @@ seedPublishedPage("ziwa", "", "Home", {
     {
       id: "features",
       type: "feature_grid",
+      // On Ziwa's brown brand band (P7-E1).
+      tone: "brand",
       heading: "Built for the whole journey",
       items: [
         { title: "Guided onboarding", body: "Applications that collect what credit teams need." },
@@ -1718,7 +1723,19 @@ function siteSettingsRoutes(slug, req, body, user, send) {
   next.navigation ??= { mode: "pages", items: [] };
   next.footer ??= { note: null, links: [] };
   next.enquiries ??= { open: true, closed_message: null };
+  next.theme ??= { brand_section: null, soft_section: null };
   const fields = [];
+  // The API also checks contrast (site_settings.rs); the mock checks the format.
+  for (const key of ["brand_section", "soft_section"]) {
+    const value = (next.theme[key] ?? "").trim().toLowerCase();
+    next.theme[key] = value || null;
+    if (value && !/^#[0-9a-f]{6}$/.test(value))
+      fields.push({
+        field: `theme.${key}`,
+        code: "format",
+        message: "Use a six-digit hex colour such as #4e2d17.",
+      });
+  }
   const linkOk = (href) => /^(\/(?!\/)[A-Za-z0-9/_.#-]*|https:\/\/[^\s<>"']+)$/.test(href ?? "");
   for (const [field, list] of [
     ["navigation.items", next.navigation.items ?? []],
