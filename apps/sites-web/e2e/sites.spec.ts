@@ -107,3 +107,29 @@ test("the website's own favicons, touch icon and app manifest", async ({ page, r
   expect(manifest.icons.map((i: { sizes: string }) => i.sizes)).toEqual(["192x192", "512x512"]);
   expect((await request.get("/manifest.webmanifest?site=nope")).status()).toBe(404);
 });
+
+test("ZiraHR is served from the page imported into the Studio", async ({ page }) => {
+  const response = await page.goto("/zirahr");
+  expect(response?.status()).toBe(200);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("People. Payroll. Progress. Connected.");
+  await expect(page.locator("[data-product]").first()).toHaveAttribute("data-product", "zirahr");
+  await expect(
+    page.getByRole("heading", { name: "One platform for the whole employee journey" }),
+  ).toBeVisible();
+  // Active website: demo requests, through the corporate enquiry form.
+  await expect(page.getByRole("banner").getByRole("link", { name: "Request a demo" })).toHaveAttribute(
+    "href",
+    /\/en\/contact\?kind=demo_request&product=zirahr$/,
+  );
+});
+
+test("navigation and offline pages follow the Studio's visibility settings", async ({ page }) => {
+  await page.goto("/ziwa");
+  const nav = page.getByRole("navigation", { name: "Ziwa LMS navigation" });
+  await expect(nav.getByRole("link", { name: "Platform" })).toBeVisible();
+  // Left out of the navigation, still reachable at its address.
+  await expect(nav.getByRole("link", { name: "Resources" })).toHaveCount(0);
+  expect((await page.goto("/ziwa/resources"))?.status()).toBe(200);
+  // Offline: not found, and never listed.
+  expect((await page.goto("/ziwa/legacy"))?.status()).toBe(404);
+});

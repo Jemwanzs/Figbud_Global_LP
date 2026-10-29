@@ -176,16 +176,56 @@ async fn list(
     .await?;
     // Each website with its published brand (logos for the Studio cards); drafts never show here.
     let mut brands = crate::brand::published_by_slug(&state.pool).await?;
+    let mut workspaces: std::collections::HashMap<String, Value> = workspace_summaries(&state.pool)
+        .await?
+        .into_iter()
+        .map(|w| (w.slug.clone(), json!(w)))
+        .collect();
     let sites: Vec<Value> = rows
         .into_iter()
         .map(|site| {
             let brand = brands.remove(&site.slug).unwrap_or(Value::Null);
+            let workspace = workspaces.remove(&site.slug).unwrap_or(Value::Null);
             let mut value = serde_json::to_value(site).unwrap_or(Value::Null);
             value["brand"] = brand;
+            value["workspace"] = workspace;
             value
         })
         .collect();
     Ok(Json(sites))
+}
+
+/// Each website's workspace at a glance, for the Studio's website cards.
+#[derive(Serialize, FromRow)]
+struct WorkspaceSummary {
+    #[serde(skip)]
+    slug: String,
+    /// Pages that aren't archived, and those visitors can open.
+    pages: i64,
+    live_pages: i64,
+    /// Sections across those pages' drafts.
+    sections: i64,
+    /// Page and brand changes awaiting approval or scheduled.
+    pending: i64,
+    /// The latest publication of a page or of the brand.
+    last_published: Option<DateTime<Utc>>,
+}
+
+async fn workspace_summaries(pool: &PgPool) -> Result<Vec<WorkspaceSummary>, sqlx::Error> {
+    sqlx::query_as(
+        "SELECT s.slug,
+                count(p.id) FILTER (WHERE p.archived_at IS NULL) AS pages,
+                count(p.id) FILTER (WHERE p.archived_at IS NULL AND p.published IS NOT NULL AND NOT p.offline) AS live_pages,
+                COALESCE(sum(jsonb_array_length(p.draft -> 'sections')) FILTER (WHERE p.archived_at IS NULL), 0)::bigint AS sections,
+                (SELECT count(*) FROM page_revisions r JOIN pages q ON q.id = r.page_id
+                  WHERE q.site_id = s.id AND r.state IN ('pending', 'scheduled'))
+                  + (SELECT count(*) FROM brand_revisions b WHERE b.site_id = s.id AND b.state = 'pending') AS pending,
+                GREATEST(max(p.published_at), (SELECT b.published_at FROM site_brands b WHERE b.site_id = s.id)) AS last_published
+           FROM sites s LEFT JOIN pages p ON p.site_id = s.id
+          GROUP BY s.id, s.slug",
+    )
+    .fetch_all(pool)
+    .await
 }
 
 async fn load(pool: &PgPool, slug: &str) -> Result<AdminSite, ApiError> {

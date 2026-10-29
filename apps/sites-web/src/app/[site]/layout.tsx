@@ -70,7 +70,7 @@ export default async function SiteLayout({ children, params }: LayoutProps<"/[si
   if (!site) notFound();
   const pages = await getPages(slug);
   const links = pages
-    .filter((p) => p.path !== "")
+    .filter((p) => p.path !== "" && p.show_in_nav !== false)
     .map((p) => ({ href: pageHref(slug, ownDomain, p.path), label: p.title }));
   const colours = site.brand
     ? ({

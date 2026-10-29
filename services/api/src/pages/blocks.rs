@@ -105,6 +105,10 @@ pub enum Block {
 pub struct Section {
     /// Stable id for drag-and-drop and previews (client-generated).
     pub id: String,
+    /// Hidden sections stay in the document (and its versions) but are never
+    /// sent to websites. Omitted when false, so existing documents are unchanged.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub hidden: bool,
     #[serde(flatten)]
     pub block: Block,
 }
@@ -315,12 +319,14 @@ impl PageDoc {
         }
     }
 
-    /// The published document as websites receive it: Markdown fields gain
-    /// sanitised `*_html` siblings.
-    pub fn render(&self) -> Value {
+    /// The document as websites receive it: Markdown fields gain sanitised
+    /// `*_html` siblings, and hidden sections are left out unless
+    /// `include_hidden` (the Studio's previews, which show them dimmed).
+    pub fn render(&self, include_hidden: bool) -> Value {
         let sections: Vec<Value> = self
             .sections
             .iter()
+            .filter(|section| include_hidden || !section.hidden)
             .map(|section| {
                 let mut value = serde_json::to_value(section).unwrap_or(Value::Null);
                 match &section.block {
@@ -361,7 +367,7 @@ mod tests {
         ]))
         .unwrap();
         assert!(page.validate().is_ok());
-        let rendered = page.render();
+        let rendered = page.render(false);
         assert!(
             rendered["sections"][1]["body_html"]
                 .as_str()
@@ -375,7 +381,7 @@ mod tests {
         assert!(doc(json!([{ "id": "a", "type": "script", "code": "alert(1)" }])).is_err());
         assert!(doc(json!([{ "id": "a", "type": "text", "body": "x", "style": "color:red" }])).is_err());
         let page = doc(json!([{ "id": "a", "type": "text", "body": "<script>alert(1)</script>" }])).unwrap();
-        let html = page.render()["sections"][0]["body_html"]
+        let html = page.render(false)["sections"][0]["body_html"]
             .as_str()
             .unwrap()
             .to_owned();

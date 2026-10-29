@@ -115,6 +115,36 @@ Studio UI polish is a standing priority (P7-UX2): every milestone reviews the sc
 - **Invites (owners):** a full-width work email field, the four roles as cards that say what each can do, and a note that the link works once and expires after 7 days.
 - **Recent activity:** every audited action has a readable label; actions without one are turned into words rather than shown as codes. Entries name the website they concern (`site_name` in `GET /v1/admin/audit`).
 
+## Website management workspace (P7-ZR1, from 29 Oct 2026)
+
+**Standing rule (29 Oct 2026).** A website feature isn't complete until it can be managed in the Studio.
+- **Register:** whenever a website gains pages, sections or configurable features, they are registered in the Studio's existing schema-driven model: the registry, typed blocks, brand profiles and page settings. No separate admin per product.
+- **Wire up:** each control is connected to the API with the usual draft, validation, approval and audit.
+- **Test:** each control is tested end to end before the feature is marked done.
+- **Keep private things out:** internal or security-sensitive components are never exposed as CMS controls.
+
+**Controls with distinct meanings:**
+
+| Control | Where | Meaning | Who | Takes effect |
+| ------- | ----- | ------- | --- | ------------ |
+| Draft / Published | page | Edits are drafts until a submitted version is approved | editor submits, reviewer approves | on approval (or at the scheduled time) |
+| Visible / Hidden | section | A hidden section stays in the page and its versions; the public API never sends it | editor (part of the draft) | when the draft is published |
+| Online / Offline | page | Offline pages answer "not found" and leave the navigation; content and versions are kept. The home page is always online | reviewer | immediately, audited, reversible |
+| Show in navigation | page | Left out of the menu but still reachable at its address | reviewer | immediately, audited, reversible |
+
+**Website cards** show each workspace at a glance: live pages of total, sections, changes awaiting approval or scheduled (pages and brand), and when anything was last published (`workspace` in `GET /v1/admin/sites`). Actions appear only where the screen exists: Manage, Branding, Pages, Open website.
+
+**ZiraHR, the first complete integration.**
+- **Audit (29 Oct 2026):** `apps/zirahr-web` had one built page. Its home page (hero; ten-module feature grid; payroll text; closing call to action) was hard-coded. Seven navigation pages were "coming soon" placeholders. The header and footer come from site-kit.
+- **Import:** every home section maps to an existing block, so the API imported the page once into the Studio, word for word, as published version 1 ("Imported from the ZiraHR website", `pages/import.rs`). It now renders from the Studio on the product-site renderer (`/zirahr`). The import runs only if ZiraHR had no Studio pages, so Studio work is never overwritten.
+- **One change from the original:** the "Explore the modules" button was left out, because it pointed at a placeholder page.
+- **Remaining:**
+  - per-website navigation and footer settings (P7-E2);
+  - form on/off per website, enforced at the enquiry endpoint as well as hidden from the page;
+  - per-site theme settings (P7-E1);
+  - the media library (P7-D2);
+  - deploying the renderer (approval needed), after which `apps/zirahr-web` can be retired.
+
 ## Safety rules
 
 - No executable content from the CMS; Markdown and typed properties only, validated server-side.

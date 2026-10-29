@@ -14,6 +14,12 @@ export interface PageSummary {
   pending: boolean;
   /** When an approved change goes live, if one is scheduled. */
   scheduled_at: string | null;
+  /** Taken off the website (404) without losing content or versions. */
+  offline: boolean;
+  /** Listed in the website's navigation (pages left out stay reachable by address). */
+  show_in_nav: boolean;
+  /** Sections kept in the draft but not shown on the website. */
+  hidden_sections: number;
   archived_at: string | null;
   draft_updated_at: string;
 }
@@ -65,6 +71,8 @@ export interface PageDetail {
     published_revision: string | null;
     published_at: string | null;
     archived_at: string | null;
+    offline: boolean;
+    show_in_nav: boolean;
   };
   site: { slug: string; name: string };
   draft_differs: boolean;

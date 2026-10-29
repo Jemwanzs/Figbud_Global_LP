@@ -16,6 +16,8 @@ export interface PageCta {
 
 interface Base {
   id: string;
+  /** Kept in the document but not shown on the website (the API never sends it there). */
+  hidden?: boolean;
 }
 
 export type PageSection = Base &
@@ -272,11 +274,26 @@ export function PageBlocks({
     // Blocks respond to the space they are given (container queries), so the
     // Studio preview and the website lay out the same way at the same width.
     <div className={cn("@container space-y-16 sm:space-y-20", className)}>
-      {document.sections.map((section, i) => (
-        <section key={section.id} data-section={section.type}>
-          <Block section={section} mode={mode} top={i === 0 ? firstHeading : 2} resolve={resolveHref} />
-        </section>
-      ))}
+      {document.sections
+        // Live pages never show hidden sections; previews show them dimmed and labelled.
+        .filter((section) => mode === "preview" || !section.hidden)
+        .map((section, i) => (
+          <section
+            key={section.id}
+            data-section={section.type}
+            data-hidden={section.hidden || undefined}
+            className={cn(
+              section.hidden && "relative rounded-2xl border border-dashed border-line-strong p-4 opacity-50",
+            )}
+          >
+            {section.hidden && (
+              <span className="absolute end-3 -top-3 rounded-full border border-line bg-surface px-2.5 py-0.5 text-xs text-muted">
+                Hidden
+              </span>
+            )}
+            <Block section={section} mode={mode} top={i === 0 ? firstHeading : 2} resolve={resolveHref} />
+          </section>
+        ))}
     </div>
   );
 }

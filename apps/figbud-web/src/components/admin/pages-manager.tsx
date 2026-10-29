@@ -37,6 +37,13 @@ function PageState({ page }: { page: PageSummary }) {
         page.published &&
         page.draft_differs && <span className={cn(badge, "border-line text-muted")}>Draft changes</span>
       )}
+      {page.offline && <span className={cn(badge, "border-danger/30 text-danger")}>Offline</span>}
+      {!page.show_in_nav && <span className={cn(badge, "border-line text-muted")}>Not in navigation</span>}
+      {page.hidden_sections > 0 && (
+        <span className={cn(badge, "border-line text-muted")}>
+          {page.hidden_sections} hidden {page.hidden_sections === 1 ? "section" : "sections"}
+        </span>
+      )}
     </span>
   );
 }

@@ -314,7 +314,24 @@ function siteRoutes(path, req, body, user, send) {
     return errors;
   };
 
-  const withBrand = (s) => ({ ...siteRow(s), brand: publishedBrand(s.slug) });
+  // Mirrors the API's workspace summary (services/api/src/sites.rs).
+  const workspace = (s) => {
+    const mine = [...pages.values()].filter((p) => p.site === s && !p.archived_at);
+    const stamps = [...mine.map((p) => p.published_at), brands.get(s.slug)?.published_at]
+      .filter(Boolean)
+      .sort();
+    return {
+      pages: mine.length,
+      live_pages: mine.filter((p) => p.published && !p.offline).length,
+      sections: mine.reduce((n, p) => n + p.draft.sections.length, 0),
+      pending: mine.reduce(
+        (n, p) => n + p.revisions.filter((r) => ["pending", "scheduled"].includes(r.state)).length,
+        0,
+      ),
+      last_published: stamps.at(-1) ?? null,
+    };
+  };
+  const withBrand = (s) => ({ ...siteRow(s), brand: publishedBrand(s.slug), workspace: workspace(s) });
   if (path === "sites" && req.method === "GET") return send(200, sites.map(withBrand));
   if (path === "sites" && req.method === "POST") {
     if (user.role !== "owner") return forbidden();
@@ -963,15 +980,18 @@ const md = (t) =>
     .split(/\n{2,}/)
     .map((p) => `<p>${escapeHtml(p).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")}</p>`)
     .join("");
-const renderDoc = (doc) => ({
+// Websites never receive hidden sections; Studio previews keep them (`includeHidden`).
+const renderDoc = (doc, includeHidden = true) => ({
   ...doc,
-  sections: doc.sections.map((s) =>
-    s.type === "text"
-      ? { ...s, body_html: md(s.body) }
-      : s.type === "faq"
-        ? { ...s, items: s.items.map((i) => ({ question: i.question, answer_html: md(i.answer) })) }
-        : s,
-  ),
+  sections: doc.sections
+    .filter((s) => includeHidden || !s.hidden)
+    .map((s) =>
+      s.type === "text"
+        ? { ...s, body_html: md(s.body) }
+        : s.type === "faq"
+          ? { ...s, items: s.items.map((i) => ({ question: i.question, answer_html: md(i.answer) })) }
+          : s,
+    ),
 });
 const pageSummary = (p) => ({
   id: p.id,
@@ -986,6 +1006,9 @@ const pageSummary = (p) => ({
   scheduled_at: p.revisions.find((r) => r.state === "scheduled")?.publish_at ?? null,
   archived_at: p.archived_at,
   draft_updated_at: p.draft_updated_at,
+  offline: Boolean(p.offline),
+  show_in_nav: p.show_in_nav !== false,
+  hidden_sections: p.draft.sections.filter((s) => s.hidden).length,
 });
 const pageDetail = (p) => ({
   page: {
@@ -1000,6 +1023,8 @@ const pageDetail = (p) => ({
     published_revision: p.published_revision,
     published_at: p.published_at,
     archived_at: p.archived_at,
+    offline: Boolean(p.offline),
+    show_in_nav: p.show_in_nav !== false,
   },
   site: { slug: p.site.slug, name: p.site.name },
   draft_differs: JSON.stringify(p.draft) !== JSON.stringify(p.published),
@@ -1105,7 +1130,7 @@ function pagesRoutes(path, req, body, user, send) {
   }
 
   const m =
-    /^pages\/([0-9a-f-]{36})(?:\/(draft|submit|archive|restore|duplicate)|\/revisions\/([0-9a-f-]{36})\/(approve|reject|cancel|restore))?$/.exec(
+    /^pages\/([0-9a-f-]{36})(?:\/(draft|submit|archive|restore|duplicate|offline|online|show-in-nav|hide-from-nav)|\/revisions\/([0-9a-f-]{36})\/(approve|reject|cancel|restore))?$/.exec(
       path,
     );
   const page = m && pages.get(m[1]);
@@ -1183,6 +1208,15 @@ function pagesRoutes(path, req, body, user, send) {
         .forEach((r) => (r.state = "cancelled"));
     return send(200, { id: page.id });
   }
+  if (["offline", "online", "show-in-nav", "hide-from-nav"].includes(action)) {
+    if (rank < RANKS.reviewer) return forbidden();
+    if (page.archived_at) return conflict("Restore this page first.");
+    if (action === "offline" && page.path === "")
+      return conflict("The home page can't be taken offline: it is the website's front door.");
+    if (action === "offline" || action === "online") page.offline = action === "offline";
+    else page.show_in_nav = action === "show-in-nav";
+    return send(200, { id: page.id });
+  }
   if (action === "duplicate") {
     if (rank < RANKS.editor) return forbidden();
     const base = page.path || "home";
@@ -1240,11 +1274,12 @@ function pagesRoutes(path, req, body, user, send) {
 }
 
 // Published pages for the product-site renderer's tests (synthetic copy).
-function seedPublishedPage(slug, path, title, document) {
+function seedPublishedPage(slug, path, title, document, visibility = {}) {
   const site = sites.find((s) => s.slug === slug);
   const revision = randomUUID();
   const at = new Date().toISOString();
   pages.set(randomUUID(), {
+    ...visibility,
     id: randomUUID(),
     site,
     path,
@@ -1318,6 +1353,57 @@ seedPublishedPage("ziwa", "platform", "Platform", {
   ],
 });
 
+// Ziwa pages left out of the navigation, and taken offline (renderer tests).
+seedPublishedPage(
+  "ziwa",
+  "resources",
+  "Resources",
+  { sections: [{ id: "r-hero", type: "hero", heading: "Ziwa resources" }] },
+  { show_in_nav: false },
+);
+seedPublishedPage(
+  "ziwa",
+  "legacy",
+  "Legacy",
+  { sections: [{ id: "l-hero", type: "hero", heading: "An old page" }] },
+  { offline: true },
+);
+// ZiraHR's home page, as the API imports it from the ZiraHR website (pages/import.rs).
+seedPublishedPage("zirahr", "", "Home", {
+  seo_title: "ZiraHR · People. Payroll. Progress. Connected.",
+  sections: [
+    {
+      id: "z-hero",
+      type: "hero",
+      eyebrow: "The Connected Workforce",
+      heading: "People. Payroll. Progress. Connected.",
+      lead: "People aren't spreadsheets. Your HR platform shouldn't treat them like one.",
+      primary: { label: "Book a demo", href: "/enquire" },
+    },
+    {
+      id: "z-modules",
+      type: "feature_grid",
+      heading: "One platform for the whole employee journey",
+      items: [
+        {
+          title: "Employee 360",
+          body: "Onboarding, confirmation, promotion and departure in one complete record.",
+        },
+        {
+          title: "Payroll and compliance",
+          body: "Rules-based, effective-dated payroll, with Kenya as the starting point.",
+        },
+      ],
+    },
+    {
+      id: "z-cta",
+      type: "call_to_action",
+      heading: "See ZiraHR with your own workflows",
+      cta: { label: "Book a demo", href: "/enquire" },
+    },
+  ],
+});
+
 const listedSite = (slug) => sites.find((s) => s.slug === slug && !s.archived_at && SITE_CTA[s.status]);
 
 function publicPages(url, send) {
@@ -1328,21 +1414,26 @@ function publicPages(url, send) {
   if (!slug) return false;
   const site = listedSite(slug);
   const live = site
-    ? [...pages.values()].filter((p) => p.site === site && p.published && !p.archived_at)
+    ? [...pages.values()].filter((p) => p.site === site && p.published && !p.archived_at && !p.offline)
     : [];
   if (list) {
     send(
       200,
       live
         .sort((a, b) => a.position - b.position)
-        .map((p) => ({ path: p.path, title: p.title, published_at: p.published_at })),
+        .map((p) => ({
+          path: p.path,
+          title: p.title,
+          published_at: p.published_at,
+          show_in_nav: p.show_in_nav !== false,
+        })),
     );
     return true;
   }
   const path = (url.searchParams.get("path") ?? "").replace(/^\/+|\/+$/g, "");
   const page = live.find((p) => p.path === path);
   if (!page) send(404, { error: { code: "not_found", message: "Not found." } });
-  else send(200, { ...renderDoc(page.published), title: page.title, published_at: page.published_at });
+  else send(200, { ...renderDoc(page.published, false), title: page.title, published_at: page.published_at });
   return true;
 }
 

@@ -227,3 +227,50 @@ test("the page editor is accessible", async ({ page }) => {
     .analyze();
   expect(results.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target).join(" ")}`)).toEqual([]);
 });
+
+test("hide a section, and manage a page's visibility without losing it", async ({ page }) => {
+  await signInAsOwner(page);
+  await newSite(page);
+  await page.getByRole("link", { name: "Pages" }).click();
+  await page.getByRole("radio", { name: /^Features/ }).check();
+  await page.getByRole("button", { name: "Create page" }).click();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Features");
+
+  // Hiding a section keeps it in the draft, labelled in the list and the preview.
+  const sections = page.getByRole("list", { name: "Sections" });
+  const toggle = sections.getByRole("button", { name: /^Hide Call to action section/ });
+  await expect(toggle).toHaveAttribute("aria-pressed", "false");
+  await toggle.click();
+  await expect(toggle).toHaveAttribute("aria-pressed", "true");
+  await expect(sections.getByRole("listitem").filter({ hasText: "Call to action" })).toContainText("Hidden");
+  await expect(page.getByRole("region", { name: "Live preview" }).locator("[data-hidden]")).toHaveCount(1);
+  await expect(page.getByRole("status").filter({ hasText: "Draft saved" })).toBeVisible({ timeout: 10_000 });
+
+  // Visibility switches change the page at once; the home page can't go offline.
+  const visibility = page.getByRole("region", { name: "Visibility" });
+  const online = visibility.getByRole("switch", { name: "Online" });
+  const inNav = visibility.getByRole("switch", { name: "Show in navigation" });
+  await expect(online).toHaveAttribute("aria-checked", "true");
+  page.once("dialog", (dialog) => dialog.accept());
+  await online.click();
+  await expect(page.getByRole("status").filter({ hasText: "Page taken offline." })).toBeVisible();
+  await expect(online).toHaveAttribute("aria-checked", "false");
+  await inNav.click();
+  await expect(inNav).toHaveAttribute("aria-checked", "false");
+
+  await page.goto(page.url().replace(/\/pages\/[0-9a-f-]+$/, "/pages"));
+  const row = page.getByRole("list", { name: "Pages" }).getByRole("listitem").filter({ hasText: "Features" });
+  await expect(row).toContainText("Offline");
+  await expect(row).toContainText("Not in navigation");
+  await expect(row).toContainText("1 hidden section");
+
+  // Back online, from the editor.
+  await row.getByRole("link", { name: /^Edit Features/ }).click();
+  await online.click();
+  await expect(online).toHaveAttribute("aria-checked", "true");
+  const results = await new AxeBuilder({ page })
+    .include(`section[aria-labelledby$="-visibility"]`)
+    .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa", "best-practice"])
+    .analyze();
+  expect(results.violations.map((v) => v.id)).toEqual([]);
+});

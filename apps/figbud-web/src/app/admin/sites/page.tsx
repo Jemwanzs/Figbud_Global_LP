@@ -112,6 +112,45 @@ async function Sites() {
                       </dd>
                     </div>
                   </dl>
+                  {site.workspace && (
+                    <dl
+                      aria-label={`${site.name} workspace`}
+                      className="mt-4 flex flex-wrap gap-x-5 gap-y-1.5 border-t border-line pt-4 text-sm"
+                    >
+                      {site.kind === "product" && (
+                        <>
+                          <div className="flex items-baseline gap-1.5">
+                            <dt className="text-subtle">Live pages</dt>
+                            <dd className="font-medium text-text">
+                              {site.workspace.live_pages} of {site.workspace.pages}
+                            </dd>
+                          </div>
+                          <div className="flex items-baseline gap-1.5">
+                            <dt className="text-subtle">Sections</dt>
+                            <dd className="font-medium text-text">{site.workspace.sections}</dd>
+                          </div>
+                        </>
+                      )}
+                      <div className="flex items-baseline gap-1.5">
+                        <dt className="text-subtle">Awaiting approval</dt>
+                        <dd
+                          className={
+                            site.workspace.pending > 0 ? "font-medium text-warning" : "font-medium text-text"
+                          }
+                        >
+                          {site.workspace.pending}
+                        </dd>
+                      </div>
+                      <div className="flex items-baseline gap-1.5">
+                        <dt className="text-subtle">Last published</dt>
+                        <dd className="font-medium text-text">
+                          {site.workspace.last_published
+                            ? new Date(site.workspace.last_published).toUTCString().slice(5, 16)
+                            : "Never"}
+                        </dd>
+                      </div>
+                    </dl>
+                  )}
                   {(!hasPublishedLogo(site.brand) || site.pending_to_status) && (
                     <p className="mt-3 flex flex-wrap gap-2 text-xs">
                       {!hasPublishedLogo(site.brand) && (

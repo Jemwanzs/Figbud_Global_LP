@@ -692,3 +692,169 @@ async fn category_templates_and_scheduled_publishing() {
         .unwrap();
     assert_eq!(state, "cancelled", "archiving cancels the schedule");
 }
+
+#[tokio::test]
+async fn page_visibility_hidden_sections_and_the_zirahr_import() {
+    let Some(s) = Studio::new().await else {
+        eprintln!("skipping: TEST_DATABASE_URL not set");
+        return;
+    };
+    let (owner, editor, reviewer) = (
+        s.admin("owner").await,
+        s.admin("editor").await,
+        s.admin("reviewer").await,
+    );
+    let slug = s.listed_site(&owner).await;
+    let pages = format!("/v1/admin/sites/{slug}/pages");
+    let create = |title: &'static str, path: &'static str| json!({ "title": title, "path": path, "template": "lending_home" });
+    let (_, home) = s
+        .call("POST", &pages, Some(&editor), Some(create("Home", "")))
+        .await;
+    let (_, about) = s
+        .call("POST", &pages, Some(&editor), Some(create("About", "about")))
+        .await;
+    let (home, about) = (
+        home["id"].as_str().unwrap().to_owned(),
+        about["id"].as_str().unwrap().to_owned(),
+    );
+
+    // Hide the second section of the about page, then publish it.
+    let (_, detail) = s
+        .call("GET", &format!("/v1/admin/pages/{about}"), Some(&editor), None)
+        .await;
+    let mut document = detail["page"]["draft"].clone();
+    let hidden_heading = document["sections"][1]["heading"].clone();
+    document["sections"][1]["hidden"] = json!(true);
+    let (status, saved) = s
+        .call(
+            "POST",
+            &format!("/v1/admin/pages/{about}/draft"),
+            Some(&editor),
+            Some(json!({ "title": "About", "path": "about", "document": document,
+                         "version": detail["page"]["draft_version"] })),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "{saved}");
+    assert_eq!(
+        saved["preview"]["sections"][1]["hidden"], true,
+        "the Studio preview keeps hidden sections"
+    );
+    for id in [&home, &about] {
+        let (_, created) = s
+            .call(
+                "POST",
+                &format!("/v1/admin/pages/{id}/submit"),
+                Some(&editor),
+                Some(json!({ "note": "Go" })),
+            )
+            .await;
+        let revision = created["id"].as_str().unwrap().to_owned();
+        s.call(
+            "POST",
+            &format!("/v1/admin/pages/{id}/revisions/{revision}/approve"),
+            Some(&reviewer),
+            None,
+        )
+        .await;
+    }
+    let public_page = |path: &'static str| format!("/v1/sites/{slug}/page?path={path}");
+    let (status, public) = s.call("GET", &public_page("about"), None, None).await;
+    assert_eq!(status, StatusCode::OK);
+    let sections = public["sections"].as_array().unwrap();
+    assert!(
+        sections
+            .iter()
+            .all(|x| x["heading"] != hidden_heading && x["hidden"].is_null()),
+        "hidden sections never reach websites: {sections:?}"
+    );
+
+    // Navigation visibility and offline pages: reviewers only, home always online.
+    let act = |id: &str, action: &str| format!("/v1/admin/pages/{id}/{action}");
+    let (status, _) = s
+        .call("POST", &act(&about, "hide-from-nav"), Some(&editor), None)
+        .await;
+    assert_eq!(status, StatusCode::FORBIDDEN);
+    let (status, _) = s
+        .call("POST", &act(&about, "hide-from-nav"), Some(&reviewer), None)
+        .await;
+    assert_eq!(status, StatusCode::OK);
+    let (_, list) = s
+        .call("GET", &format!("/v1/sites/{slug}/pages"), None, None)
+        .await;
+    let about_entry = list
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|p| p["path"] == "about")
+        .unwrap()
+        .clone();
+    assert_eq!(about_entry["show_in_nav"], false, "left out of navigation");
+    let (status, _) = s.call("GET", &public_page("about"), None, None).await;
+    assert_eq!(status, StatusCode::OK, "still reachable by address");
+
+    let (status, body) = s.call("POST", &act(&home, "offline"), Some(&owner), None).await;
+    assert_eq!(status, StatusCode::CONFLICT, "{body}");
+    let (status, _) = s
+        .call("POST", &act(&about, "offline"), Some(&reviewer), None)
+        .await;
+    assert_eq!(status, StatusCode::OK);
+    let (status, _) = s.call("GET", &public_page("about"), None, None).await;
+    assert_eq!(status, StatusCode::NOT_FOUND, "offline pages are not public");
+    let (_, list) = s
+        .call("GET", &format!("/v1/sites/{slug}/pages"), None, None)
+        .await;
+    assert!(list.as_array().unwrap().iter().all(|p| p["path"] != "about"));
+    let (_, admin_list) = s.call("GET", &pages, Some(&editor), None).await;
+    let admin_about = admin_list["pages"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|p| p["id"] == about.as_str())
+        .unwrap()
+        .clone();
+    assert_eq!(
+        (
+            admin_about["offline"].clone(),
+            admin_about["hidden_sections"].clone()
+        ),
+        (json!(true), json!(1))
+    );
+    let (status, _) = s
+        .call("POST", &act(&about, "online"), Some(&reviewer), None)
+        .await;
+    assert_eq!(status, StatusCode::OK);
+    let (status, _) = s.call("GET", &public_page("about"), None, None).await;
+    assert_eq!(status, StatusCode::OK, "back online with its content intact");
+
+    // The Studio's website cards summarise each workspace.
+    let (_, sites) = s.call("GET", "/v1/admin/sites", Some(&editor), None).await;
+    let site = sites
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|x| x["slug"] == slug.as_str())
+        .unwrap()
+        .clone();
+    assert_eq!(site["workspace"]["pages"], 2);
+    assert_eq!(site["workspace"]["live_pages"], 2);
+    assert!(site["workspace"]["last_published"].is_string());
+
+    // ZiraHR's home page is imported once, published, and visible to websites.
+    figbud_api::pages::import::run(&s.pool).await.unwrap();
+    figbud_api::pages::import::run(&s.pool).await.unwrap();
+    let markers: i64 = sqlx::query_scalar(
+        "SELECT count(*) FROM audit_log a JOIN sites s ON s.id = a.site_id
+          WHERE s.slug = 'zirahr' AND a.action = 'page.zirahr_imported'",
+    )
+    .fetch_one(&s.pool)
+    .await
+    .unwrap();
+    assert_eq!(markers, 1, "the import runs once");
+    let (status, zirahr) = s.call("GET", "/v1/sites/zirahr/page?path=", None, None).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(
+        zirahr["sections"][0]["heading"],
+        "People. Payroll. Progress. Connected."
+    );
+    assert_eq!(zirahr["sections"][1]["items"].as_array().unwrap().len(), 10);
+}

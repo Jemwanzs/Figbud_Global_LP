@@ -27,6 +27,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     if let Err(err) = figbud_api::brand::seed::run(&pool).await {
         tracing::warn!(error = %err, "brand seeding failed");
     }
+    // ZiraHR's home page, imported once into the Studio; never blocks start-up.
+    if let Err(err) = figbud_api::pages::import::run(&pool).await {
+        tracing::warn!(error = %err, "ZiraHR page import failed");
+    }
 
     // `figbud-api admin invite --email <email> --role <role>`: bootstrap the
     // first owner (or any admin) without a running UI. Prints the link once.

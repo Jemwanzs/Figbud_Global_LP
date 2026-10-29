@@ -11,6 +11,8 @@ import {
   CircleCheck,
   Copy,
   ExternalLink,
+  Eye,
+  EyeOff,
   GripVertical,
   LoaderCircle,
   Monitor,
@@ -678,6 +680,7 @@ export function PageEditor({ slug, user, initial }: { slug: string; user: AdminU
   const ownPending = pending?.requested_by_id === user.id;
   const canDecide = pending && hasRole(user, "reviewer") && (!ownPending || user.role === "owner");
   const canCancel = pending && (ownPending || user.role === "owner");
+  const canChangeVisibility = hasRole(user, "reviewer") && !data.page.archived_at;
   const scheduled = data.revisions.find((r) => r.state === "scheduled");
   const canUnschedule = scheduled && (scheduled.requested_by_id === user.id || hasRole(user, "reviewer"));
   // A pending change asked to go live later is scheduled on approval.
@@ -867,7 +870,16 @@ export function PageEditor({ slug, user, initial }: { slug: string; user: AdminU
                         <span className="shrink-0 rounded-full border border-line px-2 py-0.5 text-xs text-muted">
                           {blockLabel(section.type)}
                         </span>
-                        <span className="truncate text-sm text-text">{summary(section)}</span>
+                        {section.hidden && (
+                          <span className="shrink-0 rounded-full bg-surface-2 px-2 py-0.5 text-xs text-muted">
+                            Hidden
+                          </span>
+                        )}
+                        <span
+                          className={cn("truncate text-sm", section.hidden ? "text-subtle" : "text-text")}
+                        >
+                          {summary(section)}
+                        </span>
                         <ChevronDown
                           aria-hidden
                           className={cn(
@@ -878,6 +890,27 @@ export function PageEditor({ slug, user, initial }: { slug: string; user: AdminU
                       </button>
                       {canEdit && (
                         <span className="flex shrink-0">
+                          {/* Hidden sections stay in the page and its versions but aren't shown on the website. */}
+                          <button
+                            type="button"
+                            aria-pressed={!!section.hidden}
+                            title={section.hidden ? "Hidden on the website" : "Shown on the website"}
+                            onClick={() =>
+                              setSections(
+                                sections.map((s) =>
+                                  s.id === section.id ? { ...s, hidden: !s.hidden || undefined } : s,
+                                ),
+                              )
+                            }
+                            className={buttonClasses("ghost", "md", "px-2")}
+                          >
+                            {section.hidden ? (
+                              <EyeOff aria-hidden className="size-4" />
+                            ) : (
+                              <Eye aria-hidden className="size-4" />
+                            )}
+                            <span className="sr-only">Hide {blockLabel(section.type)} section</span>
+                          </button>
                           <button
                             type="button"
                             onClick={() => moveSection(i, i - 1)}
@@ -1300,6 +1333,70 @@ export function PageEditor({ slug, user, initial }: { slug: string; user: AdminU
             )}
           </section>
 
+          <section
+            aria-labelledby={`${uid}-visibility`}
+            className="fb-panel rounded-[var(--radius-panel)] p-5"
+          >
+            <h2 id={`${uid}-visibility`} className="font-semibold text-text">
+              Visibility
+            </h2>
+            <p className="mt-1 text-sm text-muted">
+              Takes effect on the website straight away, separately from publishing. Content and versions are
+              kept.
+            </p>
+            <div className="mt-4 divide-y divide-line">
+              <VisibilitySwitch
+                label="Online"
+                on={!data.page.offline}
+                hint={
+                  data.page.path === ""
+                    ? "The home page is always online."
+                    : data.page.offline
+                      ? "Visitors get “page not found” until it is back online."
+                      : "Visitors can open this page."
+                }
+                disabled={!canChangeVisibility || data.page.path === "" || !!busy}
+                onToggle={() => {
+                  const goingOffline = !data.page.offline;
+                  if (
+                    goingOffline &&
+                    !window.confirm(
+                      `Take "${draft.title}" offline? Visitors will get “page not found” until it is back online.`,
+                    )
+                  )
+                    return;
+                  run(
+                    "visibility",
+                    `pages/${pageId}/${goingOffline ? "offline" : "online"}`,
+                    {},
+                    goingOffline ? "Page taken offline." : "Page back online.",
+                  );
+                }}
+              />
+              <VisibilitySwitch
+                label="Show in navigation"
+                on={data.page.show_in_nav}
+                hint={
+                  data.page.show_in_nav
+                    ? "Listed in the website's menu."
+                    : "Left out of the menu; still reachable at its address."
+                }
+                disabled={!canChangeVisibility || !!busy}
+                onToggle={() =>
+                  run(
+                    "visibility",
+                    `pages/${pageId}/${data.page.show_in_nav ? "hide-from-nav" : "show-in-nav"}`,
+                    {},
+                    data.page.show_in_nav ? "Removed from the navigation." : "Added to the navigation.",
+                  )
+                }
+              />
+            </div>
+            {!canChangeVisibility && (
+              <p className="mt-3 text-xs text-subtle">Reviewers and owners can change visibility.</p>
+            )}
+          </section>
+
           <section aria-labelledby={`${uid}-history`} className="fb-panel rounded-[var(--radius-panel)] p-5">
             <h2 id={`${uid}-history`} className="font-semibold text-text">
               Version history
@@ -1353,6 +1450,54 @@ export function PageEditor({ slug, user, initial }: { slug: string; user: AdminU
           </section>
         </div>
       </div>
+    </div>
+  );
+}
+
+/** An on/off control for a page's visibility (role="switch"). */
+function VisibilitySwitch({
+  label,
+  on,
+  hint,
+  disabled,
+  onToggle,
+}: {
+  label: string;
+  on: boolean;
+  hint: string;
+  disabled: boolean;
+  onToggle: () => void;
+}) {
+  const id = useId();
+  return (
+    <div className="flex items-center justify-between gap-4 py-3">
+      <span className="min-w-0">
+        <span id={id} className="block text-sm font-medium text-text">
+          {label}
+        </span>
+        <span className="block text-xs text-subtle">{hint}</span>
+      </span>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={on}
+        aria-labelledby={id}
+        disabled={disabled}
+        onClick={onToggle}
+        className={cn(
+          "relative inline-flex h-7 w-12 shrink-0 items-center rounded-full border transition-colors duration-200 disabled:cursor-not-allowed disabled:opacity-50",
+          "focus-visible:ring-2 focus-visible:ring-[var(--focus)] focus-visible:outline-none",
+          on ? "border-accent bg-accent" : "border-line-strong bg-surface-3",
+        )}
+      >
+        <span
+          aria-hidden
+          className={cn(
+            "size-5 rounded-full bg-white shadow transition-transform duration-200",
+            on ? "translate-x-6 rtl:-translate-x-6" : "translate-x-1 rtl:-translate-x-1",
+          )}
+        />
+      </button>
     </div>
   );
 }

@@ -24,6 +24,14 @@ export interface AdminSite {
   show_on_map?: boolean;
   /** Published brand profile (list responses only). */
   brand?: BrandProfile | null;
+  /** The website's Studio workspace at a glance (list responses only). */
+  workspace?: {
+    pages: number;
+    live_pages: number;
+    sections: number;
+    pending: number;
+    last_published: string | null;
+  } | null;
 }
 
 export const LIFECYCLE: { value: SiteStatus; label: string; hint: string }[] = [

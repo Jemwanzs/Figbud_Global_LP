@@ -11,6 +11,7 @@
 //! current version stays live, until [`publish_due`] publishes it.
 
 pub mod blocks;
+pub mod import;
 pub mod templates;
 
 use axum::{
@@ -89,13 +90,15 @@ struct PageRow {
     published_at: Option<DateTime<Utc>>,
     archived_at: Option<DateTime<Utc>>,
     created_at: DateTime<Utc>,
+    offline: bool,
+    show_in_nav: bool,
 }
 
 macro_rules! page_select {
     () => {
         "SELECT p.id, p.site_id, p.path, p.title, p.position, p.draft, p.draft_version, p.draft_updated_at,
                 u.name AS draft_updated_by, p.published, p.published_revision, p.published_at, p.archived_at,
-                p.created_at
+                p.created_at, p.offline, p.show_in_nav
            FROM pages p LEFT JOIN admin_users u ON u.id = p.draft_updated_by "
     };
 }
@@ -172,10 +175,12 @@ async fn public_list(
     State(state): State<SharedState>,
     Path(slug): Path<String>,
 ) -> Result<impl IntoResponse, ApiError> {
-    let rows: Vec<(String, String, Option<DateTime<Utc>>)> = sqlx::query_as(
-        "SELECT p.path, p.title, p.published_at FROM pages p JOIN sites s ON s.id = p.site_id
+    // Offline pages are left out entirely; `show_in_nav` tells websites which
+    // pages belong in their navigation (the others stay reachable by address).
+    let rows: Vec<(String, String, Option<DateTime<Utc>>, bool)> = sqlx::query_as(
+        "SELECT p.path, p.title, p.published_at, p.show_in_nav FROM pages p JOIN sites s ON s.id = p.site_id
           WHERE s.slug = $1 AND s.archived_at IS NULL AND s.status IN ('coming_soon', 'beta', 'active')
-            AND p.archived_at IS NULL AND p.published IS NOT NULL
+            AND p.archived_at IS NULL AND p.published IS NOT NULL AND NOT p.offline
           ORDER BY p.position, p.path",
     )
     .bind(&slug)
@@ -183,7 +188,9 @@ async fn public_list(
     .await?;
     let pages: Vec<Value> = rows
         .into_iter()
-        .map(|(path, title, published_at)| json!({ "path": path, "title": title, "published_at": published_at }))
+        .map(|(path, title, published_at, show_in_nav)| {
+            json!({ "path": path, "title": title, "published_at": published_at, "show_in_nav": show_in_nav })
+        })
         .collect();
     Ok((cache_headers(), Json(pages)))
 }
@@ -202,7 +209,7 @@ async fn public_page(
     let row: Option<(String, Value, Option<DateTime<Utc>>)> = sqlx::query_as(
         "SELECT p.title, p.published, p.published_at FROM pages p JOIN sites s ON s.id = p.site_id
           WHERE s.slug = $1 AND s.archived_at IS NULL AND s.status IN ('coming_soon', 'beta', 'active')
-            AND p.path = $2 AND p.archived_at IS NULL AND p.published IS NOT NULL",
+            AND p.path = $2 AND p.archived_at IS NULL AND p.published IS NOT NULL AND NOT p.offline",
     )
     .bind(&slug)
     .bind(query.path.trim_matches('/'))
@@ -210,7 +217,7 @@ async fn public_page(
     .await?;
     let (title, published, published_at) = row.ok_or(ApiError::NotFound)?;
     let doc: PageDoc = serde_json::from_value(published).map_err(|e| ApiError::Internal(e.to_string()))?;
-    let mut value = doc.render();
+    let mut value = doc.render(false);
     value["title"] = json!(title);
     value["published_at"] = json!(published_at);
     Ok((cache_headers(), Json(value)))
@@ -275,6 +282,9 @@ async fn list(
                     .find(|(page, state, _)| *page == p.id && state == "scheduled")
                     .and_then(|(_, _, at)| *at),
                 "archived_at": p.archived_at, "draft_updated_at": p.draft_updated_at,
+                "offline": p.offline, "show_in_nav": p.show_in_nav,
+                "hidden_sections": p.draft["sections"].as_array()
+                    .map_or(0, |s| s.iter().filter(|x| x["hidden"] == true).count()),
             })
         })
         .collect();
@@ -368,7 +378,7 @@ async fn read(
     .await?;
     let draft_differs = page.published.as_ref() != Some(&page.draft);
     let preview = serde_json::from_value::<PageDoc>(page.draft.clone())
-        .map(|d| d.render())
+        .map(|d| d.render(true))
         .ok();
     Ok(Json(json!({
         "page": page,
@@ -436,7 +446,7 @@ async fn save_draft(
         .await?;
     }
     Ok(Json(
-        json!({ "draft_version": input.version + 1, "preview": doc.render() }),
+        json!({ "draft_version": input.version + 1, "preview": doc.render(true) }),
     ))
 }
 
@@ -745,6 +755,47 @@ async fn page_action(
             )
             .await?;
             Ok(Json(json!({ "id": id })))
+        }
+        // Visibility changes the live website at once, so it needs a reviewer;
+        // content and versions are kept, and each change is audited and reversible.
+        "offline" | "online" | "show-in-nav" | "hide-from-nav" => {
+            session.require(Role::Reviewer)?;
+            if page.archived_at.is_some() {
+                return Err(ApiError::Conflict("Restore this page first."));
+            }
+            if action == "offline" && page.path.is_empty() {
+                return Err(ApiError::Conflict(
+                    "The home page can't be taken offline: it is the website's front door.",
+                ));
+            }
+            let (column, value) = match action.as_str() {
+                "offline" => ("offline", true),
+                "online" => ("offline", false),
+                "show-in-nav" => ("show_in_nav", true),
+                _ => ("show_in_nav", false),
+            };
+            let current = if column == "offline" {
+                page.offline
+            } else {
+                page.show_in_nav
+            };
+            if current != value {
+                let sql = if column == "offline" {
+                    "UPDATE pages SET offline = $2 WHERE id = $1"
+                } else {
+                    "UPDATE pages SET show_in_nav = $2 WHERE id = $1"
+                };
+                sqlx::query(sql).bind(id).bind(value).execute(&state.pool).await?;
+                audit_site(
+                    &state.pool,
+                    &session,
+                    page.site_id,
+                    &format!("page.{}", action.replace('-', "_")),
+                    json!({ "page": id, "path": page.path, "from": current, "to": value }),
+                )
+                .await?;
+            }
+            Ok(Json(json!({ "id": id, column: value })))
         }
         "duplicate" => {
             session.require(Role::Editor)?;
