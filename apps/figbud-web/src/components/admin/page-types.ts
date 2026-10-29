@@ -93,7 +93,26 @@ export const BLOCKS: { type: BlockType; label: string; hint: string }[] = [
   { type: "stats", label: "Figures", hint: "Verified figures with their source" },
   { type: "faq", label: "Questions", hint: "Expandable questions and answers" },
   { type: "call_to_action", label: "Call to action", hint: "A closing invitation with a button" },
+  { type: "image", label: "Image", hint: "A picture from the media library, with a caption" },
 ];
+
+/** A media library image (`GET /v1/admin/sites/{slug}/media`). */
+export interface MediaItem {
+  id: string;
+  label: string;
+  alt_text: string;
+  content_type: string;
+  width: number;
+  height: number;
+  byte_size: number;
+  archived_at: string | null;
+  created_at: string;
+  created_by: string | null;
+  used_on: { page: string; title: string; path: string; state: "draft" | "published" }[];
+}
+
+/** Where the Studio loads media images from (its private proxy to the admin API). */
+export const STUDIO_MEDIA_BASE = "/admin/api/media/";
 
 export const blockLabel = (type: string) => BLOCKS.find((b) => b.type === type)?.label ?? type;
 
@@ -102,10 +121,12 @@ const newId = () =>
     ? crypto.randomUUID().replace(/-/g, "")
     : Math.random().toString(36).slice(2);
 
-/** A new section with starter content that passes validation. */
-export function newSection(type: BlockType): PageSection {
+/** A new section with starter content that passes validation (an Image block needs an image). */
+export function newSection(type: BlockType, imageId = ""): PageSection {
   const id = newId();
   switch (type) {
+    case "image":
+      return { id, type, image_id: imageId, caption: "", size: "content" };
     case "hero":
       return { id, type, heading: "New headline", lead: "", eyebrow: "" };
     case "text":

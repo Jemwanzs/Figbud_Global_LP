@@ -25,7 +25,7 @@ use crate::{
     email::{self, outbox, templates},
     enquiry::{EnquiryInput, new_reference},
     error::ApiError,
-    privacy,
+    media, privacy,
     rate_limit::{RateLimiter, client_ip, ip_hash},
     site_settings, sites,
 };
@@ -83,10 +83,12 @@ pub fn router(state: SharedState) -> Router {
         .merge(brand::router())
         .merge(privacy::router())
         .merge(site_settings::router())
+        .merge(media::router())
         .layer(RequestBodyLimitLayer::new(16 * 1024))
         // Articles are larger than any form; the editorial API gets its own limit.
         .merge(cms::editorial::router().layer(RequestBodyLimitLayer::new(512 * 1024)))
         .merge(brand::upload_router())
+        .merge(media::upload_router())
         .merge(crate::pages::router())
         .with_state(state)
         .layer(cors)

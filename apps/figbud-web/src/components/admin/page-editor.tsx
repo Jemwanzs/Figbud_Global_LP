@@ -42,8 +42,10 @@ import { LocalTime, fromLocalInput, localInputFromNow } from "./local-time";
 import {
   BLOCKS,
   type BlockType,
+  type MediaItem,
   PATH_PATTERN,
   type PageDetail,
+  STUDIO_MEDIA_BASE,
   blockLabel,
   copySection,
   newSection,
@@ -303,15 +305,102 @@ function ToneField({
 
 function BlockForm({
   section,
+  library,
+  slug,
   onChange,
   disabled,
 }: {
   section: PageSection;
+  library: MediaItem[] | null;
+  slug: string;
   onChange: (s: PageSection) => void;
   disabled: boolean;
 }) {
   const p = { disabled };
   switch (section.type) {
+    case "image":
+      return (
+        <div className="grid gap-4">
+          <div>
+            <p className="text-sm font-medium text-text">Image</p>
+            {library === null ? (
+              <p className="mt-2 text-sm text-subtle">Loading the media library…</p>
+            ) : (
+              <div
+                role="radiogroup"
+                aria-label="Image"
+                className="mt-2 grid max-h-72 grid-cols-2 gap-2 overflow-y-auto sm:grid-cols-3"
+              >
+                {library.map((m) => {
+                  const selected = section.image_id === m.id;
+                  return (
+                    <button
+                      key={m.id}
+                      type="button"
+                      role="radio"
+                      aria-checked={selected}
+                      aria-label={m.label}
+                      disabled={disabled}
+                      onClick={() => onChange({ ...section, image_id: m.id })}
+                      className={cn(
+                        "overflow-hidden rounded-xl border-2 text-start transition-colors disabled:opacity-60",
+                        selected ? "border-accent" : "border-transparent hover:border-line-strong",
+                      )}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={`${STUDIO_MEDIA_BASE}${m.id}?w=480`}
+                        alt=""
+                        loading="lazy"
+                        className="aspect-[4/3] w-full bg-surface-2 object-cover"
+                      />
+                      <span className="block truncate px-2 py-1.5 text-xs text-muted">{m.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            <p className="mt-2 text-xs text-subtle">
+              Alt text comes from the library, so it&apos;s written once.{" "}
+              <Link href={`/admin/sites/${slug}/media`} className="text-accent underline underline-offset-2">
+                Manage media
+              </Link>
+            </p>
+          </div>
+          <TextField
+            label="Caption (optional)"
+            value={section.caption}
+            max={200}
+            {...p}
+            onChange={(v) => onChange({ ...section, caption: v })}
+          />
+          <div role="radiogroup" aria-label="Image width" className="grid gap-2 sm:grid-cols-2">
+            {(
+              [
+                { value: "content", label: "Text width" },
+                { value: "wide", label: "Full width" },
+              ] as const
+            ).map((o) => (
+              <button
+                key={o.value}
+                type="button"
+                role="radio"
+                aria-checked={(section.size ?? "content") === o.value}
+                disabled={disabled}
+                onClick={() => onChange({ ...section, size: o.value })}
+                className={cn(
+                  "min-h-11 rounded-xl border px-3 text-sm text-text transition-colors disabled:opacity-60",
+                  (section.size ?? "content") === o.value
+                    ? "border-accent bg-accent-soft"
+                    : "border-line hover:border-line-strong",
+                )}
+              >
+                {o.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      );
     case "hero":
       return (
         <div className="grid gap-3">
@@ -574,7 +663,9 @@ const summary = (section: PageSection) =>
     ? section.heading
     : section.type === "text"
       ? (section.body ?? "").slice(0, 60)
-      : "";
+      : section.type === "image"
+        ? (section.caption ?? "")
+        : "";
 
 /**
  * The page builder. Every change autosaves to the draft, which is never
@@ -724,10 +815,43 @@ export function PageEditor({ slug, user, initial }: { slug: string; user: AdminU
   }
 
   // Preview: local edits immediately; Markdown uses the API's rendering once saved.
+  // The website's media library, for Image blocks (archived images can't be chosen).
+  const [library, setLibrary] = useState<MediaItem[] | null>(null);
+  useEffect(() => {
+    let live = true;
+    adminFetch<{ items: MediaItem[] }>(`sites/${slug}/media`)
+      .then((data) => live && setLibrary(data.items.filter((m) => !m.archived_at)))
+      .catch(() => live && setLibrary([]));
+    return () => {
+      live = false;
+    };
+  }, [slug]);
+
   const previewDoc: PageDocument = {
     ...draft.document,
     sections: sections.map((section) => {
       const server = rendered?.sections.find((s) => s.id === section.id);
+      if (section.type === "image") {
+        // The saved preview's file details, or the library's while a new choice saves.
+        const saved =
+          server?.type === "image" && server.image_id === section.image_id ? server.media : undefined;
+        const item = library?.find((m) => m.id === section.image_id);
+        return {
+          ...section,
+          media:
+            saved ??
+            (item
+              ? {
+                  id: item.id,
+                  alt: item.alt_text,
+                  width: item.width,
+                  height: item.height,
+                  content_type: item.content_type,
+                  widths: [],
+                }
+              : null),
+        };
+      }
       if (section.type === "text" && server?.type === "text" && server.body === section.body) {
         return { ...section, body_html: server.body_html };
       }
@@ -1030,6 +1154,8 @@ export function PageEditor({ slug, user, initial }: { slug: string; user: AdminU
                       <div className="border-t border-line p-4">
                         <BlockForm
                           section={section}
+                          library={library}
+                          slug={slug}
                           disabled={!canEdit}
                           onChange={(next) =>
                             setSections(sections.map((s) => (s.id === section.id ? next : s)))
@@ -1071,9 +1197,9 @@ export function PageEditor({ slug, user, initial }: { slug: string; user: AdminU
                 </div>
                 <button
                   type="button"
-                  disabled={sections.length >= 40}
+                  disabled={sections.length >= 40 || (adding === "image" && !library?.length)}
                   onClick={() => {
-                    const section = newSection(adding);
+                    const section = newSection(adding, library?.[0]?.id);
                     setSections([...sections, section]);
                     setOpen(section.id);
                   }}
@@ -1082,6 +1208,18 @@ export function PageEditor({ slug, user, initial }: { slug: string; user: AdminU
                   <Plus aria-hidden className="size-4" />
                   Add
                 </button>
+                {adding === "image" && library?.length === 0 && (
+                  <p className="w-full text-sm text-subtle">
+                    No images yet.{" "}
+                    <Link
+                      href={`/admin/sites/${slug}/media`}
+                      className="text-accent underline underline-offset-2"
+                    >
+                      Upload one in Media
+                    </Link>{" "}
+                    first.
+                  </p>
+                )}
               </div>
             )}
           </section>
@@ -1137,6 +1275,7 @@ export function PageEditor({ slug, user, initial }: { slug: string; user: AdminU
                 <PageBlocks
                   document={previewDoc}
                   mode="preview"
+                  mediaBase={STUDIO_MEDIA_BASE}
                   firstHeading={2}
                   className={device === "mobile" ? "space-y-12" : undefined}
                 />

@@ -205,3 +205,23 @@ test("sections styled in the Studio sit on the website's theme bands, in both th
     .analyze();
   expect(results.violations.map((v) => v.id)).toEqual([]);
 });
+
+test("images from the media library render responsively with their alt text", async ({ page, request }) => {
+  // Mock fixture: Ziwa's published Platform page has a library image.
+  await page.goto("/ziwa/platform");
+  const image = page.getByRole("img", { name: "The Ziwa LMS team planning a loan product" });
+  await expect(image).toBeVisible();
+  await expect(page.locator("figcaption")).toHaveText("Planning a loan product");
+  const src = await image.getAttribute("src");
+  expect(src).toMatch(/^\/media\/[0-9a-f-]{36}/);
+  // Space is reserved before it loads, and it isn't loaded until needed.
+  await expect(image).toHaveAttribute("width", /\d+/);
+  await expect(image).toHaveAttribute("loading", "lazy");
+  // Served from the website's own origin, locked down like logo files.
+  const response = await request.get(src!);
+  expect(response.status()).toBe(200);
+  expect(response.headers()["content-type"]).toBe("image/png");
+  expect(response.headers()["content-security-policy"]).toContain("sandbox");
+  // Unknown or unpublished images aren't served.
+  expect((await request.get("/media/00000000-0000-7000-8000-000000000000")).status()).toBe(404);
+});

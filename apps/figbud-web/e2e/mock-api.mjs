@@ -521,6 +521,16 @@ function imageInfo(data, type) {
   ) {
     return { width: 400, height: 200 };
   }
+  if (type === "image/jpeg" && data[0] === 0xff && data[1] === 0xd8) {
+    for (let i = 2; i + 9 < data.length;) {
+      if (data[i] !== 0xff) return null;
+      const marker = data[i + 1];
+      if (marker >= 0xc0 && marker <= 0xc3)
+        return { width: data.readUInt16BE(i + 7), height: data.readUInt16BE(i + 5) };
+      i += 2 + data.readUInt16BE(i + 2);
+    }
+    return null;
+  }
   if (type === "image/svg+xml") {
     const text = data.toString("utf8");
     if (!text.includes("<svg") || /<script|<foreignobject|<image|<!doctype|<text/i.test(text)) return null;
@@ -900,6 +910,142 @@ const publicAsset = (a) =>
 // Stands in for the API's square PNG icons (`?icon=`): any small PNG will do.
 const ICON_PNG = readFileSync(new URL("../public/icon.png", import.meta.url));
 
+// ---------------------------------------------------------------- media library
+// Mirrors services/api/src/media.rs: images per website, alt text required,
+// usage read from pages, public only while a published page uses them.
+const mediaAssets = new Map(); // id -> asset (with data Buffer)
+
+function storeMedia(slug, data, type, label, alt, by) {
+  const existing = [...mediaAssets.values()].find((m) => m.site === slug && m.data.equals(data));
+  if (existing) return [200, existing];
+  const info = imageInfo(data, type);
+  if (!info) return [422, null];
+  const hex = createHash("sha256").update(`media:${slug}`).update(data).digest("hex");
+  const asset = {
+    id: `${hex.slice(0, 8)}-${hex.slice(8, 12)}-7${hex.slice(13, 16)}-8${hex.slice(17, 20)}-${hex.slice(20, 32)}`,
+    site: slug,
+    label,
+    alt_text: alt,
+    content_type: type,
+    width: info.width,
+    height: info.height,
+    byte_size: data.length,
+    archived_at: null,
+    created_at: new Date().toISOString(),
+    created_by: by,
+    data,
+  };
+  mediaAssets.set(asset.id, asset);
+  return [201, asset];
+}
+
+const sectionImages = (doc) => (doc?.sections ?? []).filter((s) => s.type === "image").map((s) => s.image_id);
+const mediaUsage = (asset) =>
+  [...pages.values()]
+    .filter((p) => p.site?.slug === asset.site && !p.archived_at)
+    .flatMap((p) =>
+      [
+        ["draft", p.draft],
+        ["published", p.published],
+      ]
+        .filter(([, doc]) => sectionImages(doc).includes(asset.id))
+        .map(([state]) => ({ page: p.id, title: p.title, path: `/${p.path}`, state })),
+    );
+const mediaInfo = (asset) =>
+  asset && !asset.archived_at
+    ? {
+        id: asset.id,
+        alt: asset.alt_text,
+        width: asset.width,
+        height: asset.height,
+        content_type: asset.content_type,
+        widths: [],
+      }
+    : null;
+const mediaPublic = (asset) =>
+  asset &&
+  !asset.archived_at &&
+  [...pages.values()].some(
+    (p) =>
+      p.site?.slug === asset.site &&
+      !p.archived_at &&
+      !p.offline &&
+      sectionImages(p.published).includes(asset.id),
+  );
+
+function mediaRoutes(path, req, res, url, raw, body, user, send) {
+  const editor = RANKS[user.role] >= RANKS.editor;
+  const forbidden = () =>
+    send(403, { error: { code: "forbidden", message: "You don't have permission to do that." } });
+  const list = /^sites\/([a-z0-9_-]+)\/media$/.exec(path);
+  if (list) {
+    const items = [...mediaAssets.values()]
+      .filter((m) => m.site === list[1])
+      .map((m) => ({
+        ...Object.fromEntries(Object.entries(m).filter(([k]) => !["data", "site"].includes(k))),
+        used_on: mediaUsage(m),
+      }));
+    return send(200, { items, can_edit: editor });
+  }
+  const uploads = /^sites\/([a-z0-9_-]+)\/media\/uploads$/.exec(path);
+  if (uploads) {
+    if (!editor) return forbidden();
+    const label = url.searchParams.get("label")?.trim();
+    const alt = url.searchParams.get("alt")?.trim();
+    const fields = [];
+    if (!label)
+      fields.push({ field: "label", code: "required", message: "Name this image (up to 120 characters)." });
+    if (!alt)
+      fields.push({
+        field: "alt_text",
+        code: "required",
+        message: "Describe the image for people who can't see it (up to 250 characters).",
+      });
+    const type = String(req.headers["content-type"] ?? "");
+    if (!["image/jpeg", "image/png", "image/webp", "image/svg+xml"].includes(type) || !imageInfo(raw, type))
+      fields.push({ field: "file", code: "invalid", message: "Upload a JPEG, PNG, WebP or SVG image." });
+    if (fields.length)
+      return send(422, { error: { code: "validation", message: "Some fields need attention.", fields } });
+    const [status, asset] = storeMedia(uploads[1], raw, type, label, alt, user.name);
+    return send(status, { id: asset.id, duplicate: status === 200 });
+  }
+  const one = /^media\/([0-9a-f-]{36})(?:\/(archive|restore))?$/.exec(path);
+  const asset = one && mediaAssets.get(one[1]);
+  if (!asset) return send(404, { error: { code: "not_found", message: "Not found." } });
+  if (req.method === "GET" && !one[2]) {
+    res.writeHead(200, { "content-type": asset.content_type, "cache-control": "private, max-age=86400" });
+    return res.end(asset.data);
+  }
+  if (!editor) return forbidden();
+  if (one[2] === "archive") {
+    if (mediaUsage(asset).length)
+      return send(409, {
+        error: {
+          code: "conflict",
+          message: "This image is used on a page. Remove it from those pages (and publish) first.",
+        },
+      });
+    asset.archived_at = new Date().toISOString();
+    return send(200, { id: asset.id });
+  }
+  if (one[2] === "restore") {
+    asset.archived_at = null;
+    return send(200, { id: asset.id });
+  }
+  const label = String(body.label ?? "").trim();
+  const alt = String(body.alt_text ?? "").trim();
+  if (!label || !alt)
+    return send(422, {
+      error: {
+        code: "validation",
+        message: "Some fields need attention.",
+        fields: [{ field: "alt_text", code: "required", message: "Alt text is required." }],
+      },
+    });
+  Object.assign(asset, { label, alt_text: alt });
+  return send(200, { id: asset.id, label, alt_text: alt });
+}
+
 function serveAsset(res, asset, url) {
   if (url?.searchParams.has("icon")) {
     res.writeHead(200, {
@@ -1003,6 +1149,8 @@ function validateDoc(doc) {
       problems.push("Links must be a page on the site (starting with /) or an https:// address.");
     if ((s.type === "hero" || s.type === "call_to_action") && !String(s.heading ?? "").trim())
       problems.push("Headings need 1–120 characters.");
+    if (s.type === "image" && (!mediaAssets.get(s.image_id) || mediaAssets.get(s.image_id).archived_at))
+      problems.push("Choose images from this website's media library (archived images can't be used).");
     if (s.type === "stats" && !String(s.source ?? "").trim())
       problems.push(
         "Say where the figures come from (1–200 characters): only verified figures are published.",
@@ -1022,6 +1170,8 @@ const renderDoc = (doc, includeHidden = true) => ({
   ...doc,
   sections: doc.sections
     .filter((s) => includeHidden || !s.hidden)
+    .map((s) => (s.type === "image" ? { ...s, media: mediaInfo(mediaAssets.get(s.image_id)) } : s))
+    .filter((s) => includeHidden || s.type !== "image" || s.media)
     .map((s) =>
       s.type === "text"
         ? { ...s, body_html: md(s.body) }
@@ -1315,9 +1465,11 @@ function seedPublishedPage(slug, path, title, document, visibility = {}) {
   const site = sites.find((s) => s.slug === slug);
   const revision = randomUUID();
   const at = new Date().toISOString();
-  pages.set(randomUUID(), {
+  // The same id as the map key, so seeded pages open in the editor.
+  const id = randomUUID();
+  pages.set(id, {
     ...visibility,
-    id: randomUUID(),
+    id,
     site,
     path,
     title,
@@ -1380,6 +1532,14 @@ seedPublishedPage("ziwa", "", "Home", {
     },
   ],
 });
+const [, ziwaTeam] = storeMedia(
+  "ziwa",
+  readFileSync(new URL("figbud-app-icon-official.png", SEED_DIR)),
+  "image/png",
+  "Ziwa team",
+  "The Ziwa LMS team planning a loan product",
+  "Seed",
+);
 seedPublishedPage("ziwa", "platform", "Platform", {
   sections: [
     { id: "p-hero", type: "hero", eyebrow: "Platform", heading: "One platform for lending operations" },
@@ -1388,6 +1548,13 @@ seedPublishedPage("ziwa", "platform", "Platform", {
       type: "text",
       heading: "How it fits together",
       body: "Origination, servicing and collections share **one record**.",
+    },
+    {
+      id: "p-image",
+      type: "image",
+      image_id: ziwaTeam.id,
+      caption: "Planning a loan product",
+      size: "content",
     },
   ],
 });
@@ -2205,6 +2372,8 @@ function admin(req, res, url, body, send, raw) {
   if (/^sites\/[a-z0-9_-]+\/brand/.test(path) || path.startsWith("brand/assets/"))
     return brandRoutes(path, req, res, url, body, raw, user, send);
   if (path === "privacy") return privacyRoutes(req, body, user, send);
+  if (/^sites\/[a-z0-9_-]+\/media(\/uploads)?$/.test(path) || path.startsWith("media/"))
+    return mediaRoutes(path, req, res, url, raw, body, user, send);
   const settingsPath = /^sites\/([a-z0-9_-]+)\/settings$/.exec(path);
   if (settingsPath) return siteSettingsRoutes(settingsPath[1], req, body, user, send);
   if (path === "sites" || path.startsWith("sites/")) return siteRoutes(path, req, body, user, send);
@@ -2233,6 +2402,17 @@ createServer(async (req, res) => {
   if (url.pathname === "/v1/articles") return send(200, list(url));
   if (url.pathname === "/v1/sites") return send(200, publicSites());
   if (url.pathname === "/v1/privacy") return send(200, publicPrivacy());
+  const mediaFile = /^\/v1\/media\/([0-9a-f-]{36})$/.exec(url.pathname);
+  if (mediaFile) {
+    const asset = mediaAssets.get(mediaFile[1]);
+    if (!mediaPublic(asset)) return send(404, { error: { code: "not_found", message: "Not found." } });
+    res.writeHead(200, {
+      "content-type": asset.content_type,
+      "cache-control": "public, max-age=31536000, immutable",
+      "content-security-policy": "default-src 'none'; style-src 'unsafe-inline'; sandbox",
+    });
+    return res.end(asset.data);
+  }
   if (url.pathname === "/v1/privacy/consent" && req.method === "POST") {
     consentRecords.push({ ...body, at: Date.now() });
     res.writeHead(204);

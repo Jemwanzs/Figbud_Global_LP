@@ -28,7 +28,7 @@ async-trait = "0.1"
 pulldown-cmark = { version = "0.13.5", default-features = false, features = ["html"] }
 webauthn-rs = { version = "0.5.4", features = ["danger-allow-state-serialisation"] }
 url = "2"
-image = { version = "0.25.10", default-features = false, features = ["png", "webp"] }
+image = { version = "0.25.10", default-features = false, features = ["png", "webp", "jpeg"] }
 resvg = { version = "0.48.1", default-features = false }
 usvg = { version = "0.48.1", default-features = false, features = ["writer"] }
 
@@ -36,6 +36,19 @@ usvg = { version = "0.48.1", default-features = false, features = ["writer"] }
 http-body-util = "0.1"
 tower = { version = "0.5", features = ["util"] }
 webauthn-authenticator-rs = { version = "0.5", features = ["softpasskey"] }
+
+# Image decoding and resizing are slow unoptimised; optimise those crates in
+# dev and test builds too (uploads would otherwise hit the request timeout).
+[profile.dev.package.image]
+opt-level = 3
+[profile.dev.package.zune-jpeg]
+opt-level = 3
+[profile.dev.package.image-webp]
+opt-level = 3
+[profile.dev.package.png]
+opt-level = 3
+[profile.dev.package.fdeflate]
+opt-level = 3
 
 [profile.release]
 lto = "thin"

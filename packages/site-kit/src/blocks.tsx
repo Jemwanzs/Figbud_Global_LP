@@ -49,7 +49,42 @@ export type PageSection = Base &
         items: { question: string; answer?: string; answer_html?: string }[];
       }
     | { type: "call_to_action"; heading: string; body?: string | null; cta: PageCta }
+    | {
+        type: "image";
+        image_id: string;
+        caption?: string | null;
+        size?: "content" | "wide";
+        /** Added by the API from the media library; `null` when the image is unavailable (previews). */
+        media?: MediaInfo | null;
+      }
   );
+
+/** A media library image as the API describes it (alt text comes from the library). */
+export interface MediaInfo {
+  id: string;
+  alt: string;
+  width: number;
+  height: number;
+  content_type: string;
+  /** Rendition widths, for `srcset`. */
+  widths: number[];
+}
+
+export const MEDIA_PATH = "/media/";
+
+/** `src`, `srcSet` and `sizes` for a media image served from `base`. */
+export function mediaImageSources(media: MediaInfo, wide: boolean, base = MEDIA_PATH) {
+  const url = (w?: number) => `${base}${media.id}${w ? `?w=${w}` : ""}`;
+  const svg = media.content_type === "image/svg+xml";
+  const srcSet = svg
+    ? undefined
+    : [...media.widths.map((w) => `${url(w)} ${w}w`), `${url()} ${media.width}w`].join(", ");
+  return {
+    src: svg || !media.widths.length ? url() : url(media.widths.find((w) => w >= 960) ?? media.widths.at(-1)),
+    srcSet,
+    sizes: wide ? "(min-width: 1536px) 1440px, 100vw" : "(min-width: 1024px) 768px, 100vw",
+  };
+}
 
 export interface PageDocument {
   seo_title?: string | null;
@@ -122,11 +157,13 @@ function Block({
   mode,
   top,
   resolve,
+  mediaBase,
 }: {
   section: PageSection;
   mode: Mode;
   top: 1 | 2;
   resolve?: HrefResolver;
+  mediaBase?: string;
 }) {
   switch (section.type) {
     case "hero":
@@ -255,6 +292,32 @@ function Block({
           </div>
         </div>
       );
+    case "image": {
+      const wide = section.size === "wide";
+      const media = section.media;
+      return (
+        <figure className={cn(!wide && "max-w-3xl")}>
+          {media ? (
+            // Width and height reserve the space, so nothing shifts while it loads.
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              {...mediaImageSources(media, wide, mediaBase)}
+              alt={media.alt}
+              width={media.width}
+              height={media.height}
+              loading="lazy"
+              decoding="async"
+              className="h-auto w-full rounded-[var(--radius-panel)] border border-line bg-surface-2 object-cover"
+            />
+          ) : (
+            <div className="grid aspect-[16/9] place-items-center rounded-[var(--radius-panel)] border border-dashed border-line-strong bg-surface-2 p-6 text-center text-sm text-muted">
+              Choose an image from the media library
+            </div>
+          )}
+          {section.caption && <figcaption className="mt-3 text-sm text-muted">{section.caption}</figcaption>}
+        </figure>
+      );
+    }
   }
 }
 
@@ -265,6 +328,7 @@ export function PageBlocks({
   className,
   firstHeading = 1,
   resolveHref,
+  mediaBase,
 }: {
   document: PageDocument;
   mode?: Mode;
@@ -273,6 +337,8 @@ export function PageBlocks({
   firstHeading?: 1 | 2;
   /** Live mode: rewrites site paths for where the website is served (a path prefix or its own domain). */
   resolveHref?: HrefResolver;
+  /** Where media library images are served from (the Studio uses its private proxy). */
+  mediaBase?: string;
 }) {
   return (
     // Blocks respond to the space they are given (container queries), so the
@@ -297,7 +363,13 @@ export function PageBlocks({
                 Hidden
               </span>
             )}
-            <Block section={section} mode={mode} top={i === 0 ? firstHeading : 2} resolve={resolveHref} />
+            <Block
+              section={section}
+              mode={mode}
+              top={i === 0 ? firstHeading : 2}
+              resolve={resolveHref}
+              mediaBase={mediaBase}
+            />
           </section>
         ))}
     </div>

@@ -147,9 +147,19 @@ Studio UI polish is a standing priority (P7-UX2): every milestone reviews the sc
 - **One change from the original:** the "Explore the modules" button was left out, because it pointed at a placeholder page.
 - **Done since:** navigation and footer settings and the enquiry switch (P7-E2, above), for ZiraHR and every other website.
 - **Done since:** per-site themes (P7-E1): section bands in each website's colours; Ziwa uses brown and ivory.
+- **Done since:** the media library (P7-D2).
 - **Remaining:**
-  - the media library (P7-D2);
   - deploying the renderer (approval needed), after which `apps/zirahr-web` can be retired.
+
+## Media library (P7-D2, 30 Oct 2026)
+
+Websites → a website → **Media**. One library per website; pages use its images with the **Image** section (an image, an optional caption, text or full width).
+
+- **Uploads:** JPEG, PNG, WebP or SVG, up to 8 MB (SVG 512 KB). The API sniffs the real type, sanitises SVGs (as for logos), decodes rasters with size limits, turns photos upright and re-encodes them, so camera metadata such as location never reaches a website. Images wider than 2400 px are scaled down; renditions at 480, 960, 1440 and 1920 px are made (JPEG, or lossless WebP when the image has transparency). The same file twice is recognised, not stored again.
+- **Alt text** is required and lives in the library: written once, editable, and every page using the image shows the current text.
+- **Usage:** each image lists the pages that use it, draft or published. An image in use can't be archived; archived images can't be chosen and can be restored.
+- **Who:** editors upload, edit and archive; viewers see the library. Every change is audited (`media.uploaded`, `media.updated`, `media.archived`, `media.restored`).
+- **On the websites:** the API adds each image's alt text, size and rendition widths to the page; the renderer shows a responsive, lazily loaded image with its size reserved. A file is public (`/v1/media/{id}`, proxied at `/media/{id}`) only while a published page of a listed website uses it; the Studio previews through its private proxy.
 
 ## Settings → Privacy & Cookies (P7-PC1, 29 Oct 2026)
 

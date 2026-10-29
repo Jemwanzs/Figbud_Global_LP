@@ -5,7 +5,7 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
 import { AdminUnavailable } from "@/components/admin/admin-shell";
-import type { PageDetail } from "@/components/admin/page-types";
+import { type PageDetail, STUDIO_MEDIA_BASE } from "@/components/admin/page-types";
 import { adminGet, requireAdmin } from "@/lib/admin-server";
 
 export const metadata: Metadata = { title: "Draft preview" };
@@ -44,7 +44,7 @@ async function Preview({ params }: Pick<PageProps<"/admin/sites/[slug]/pages/[id
         </Link>
       </div>
       <main className="mx-auto max-w-6xl px-5 py-14 sm:px-8 sm:py-20">
-        <PageBlocks document={data.preview} mode="preview" />
+        <PageBlocks document={data.preview} mode="preview" mediaBase={STUDIO_MEDIA_BASE} />
       </main>
     </div>
   );

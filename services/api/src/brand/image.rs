@@ -9,10 +9,15 @@
 //!   refused) and stored byte for byte, so official artwork keeps its quality.
 //! - Downscaled WebP renditions are generated for responsive delivery; the
 //!   aspect ratio is always preserved and nothing is ever upscaled.
+//! - Media library images (`process_media`) also accept JPEG photos. They are
+//!   decoded, turned upright and re-encoded, so camera metadata (location,
+//!   device) never reaches the website, and get photo-sized renditions.
 
 use std::io::Cursor;
 
-use image::{DynamicImage, ImageFormat, ImageReader, Limits, imageops::FilterType};
+use image::{
+    DynamicImage, ImageDecoder, ImageEncoder, ImageFormat, ImageReader, Limits, imageops::FilterType,
+};
 use sha2::{Digest, Sha256};
 
 pub const MAX_RASTER_BYTES: usize = 2 * 1024 * 1024;
@@ -27,6 +32,8 @@ pub enum Kind {
     Svg,
     Png,
     Webp,
+    /// Media library only; logos are SVG, PNG or WebP.
+    Jpeg,
 }
 
 impl Kind {
@@ -35,6 +42,7 @@ impl Kind {
             Kind::Svg => "image/svg+xml",
             Kind::Png => "image/png",
             Kind::Webp => "image/webp",
+            Kind::Jpeg => "image/jpeg",
         }
     }
 
@@ -43,6 +51,7 @@ impl Kind {
             "image/svg+xml" => Some(Kind::Svg),
             "image/png" => Some(Kind::Png),
             "image/webp" => Some(Kind::Webp),
+            "image/jpeg" => Some(Kind::Jpeg),
             _ => None,
         }
     }
@@ -93,6 +102,9 @@ pub fn sniff(bytes: &[u8]) -> Option<Kind> {
     if bytes.len() > 12 && &bytes[..4] == b"RIFF" && &bytes[8..12] == b"WEBP" {
         return Some(Kind::Webp);
     }
+    if bytes.starts_with(b"\xff\xd8\xff") {
+        return Some(Kind::Jpeg);
+    }
     let text = std::str::from_utf8(bytes).ok()?;
     let start = text.trim_start_matches('\u{feff}').trim_start();
     (start.starts_with("<?xml") || start.starts_with("<svg") || start.starts_with("<!--"))
@@ -102,6 +114,9 @@ pub fn sniff(bytes: &[u8]) -> Option<Kind> {
 
 pub fn process(bytes: &[u8], declared: Kind) -> Result<Processed, Rejection> {
     let kind = sniff(bytes).ok_or(Rejection::Type)?;
+    if kind == Kind::Jpeg || declared == Kind::Jpeg {
+        return Err(Rejection::Type);
+    }
     if kind != declared {
         return Err(Rejection::Mismatch);
     }
@@ -115,8 +130,162 @@ pub fn process(bytes: &[u8], declared: Kind) -> Result<Processed, Rejection> {
     }
     match kind {
         Kind::Svg => process_svg(bytes),
-        Kind::Png | Kind::Webp => process_raster(bytes, kind),
+        Kind::Png | Kind::Webp | Kind::Jpeg => process_raster(bytes, kind),
     }
+}
+
+/// Media library uploads can be larger than logos (photos).
+pub const MAX_MEDIA_BYTES: usize = 8 * 1024 * 1024;
+/// Stored media images are at most this wide (larger uploads are scaled down).
+pub const MEDIA_MAX_WIDTH: u32 = 2400;
+/// Media rendition widths (only those narrower than the stored image).
+pub const MEDIA_WIDTHS: [u32; 4] = [480, 960, 1440, 1920];
+
+/// A validated media library image: the stored copy and its renditions,
+/// each with its own content type.
+pub struct MediaImage {
+    pub content_type: &'static str,
+    pub data: Vec<u8>,
+    pub width: u32,
+    pub height: u32,
+    pub has_alpha: bool,
+    /// Of the uploaded bytes, so the same upload isn't stored twice.
+    pub sha256: String,
+    pub renditions: Vec<(u32, &'static str, Vec<u8>)>,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum MediaRejection {
+    Type,
+    Mismatch,
+    TooLarge,
+    Unreadable,
+    Dimensions,
+    Svg(Rejection),
+}
+
+impl MediaRejection {
+    pub fn message(&self) -> &'static str {
+        match self {
+            MediaRejection::Type => "Upload a JPEG, PNG, WebP or SVG image.",
+            MediaRejection::Mismatch => {
+                "The file's contents don't match its type. Export it again and retry."
+            }
+            MediaRejection::TooLarge => "Images can be up to 8 MB (SVG up to 512 KB).",
+            MediaRejection::Unreadable => "The image couldn't be read. Export it again and retry.",
+            MediaRejection::Dimensions => "Images must be between 16 and 8192 pixels on each side.",
+            MediaRejection::Svg(inner) => inner.message(),
+        }
+    }
+}
+
+/// Validates and prepares a media library image. SVGs go through the same
+/// sanitiser as logos; rasters are decoded with limits, turned upright from
+/// their camera orientation, capped at `MEDIA_MAX_WIDTH` and re-encoded
+/// (JPEG for opaque images, PNG when transparency matters), which also drops
+/// all metadata. Renditions are JPEG or lossless WebP likewise.
+pub fn process_media(bytes: &[u8], declared: Kind) -> Result<MediaImage, MediaRejection> {
+    let kind = sniff(bytes).ok_or(MediaRejection::Type)?;
+    if kind != declared {
+        return Err(MediaRejection::Mismatch);
+    }
+    if kind == Kind::Svg {
+        let svg = process(bytes, Kind::Svg).map_err(|r| match r {
+            Rejection::TooLarge => MediaRejection::TooLarge,
+            other => MediaRejection::Svg(other),
+        })?;
+        return Ok(MediaImage {
+            content_type: "image/svg+xml",
+            data: svg.data,
+            width: svg.width,
+            height: svg.height,
+            has_alpha: true,
+            sha256: svg.sha256,
+            renditions: Vec::new(),
+        });
+    }
+    if bytes.len() > MAX_MEDIA_BYTES {
+        return Err(MediaRejection::TooLarge);
+    }
+    let format = match kind {
+        Kind::Png => ImageFormat::Png,
+        Kind::Webp => ImageFormat::WebP,
+        _ => ImageFormat::Jpeg,
+    };
+    let mut reader = ImageReader::with_format(Cursor::new(bytes), format);
+    let mut limits = Limits::default();
+    limits.max_image_width = Some(MAX_SIDE);
+    limits.max_image_height = Some(MAX_SIDE);
+    limits.max_alloc = Some(512 * 1024 * 1024);
+    reader.limits(limits);
+    let mut decoder = reader.into_decoder().map_err(|_| MediaRejection::Unreadable)?;
+    let orientation = decoder.orientation().ok();
+    let mut image = DynamicImage::from_decoder(decoder).map_err(|_| MediaRejection::Unreadable)?;
+    if let Some(orientation) = orientation {
+        image.apply_orientation(orientation);
+    }
+    check_side(image.width(), image.height()).map_err(|_| MediaRejection::Dimensions)?;
+    if image.width() > MEDIA_MAX_WIDTH {
+        image = scale(&image, MEDIA_MAX_WIDTH);
+    }
+    let has_alpha = image.color().has_alpha() && image.to_rgba8().pixels().any(|p| p.0[3] < 255);
+    let (content_type, data) = encode_media(&image, has_alpha, true).ok_or(MediaRejection::Unreadable)?;
+    let renditions = MEDIA_WIDTHS
+        .iter()
+        .filter(|&&w| w < image.width())
+        .filter_map(|&w| {
+            let (content_type, data) = encode_media(&scale(&image, w), has_alpha, false)?;
+            Some((w, content_type, data))
+        })
+        .collect();
+    Ok(MediaImage {
+        content_type,
+        data,
+        width: image.width(),
+        height: image.height(),
+        has_alpha,
+        sha256: digest(bytes),
+        renditions,
+    })
+}
+
+fn scale(image: &DynamicImage, w: u32) -> DynamicImage {
+    let h = ((image.height() as f64 * w as f64 / image.width() as f64).round() as u32).max(1);
+    // Catmull-Rom: sharp downscales of photos at a fraction of Lanczos's cost.
+    image.resize_exact(w, h, FilterType::CatmullRom)
+}
+
+/// Opaque images as JPEG (photos stay small), transparent ones lossless.
+fn encode_media(image: &DynamicImage, has_alpha: bool, stored: bool) -> Option<(&'static str, Vec<u8>)> {
+    let mut out = Vec::new();
+    if has_alpha {
+        let rgba = image.to_rgba8();
+        if stored {
+            image::codecs::png::PngEncoder::new(&mut out)
+                .write_image(
+                    &rgba,
+                    rgba.width(),
+                    rgba.height(),
+                    image::ExtendedColorType::Rgba8,
+                )
+                .ok()?;
+            return Some(("image/png", out));
+        }
+        image::codecs::webp::WebPEncoder::new_lossless(&mut out)
+            .encode(
+                &rgba,
+                rgba.width(),
+                rgba.height(),
+                image::ExtendedColorType::Rgba8,
+            )
+            .ok()?;
+        return Some(("image/webp", out));
+    }
+    let rgb = image.to_rgb8();
+    image::codecs::jpeg::JpegEncoder::new_with_quality(&mut out, if stored { 88 } else { 82 })
+        .encode(&rgb, rgb.width(), rgb.height(), image::ExtendedColorType::Rgb8)
+        .ok()?;
+    Some(("image/jpeg", out))
 }
 
 fn digest(bytes: &[u8]) -> String {
@@ -266,6 +435,45 @@ mod tests {
         let mut out = Cursor::new(Vec::new());
         image.write_to(&mut out, ImageFormat::Png).unwrap();
         out.into_inner()
+    }
+
+    fn encoded(image: &DynamicImage, format: ImageFormat) -> Vec<u8> {
+        let mut out = Cursor::new(Vec::new());
+        image.write_to(&mut out, format).unwrap();
+        out.into_inner()
+    }
+
+    #[test]
+    fn media_photos_are_reencoded_with_photo_renditions() {
+        let photo = DynamicImage::ImageRgb8(image::RgbImage::from_fn(1000, 500, |x, y| {
+            image::Rgb([(x % 256) as u8, (y % 256) as u8, 90])
+        }));
+        let bytes = encoded(&photo, ImageFormat::Jpeg);
+        let media = process_media(&bytes, Kind::Jpeg).unwrap();
+        assert_eq!(
+            (media.width, media.height, media.content_type),
+            (1000, 500, "image/jpeg")
+        );
+        assert_ne!(media.data, bytes, "re-encoded, so no metadata survives");
+        let widths: Vec<_> = media.renditions.iter().map(|r| (r.0, r.1)).collect();
+        assert_eq!(widths, [(480, "image/jpeg"), (960, "image/jpeg")]);
+        // A wrong declared type, or a logo upload of a JPEG, is refused.
+        assert_eq!(
+            process_media(&bytes, Kind::Png).err(),
+            Some(MediaRejection::Mismatch)
+        );
+        assert_eq!(process(&bytes, Kind::Jpeg).err(), Some(Rejection::Type));
+    }
+
+    #[test]
+    fn transparent_media_stays_lossless() {
+        let badge = DynamicImage::ImageRgba8(image::RgbaImage::from_fn(600, 600, |x, _| {
+            image::Rgba([20, 120, 200, if x < 300 { 0 } else { 255 }])
+        }));
+        let media = process_media(&encoded(&badge, ImageFormat::Png), Kind::Png).unwrap();
+        assert!(media.has_alpha);
+        assert_eq!(media.content_type, "image/png");
+        assert_eq!(media.renditions[0].1, "image/webp");
     }
 
     #[test]

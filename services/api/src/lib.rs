@@ -13,6 +13,7 @@ pub mod config;
 pub mod email;
 pub mod enquiry;
 pub mod error;
+pub mod media;
 pub mod pages;
 pub mod privacy;
 pub mod rate_limit;

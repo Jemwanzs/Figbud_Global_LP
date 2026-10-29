@@ -206,8 +206,8 @@ async fn public_page(
     Path(slug): Path<String>,
     Query(query): Query<PathQuery>,
 ) -> Result<impl IntoResponse, ApiError> {
-    let row: Option<(String, Value, Option<DateTime<Utc>>)> = sqlx::query_as(
-        "SELECT p.title, p.published, p.published_at FROM pages p JOIN sites s ON s.id = p.site_id
+    let row: Option<(Uuid, String, Value, Option<DateTime<Utc>>)> = sqlx::query_as(
+        "SELECT s.id, p.title, p.published, p.published_at FROM pages p JOIN sites s ON s.id = p.site_id
           WHERE s.slug = $1 AND s.archived_at IS NULL AND s.status IN ('coming_soon', 'beta', 'active')
             AND p.path = $2 AND p.archived_at IS NULL AND p.published IS NOT NULL AND NOT p.offline",
     )
@@ -215,9 +215,10 @@ async fn public_page(
     .bind(query.path.trim_matches('/'))
     .fetch_optional(&state.pool)
     .await?;
-    let (title, published, published_at) = row.ok_or(ApiError::NotFound)?;
+    let (site_id, title, published, published_at) = row.ok_or(ApiError::NotFound)?;
     let doc: PageDoc = serde_json::from_value(published).map_err(|e| ApiError::Internal(e.to_string()))?;
     let mut value = doc.render(false);
+    crate::media::attach(&state.pool, site_id, &mut value, true).await?;
     value["title"] = json!(title);
     value["published_at"] = json!(published_at);
     Ok((cache_headers(), Json(value)))
@@ -380,9 +381,12 @@ async fn read(
     .fetch_all(&state.pool)
     .await?;
     let draft_differs = page.published.as_ref() != Some(&page.draft);
-    let preview = serde_json::from_value::<PageDoc>(page.draft.clone())
+    let mut preview = serde_json::from_value::<PageDoc>(page.draft.clone())
         .map(|d| d.render(true))
         .ok();
+    if let Some(preview) = preview.as_mut() {
+        crate::media::attach(&state.pool, page.site_id, preview, false).await?;
+    }
     Ok(Json(json!({
         "page": page,
         "site": { "slug": site.0, "name": site.1, "theme": theme },
@@ -416,6 +420,7 @@ async fn save_draft(
     let path = input.path.trim().trim_matches('/').to_owned();
     validate_meta(&input.title, &path)?;
     let doc = decode(input.document)?;
+    crate::media::check_refs(&state.pool, previous.site_id, &doc).await?;
     let value = serde_json::to_value(&doc).map_err(|e| ApiError::Internal(e.to_string()))?;
     let updated = sqlx::query(
         "UPDATE pages SET title = $3, path = $4, draft = $5, draft_version = draft_version + 1,
@@ -448,8 +453,10 @@ async fn save_draft(
         )
         .await?;
     }
+    let mut preview = doc.render(true);
+    crate::media::attach(&state.pool, previous.site_id, &mut preview, false).await?;
     Ok(Json(
-        json!({ "draft_version": input.version + 1, "preview": doc.render(true) }),
+        json!({ "draft_version": input.version + 1, "preview": preview }),
     ))
 }
 

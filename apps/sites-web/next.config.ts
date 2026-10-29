@@ -1,6 +1,6 @@
 import path from "node:path";
 
-import { brandAssetHeaderRule, securityHeaders } from "@figbud/site-kit/server";
+import { brandAssetHeaderRule, mediaHeaderRule, securityHeaders } from "@figbud/site-kit/server";
 import type { NextConfig } from "next";
 
 // The monorepo root (apps/sites-web → repo root), for tracing shared packages.
@@ -35,7 +35,7 @@ const nextConfig: NextConfig = {
     },
   },
   async headers() {
-    return [{ source: "/:path*", headers }, brandAssetHeaderRule];
+    return [{ source: "/:path*", headers }, brandAssetHeaderRule, mediaHeaderRule];
   },
 };
 

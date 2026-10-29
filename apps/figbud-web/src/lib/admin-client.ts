@@ -64,6 +64,18 @@ export async function uploadBrandAsset<T>(slug: string, file: File, label: strin
   return parseResponse<T>(response);
 }
 
+/** Uploads a media library image as raw bytes; the API checks and re-encodes it. */
+export async function uploadMedia<T>(slug: string, file: File, label: string, alt: string): Promise<T> {
+  const query = new URLSearchParams({ label, alt });
+  const response = await fetch(`/admin/api/sites/${slug}/media/uploads?${query}`, {
+    method: "POST",
+    headers: { "content-type": file.type || "application/octet-stream" },
+    body: file,
+    credentials: "same-origin",
+  });
+  return parseResponse<T>(response);
+}
+
 const toBuffer = (value: string): ArrayBuffer => {
   const base64 = value
     .replace(/-/g, "+")

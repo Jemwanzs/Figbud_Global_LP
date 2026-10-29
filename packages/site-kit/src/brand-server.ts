@@ -25,13 +25,25 @@ export async function fetchListedSites(apiBase: string): Promise<ListedSite[] | 
  * passing through the API's immutable caching.
  */
 export function brandAssetRoute(apiBase: string) {
+  return assetProxyRoute(apiBase, "/v1/brand/assets/", true);
+}
+
+/**
+ * Route handler for `app/media/[id]/route.ts`: media library images used on
+ * published pages (the API decides what is public), from the website's origin.
+ */
+export function mediaRoute(apiBase: string) {
+  return assetProxyRoute(apiBase, "/v1/media/", false);
+}
+
+function assetProxyRoute(apiBase: string, upstreamPath: string, icons: boolean) {
   const base = apiBase.replace(/\/$/, "");
   return async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
     const { id } = await params;
     const query = new URL(request.url).searchParams;
     const width = query.get("w");
-    // A square PNG icon size (the API allows 16, 32, 48, 180, 192 and 512).
-    const icon = query.get("icon");
+    // A square PNG icon size (the API allows 16, 32, 48, 180, 192 and 512); logos only.
+    const icon = icons ? query.get("icon") : null;
     if (
       !UUID.test(id) ||
       (width !== null && !/^\d{1,4}$/.test(width)) ||
@@ -42,7 +54,7 @@ export function brandAssetRoute(apiBase: string) {
     const suffix = icon ? `?icon=${icon}` : width ? `?w=${width}` : "";
     let upstream: Response;
     try {
-      upstream = await fetch(`${base}/v1/brand/assets/${id}${suffix}`, {
+      upstream = await fetch(`${base}${upstreamPath}${id}${suffix}`, {
         signal: AbortSignal.timeout(10_000),
       });
     } catch {

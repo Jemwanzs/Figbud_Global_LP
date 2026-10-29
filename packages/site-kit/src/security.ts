@@ -65,3 +65,9 @@ export const brandAssetHeaderRule = {
     { key: "Content-Security-Policy", value: "default-src 'none'; style-src 'unsafe-inline'; sandbox" },
   ],
 };
+
+/** Media library images (`/media/*`): the same rule as logo files. */
+export const mediaHeaderRule = {
+  source: "/media/:path*",
+  headers: brandAssetHeaderRule.headers,
+};

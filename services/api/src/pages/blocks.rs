@@ -97,6 +97,26 @@ pub enum Block {
         body: Option<String>,
         cta: Cta,
     },
+    /// An image from the website's media library; its alt text comes from
+    /// the library, so it's written once and kept up to date everywhere.
+    Image {
+        image_id: uuid::Uuid,
+        #[serde(default)]
+        caption: Option<String>,
+        #[serde(default)]
+        size: ImageSize,
+    },
+}
+
+/// How wide an Image block is shown.
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum ImageSize {
+    /// The width of the text column.
+    #[default]
+    Content,
+    /// The full width of the page.
+    Wide,
 }
 
 // No `deny_unknown_fields` here: serde can't combine it with `flatten`; the
@@ -322,6 +342,9 @@ impl PageDoc {
                     c.text("sections", heading, 120, "Headings need 1–120 characters.");
                     c.optional("sections", body, 400, "Text can be up to 400 characters.");
                     c.cta(cta);
+                }
+                Block::Image { caption, .. } => {
+                    c.optional("sections", caption, 200, "Captions can be up to 200 characters.");
                 }
             }
         }

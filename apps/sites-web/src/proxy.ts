@@ -62,6 +62,6 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // Skip Next.js internals, logo files and any path with a file extension.
-  matcher: ["/((?!_next|brand/assets|.*\\..*).*)"],
+  // Skip Next.js internals, logo files, media images and any path with a file extension.
+  matcher: ["/((?!_next|brand/assets|media/|.*\\..*).*)"],
 };
