@@ -53,6 +53,7 @@ const ACTIONS: Record<string, string> = {
   "site.enquiries_closed": "Stopped taking enquiries for a website",
   "site.enquiries_opened": "Started taking enquiries for a website again",
   "privacy.updated": "Changed privacy and cookie settings",
+  "page.redirect_removed": "Stopped an old page address forwarding",
   "media.uploaded": "Uploaded an image",
   "media.updated": "Changed an image's name or alt text",
   "media.archived": "Archived an image",

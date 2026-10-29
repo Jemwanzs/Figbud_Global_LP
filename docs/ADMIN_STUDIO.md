@@ -151,6 +151,17 @@ Studio UI polish is a standing priority (P7-UX2): every milestone reviews the sc
 - **Remaining:**
   - deploying the renderer (approval needed), after which `apps/zirahr-web` can be retired.
 
+## Search settings per page (P7-G1, 30 Oct 2026)
+
+In the page builder's **Page** panel:
+
+- **Search title and description**, with a live preview of the search result (site, address, title, description).
+- **Sharing image:** the website's sharing image, or one of the website's media library images (its alt text is used); shared on LinkedIn, WhatsApp, X and similar.
+- **Hide from search engines:** the page gets `noindex` and is left out of the sitemap; visitors can still open it. Part of the draft, so it goes live with approval.
+- **Old addresses:** when a published page's address changes, the old address forwards to it permanently (308). The address field says so before you change it. Redirects point at the page, so moving it again never chains; an address another page takes stops forwarding; archived or offline pages receive none. Editors can stop a redirect (audited as `page.redirect_removed`).
+
+Websites get canonical URLs, Open Graph and X cards on every page, and a sitemap of indexable published pages.
+
 ## Media library (P7-D2, 30 Oct 2026)
 
 Websites → a website → **Media**. One library per website; pages use its images with the **Image** section (an image, an optional caption, text or full width).

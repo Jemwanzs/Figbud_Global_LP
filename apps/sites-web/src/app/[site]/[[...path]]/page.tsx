@@ -58,14 +58,22 @@ export async function generateMetadata(
         : page.seo_title || page.title,
     description,
     alternates: { canonical },
-    // Keep the website's sharing image (opengraph-image.tsx): a page's own
-    // Open Graph details would otherwise replace it.
+    // The page's own sharing image from the media library, else the
+    // website's (opengraph-image.tsx), which the page's Open Graph details
+    // would otherwise replace.
     openGraph: {
       url: canonical,
       title: page.seo_title || page.title,
       description,
-      images: (await parent).openGraph?.images,
+      images: page.seo_image
+        ? [{ url: `/media/${page.seo_image.id}?w=1440`, alt: page.seo_image.alt }]
+        : (await parent).openGraph?.images,
     },
+    ...(page.seo_image
+      ? { twitter: { card: "summary_large_image", images: [`/media/${page.seo_image.id}?w=1440`] } }
+      : {}),
+    // Kept out of search engines in the Studio.
+    ...(page.seo_noindex ? { robots: { index: false, follow: true } } : {}),
   };
 }
 
@@ -74,6 +82,7 @@ export default async function SitePage({ params }: PageProps<"/[site]/[[...path]
   if (!site) notFound();
 
   if (!page) {
+    // Old addresses of moved pages are forwarded earlier, by the proxy.
     if (path !== "") notFound();
     // Listed but nothing published yet: an honest holding page from the registry.
     return (

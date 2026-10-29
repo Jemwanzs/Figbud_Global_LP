@@ -62,6 +62,7 @@ pub fn image_ids(doc: &PageDoc) -> Vec<Uuid> {
             Block::Image { image_id, .. } => Some(*image_id),
             _ => None,
         })
+        .chain(doc.seo_image_id)
         .collect();
     ids.sort();
     ids.dedup();
@@ -101,6 +102,9 @@ pub async fn attach(
     rendered: &mut Value,
     public: bool,
 ) -> Result<(), sqlx::Error> {
+    let seo_image = rendered["seo_image_id"]
+        .as_str()
+        .and_then(|id| Uuid::parse_str(id).ok());
     let Some(sections) = rendered["sections"].as_array_mut() else {
         return Ok(());
     };
@@ -108,6 +112,7 @@ pub async fn attach(
         .iter()
         .filter(|s| s["type"] == "image")
         .filter_map(|s| s["image_id"].as_str().and_then(|id| Uuid::parse_str(id).ok()))
+        .chain(seo_image)
         .collect();
     if ids.is_empty() {
         return Ok(());
@@ -146,6 +151,12 @@ pub async fn attach(
     if public {
         sections.retain(|s| s["type"] != "image" || !s["media"].is_null());
     }
+    // The page's sharing image, when it's still in the library.
+    rendered["seo_image"] = rows
+        .iter()
+        .find(|r| Some(r.id) == seo_image)
+        .and_then(|r| serde_json::to_value(r).ok())
+        .unwrap_or(Value::Null);
     Ok(())
 }
 
@@ -209,7 +220,8 @@ async fn public_media(
              WHERE m.id = $1 AND m.archived_at IS NULL
                AND p.archived_at IS NULL AND NOT p.offline AND p.published IS NOT NULL
                AND s.archived_at IS NULL AND s.status IN ('coming_soon', 'beta', 'active')
-               AND jsonb_path_exists(p.published, '$.sections[*] ? (@.image_id == $id)', jsonb_build_object('id', $1::text)))",
+               AND (jsonb_path_exists(p.published, '$.sections[*] ? (@.image_id == $id)', jsonb_build_object('id', $1::text))
+                    OR p.published->>'seo_image_id' = $1::text))",
     )
     .bind(id)
     .fetch_one(&state.pool)
@@ -271,7 +283,11 @@ async fn usage(
                 LATERAL (SELECT jsonb_path_query(p.draft, '$.sections[*].image_id') #>> '{}' AS image_id,
                                 'draft'::text AS state
                          UNION ALL
-                         SELECT jsonb_path_query(p.published, '$.sections[*].image_id') #>> '{}', 'published') u
+                         SELECT jsonb_path_query(p.published, '$.sections[*].image_id') #>> '{}', 'published'
+                         UNION ALL
+                         SELECT p.draft->>'seo_image_id', 'draft' WHERE p.draft ? 'seo_image_id'
+                         UNION ALL
+                         SELECT p.published->>'seo_image_id', 'published' WHERE p.published ? 'seo_image_id') u
           WHERE p.site_id = $1 AND p.archived_at IS NULL
           ORDER BY p.title",
     )

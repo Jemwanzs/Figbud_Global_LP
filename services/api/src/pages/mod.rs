@@ -41,6 +41,8 @@ pub fn router() -> Router<SharedState> {
     Router::new()
         .route("/v1/sites/{slug}/pages", get(public_list))
         .route("/v1/sites/{slug}/page", get(public_page))
+        .route("/v1/redirects", get(public_redirects))
+        .route("/v1/admin/pages/{id}/redirects/remove", post(remove_redirect))
         .route("/v1/admin/sites/{slug}/pages", get(list).post(create))
         .route("/v1/admin/sites/{slug}/pages/order", post(reorder))
         .route("/v1/admin/pages/{id}", get(read))
@@ -177,8 +179,19 @@ async fn public_list(
 ) -> Result<impl IntoResponse, ApiError> {
     // Offline pages are left out entirely; `show_in_nav` tells websites which
     // pages belong in their navigation (the others stay reachable by address).
-    let rows: Vec<(String, String, Option<DateTime<Utc>>, bool)> = sqlx::query_as(
-        "SELECT p.path, p.title, p.published_at, p.show_in_nav FROM pages p JOIN sites s ON s.id = p.site_id
+    /// A published page as websites list it; `noindex` pages stay out of sitemaps.
+    #[derive(Serialize, FromRow)]
+    struct Listed {
+        path: String,
+        title: String,
+        published_at: Option<DateTime<Utc>>,
+        show_in_nav: bool,
+        noindex: bool,
+    }
+    let pages: Vec<Listed> = sqlx::query_as(
+        "SELECT p.path, p.title, p.published_at, p.show_in_nav,
+                COALESCE((p.published->>'seo_noindex')::boolean, false) AS noindex
+           FROM pages p JOIN sites s ON s.id = p.site_id
           WHERE s.slug = $1 AND s.archived_at IS NULL AND s.status IN ('coming_soon', 'beta', 'active')
             AND p.archived_at IS NULL AND p.published IS NOT NULL AND NOT p.offline
           ORDER BY p.position, p.path",
@@ -186,12 +199,6 @@ async fn public_list(
     .bind(&slug)
     .fetch_all(&state.pool)
     .await?;
-    let pages: Vec<Value> = rows
-        .into_iter()
-        .map(|(path, title, published_at, show_in_nav)| {
-            json!({ "path": path, "title": title, "published_at": published_at, "show_in_nav": show_in_nav })
-        })
-        .collect();
     Ok((cache_headers(), Json(pages)))
 }
 
@@ -222,6 +229,67 @@ async fn public_page(
     value["title"] = json!(title);
     value["published_at"] = json!(published_at);
     Ok((cache_headers(), Json(value)))
+}
+
+/// Every active redirect of listed websites (P7-G1): an old address of a
+/// published, online page that no live page has taken since. The renderer
+/// keeps this list for a minute and answers old addresses with a 308.
+async fn public_redirects(State(state): State<SharedState>) -> Result<impl IntoResponse, ApiError> {
+    #[derive(Serialize, FromRow)]
+    struct Redirect {
+        site: String,
+        from: String,
+        to: String,
+    }
+    let redirects: Vec<Redirect> = sqlx::query_as(
+        "SELECT s.slug AS site, '/' || r.from_path AS from, '/' || p.path AS to
+           FROM page_redirects r
+           JOIN pages p ON p.id = r.page_id
+           JOIN sites s ON s.id = r.site_id
+          WHERE s.archived_at IS NULL AND s.status IN ('coming_soon', 'beta', 'active')
+            AND p.archived_at IS NULL AND p.published IS NOT NULL AND NOT p.offline AND p.path <> r.from_path
+            AND NOT EXISTS (SELECT 1 FROM pages live WHERE live.site_id = r.site_id AND live.path = r.from_path
+                              AND live.archived_at IS NULL AND live.published IS NOT NULL AND NOT live.offline)
+          ORDER BY s.slug, r.from_path",
+    )
+    .fetch_all(&state.pool)
+    .await?;
+    Ok((cache_headers(), Json(redirects)))
+}
+
+#[derive(Deserialize)]
+struct RedirectInput {
+    from_path: String,
+}
+
+/// Stops an old address forwarding to this page (it then answers "not found").
+async fn remove_redirect(
+    State(state): State<SharedState>,
+    session: AdminSession,
+    Path(id): Path<Uuid>,
+    Json(input): Json<RedirectInput>,
+) -> Result<impl IntoResponse, ApiError> {
+    session.require(Role::Editor)?;
+    let page = page(&state.pool, id).await?;
+    let from = input.from_path.trim_matches('/').to_owned();
+    let removed = sqlx::query("DELETE FROM page_redirects WHERE page_id = $1 AND from_path = $2")
+        .bind(id)
+        .bind(&from)
+        .execute(&state.pool)
+        .await?
+        .rows_affected();
+    if removed == 0 {
+        return Err(ApiError::NotFound);
+    }
+    audit_site(
+        &state.pool,
+        &session,
+        page.site_id,
+        "page.redirect_removed",
+        json!({ "page": id, "from_path": format!("/{from}") }),
+    )
+    .await?;
+    Ok(Json(json!({ "removed": format!("/{from}") })))
 }
 
 fn cache_headers() -> [(header::HeaderName, HeaderValue); 1] {
@@ -387,8 +455,15 @@ async fn read(
     if let Some(preview) = preview.as_mut() {
         crate::media::attach(&state.pool, page.site_id, preview, false).await?;
     }
+    let redirects: Vec<(String, DateTime<Utc>)> = sqlx::query_as(
+        "SELECT from_path, created_at FROM page_redirects WHERE page_id = $1 ORDER BY created_at DESC",
+    )
+    .bind(id)
+    .fetch_all(&state.pool)
+    .await?;
     Ok(Json(json!({
         "page": page,
+        "redirects": redirects.into_iter().map(|(from, at)| json!({ "from_path": format!("/{from}"), "created_at": at })).collect::<Vec<_>>(),
         "site": { "slug": site.0, "name": site.1, "theme": theme },
         "draft_differs": draft_differs,
         "preview": preview,
@@ -440,6 +515,26 @@ async fn save_draft(
         return Err(ApiError::Conflict(
             "Someone else changed this page. Reload to see their changes.",
         ));
+    }
+    // The address a page now uses is no longer an old address of any page.
+    sqlx::query("DELETE FROM page_redirects WHERE site_id = $1 AND from_path = $2")
+        .bind(previous.site_id)
+        .bind(&path)
+        .execute(&state.pool)
+        .await?;
+    if previous.path != path && previous.published.is_some() {
+        // A published page moved: its old address forwards to it.
+        sqlx::query(
+            "INSERT INTO page_redirects (site_id, from_path, page_id, created_by) VALUES ($1, $2, $3, $4)
+             ON CONFLICT (site_id, from_path) DO UPDATE SET page_id = EXCLUDED.page_id,
+                    created_by = EXCLUDED.created_by, created_at = now()",
+        )
+        .bind(previous.site_id)
+        .bind(&previous.path)
+        .bind(id)
+        .bind(session.user.id)
+        .execute(&state.pool)
+        .await?;
     }
     if previous.draft != value || previous.title != input.title.trim() || previous.path != path {
         audit_site(

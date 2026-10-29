@@ -303,6 +303,158 @@ function ToneField({
   );
 }
 
+/**
+ * How the page appears in search results and when shared (P7-G1): a result
+ * preview, the page's own sharing image, keeping it out of search engines,
+ * and the old addresses that forward to it.
+ */
+function SearchSettings({
+  siteName,
+  title,
+  path,
+  description,
+  imageId,
+  noindex,
+  library,
+  redirects,
+  disabled,
+  onImage,
+  onNoindex,
+  onRemoveRedirect,
+}: {
+  siteName: string;
+  title: string;
+  path: string;
+  description: string;
+  imageId: string | null;
+  noindex: boolean;
+  library: MediaItem[] | null;
+  redirects: { from_path: string; created_at: string }[];
+  disabled: boolean;
+  onImage: (id: string | null) => void;
+  onNoindex: (on: boolean) => void;
+  onRemoveRedirect: (from: string) => Promise<void>;
+}) {
+  const uid = useId();
+  const [removing, setRemoving] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const clip = (text: string, max: number) => (text.length > max ? `${text.slice(0, max - 1)}…` : text);
+  return (
+    <div className="mt-6 space-y-5 border-t border-line pt-5">
+      <div>
+        <p className="text-xs font-medium tracking-wide text-subtle uppercase">Search result preview</p>
+        <div className="mt-2 rounded-xl border border-line bg-surface p-4" aria-label="Search result preview">
+          <p className="truncate text-xs text-muted">
+            {siteName} › {path ? path.split("/").join(" › ") : "home"}
+          </p>
+          <p className="mt-1 truncate text-base text-[#8ab4f8] [[data-theme=light]_&]:text-[#1a0dab]">
+            {clip(title, 70)}
+          </p>
+          <p className="mt-1 line-clamp-2 text-sm text-muted">
+            {description
+              ? clip(description, 170)
+              : "Without a description, search engines pick text from the page."}
+          </p>
+        </div>
+      </div>
+
+      <div>
+        <label htmlFor={`${uid}-image`} className="block text-sm font-medium text-text">
+          Sharing image
+        </label>
+        <select
+          id={`${uid}-image`}
+          value={imageId ?? ""}
+          disabled={disabled || library === null}
+          onChange={(e) => onImage(e.target.value || null)}
+          className="mt-1.5 min-h-11 w-full rounded-xl border border-line-strong bg-surface px-3 text-sm text-text disabled:opacity-60"
+        >
+          <option value="">The website&apos;s sharing image</option>
+          {(library ?? []).map((m) => (
+            <option key={m.id} value={m.id}>
+              {m.label}
+            </option>
+          ))}
+        </select>
+        <p className="mt-1.5 text-xs text-subtle">
+          Shown when the page is shared on LinkedIn, WhatsApp, X and similar. Wide images (about 1200 × 630)
+          work best.
+        </p>
+        {imageId && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={`${STUDIO_MEDIA_BASE}${imageId}?w=480`}
+            alt=""
+            className="mt-2 aspect-[1200/630] w-full rounded-xl border border-line bg-surface-2 object-cover"
+          />
+        )}
+      </div>
+
+      <label className="flex min-h-11 cursor-pointer items-start gap-3 text-sm text-text">
+        <input
+          type="checkbox"
+          checked={noindex}
+          disabled={disabled}
+          onChange={(e) => onNoindex(e.target.checked)}
+          className="mt-0.5 size-5 shrink-0 accent-[var(--accent)]"
+        />
+        <span>
+          Hide from search engines
+          <span className="mt-0.5 block text-subtle">
+            For pages like thank-you or campaign pages. Visitors can still open the page; it&apos;s left out
+            of the sitemap.
+          </span>
+        </span>
+      </label>
+
+      <div>
+        <p className="text-sm font-medium text-text">Old addresses</p>
+        {redirects.length === 0 ? (
+          <p className="mt-1 text-xs text-subtle">
+            When a published page moves, its old address forwards here automatically.
+          </p>
+        ) : (
+          <ul className="mt-2 space-y-2">
+            {redirects.map((r) => (
+              <li
+                key={r.from_path}
+                className="flex items-center justify-between gap-3 rounded-xl border border-line px-3 py-2"
+              >
+                <span className="min-w-0 truncate font-mono text-sm text-text">{r.from_path}</span>
+                {!disabled && (
+                  <button
+                    type="button"
+                    disabled={removing === r.from_path}
+                    onClick={async () => {
+                      setRemoving(r.from_path);
+                      setError(null);
+                      try {
+                        await onRemoveRedirect(r.from_path);
+                      } catch {
+                        setError("That didn't work. Please try again.");
+                      } finally {
+                        setRemoving(null);
+                      }
+                    }}
+                    className="shrink-0 text-sm text-muted hover:text-danger disabled:opacity-50"
+                  >
+                    Stop forwarding<span className="sr-only"> {r.from_path}</span>
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+        {error && (
+          <p role="alert" className="mt-2 text-sm text-danger">
+            {error}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function BlockForm({
   section,
   library,
@@ -815,6 +967,7 @@ export function PageEditor({ slug, user, initial }: { slug: string; user: AdminU
   }
 
   // Preview: local edits immediately; Markdown uses the API's rendering once saved.
+  const [redirects, setRedirects] = useState(initial.redirects ?? []);
   // The website's media library, for Image blocks (archived images can't be chosen).
   const [library, setLibrary] = useState<MediaItem[] | null>(null);
   useEffect(() => {
@@ -1002,9 +1155,11 @@ export function PageEditor({ slug, user, initial }: { slug: string; user: AdminU
                 mono
                 disabled={!canEdit}
                 hint={
-                  pathValid
-                    ? `/${draft.path} · empty for the home page`
-                    : "Lower-case words joined by hyphens; up to three levels."
+                  !pathValid
+                    ? "Lower-case words joined by hyphens; up to three levels."
+                    : initial.page.published && draft.path !== initial.page.path
+                      ? `/${draft.path} · the old address /${initial.page.path} will forward here`
+                      : `/${draft.path} · empty for the home page`
                 }
                 onChange={(v) => change({ ...draft, path: v })}
               />
@@ -1026,6 +1181,27 @@ export function PageEditor({ slug, user, initial }: { slug: string; user: AdminU
                 onChange={(v) => change({ ...draft, document: { ...draft.document, seo_description: v } })}
               />
             </div>
+            <SearchSettings
+              siteName={initial.site.name}
+              title={draft.document.seo_title || draft.title}
+              path={draft.path}
+              description={draft.document.seo_description ?? ""}
+              imageId={draft.document.seo_image_id ?? null}
+              noindex={!!draft.document.seo_noindex}
+              library={library}
+              redirects={redirects}
+              disabled={!canEdit}
+              onImage={(id) =>
+                change({ ...draft, document: { ...draft.document, seo_image_id: id ?? undefined } })
+              }
+              onNoindex={(on) =>
+                change({ ...draft, document: { ...draft.document, seo_noindex: on || undefined } })
+              }
+              onRemoveRedirect={async (from) => {
+                await adminFetch(`pages/${pageId}/redirects/remove`, { from_path: from });
+                setRedirects((list) => list.filter((r) => r.from_path !== from));
+              }}
+            />
           </section>
 
           <section aria-labelledby={`${uid}-sections`} className="fb-panel rounded-[var(--radius-panel)] p-5">

@@ -80,6 +80,8 @@ export interface PageDetail {
   /** The saved draft as websites would receive it (Markdown rendered). */
   preview: PageDocument | null;
   revisions: PageRevision[];
+  /** Old addresses of this page that forward to it (P7-G1). */
+  redirects?: { from_path: string; created_at: string }[];
 }
 
 export type BlockType = PageSection["type"];

@@ -23,6 +23,8 @@ export interface PublishedPageRef {
   published_at: string | null;
   /** Listed in the navigation; pages left out stay reachable by address. Absent means listed. */
   show_in_nav?: boolean;
+  /** Kept out of search engines (and sitemaps) in the Studio. */
+  noindex?: boolean;
 }
 
 /**

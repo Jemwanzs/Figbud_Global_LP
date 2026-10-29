@@ -155,6 +155,14 @@ pub struct PageDoc {
     /// Search result description.
     #[serde(default)]
     pub seo_description: Option<String>,
+    /// The page's own sharing image, from the website's media library
+    /// (otherwise the website's sharing image is used).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub seo_image_id: Option<uuid::Uuid>,
+    /// Asks search engines not to index the page; it's also left out of the
+    /// sitemap. Omitted when false, so existing documents are unchanged.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub seo_noindex: bool,
     #[serde(default)]
     pub sections: Vec<Section>,
 }
@@ -380,7 +388,8 @@ impl PageDoc {
                 value
             })
             .collect();
-        json!({ "seo_title": self.seo_title, "seo_description": self.seo_description, "sections": sections })
+        json!({ "seo_title": self.seo_title, "seo_description": self.seo_description,
+                "seo_image_id": self.seo_image_id, "seo_noindex": self.seo_noindex, "sections": sections })
     }
 }
 

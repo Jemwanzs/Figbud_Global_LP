@@ -13,7 +13,8 @@ export async function GET() {
   const urls: { loc: string; lastmod: string | null }[] = [];
   if (allowIndexing) {
     for (const site of own ? [own] : sites) {
-      for (const page of await getPages(site.slug)) {
+      // Pages kept out of search engines in the Studio aren't listed.
+      for (const page of (await getPages(site.slug)).filter((p) => !p.noindex)) {
         urls.push({ loc: canonicalUrl(site, Boolean(own), page.path), lastmod: page.published_at });
       }
     }

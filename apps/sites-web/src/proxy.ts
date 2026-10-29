@@ -41,10 +41,38 @@ async function hostMap(): Promise<Map<string, string>> {
   return hosts.map;
 }
 
+let moved: { map: Map<string, string>; at: number } = { map: new Map(), at: 0 };
+
+/** Old addresses of moved pages ("slug:/old" → "/new", P7-G1), refreshed at most once a minute. */
+async function redirectMap(): Promise<Map<string, string>> {
+  if (Date.now() - moved.at < 60_000) return moved.map;
+  try {
+    const response = await fetch(`${apiBase}/v1/redirects`, { signal: AbortSignal.timeout(3000) });
+    if (response.ok) {
+      const list = (await response.json()) as { site: string; from: string; to: string }[];
+      moved = { map: new Map(list.map((r) => [`${r.site}:${r.from}`, r.to] as const)), at: Date.now() };
+    }
+  } catch {
+    // Keep the last known list; pages themselves are unaffected.
+  }
+  return moved.map;
+}
+
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const host = (request.headers.get("host") ?? "").split(":")[0]!.toLowerCase();
   const slug = (await hostMap()).get(host);
+
+  // A moved page's old address forwards permanently (308) to where it lives now.
+  const [, first = "", ...rest] = pathname.split("/");
+  const site = slug ?? first;
+  const path = slug ? pathname.replace(/\/$/, "") || "/" : `/${rest.join("/")}`.replace(/\/$/, "") || "/";
+  const to = path !== "/" ? (await redirectMap()).get(`${site}:${path}`) : undefined;
+  if (to) {
+    const url = request.nextUrl.clone();
+    url.pathname = slug ? to : `/${site}${to === "/" ? "" : to}`;
+    return NextResponse.redirect(url, 308);
+  }
 
   if (slug) {
     const url = request.nextUrl.clone();

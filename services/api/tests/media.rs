@@ -92,9 +92,9 @@ async fn admin(pool: &PgPool, role: &str) -> String {
 }
 
 /// A synthetic photo: a JPEG gradient, unique per run so uploads aren't deduplicated.
-fn photo(seed: u8, width: u32, height: u32) -> Vec<u8> {
+fn photo(seed: [u8; 16], width: u32, height: u32) -> Vec<u8> {
     let image = image::RgbImage::from_fn(width, height, |x, y| {
-        image::Rgb([(x % 256) as u8, (y % 256) as u8, seed])
+        image::Rgb([(x % 256) as u8, (y % 256) as u8, seed[(x / 16 % 16) as usize]])
     });
     let mut out = Cursor::new(Vec::new());
     image.write_to(&mut out, image::ImageFormat::Jpeg).unwrap();
@@ -108,7 +108,7 @@ async fn media_library_uploads_usage_and_public_delivery() {
     let app = app_with(pool.clone(), config(&url));
     let viewer = admin(&pool, "viewer").await;
     let editor = admin(&pool, "editor").await;
-    let seed = Uuid::new_v4().as_bytes()[0];
+    let seed = Uuid::new_v4().into_bytes();
 
     // Alt text and a name are required; viewers can't upload; types are checked.
     let (status, body) = upload(&app, &editor, "label=Team", "image/jpeg", photo(seed, 2600, 1200)).await;

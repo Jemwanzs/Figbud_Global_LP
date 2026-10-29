@@ -240,3 +240,24 @@ test("each website shares with a card generated from its brand", async ({ page, 
   expect(bytes.readUInt32BE(16)).toBe(1200);
   expect(bytes.readUInt32BE(20)).toBe(630);
 });
+
+test("a moved page's old address forwards permanently, and pages can share their own image", async ({
+  page,
+  request,
+}) => {
+  // Mock fixtures: /lending-platform was Ziwa's Platform page, which has its own sharing image.
+  const moved = await request.get("/ziwa/lending-platform", { maxRedirects: 0 });
+  expect(moved.status()).toBe(308);
+  expect(moved.headers()["location"]).toBe("/ziwa/platform");
+  await page.goto("/ziwa/lending-platform");
+  await expect(page).toHaveURL(/\/ziwa\/platform$/);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("One platform for lending operations");
+  const og = await page.locator('meta[property="og:image"]').getAttribute("content");
+  expect(og).toMatch(/\/media\/[0-9a-f-]{36}\?w=1440$/);
+  await expect(page.locator('meta[property="og:image:alt"]')).toHaveAttribute(
+    "content",
+    "The Ziwa LMS team planning a loan product",
+  );
+  // Addresses that never existed are still real 404s.
+  expect((await request.get("/ziwa/never-existed", { maxRedirects: 0 })).status()).toBe(404);
+});

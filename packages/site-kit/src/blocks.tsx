@@ -89,6 +89,12 @@ export function mediaImageSources(media: MediaInfo, wide: boolean, base = MEDIA_
 export interface PageDocument {
   seo_title?: string | null;
   seo_description?: string | null;
+  /** The page's own sharing image from the media library (else the website's). */
+  seo_image_id?: string | null;
+  /** Asks search engines not to index the page; it's left out of sitemaps. */
+  seo_noindex?: boolean;
+  /** Added by the API: the sharing image's details, when it's available. */
+  seo_image?: MediaInfo | null;
   sections: PageSection[];
 }
 

@@ -1167,8 +1167,11 @@ const md = (t) =>
     .map((p) => `<p>${escapeHtml(p).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")}</p>`)
     .join("");
 // Websites never receive hidden sections; Studio previews keep them (`includeHidden`).
+// Old addresses of moved pages (services/api/src/pages: page_redirects): "slug:path" -> page id.
+const pageRedirects = new Map();
 const renderDoc = (doc, includeHidden = true) => ({
   ...doc,
+  ...(doc.seo_image_id ? { seo_image: mediaInfo(mediaAssets.get(doc.seo_image_id)) } : {}),
   sections: doc.sections
     .filter((s) => includeHidden || !s.hidden)
     .map((s) => (s.type === "image" ? { ...s, media: mediaInfo(mediaAssets.get(s.image_id)) } : s))
@@ -1218,6 +1221,9 @@ const pageDetail = (p) => ({
   draft_differs: JSON.stringify(p.draft) !== JSON.stringify(p.published),
   preview: renderDoc(p.draft),
   revisions: p.revisions.slice().sort((a, b) => b.number - a.number),
+  redirects: [...pageRedirects.entries()]
+    .filter(([, id]) => id === p.id)
+    .map(([key]) => ({ from_path: `/${key.split(":")[1]}`, created_at: new Date().toISOString() })),
 });
 
 /** Stands in for the API's scheduler: publishes approved changes that are due. */
@@ -1237,6 +1243,17 @@ function publishDuePages() {
 }
 
 function pagesRoutes(path, req, body, user, send) {
+  const unredirect = /^pages\/([0-9a-f-]{36})\/redirects\/remove$/.exec(path);
+  if (unredirect) {
+    if (RANKS[user.role] < RANKS.editor)
+      return send(403, { error: { code: "forbidden", message: "You don't have permission to do that." } });
+    const page = pages.get(unredirect[1]);
+    const key = page && `${page.site.slug}:${String(body.from_path ?? "").replace(/^\/+|\/+$/g, "")}`;
+    if (!page || pageRedirects.get(key) !== page.id)
+      return send(404, { error: { code: "not_found", message: "Not found." } });
+    pageRedirects.delete(key);
+    return send(200, { removed: `/${key.split(":")[1]}` });
+  }
   publishDuePages();
   const notFound = () => send(404, { error: { code: "not_found", message: "Not found." } });
   const forbidden = (message = "You don't have permission to do that.") =>
@@ -1341,6 +1358,8 @@ function pagesRoutes(path, req, body, user, send) {
       ]);
     const problems = validateDoc(body.document);
     if (problems.length) return invalid([{ field: "sections", code: "invalid", message: problems[0] }]);
+    pageRedirects.delete(`${page.site.slug}:${p}`);
+    if (page.published && page.path !== p) pageRedirects.set(`${page.site.slug}:${page.path}`, page.id);
     Object.assign(page, {
       title: body.title.trim(),
       path: p,
@@ -1542,6 +1561,7 @@ const [, ziwaTeam] = storeMedia(
   "Seed",
 );
 seedPublishedPage("ziwa", "platform", "Platform", {
+  seo_image_id: ziwaTeam.id,
   sections: [
     { id: "p-hero", type: "hero", eyebrow: "Platform", heading: "One platform for lending operations" },
     {
@@ -1559,6 +1579,12 @@ seedPublishedPage("ziwa", "platform", "Platform", {
     },
   ],
 });
+
+// Its old address forwards to it (P7-G1).
+pageRedirects.set(
+  "ziwa:lending-platform",
+  [...pages.values()].find((p) => p.site?.slug === "ziwa" && p.path === "platform").id,
+);
 
 // Ziwa pages left out of the navigation, and taken offline (renderer tests).
 seedPublishedPage(
@@ -1615,6 +1641,23 @@ const listedSite = (slug) => sites.find((s) => s.slug === slug && !s.archived_at
 
 function publicPages(url, send) {
   publishDuePages();
+  if (url.pathname === "/v1/redirects") {
+    const live = (slug, path) =>
+      [...pages.values()].some(
+        (p) => p.site?.slug === slug && p.path === path && p.published && !p.archived_at && !p.offline,
+      );
+    send(
+      200,
+      [...pageRedirects.entries()].flatMap(([key, id]) => {
+        const [slug, from] = key.split(":");
+        const target = pages.get(id);
+        return target && target.published && !target.archived_at && !target.offline && !live(slug, from)
+          ? [{ site: slug, from: `/${from}`, to: `/${target.path}` }]
+          : [];
+      }),
+    );
+    return true;
+  }
   const list = /^\/v1\/sites\/([a-z0-9_-]+)\/pages$/.exec(url.pathname);
   const one = /^\/v1\/sites\/([a-z0-9_-]+)\/page$/.exec(url.pathname);
   const slug = (list ?? one)?.[1];
@@ -1633,6 +1676,7 @@ function publicPages(url, send) {
           title: p.title,
           published_at: p.published_at,
           show_in_nav: p.show_in_nav !== false,
+          noindex: Boolean(p.published?.seo_noindex),
         })),
     );
     return true;
