@@ -218,11 +218,13 @@ async fn seeded_official_logos_are_published_and_proposals_stay_in_draft() {
         "INSERT INTO brand_assets (id, site_id, label, alt_text, content_type, width, height, has_alpha,
                                    byte_size, sha256, data, origin)
          VALUES ($1, $2, 'Ziwa LMS logo (blue and green)', 'Ziwa LMS', 'image/svg+xml', 40, 20, true, 4,
-                 'old-ziwa', 'test', 'official')
+                 $3, 'test', 'official')
          RETURNING id",
     )
     .bind(Uuid::now_v7())
     .bind(ziwa_site)
+    // Unique per run, so the test can run again on the same database.
+    .bind(Uuid::new_v4().to_string())
     .fetch_one(&s.pool)
     .await
     .unwrap();
@@ -230,11 +232,13 @@ async fn seeded_official_logos_are_published_and_proposals_stay_in_draft() {
         "INSERT INTO brand_assets (id, site_id, label, alt_text, content_type, width, height, has_alpha,
                                    byte_size, sha256, data, origin)
          VALUES ($1, $2, 'Campaign banner', 'Ziwa LMS', 'image/svg+xml', 40, 20, true, 4,
-                 'studio-upload', 'test', 'upload')
+                 $3, 'test', 'upload')
          RETURNING id",
     )
     .bind(Uuid::now_v7())
     .bind(ziwa_site)
+    // Unique per run, so the test can run again on the same database.
+    .bind(Uuid::new_v4().to_string())
     .fetch_one(&s.pool)
     .await
     .unwrap();

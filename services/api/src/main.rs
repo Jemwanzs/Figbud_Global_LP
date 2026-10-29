@@ -59,6 +59,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let scheduler = tokio::spawn(figbud_api::pages::run_scheduler(
         pool.clone(),
         std::time::Duration::from_secs(15),
+        shutdown_rx.clone(),
+    ));
+    // Deletes consent records past their retention period.
+    let purger = tokio::spawn(figbud_api::privacy::run_purger(
+        pool.clone(),
+        std::time::Duration::from_secs(6 * 3600),
         shutdown_rx,
     ));
 
@@ -76,6 +82,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let _ = shutdown_tx.send(true);
     let _ = scheduler.await;
+    let _ = purger.await;
     if let Some(worker) = worker {
         let _ = worker.await;
     }

@@ -30,7 +30,7 @@ const sw: DeepPartial<Dictionary> = {
       requestDemo: "Omba onyesho",
     },
     status: { active: "Inatumika", coming_soon: "Inakuja hivi karibuni", planned: "Imepangwa" },
-    theme: { label: "Mandhari", light: "Angavu", dark: "Meusi", system: "Ya mfumo" },
+    theme: { toLight: "Badili kwenda mandhari angavu", toDark: "Badili kwenda mandhari meusi" },
     language: { label: "Lugha", inReview: "Inakaguliwa" },
     menu: { open: "Fungua menyu", close: "Funga menyu" },
     opensInNewTab: "hufunguka kwenye kichupo kipya",
@@ -58,10 +58,53 @@ const sw: DeepPartial<Dictionary> = {
     finalCta: { titleLead: "Biashara tata?", titleAccent: "Kutana na teknolojia rahisi." },
   },
   footer: {
+    cookieSettings: "Mipangilio ya vidakuzi",
     productsTitle: "Bidhaa",
     companyTitle: "Kampuni",
     legalTitle: "Kisheria",
     rights: "Haki zote zimehifadhiwa.",
+  },
+  consent: {
+    labels: {
+      region: "Idhini ya vidakuzi",
+      acceptAll: "Kubali vyote",
+      rejectOptional: "Kataa vya hiari",
+      customize: "Chagua mwenyewe",
+      save: "Hifadhi chaguo",
+      preferencesTitle: "Mapendeleo ya vidakuzi",
+      preferencesIntro:
+        "Chagua vidakuzi vya hiari tunavyoweza kutumia. Unaweza kubadilisha uamuzi wako wakati wowote kupitia “Mipangilio ya vidakuzi” chini ya kila ukurasa.",
+      alwaysOn: "Huwa vimewashwa",
+      privacyPolicy: "Sera ya Faragha",
+      cookiePolicy: "Sera ya Vidakuzi",
+      close: "Funga",
+    },
+    banner: {
+      title: "Faragha yako ni muhimu",
+      body: "Tunatumia vidakuzi muhimu ili tovuti yetu ifanye kazi. Kwa idhini yako, tunaweza pia kutumia vidakuzi vya hiari kuelewa jinsi tovuti inavyotumiwa na kuboresha matumizi yako.",
+    },
+    categories: {
+      necessary: {
+        label: "Muhimu kabisa",
+        description:
+          "Huifanya tovuti ifanye kazi kwa usalama: hukumbuka chaguo zako za vidakuzi, mandhari na lugha yako, na hulinda fomu dhidi ya matumizi mabaya. Huwa vimewashwa.",
+      },
+      analytics: {
+        label: "Takwimu",
+        description:
+          "Hutusaidia kuelewa jinsi tovuti inavyotumiwa, kama kurasa zinazotembelewa, ili tuiboreshe.",
+      },
+      preferences: {
+        label: "Mapendeleo",
+        description:
+          "Hukumbuka mipangilio ya hiari ya kibinafsi zaidi ya ile muhimu, ili kuboresha matumizi yako.",
+      },
+      marketing: {
+        label: "Masoko",
+        description:
+          "Hupima ufikiaji wa masoko yetu na kuonyesha maudhui ya FigBud yanayofaa kwenye tovuti nyingine.",
+      },
+    },
   },
 };
 

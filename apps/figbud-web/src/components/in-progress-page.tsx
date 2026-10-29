@@ -19,6 +19,7 @@ export function InProgressPage({
   title,
   lead,
   body,
+  children,
 }: {
   locale: Locale;
   dict: Dictionary;
@@ -27,6 +28,8 @@ export function InProgressPage({
   title: string;
   lead?: string;
   body?: string;
+  /** Factual content that can be shown before the page is finalised. */
+  children?: React.ReactNode;
 }) {
   const copy = dict.pages.inProgress;
   return (
@@ -48,6 +51,7 @@ export function InProgressPage({
       />
       <Container size="wide" className="py-16 sm:py-20">
         <p className="max-w-2xl leading-relaxed text-muted">{body ?? copy.body}</p>
+        {children}
         <Link href={localizePath(locale)} className={buttonClasses("secondary", "md", "mt-8")}>
           <ArrowLeft aria-hidden className="size-4 rtl:rotate-180" />
           {copy.back}

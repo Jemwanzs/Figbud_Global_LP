@@ -13,6 +13,7 @@ const NAV = [
   { href: "/admin/sites", label: "Websites" },
   { href: "/admin/insights", label: "Insights" },
   { href: "/admin/enquiries", label: "Enquiries" },
+  { href: "/admin/settings", label: "Settings" },
 ] as const;
 
 /** Header and navigation shared by every signed-in admin page. */

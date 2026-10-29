@@ -4,6 +4,29 @@ const PORT = Number(process.env.E2E_PORT ?? 3100);
 const MOCK_API_PORT = 3199;
 
 /**
+ * Visitors in most tests have already made their cookie choice (optional
+ * cookies rejected), so the banner doesn't cover the page; the consent tests
+ * start without it.
+ */
+const choiceMade = {
+  cookies: [
+    {
+      name: "fb_consent",
+      value: encodeURIComponent(
+        `1|00000000-0000-4000-8000-000000000000|000|${Math.floor(Date.now() / 1000)}`,
+      ),
+      domain: "localhost",
+      path: "/",
+      expires: -1,
+      httpOnly: false,
+      secure: false,
+      sameSite: "Lax" as const,
+    },
+  ],
+  origins: [],
+};
+
+/**
  * End-to-end tests run against a production build (`npm run build` first).
  * The enquiry API is mocked at the network layer and the CMS by e2e/mock-api.mjs,
  * so no backend is required.
@@ -17,8 +40,9 @@ export default defineConfig({
   use: {
     baseURL: `http://localhost:${PORT}`,
     trace: "retain-on-failure",
-    // Sites follow the device theme; test as a dark-mode device unless a test says otherwise.
+    // Dark is the default theme whatever the device prefers; tests run as a dark-mode device.
     colorScheme: "dark",
+    storageState: choiceMade,
   },
   projects: [
     { name: "desktop", use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 } } },

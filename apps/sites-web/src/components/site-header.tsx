@@ -78,10 +78,7 @@ export function SiteHeader({
           </nav>
         )}
         <div className="ms-auto flex items-center gap-2 sm:gap-3">
-          <ThemeToggle
-            labels={{ label: "Theme", light: "Light", dark: "Dark", system: "System" }}
-            className="max-sm:hidden"
-          />
+          <ThemeToggle labels={{ toLight: "Switch to light theme", toDark: "Switch to dark theme" }} />
           <a href={cta.href} className={buttonClasses("product", "md")}>
             {cta.label}
             <ArrowRight aria-hidden className="size-4 rtl:rotate-180" />

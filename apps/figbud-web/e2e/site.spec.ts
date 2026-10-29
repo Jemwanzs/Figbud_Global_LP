@@ -66,31 +66,45 @@ test.describe("homepage", () => {
 });
 
 test.describe("theme and language", () => {
-  test("follows the device until a theme is chosen, and remembers the choice", async ({ page }) => {
+  test("dark by default whatever the device prefers; one button switches and is remembered", async ({
+    page,
+  }) => {
     const html = page.locator("html");
-    const theme = page.getByRole("radiogroup", { name: "Theme" });
+    // A first-time visitor whose device prefers light still gets dark.
     await page.emulateMedia({ colorScheme: "light" });
     await page.goto("/en");
-    await expect(html).toHaveAttribute("data-theme", "light");
-    await expect(theme.getByRole("radio", { name: "System" })).toHaveAttribute("aria-checked", "true");
-    // System follows the device live.
-    await page.emulateMedia({ colorScheme: "dark" });
     await expect(html).toHaveAttribute("data-theme", "dark");
-    // A chosen theme wins over the device and is remembered.
+    const toLight = page.getByRole("button", { name: "Switch to light theme" });
+    await expect(toLight).toBeVisible();
+    // Dark shows the sun, light shows the moon.
+    await expect(toLight.locator('[data-theme-icon="sun"]')).toHaveCSS("opacity", "1");
     await expect(async () => {
-      await theme.getByRole("radio", { name: "Light" }).click();
+      await toLight.click();
       await expect(html).toHaveAttribute("data-theme", "light", { timeout: 1_000 });
     }).toPass();
+    const toDark = page.getByRole("button", { name: "Switch to dark theme" });
+    await expect(toDark.locator('[data-theme-icon="moon"]')).toHaveCSS("opacity", "1");
+    // The choice is remembered, applied before first paint (no flash of dark).
+    await page.goto("/en/products");
+    expect(await page.evaluate(() => document.documentElement.dataset.theme)).toBe("light");
     await page.reload();
     await expect(html).toHaveAttribute("data-theme", "light");
-    await expect(theme.getByRole("radio", { name: "Light" })).toHaveAttribute("aria-checked", "true");
-    // Arrow keys move through the options.
-    await theme.getByRole("radio", { name: "Light" }).focus();
-    await page.keyboard.press("ArrowRight");
+    // Keyboard: Enter flips it back.
+    await toDark.focus();
+    await page.keyboard.press("Enter");
     await expect(html).toHaveAttribute("data-theme", "dark");
-    await expect(theme.getByRole("radio", { name: "Dark" })).toBeFocused();
-    await page.keyboard.press("ArrowRight");
-    await expect(html).toHaveAttribute("data-theme-preference", "system");
+    await expect(page.getByRole("button", { name: "Switch to light theme" })).toBeFocused();
+    // A device switching to light later changes nothing.
+    await page.emulateMedia({ colorScheme: "dark" });
+    await page.emulateMedia({ colorScheme: "light" });
+    await expect(html).toHaveAttribute("data-theme", "dark");
+  });
+
+  test("an older saved preference to follow the device starts dark", async ({ page }) => {
+    await page.emulateMedia({ colorScheme: "light" });
+    await page.addInitScript(() => localStorage.setItem("fb-theme", "system"));
+    await page.goto("/en");
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   });
 
   test("Arabic renders right-to-left with a review notice", async ({ page }) => {

@@ -1,3 +1,4 @@
+import { CookieSettingsButton } from "@figbud/site-kit";
 import { cacheLife } from "next/cache";
 
 import { figbudOrigin } from "@/lib/sites";
@@ -74,6 +75,20 @@ export async function SiteFooter({
               >
                 Terms
               </a>
+            </li>
+            <li>
+              <a
+                href={`${figbudOrigin}/en/legal/cookies`}
+                className="inline-flex min-h-8 items-center text-muted hover:text-text"
+              >
+                Cookies
+              </a>
+            </li>
+            <li>
+              <CookieSettingsButton
+                label="Cookie settings"
+                className="inline-flex min-h-8 cursor-pointer items-center text-muted hover:text-text"
+              />
             </li>
           </ul>
         </nav>

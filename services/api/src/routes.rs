@@ -25,6 +25,7 @@ use crate::{
     email::{self, outbox, templates},
     enquiry::{EnquiryInput, new_reference},
     error::ApiError,
+    privacy,
     rate_limit::{RateLimiter, client_ip, ip_hash},
     sites,
 };
@@ -35,6 +36,8 @@ pub struct AppState {
     pub enquiry_limiter: RateLimiter,
     /// Admin sign-in attempts per IP (passkey ceremonies, invites).
     pub auth_limiter: RateLimiter,
+    /// Cookie consent records per IP (the address is never stored).
+    pub consent_limiter: RateLimiter,
     /// WebAuthn relying party; `None` when admin is disabled.
     pub webauthn: Option<webauthn_rs::Webauthn>,
 }
@@ -45,6 +48,7 @@ impl AppState {
         Ok(Self {
             enquiry_limiter: RateLimiter::new(config.enquiry_rate_limit, config.enquiry_rate_window),
             auth_limiter: RateLimiter::new(20, Duration::from_secs(600)),
+            consent_limiter: RateLimiter::new(60, Duration::from_secs(600)),
             webauthn,
             config,
             pool,
@@ -77,6 +81,7 @@ pub fn router(state: SharedState) -> Router {
         .merge(admin::router())
         .merge(sites::router())
         .merge(brand::router())
+        .merge(privacy::router())
         .layer(RequestBodyLimitLayer::new(16 * 1024))
         // Articles are larger than any form; the editorial API gets its own limit.
         .merge(cms::editorial::router().layer(RequestBodyLimitLayer::new(512 * 1024)))

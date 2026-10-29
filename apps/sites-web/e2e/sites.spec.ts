@@ -133,3 +133,27 @@ test("navigation and offline pages follow the Studio's visibility settings", asy
   // Offline: not found, and never listed.
   expect((await page.goto("/ziwa/legacy"))?.status()).toBe(404);
 });
+
+test.describe("cookie consent", () => {
+  test.use({ storageState: { cookies: [], origins: [] } });
+
+  test("product websites ask once, link FigBud Global's policies and reopen from the footer", async ({
+    page,
+  }) => {
+    await page.route("**/v1/privacy/consent", (route) => route.fulfill({ status: 204 }));
+    await page.goto("/ziwa");
+    const banner = page.getByRole("region", { name: "Cookie consent" });
+    await expect(banner).toBeVisible();
+    await expect(banner.getByRole("link", { name: "Privacy Policy" })).toHaveAttribute(
+      "href",
+      /\/en\/legal\/privacy$/,
+    );
+    await banner.getByRole("button", { name: "Reject optional" }).click();
+    await expect(banner).toBeHidden();
+    await page.reload();
+    await expect(page.getByRole("contentinfo")).toBeVisible();
+    await expect(banner).toBeHidden();
+    await page.getByRole("contentinfo").getByRole("button", { name: "Cookie settings" }).click();
+    await expect(page.getByRole("dialog", { name: "Cookie preferences" })).toBeVisible();
+  });
+});

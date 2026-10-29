@@ -277,3 +277,11 @@
   background: var(--fb-paper);
   padding: 0.3rem 0.5rem;
 }
+
+/* Cookie consent banner (consent.tsx): rises in once, never moves content. */
+@keyframes fb-consent-in {
+  from {
+    opacity: 0;
+    transform: translateY(1rem);
+  }
+}

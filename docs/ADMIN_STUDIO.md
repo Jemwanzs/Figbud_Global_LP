@@ -145,6 +145,24 @@ Studio UI polish is a standing priority (P7-UX2): every milestone reviews the sc
   - the media library (P7-D2);
   - deploying the renderer (approval needed), after which `apps/zirahr-web` can be retired.
 
+## Settings → Privacy & Cookies (P7-PC1, 29 Oct 2026)
+
+One settings document for every FigBud website (one data controller). Everyone signed in can read it and the consent report; **only owners** change it, because it decides what tracking may run. Every change is audited (`privacy.updated`, before and after).
+
+| Control | What it does |
+| --- | --- |
+| Banner heading and message | Plain text on English pages; other languages show their translation. |
+| Category names and descriptions | Strictly necessary (always on), Analytics, Preferences, Marketing. |
+| Remember choices for | 30–395 days; visitors are asked again afterwards. |
+| Keep consent records for | 6–60 months, then deleted automatically (every 6 hours). |
+| Privacy / Cookie Policy links | A path on the website or an https:// address; nothing else is accepted. |
+| Integrations | Plausible, Google Analytics 4, Meta Pixel, LinkedIn Insight Tag, configured **by ID only** (no pasted scripts). Enabled ones load only for visitors who allowed their category. |
+| Ask every visitor again | Raises the policy version; required automatically when a provider is enabled that earlier choices didn't cover. |
+
+**Consent records** hold a random ID from the visitor's consent cookie, the choices, the action, the policy version and the website. No IP address (it is only counted for rate limiting), user agent, account or form data. The report shows the last 30 days: choices made, browsers, and the share allowing each category.
+
+**On the websites** (`@figbud/site-kit` `CookieConsent`): only strictly necessary storage (`fb_consent`, `fb-locale`, `fb-theme`) until a choice; Accept all and Reject optional have equal weight and nothing optional is preselected; withdrawing removes provider cookies and reloads the page so nothing keeps running. The Content Security Policy allows only the supported providers' origins.
+
 ## Safety rules
 
 - No executable content from the CMS; Markdown and typed properties only, validated server-side.

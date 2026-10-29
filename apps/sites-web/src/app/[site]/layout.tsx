@@ -1,5 +1,5 @@
 import { themeColorViewport } from "@figbud/brand";
-import { brandIcons } from "@figbud/site-kit";
+import { CookieConsent, ENGLISH_CONSENT_LABELS, brandIcons } from "@figbud/site-kit";
 import { themeInitScript } from "@figbud/ui";
 import type { Metadata, Viewport } from "next";
 import { Outfit } from "next/font/google";
@@ -11,11 +11,14 @@ import { SiteHeader } from "@/components/site-header";
 import {
   allowIndexing,
   enquiryHref,
+  figbudOrigin,
   getListedSites,
   getPages,
+  getPrivacySettings,
   getSite,
   pageHref,
   parseSiteParam,
+  publicApiOrigin,
   rendererOrigin,
 } from "@/lib/sites";
 
@@ -69,6 +72,7 @@ export default async function SiteLayout({ children, params }: LayoutProps<"/[si
   const site = await getSite(slug);
   if (!site) notFound();
   const pages = await getPages(slug);
+  const privacy = await getPrivacySettings();
   const links = pages
     .filter((p) => p.path !== "" && p.show_in_nav !== false)
     .map((p) => ({ href: pageHref(slug, ownDomain, p.path), label: p.title }));
@@ -107,6 +111,14 @@ export default async function SiteLayout({ children, params }: LayoutProps<"/[si
             {children}
           </main>
           <SiteFooter name={site.name} tagline={site.tagline} links={links} />
+          {/* The policies are FigBud Global's, on the corporate site. */}
+          <CookieConsent
+            settings={privacy}
+            labels={ENGLISH_CONSENT_LABELS}
+            site={slug}
+            apiOrigin={publicApiOrigin}
+            linkBase={`${figbudOrigin}/en`}
+          />
         </div>
       </body>
     </html>

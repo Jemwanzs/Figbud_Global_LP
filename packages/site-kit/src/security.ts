@@ -1,3 +1,5 @@
+import { INTEGRATION_ORIGINS } from "./privacy";
+
 /**
  * Security headers shared by every FigBud Next.js site (used from each app's
  * next.config.ts).
@@ -16,18 +18,23 @@ export interface SecurityOptions {
   isDev: boolean;
 }
 
+/**
+ * The integrations a visitor may allow in the cookie banner (Admin Studio →
+ * Settings → Privacy & Cookies) are a fixed list of providers, so only their
+ * origins are allowed. Nothing from them loads until the visitor consents.
+ */
 export function contentSecurityPolicy({ apiOrigin, siteUrl, isDev }: SecurityOptions): string {
   // Only upgrade subresources when the site is served over HTTPS: WebKit applies
   // `upgrade-insecure-requests` to localhost too, which breaks plain-HTTP builds.
   const servesHttps = siteUrl.startsWith("https://");
   return [
     "default-src 'self'",
-    `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`,
+    `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""} ${INTEGRATION_ORIGINS.script.join(" ")}`,
     "style-src 'self' 'unsafe-inline'",
     // Article cover and body images may come from any HTTPS host chosen by editors.
     "img-src 'self' data: blob: https:",
     "font-src 'self'",
-    `connect-src 'self' ${apiOrigin.replace(/\/$/, "")}${isDev ? " ws: wss:" : ""}`,
+    `connect-src 'self' ${apiOrigin.replace(/\/$/, "")} ${INTEGRATION_ORIGINS.connect.join(" ")}${isDev ? " ws: wss:" : ""}`,
     "frame-ancestors 'none'",
     "form-action 'self'",
     "base-uri 'self'",

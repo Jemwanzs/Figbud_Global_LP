@@ -1,6 +1,6 @@
 import { company, publicProducts, themeColorViewport } from "@figbud/brand";
-import { isLocale, localeInfo, locales } from "@figbud/i18n";
-import { brandIcons } from "@figbud/site-kit";
+import { isLocale, localeInfo, locales, localizePath } from "@figbud/i18n";
+import { CookieConsent, brandIcons } from "@figbud/site-kit";
 import { MotionProvider, themeInitScript } from "@figbud/ui";
 import type { Metadata, Viewport } from "next";
 import { IBM_Plex_Sans_Arabic, Outfit } from "next/font/google";
@@ -9,8 +9,9 @@ import { notFound } from "next/navigation";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { getDictionary } from "@/i18n/get-dictionary";
+import { getPrivacySettings } from "@/lib/privacy";
 import { getBrands } from "@/lib/products";
-import { allowIndexing, siteOrigin } from "@/lib/site";
+import { allowIndexing, apiOrigin, siteOrigin } from "@/lib/site";
 
 import "../globals.css";
 
@@ -65,6 +66,12 @@ export default async function LocaleLayout({ children, params }: LayoutProps<"/[
   const dict = await getDictionary(locale);
   const info = localeInfo[locale];
   const brands = await getBrands();
+  const studio = await getPrivacySettings();
+  // English pages show the Studio's wording; the other languages their translation.
+  const privacy =
+    locale === "en"
+      ? studio
+      : { ...studio, banner: dict.consent.banner, categories: dict.consent.categories };
 
   const organization = {
     "@context": "https://schema.org",
@@ -107,6 +114,13 @@ export default async function LocaleLayout({ children, params }: LayoutProps<"/[
             {children}
           </main>
           <SiteFooter locale={locale} dict={dict} brand={brands.figbud} />
+          <CookieConsent
+            settings={privacy}
+            labels={dict.consent.labels}
+            site="figbud"
+            apiOrigin={apiOrigin}
+            linkBase={localizePath(locale)}
+          />
         </MotionProvider>
         <script
           type="application/ld+json"

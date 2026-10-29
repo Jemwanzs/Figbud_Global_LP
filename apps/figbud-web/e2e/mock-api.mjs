@@ -1604,6 +1604,155 @@ function brandRoutes(path, req, res, url, body, raw, user, send) {
   return send(200, { state: revision.state });
 }
 
+// ---------------------------------------------------------------- privacy & cookies
+// Mirrors services/api/src/privacy.rs: one settings document for every
+// website; owners edit it; a newly enabled provider asks visitors again.
+const PRIVACY_PROVIDERS = {
+  plausible: { category: "analytics", id: /^[a-z0-9][a-z0-9.-]*\.[a-z]{2,}$/ },
+  google_analytics: { category: "analytics", id: /^G-[A-Z0-9]{4,12}$/ },
+  meta_pixel: { category: "marketing", id: /^\d{10,20}$/ },
+  linkedin_insight: { category: "marketing", id: /^\d{4,12}$/ },
+};
+const privacy = {
+  version: 0,
+  updated_at: null,
+  updated_by: null,
+  config: {
+    banner: {
+      title: "Your privacy matters",
+      body: "We use essential cookies to keep our website working. With your permission, we may also use optional cookies to understand website usage and improve your experience.",
+    },
+    categories: {
+      necessary: {
+        label: "Strictly necessary",
+        description:
+          "Keep the website working and secure: they remember your cookie choices, your theme and your language, and protect forms from abuse. Always on.",
+      },
+      analytics: {
+        label: "Analytics",
+        description:
+          "Help us understand how the website is used, such as which pages are visited, so we can improve it.",
+      },
+      preferences: {
+        label: "Preferences",
+        description: "Remember optional personal settings beyond the essentials, to tailor your experience.",
+      },
+      marketing: {
+        label: "Marketing",
+        description: "Measure the reach of our marketing and show relevant FigBud content on other websites.",
+      },
+    },
+    retention_days: 180,
+    record_months: 24,
+    privacy_url: "/legal/privacy",
+    cookie_url: "/legal/cookies",
+    // A test fixture: one enabled analytics provider, so the e2e tests can
+    // show it loads only after consent (production starts with none).
+    integrations: [{ provider: "plausible", tracking_id: "figbud.test", enabled: true }],
+    policy_version: 1,
+  },
+};
+const consentRecords = [];
+const publicPrivacy = () => ({
+  ...clone(privacy.config),
+  record_months: undefined,
+  integrations: privacy.config.integrations
+    .filter((i) => i.enabled)
+    .map((i) => ({ ...i, enabled: undefined, category: PRIVACY_PROVIDERS[i.provider].category })),
+});
+
+function privacyRoutes(req, body, user, send) {
+  const read = () => {
+    const recent = consentRecords.filter((r) => Date.now() - r.at < 30 * 86_400_000);
+    const latest = new Map(recent.map((r) => [r.consent_id, r]));
+    const count = (f) => [...latest.values()].filter(f).length;
+    return send(200, {
+      config: privacy.config,
+      version: privacy.version,
+      updated_at: privacy.updated_at,
+      updated_by: privacy.updated_by,
+      can_edit: user.role === "owner",
+      report: {
+        days: 30,
+        choices: {
+          total: recent.length,
+          accept_all: recent.filter((r) => r.action === "accept_all").length,
+          reject_optional: recent.filter((r) => r.action === "reject_optional").length,
+          custom: recent.filter((r) => r.action === "custom").length,
+        },
+        visitors: latest.size,
+        allowed: {
+          analytics: count((r) => r.analytics),
+          preferences: count((r) => r.preferences),
+          marketing: count((r) => r.marketing),
+        },
+      },
+    });
+  };
+  if (req.method === "GET") return read();
+  if (user.role !== "owner")
+    return send(403, { error: { code: "forbidden", message: "You don't have permission to do that." } });
+  if (body.version !== privacy.version) {
+    return send(409, {
+      error: {
+        code: "conflict",
+        message: "Someone changed these settings after you opened them. Reload to see the latest.",
+      },
+    });
+  }
+  const next = clone(body.config ?? {});
+  const fields = [];
+  const text = (v, field, max) => {
+    if (typeof v !== "string" || !v.trim() || v.trim().length > max)
+      fields.push({ field, code: "length", message: "Required, and within the length limit." });
+  };
+  text(next.banner?.title, "banner.title", 80);
+  text(next.banner?.body, "banner.body", 400);
+  for (const c of ["necessary", "analytics", "preferences", "marketing"]) {
+    text(next.categories?.[c]?.label, `categories.${c}.label`, 40);
+    text(next.categories?.[c]?.description, `categories.${c}.description`, 300);
+  }
+  if (!(next.retention_days >= 30 && next.retention_days <= 395))
+    fields.push({
+      field: "retention_days",
+      code: "range",
+      message: "Remember choices for 30 to 395 days (about 13 months).",
+    });
+  if (!(next.record_months >= 6 && next.record_months <= 60))
+    fields.push({
+      field: "record_months",
+      code: "range",
+      message: "Keep consent records for 6 to 60 months.",
+    });
+  for (const f of ["privacy_url", "cookie_url"]) {
+    if (!/^(\/(?!\/)[A-Za-z0-9/_.#-]*|https:\/\/[^\s<>"']+)$/.test(next[f] ?? ""))
+      fields.push({
+        field: f,
+        code: "format",
+        message: "Use a path on the website such as /legal/privacy, or an https:// address.",
+      });
+  }
+  for (const i of next.integrations ?? []) {
+    if (!PRIVACY_PROVIDERS[i.provider]?.id.test(i.tracking_id ?? ""))
+      fields.push({
+        field: "integrations.tracking_id",
+        code: "format",
+        message: "That ID doesn't match the provider's format.",
+      });
+  }
+  if (fields.length)
+    return send(422, { error: { code: "validation", message: "Some fields need attention.", fields } });
+  const wasOn = (p) => privacy.config.integrations.some((i) => i.provider === p && i.enabled);
+  const reconsent = body.ask_again || next.integrations.some((i) => i.enabled && !wasOn(i.provider));
+  for (const k of ["title", "body"]) next.banner[k] = next.banner[k].trim();
+  next.policy_version = privacy.config.policy_version + (reconsent ? 1 : 0);
+  privacy.config = next;
+  privacy.version += 1;
+  privacy.updated_at = new Date().toISOString();
+  privacy.updated_by = user.email;
+  return read();
+}
+
 function admin(req, res, url, body, send, raw) {
   const path = url.pathname.slice("/v1/admin/".length);
   const userOf = () => users.get(sessions.get(readCookie(req)));
@@ -1927,6 +2076,7 @@ function admin(req, res, url, body, send, raw) {
     return pagesRoutes(path, req, body, user, send);
   if (/^sites\/[a-z0-9_-]+\/brand/.test(path) || path.startsWith("brand/assets/"))
     return brandRoutes(path, req, res, url, body, raw, user, send);
+  if (path === "privacy") return privacyRoutes(req, body, user, send);
   if (path === "sites" || path.startsWith("sites/")) return siteRoutes(path, req, body, user, send);
   return send(404, { error: { code: "not_found", message: "Not found." } });
 }
@@ -1952,6 +2102,12 @@ createServer(async (req, res) => {
   if (url.pathname.startsWith("/v1/admin/")) return admin(req, res, url, body, send, raw);
   if (url.pathname === "/v1/articles") return send(200, list(url));
   if (url.pathname === "/v1/sites") return send(200, publicSites());
+  if (url.pathname === "/v1/privacy") return send(200, publicPrivacy());
+  if (url.pathname === "/v1/privacy/consent" && req.method === "POST") {
+    consentRecords.push({ ...body, at: Date.now() });
+    res.writeHead(204);
+    return res.end();
+  }
   if (publicPages(url, send)) return;
   const logo = /^\/v1\/brand\/assets\/([0-9a-f-]{36})$/.exec(url.pathname);
   if (logo) {

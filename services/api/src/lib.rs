@@ -14,6 +14,7 @@ pub mod email;
 pub mod enquiry;
 pub mod error;
 pub mod pages;
+pub mod privacy;
 pub mod rate_limit;
 pub mod routes;
 pub mod sites;

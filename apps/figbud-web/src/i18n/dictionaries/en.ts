@@ -40,7 +40,7 @@ const en = {
       coming_soon: "Coming soon",
       planned: "Planned",
     },
-    theme: { label: "Theme", light: "Light", dark: "Dark", system: "System" },
+    theme: { toLight: "Switch to light theme", toDark: "Switch to dark theme" },
     language: {
       label: "Language",
       inReview: "In review",
@@ -271,6 +271,7 @@ const en = {
     },
   },
   footer: {
+    cookieSettings: "Cookie settings",
     tagline: "Enterprise software. Intelligent automation. Digital infrastructure.",
     origin: "Built in Kenya. Designed for Africa. Engineered to scale.",
     productsTitle: "Products",
@@ -280,6 +281,47 @@ const en = {
     terms: "Terms of Use",
     cookies: "Cookie Policy",
     rights: "All rights reserved.",
+  },
+  consent: {
+    labels: {
+      region: "Cookie consent",
+      acceptAll: "Accept all",
+      rejectOptional: "Reject optional",
+      customize: "Customize",
+      save: "Save choices",
+      preferencesTitle: "Cookie preferences",
+      preferencesIntro:
+        "Choose which optional cookies we may use. You can change your mind at any time from “Cookie settings” at the bottom of every page.",
+      alwaysOn: "Always on",
+      privacyPolicy: "Privacy Policy",
+      cookiePolicy: "Cookie Policy",
+      close: "Close",
+    },
+    // Shown on other languages' pages; English pages show the Studio's text.
+    banner: {
+      title: "Your privacy matters",
+      body: "We use essential cookies to keep our website working. With your permission, we may also use optional cookies to understand website usage and improve your experience.",
+    },
+    categories: {
+      necessary: {
+        label: "Strictly necessary",
+        description:
+          "Keep the website working and secure: they remember your cookie choices, your theme and your language, and protect forms from abuse. Always on.",
+      },
+      analytics: {
+        label: "Analytics",
+        description:
+          "Help us understand how the website is used, such as which pages are visited, so we can improve it.",
+      },
+      preferences: {
+        label: "Preferences",
+        description: "Remember optional personal settings beyond the essentials, to tailor your experience.",
+      },
+      marketing: {
+        label: "Marketing",
+        description: "Measure the reach of our marketing and show relevant FigBud content on other websites.",
+      },
+    },
   },
   pages: {
     products: {
@@ -360,7 +402,31 @@ const en = {
     },
     privacy: { title: "Privacy Policy", description: "How FigBud Global handles personal data." },
     terms: { title: "Terms of Use", description: "Terms governing use of the FigBud Global website." },
-    cookies: { title: "Cookie Policy", description: "How the FigBud Global website uses cookies." },
+    cookies: {
+      title: "Cookie Policy",
+      description: "How the FigBud Global website uses cookies.",
+      inventory: {
+        title: "Cookies on this website",
+        lead: "Strictly necessary cookies are always on. Optional cookies are used only if you allow them, and you can change your choice at any time.",
+        name: "Name",
+        kind: "Type",
+        purpose: "Purpose",
+        duration: "Kept for",
+        cookie: "Cookie",
+        storage: "Browser storage",
+        necessary: "Strictly necessary",
+        consentPurpose: "Remembers your cookie choices: an anonymous ID and the categories you allowed.",
+        localePurpose: "Remembers the language you chose.",
+        themePurpose: "Remembers whether you chose the light or dark theme.",
+        days: "{n} days",
+        year: "1 year",
+        untilCleared: "Until you clear it",
+        optionalTitle: "Optional services",
+        noOptional: "No analytics or marketing services are in use at the moment.",
+        optionalPurpose: "Loads only if you allow {category} cookies.",
+        manage: "Cookie settings",
+      },
+    },
     inProgress: {
       eyebrow: "In progress",
       body: "This page is being prepared and will be published after review.",

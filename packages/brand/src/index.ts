@@ -14,8 +14,8 @@ export const company = {
  */
 export const themeBackground = { dark: "#020617", light: "#f8fafc" } as const;
 
-/** `viewport.themeColor` for Next.js layouts. */
-export const themeColorViewport = [
-  { media: "(prefers-color-scheme: dark)", color: themeBackground.dark },
-  { media: "(prefers-color-scheme: light)", color: themeBackground.light },
-];
+/**
+ * `viewport.themeColor` for Next.js layouts: the dark background, because
+ * dark is every first-time visitor's theme whatever their device prefers.
+ */
+export const themeColorViewport = themeBackground.dark;

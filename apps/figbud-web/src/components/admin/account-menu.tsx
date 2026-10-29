@@ -90,7 +90,7 @@ export function AccountMenu({ user }: { user: AdminUser }) {
         </div>
         <div className="flex items-center justify-between gap-3 border-t border-line px-3 py-2.5">
           <span className="text-sm text-muted">Appearance</span>
-          <ThemeToggle labels={{ label: "Appearance", light: "Light", dark: "Dark", system: "System" }} />
+          <ThemeToggle labels={{ toLight: "Switch to light theme", toDark: "Switch to dark theme" }} />
         </div>
         <div className="border-t border-line pt-2">
           <SignOutButton />

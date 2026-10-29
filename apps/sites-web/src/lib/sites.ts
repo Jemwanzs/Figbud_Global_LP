@@ -1,7 +1,7 @@
 import "server-only";
 
-import type { ListedSite, PageDocument } from "@figbud/site-kit";
-import { fetchListedSites } from "@figbud/site-kit/server";
+import { DEFAULT_PRIVACY, type ListedSite, type PageDocument, type PrivacySettings } from "@figbud/site-kit";
+import { fetchListedSites, fetchPrivacySettings } from "@figbud/site-kit/server";
 import { cacheLife, cacheTag } from "next/cache";
 
 import type { PublishedPageRef } from "./addresses";
@@ -20,6 +20,12 @@ export const apiBase = (
   "http://localhost:8080"
 ).replace(/\/$/, "");
 
+/** The API as the browser reaches it (cookie consent records). */
+export const publicApiOrigin = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080").replace(
+  /\/$/,
+  "",
+);
+
 /** Search engines may index only when explicitly enabled (production). */
 export const allowIndexing = process.env.NEXT_PUBLIC_ALLOW_INDEXING === "true";
 
@@ -30,6 +36,14 @@ export async function getListedSites(): Promise<ListedSite[]> {
   cacheLife("minutes");
   cacheTag("sites");
   return (await fetchListedSites(apiBase)) ?? [];
+}
+
+/** The cookie banner's settings, shared by every FigBud website (Admin Studio → Settings → Privacy & Cookies). */
+export async function getPrivacySettings(): Promise<PrivacySettings> {
+  "use cache";
+  cacheLife("minutes");
+  cacheTag("privacy");
+  return (await fetchPrivacySettings(apiBase)) ?? DEFAULT_PRIVACY;
 }
 
 /** A listed product website, or `null` (draft, retired, archived, unknown or the corporate site). */

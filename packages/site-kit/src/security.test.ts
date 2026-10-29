@@ -3,13 +3,18 @@ import { describe, expect, it } from "vitest";
 import { contentSecurityPolicy, securityHeaders } from "./security";
 
 describe("security headers", () => {
-  it("locks scripts and connections to first-party origins plus the API", () => {
+  it("locks scripts and connections to first-party origins, the API and the supported integrations", () => {
     const csp = contentSecurityPolicy({
       apiOrigin: "https://api.example.com/",
       siteUrl: "https://example.com",
       isDev: false,
     });
-    expect(csp).toContain("connect-src 'self' https://api.example.com;");
+    expect(csp).toContain("connect-src 'self' https://api.example.com https://plausible.io ");
+    // Only the fixed list of consent-gated providers; never a wildcard.
+    expect(csp).toContain(
+      "script-src 'self' 'unsafe-inline' https://plausible.io https://www.googletagmanager.com",
+    );
+    expect(csp).not.toMatch(/script-src[^;]*(\*|https:(?!\/\/))/);
     expect(csp).toContain("frame-ancestors 'none'");
     expect(csp).not.toContain("unsafe-eval");
     expect(csp.endsWith("upgrade-insecure-requests")).toBe(true);

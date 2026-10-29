@@ -1,7 +1,7 @@
 import { publicProducts } from "@figbud/brand";
 import { type Locale, localizePath } from "@figbud/i18n";
 import { Container, FigBudWordmark } from "@figbud/ui";
-import { BrandLogo, type BrandProfile } from "@figbud/site-kit";
+import { BrandLogo, type BrandProfile, CookieSettingsButton } from "@figbud/site-kit";
 import { ArrowUpRight } from "lucide-react";
 import { cacheLife } from "next/cache";
 import Link from "next/link";
@@ -110,6 +110,12 @@ export async function SiteFooter({
               </Link>
             </li>
           ))}
+          <li>
+            <CookieSettingsButton
+              label={footer.cookieSettings}
+              className="inline-flex min-h-11 cursor-pointer items-center text-start text-muted transition-colors hover:text-text"
+            />
+          </li>
         </FooterColumn>
       </Container>
 
