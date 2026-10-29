@@ -69,6 +69,7 @@ export async function generateMetadata({ params }: LayoutProps<"/[site]">): Prom
     description: site.description ?? site.tagline ?? undefined,
     applicationName: site.name,
     openGraph: { type: "website", siteName: site.name },
+    twitter: { card: "summary_large_image" },
     robots: allowIndexing ? undefined : { index: false, follow: false },
   };
 }

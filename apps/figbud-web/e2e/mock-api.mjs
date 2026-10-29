@@ -1047,7 +1047,8 @@ function mediaRoutes(path, req, res, url, raw, body, user, send) {
 }
 
 function serveAsset(res, asset, url) {
-  if (url?.searchParams.has("icon")) {
+  // Icons and the 1200 × 630 sharing image are PNG renderings in the API.
+  if (url?.searchParams.has("icon") || url?.searchParams.get("social") === "1") {
     res.writeHead(200, {
       "content-type": "image/png",
       "cache-control": "public, max-age=31536000, immutable",

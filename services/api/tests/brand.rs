@@ -371,6 +371,16 @@ async fn seeded_official_logos_are_published_and_proposals_stay_in_draft() {
     }
     let (status, _, _) = s.send(get(format!("{favicon}?icon=100"))).await;
     assert_eq!(status, StatusCode::BAD_REQUEST);
+    // The 1200 × 630 PNG social platforms expect, from any published brand file.
+    let (status, bytes, content_type) = s.send(get(format!("{favicon}?social=1"))).await;
+    assert_eq!(
+        (status, content_type.as_deref()),
+        (StatusCode::OK, Some("image/png"))
+    );
+    assert_eq!(
+        &bytes[16..24],
+        [1200u32.to_be_bytes(), 630u32.to_be_bytes()].concat()
+    );
     let (status, _, content_type) = s.send(get(format!("{url}?w=64"))).await;
     assert_eq!(
         (status, content_type.as_deref()),

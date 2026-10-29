@@ -1,11 +1,23 @@
 import { publicProducts, themeBackground } from "@figbud/brand";
 import { ImageResponse } from "next/og";
 
+import { getSocialImage } from "@/lib/products";
+
 export const alt = "FigBud Global — Built for complexity. Designed for progress.";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
-export default function OpengraphImage() {
+/** The sharing image uploaded in the Studio (Branding), else this generated card. */
+export default async function OpengraphImage() {
+  const uploaded = await getSocialImage();
+  if (uploaded) {
+    return new Response(uploaded.slice().buffer, {
+      headers: {
+        "content-type": "image/png",
+        "cache-control": "public, max-age=300, stale-while-revalidate=3600",
+      },
+    });
+  }
   return new ImageResponse(
     <div
       style={{

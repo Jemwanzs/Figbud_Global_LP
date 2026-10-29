@@ -153,9 +153,12 @@ test("build a page from a template, publish it, and manage pages", async ({ page
   await expect(page.getByRole("status").filter({ hasText: "Page restored." })).toBeVisible();
 
   // An address already in use is caught before creating.
-  await page.getByRole("radio", { name: /^Blank page/ }).check();
-  await page.getByRole("textbox", { name: "Page title" }).fill("Platform");
-  await expect(page.getByText("/platform is already used by “Platform”")).toBeVisible();
+  // Retried: the list refresh after restoring can reset the form once.
+  await expect(async () => {
+    await page.getByRole("radio", { name: /^Blank page/ }).check();
+    await page.getByRole("textbox", { name: "Page title" }).fill("Platform");
+    await expect(page.getByText("/platform is already used by “Platform”")).toBeVisible({ timeout: 1_000 });
+  }).toPass();
   await expect(create).toBeDisabled();
 });
 

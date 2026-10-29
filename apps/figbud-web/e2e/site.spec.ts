@@ -228,3 +228,16 @@ test.describe("narrow screens", () => {
     });
   }
 });
+
+test("the corporate site shares a 1200 × 630 image on Open Graph and X", async ({ page, request }) => {
+  await page.goto("/en");
+  const og = await page.locator('meta[property="og:image"]').getAttribute("content");
+  const twitter = await page.locator('meta[name="twitter:image"]').getAttribute("content");
+  expect(og).toMatch(/\/en\/opengraph-image/);
+  expect(twitter).toMatch(/\/en\/twitter-image/);
+  for (const url of [og!, twitter!]) {
+    const image = await request.get(new URL(url).pathname);
+    expect(image.status()).toBe(200);
+    expect(image.headers()["content-type"]).toBe("image/png");
+  }
+});

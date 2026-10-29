@@ -89,6 +89,16 @@ The owner approved the final Ziwa LMS brand sheet on 29 Oct 2026: an orange and 
   - the superseded seeded files (blue and green, and the concept) are archived;
   - files uploaded in the Studio are kept, and later Studio changes are never overwritten.
 
+## 3c. Social sharing images (P7-BR11, 30 October 2026)
+
+What a link to a FigBud website shows on LinkedIn, WhatsApp, X, Slack and similar.
+
+- **Uploaded:** a website's Branding has a "Social sharing image" slot (about 1200 × 630 px). Once published, the API renders it as the PNG social platforms expect, exactly 1200 × 630, filled and centre-cropped (`/v1/brand/assets/{id}?social=1`), whatever its format (SVG, PNG or WebP).
+- **Generated, when nothing is uploaded:**
+  - the corporate site keeps its designed card ("Built for complexity. Designed for progress." with the product names);
+  - each product website gets a card built from its published brand: its symbol, name and tagline on the dark theme, lit by its brand colours, with "A FigBud Global platform".
+- **Everywhere:** every page carries Open Graph and X (Twitter) `summary_large_image` tags with the image's size and alt text.
+
 ## 4. Product colours
 
 Product accent tokens (`packages/brand/src/tokens.css`) now follow each product's logo instead of the earlier placeholders. A unit test (`tokens.test.ts`) checks WCAG AA contrast for every accent on both themes.

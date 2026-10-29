@@ -1,7 +1,7 @@
 import "server-only";
 
 import { DEFAULT_PRIVACY, type ListedSite, type PageDocument, type PrivacySettings } from "@figbud/site-kit";
-import { fetchListedSites, fetchPrivacySettings } from "@figbud/site-kit/server";
+import { fetchBrandPng, fetchListedSites, fetchPrivacySettings } from "@figbud/site-kit/server";
 import { cacheLife, cacheTag } from "next/cache";
 
 import type { PublishedPageRef } from "./addresses";
@@ -85,4 +85,12 @@ export async function getPage(slug: string, path: string): Promise<PublishedPage
   } catch {
     return null;
   }
+}
+
+/** A published brand file as PNG bytes (sharing images), cached like the registry. */
+export async function getBrandPng(id: string, variant: "social" | 512): Promise<Uint8Array | null> {
+  "use cache";
+  cacheLife("minutes");
+  cacheTag("sites");
+  return fetchBrandPng(apiBase, id, variant);
 }

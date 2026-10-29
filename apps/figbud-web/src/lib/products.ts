@@ -2,7 +2,7 @@ import "server-only";
 
 import { type Product, type ProductStatus, publicProducts } from "@figbud/brand";
 import { type BrandProfile, type ListedSite, enquiriesOpen } from "@figbud/site-kit";
-import { fetchListedSites } from "@figbud/site-kit/server";
+import { fetchBrandPng, fetchListedSites } from "@figbud/site-kit/server";
 import { cacheLife, cacheTag } from "next/cache";
 
 import { apiOrigin } from "./site";
@@ -62,4 +62,16 @@ export async function getClosedEnquiries(): Promise<Record<string, string>> {
   return Object.fromEntries(
     sites.filter((s) => !enquiriesOpen(s)).map((s) => [s.slug, s.settings?.enquiries.closed_message ?? ""]),
   );
+}
+
+/**
+ * The social sharing image uploaded in Admin → Websites → FigBud Global →
+ * Branding, as a 1200 × 630 PNG, or `null` (the generated image is used).
+ */
+export async function getSocialImage(): Promise<Uint8Array | null> {
+  "use cache";
+  cacheLife("minutes");
+  cacheTag("sites");
+  const asset = (await getBrands()).figbud?.social_image;
+  return asset ? fetchBrandPng(apiBase, asset.id, "social") : null;
 }

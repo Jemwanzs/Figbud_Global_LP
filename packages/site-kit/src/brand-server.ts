@@ -20,6 +20,30 @@ export async function fetchListedSites(apiBase: string): Promise<ListedSite[] | 
 }
 
 /**
+ * A published brand file as PNG bytes, for generated images (Open Graph):
+ * `social` gives the 1200 × 630 sharing image, a number a square icon of that
+ * size. `null` if the API can't be reached or the file isn't published.
+ * Wrap it in a `"use cache"` function in the app.
+ */
+export async function fetchBrandPng(
+  apiBase: string,
+  id: string,
+  variant: "social" | 180 | 512,
+): Promise<Uint8Array | null> {
+  if (!UUID.test(id)) return null;
+  const query = variant === "social" ? "social=1" : `icon=${variant}`;
+  try {
+    const response = await fetch(`${apiBase.replace(/\/$/, "")}/v1/brand/assets/${id}?${query}`, {
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!response.ok || response.headers.get("content-type") !== "image/png") return null;
+    return new Uint8Array(await response.arrayBuffer());
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Route handler for `app/brand/assets/[id]/route.ts`: serves published logo
  * files from the website's own origin (no CSP or mixed-content exceptions),
  * passing through the API's immutable caching.

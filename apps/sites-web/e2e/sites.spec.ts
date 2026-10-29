@@ -225,3 +225,18 @@ test("images from the media library render responsively with their alt text", as
   // Unknown or unpublished images aren't served.
   expect((await request.get("/media/00000000-0000-7000-8000-000000000000")).status()).toBe(404);
 });
+
+test("each website shares with a card generated from its brand", async ({ page, request }) => {
+  await page.goto("/ziwa");
+  const og = await page.locator('meta[property="og:image"]').getAttribute("content");
+  expect(og).toMatch(/\/ziwa\/opengraph-image/);
+  await expect(page.locator('meta[name="twitter:card"]')).toHaveAttribute("content", "summary_large_image");
+  await expect(page.locator('meta[property="og:image:width"]')).toHaveAttribute("content", "1200");
+  const image = await request.get(new URL(og!).pathname);
+  expect(image.status()).toBe(200);
+  expect(image.headers()["content-type"]).toBe("image/png");
+  // A real 1200 × 630 PNG.
+  const bytes = await image.body();
+  expect(bytes.readUInt32BE(16)).toBe(1200);
+  expect(bytes.readUInt32BE(20)).toBe(630);
+});

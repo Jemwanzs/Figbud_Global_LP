@@ -1,7 +1,7 @@
 import { PageBlocks } from "@figbud/site-kit";
 import { buttonClasses } from "@figbud/ui";
 import { ArrowRight } from "lucide-react";
-import type { Metadata } from "next";
+import type { Metadata, ResolvingMetadata } from "next";
 import { notFound } from "next/navigation";
 
 import {
@@ -42,7 +42,10 @@ async function load(params: PageProps<"/[site]/[[...path]]">["params"]) {
   return { site, ownDomain, path, page: await getPage(slug, path) };
 }
 
-export async function generateMetadata({ params }: PageProps<"/[site]/[[...path]]">): Promise<Metadata> {
+export async function generateMetadata(
+  { params }: PageProps<"/[site]/[[...path]]">,
+  parent: ResolvingMetadata,
+): Promise<Metadata> {
   const { site, ownDomain, path, page } = await load(params);
   if (!site) return {};
   if (!page) return path === "" ? { robots: { index: false, follow: true } } : {};
@@ -55,7 +58,14 @@ export async function generateMetadata({ params }: PageProps<"/[site]/[[...path]
         : page.seo_title || page.title,
     description,
     alternates: { canonical },
-    openGraph: { url: canonical, title: page.seo_title || page.title, description },
+    // Keep the website's sharing image (opengraph-image.tsx): a page's own
+    // Open Graph details would otherwise replace it.
+    openGraph: {
+      url: canonical,
+      title: page.seo_title || page.title,
+      description,
+      images: (await parent).openGraph?.images,
+    },
   };
 }
 

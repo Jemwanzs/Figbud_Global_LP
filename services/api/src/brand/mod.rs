@@ -171,10 +171,18 @@ struct SizeQuery {
     w: Option<i32>,
     /// A square PNG icon of this size (see `image::ICON_SIZES`).
     icon: Option<u32>,
+    /// `1`: the 1200 × 630 PNG social platforms expect (see `image::social_png`).
+    social: Option<u8>,
 }
 
 /// The asset itself, a rendition, or a square PNG icon rendered from it.
 async fn delivered(pool: &PgPool, id: Uuid, size: &SizeQuery) -> Result<(String, Vec<u8>), ApiError> {
+    if size.social == Some(1) {
+        let (content_type, data) = asset_bytes(pool, id, None).await?;
+        let png = image::social_png(&content_type, &data)
+            .ok_or_else(|| ApiError::Internal("social image rendering failed".into()))?;
+        return Ok(("image/png".to_owned(), png));
+    }
     if let Some(icon) = size.icon {
         let (content_type, data) = asset_bytes(pool, id, None).await?;
         let png = image::icon_png(&content_type, &data, icon).ok_or(ApiError::BadRequest(

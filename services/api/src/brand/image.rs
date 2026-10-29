@@ -559,29 +559,8 @@ pub fn icon_png(content_type: &str, data: &[u8], size: u32) -> Option<Vec<u8>> {
     if !ICON_SIZES.contains(&size) {
         return None;
     }
-    let source = if content_type == "image/svg+xml" {
-        let tree = usvg::Tree::from_data(data, &usvg::Options::default()).ok()?;
-        let (w, h) = (tree.size().width(), tree.size().height());
-        // Render at twice the size, then downscale, for smooth small icons.
-        let scale = (size * 2) as f32 / w.max(h);
-        let (pw, ph) = (
-            ((w * scale).round() as u32).max(1),
-            ((h * scale).round() as u32).max(1),
-        );
-        let mut pixmap = resvg::tiny_skia::Pixmap::new(pw, ph)?;
-        resvg::render(
-            &tree,
-            resvg::tiny_skia::Transform::from_scale(scale, scale),
-            &mut pixmap.as_mut(),
-        );
-        DynamicImage::ImageRgba8(image::RgbaImage::from_raw(pw, ph, demultiply(pixmap.data()))?)
-    } else {
-        ImageReader::new(Cursor::new(data))
-            .with_guessed_format()
-            .ok()?
-            .decode()
-            .ok()?
-    };
+    // Render at twice the size, then downscale, for smooth small icons.
+    let source = decode_any(content_type, data, size * 2, |w, h| w.max(h))?;
     let fitted = source.resize(size, size, FilterType::Lanczos3).to_rgba8();
     let mut canvas = image::RgbaImage::new(size, size);
     let (x, y) = ((size - fitted.width()) / 2, (size - fitted.height()) / 2);
@@ -593,9 +572,81 @@ pub fn icon_png(content_type: &str, data: &[u8], size: u32) -> Option<Vec<u8>> {
     Some(out)
 }
 
+/// Size of social sharing images (Open Graph, X/Twitter cards).
+pub const SOCIAL_SIZE: (u32, u32) = (1200, 630);
+
+/// A published social sharing image as the PNG social platforms expect:
+/// exactly 1200 × 630, filled and centre-cropped, from an SVG, PNG or WebP.
+pub fn social_png(content_type: &str, data: &[u8]) -> Option<Vec<u8>> {
+    let (w, h) = SOCIAL_SIZE;
+    // SVGs are rendered so their shorter side covers the frame.
+    let source = decode_any(content_type, data, w, |sw, sh| {
+        (sw / w as f32).min(sh / h as f32) * w as f32
+    })?;
+    let filled = source.resize_to_fill(w, h, FilterType::Lanczos3).to_rgba8();
+    let mut out = Vec::new();
+    DynamicImage::ImageRgba8(filled)
+        .write_to(&mut Cursor::new(&mut out), ImageFormat::Png)
+        .ok()?;
+    Some(out)
+}
+
+/// Decodes a stored brand file. SVGs are rendered with `measure(width,
+/// height)` scaled to `target` pixels; rasters are decoded as they are.
+fn decode_any(
+    content_type: &str,
+    data: &[u8],
+    target: u32,
+    measure: impl Fn(f32, f32) -> f32,
+) -> Option<DynamicImage> {
+    if content_type == "image/svg+xml" {
+        let tree = usvg::Tree::from_data(data, &usvg::Options::default()).ok()?;
+        let (w, h) = (tree.size().width(), tree.size().height());
+        let scale = target as f32 / measure(w, h);
+        let (pw, ph) = (
+            ((w * scale).round() as u32).max(1),
+            ((h * scale).round() as u32).max(1),
+        );
+        let mut pixmap = resvg::tiny_skia::Pixmap::new(pw, ph)?;
+        resvg::render(
+            &tree,
+            resvg::tiny_skia::Transform::from_scale(scale, scale),
+            &mut pixmap.as_mut(),
+        );
+        Some(DynamicImage::ImageRgba8(image::RgbaImage::from_raw(
+            pw,
+            ph,
+            demultiply(pixmap.data()),
+        )?))
+    } else {
+        ImageReader::new(Cursor::new(data))
+            .with_guessed_format()
+            .ok()?
+            .decode()
+            .ok()
+    }
+}
+
 #[cfg(test)]
 mod icon_tests {
     use super::*;
+
+    #[test]
+    fn social_images_are_1200_by_630_pngs_from_any_brand_file() {
+        let svg = br##"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"><rect width="400" height="300" fill="#4e2d17"/></svg>"##;
+        let wide =
+            DynamicImage::ImageRgb8(image::RgbImage::from_pixel(2400, 900, image::Rgb([251, 122, 26])));
+        let mut png = Vec::new();
+        wide.write_to(&mut Cursor::new(&mut png), ImageFormat::Png)
+            .unwrap();
+        for (content_type, data) in [("image/svg+xml", &svg[..]), ("image/png", &png[..])] {
+            let out = social_png(content_type, data).unwrap();
+            let decoded = image::load_from_memory(&out).unwrap();
+            assert_eq!((decoded.width(), decoded.height()), SOCIAL_SIZE, "{content_type}");
+            // Filled edge to edge (cropped, never letterboxed).
+            assert_eq!(decoded.to_rgba8().get_pixel(2, 2).0[3], 255);
+        }
+    }
 
     #[test]
     fn icons_are_square_pngs_of_the_requested_size() {
