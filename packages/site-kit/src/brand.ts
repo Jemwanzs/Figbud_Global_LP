@@ -29,6 +29,26 @@ export interface BrandProfile {
   logo_height: number;
 }
 
+/** A navigation or footer link: a page path on the website ("/platform") or an https:// address. */
+export interface SiteLink {
+  label: string;
+  href: string;
+}
+
+/**
+ * Per-website settings (Admin Studio → Websites → Navigation, footer & forms).
+ * Missing means the defaults: the website's pages in the menu, enquiries open.
+ */
+export interface WebsiteSettings {
+  navigation: { mode: "pages" | "custom"; items: SiteLink[] };
+  footer: { note?: string | null; links: SiteLink[] };
+  enquiries: { open: boolean; closed_message?: string | null };
+}
+
+/** Whether the website takes enquiries (open unless the Studio closed them). */
+export const enquiriesOpen = (site?: Pick<ListedSite, "settings"> | null) =>
+  site?.settings?.enquiries.open !== false;
+
 export interface ListedSite {
   slug: string;
   kind: "corporate" | "product";
@@ -42,6 +62,7 @@ export interface ListedSite {
   brand: BrandProfile | null;
   /** Shown on the corporate Africa expansion map (Admin → Websites → settings). */
   show_on_map?: boolean;
+  settings?: WebsiteSettings;
 }
 
 export const BRAND_ASSET_PATH = "/brand/assets/";

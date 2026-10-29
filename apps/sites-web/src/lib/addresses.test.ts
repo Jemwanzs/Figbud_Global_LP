@@ -7,6 +7,7 @@ import {
   pageHref,
   parseSiteParam,
   rendererOrigin,
+  siteLinkHref,
 } from "./addresses";
 
 const ziwa = { slug: "ziwa", cta: "waitlist" as const, primary_domain: "ziwa.example.com" };
@@ -50,5 +51,12 @@ describe("site addresses", () => {
     // Calls to action reach the enquiry form even when a contact page exists.
     expect(own("/enquire")).toMatch(/\/en\/contact\?kind=waitlist&product=ziwa$/);
     expect(own("/platform#top")).toBe("/platform#top");
+  });
+
+  it("sends Studio links to this website's pages, or to their https address", () => {
+    expect(siteLinkHref("ziwa", false, "/platform")).toBe("/ziwa/platform");
+    expect(siteLinkHref("ziwa", true, "/platform")).toBe("/platform");
+    expect(siteLinkHref("ziwa", false, "/")).toBe("/ziwa");
+    expect(siteLinkHref("ziwa", false, "https://docs.example.com")).toBe("https://docs.example.com");
   });
 });

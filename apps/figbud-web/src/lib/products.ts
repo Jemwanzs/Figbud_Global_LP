@@ -1,7 +1,7 @@
 import "server-only";
 
 import { type Product, type ProductStatus, publicProducts } from "@figbud/brand";
-import type { BrandProfile, ListedSite } from "@figbud/site-kit";
+import { type BrandProfile, type ListedSite, enquiriesOpen } from "@figbud/site-kit";
 import { fetchListedSites } from "@figbud/site-kit/server";
 import { cacheLife, cacheTag } from "next/cache";
 
@@ -50,4 +50,16 @@ export async function getMapProducts(): Promise<Product[]> {
 export async function getBrands(): Promise<Record<string, BrandProfile | null>> {
   const sites = await getListedSites();
   return Object.fromEntries((sites ?? []).map((s) => [s.slug, s.brand]));
+}
+
+/**
+ * Products whose websites aren't taking enquiries (Admin Studio → Websites →
+ * Navigation, footer & forms), with the message to show instead ("" for the
+ * default). The API refuses them too; this keeps the form honest.
+ */
+export async function getClosedEnquiries(): Promise<Record<string, string>> {
+  const sites = (await getListedSites()) ?? [];
+  return Object.fromEntries(
+    sites.filter((s) => !enquiriesOpen(s)).map((s) => [s.slug, s.settings?.enquiries.closed_message ?? ""]),
+  );
 }

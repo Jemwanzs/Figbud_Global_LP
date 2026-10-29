@@ -131,6 +131,11 @@ Studio UI polish is a standing priority (P7-UX2): every milestone reviews the sc
 | Visible / Hidden | section | A hidden section stays in the page and its versions; the public API never sends it | editor (part of the draft) | when the draft is published |
 | Online / Offline | page | Offline pages answer "not found" and leave the navigation; content and versions are kept. The home page is always online | reviewer | immediately, audited, reversible |
 | Show in navigation | page | Left out of the menu but still reachable at its address | reviewer | immediately, audited, reversible |
+| Menu: website's pages / links I choose | website | Pages marked for navigation, or up to 8 chosen links (page paths or https:// addresses) | reviewer | immediately, audited |
+| Footer note and links | website | A line under the name and up to 8 links (otherwise the menu); FigBud Global's legal links always stay | reviewer | immediately, audited |
+| Enquiries on / off | website | Off removes the enquiry button, shows a notice on the contact form and makes the API refuse the product (409 `enquiries_closed`); received enquiries are kept. The corporate website is always on | reviewer (confirms before closing) | immediately, audited as `site.enquiries_closed` / `site.enquiries_opened` |
+
+**Navigation, footer & forms** (P7-E2, 29 Oct 2026): Websites → a website → Navigation & forms. Settings live in `sites.settings` (validated by `services/api/src/site_settings.rs`; an empty document means the defaults), are read and saved at `GET/POST /v1/admin/sites/{slug}/settings` with a version check, and reach the websites through `GET /v1/sites` (`settings`). The editor suggests the website's published pages as destinations.
 
 **Website cards** show each workspace at a glance: live pages of total, sections, changes awaiting approval or scheduled (pages and brand), and when anything was last published (`workspace` in `GET /v1/admin/sites`). Actions appear only where the screen exists: Manage, Branding, Pages, Open website.
 
@@ -138,9 +143,8 @@ Studio UI polish is a standing priority (P7-UX2): every milestone reviews the sc
 - **Audit (29 Oct 2026):** `apps/zirahr-web` had one built page. Its home page (hero; ten-module feature grid; payroll text; closing call to action) was hard-coded. Seven navigation pages were "coming soon" placeholders. The header and footer come from site-kit.
 - **Import:** every home section maps to an existing block, so the API imported the page once into the Studio, word for word, as published version 1 ("Imported from the ZiraHR website", `pages/import.rs`). It now renders from the Studio on the product-site renderer (`/zirahr`). The import runs only if ZiraHR had no Studio pages, so Studio work is never overwritten.
 - **One change from the original:** the "Explore the modules" button was left out, because it pointed at a placeholder page.
+- **Done since:** navigation and footer settings and the enquiry switch (P7-E2, above), for ZiraHR and every other website.
 - **Remaining:**
-  - per-website navigation and footer settings (P7-E2);
-  - form on/off per website, enforced at the enquiry endpoint as well as hidden from the page;
   - per-site theme settings (P7-E1);
   - the media library (P7-D2);
   - deploying the renderer (approval needed), after which `apps/zirahr-web` can be retired.

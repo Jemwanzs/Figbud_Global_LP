@@ -453,6 +453,9 @@ const en = {
       waitlist: "Join a waitlist",
     },
     product: "Product",
+    closedTitle: "{product} isn't taking enquiries right now",
+    closedDefault: "Please check back soon, or ask us about another FigBud product below.",
+    closedOption: "{product} (not taking enquiries)",
     productOptions: {
       figbud: "FigBud Global / not sure yet",
       zirahr: "ZiraHR",
@@ -486,6 +489,8 @@ const en = {
       generic: "Something went wrong. Please try again.",
       network: "We couldn't reach our servers. Check your connection and try again.",
       rateLimited: "Too many submissions. Please wait a few minutes and try again.",
+      closed:
+        "{product} isn't taking enquiries right now. Choose another product, or ask us about FigBud Global.",
       summary: "Please correct the highlighted fields.",
     },
   },

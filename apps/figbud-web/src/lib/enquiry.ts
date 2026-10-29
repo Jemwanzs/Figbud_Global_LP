@@ -79,7 +79,7 @@ export interface EnquiryPayload extends Omit<EnquiryValues, "consent"> {
 export type SubmitResult =
   | { ok: true; reference: string }
   | { ok: false; reason: "validation"; fields: string[] }
-  | { ok: false; reason: "rate_limited" | "network" | "server" };
+  | { ok: false; reason: "rate_limited" | "network" | "server" | "closed" };
 
 export async function submitEnquiry(
   apiOrigin: string,
@@ -109,5 +109,9 @@ export async function submitEnquiry(
     return { ok: false, reason: "validation", fields: body?.error?.fields?.map((f) => f.field) ?? [] };
   }
   if (response.status === 429) return { ok: false, reason: "rate_limited" };
+  if (response.status === 409) {
+    const body = (await response.json().catch(() => null)) as { error?: { code?: string } } | null;
+    if (body?.error?.code === "enquiries_closed") return { ok: false, reason: "closed" };
+  }
   return { ok: false, reason: "server" };
 }

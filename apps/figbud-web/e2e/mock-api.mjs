@@ -219,6 +219,13 @@ const seedSite = (n, slug, kind, name, tagline, category, template, status) => (
   updated_at: new Date().toISOString(),
   show_on_map: true,
   requests: [],
+  // Navigation, footer & forms (services/api/src/site_settings.rs).
+  settings: {
+    navigation: { mode: "pages", items: [] },
+    footer: { note: null, links: [] },
+    enquiries: { open: true, closed_message: null },
+  },
+  settings_version: 1,
 });
 const sites = [
   seedSite(
@@ -272,8 +279,25 @@ const sites = [
     "coming_soon",
   ),
 ];
+// A test fixture: Jasiri LMS isn't taking enquiries and has its own menu and
+// footer note, so the e2e tests can show both (no other test relies on them).
+Object.assign(sites[2].settings, {
+  navigation: {
+    mode: "custom",
+    items: [
+      { label: "Lending platform", href: "/platform" },
+      { label: "FigBud Global", href: "https://figbud.example.com" },
+    ],
+  },
+  footer: {
+    note: "Lending software for African lenders.",
+    links: [{ label: "Security", href: "/security" }],
+  },
+  enquiries: { open: false, closed_message: "Jasiri LMS is taking enquiries through its partners for now." },
+});
+// The admin row has no settings: they have their own endpoint (sites/{slug}/settings).
 const siteRow = ({ requests, ...s }) => ({
-  ...s,
+  ...Object.fromEntries(Object.entries(s).filter(([k]) => !["settings", "settings_version"].includes(k))),
   pending_to_status: requests.find((r) => r.decision === "pending")?.to_status ?? null,
 });
 const SITE_CTA = { coming_soon: "waitlist", beta: "early_access", active: "demo" };
@@ -283,7 +307,9 @@ const publicSites = () =>
     .sort((a, b) => a.position - b.position)
     .map((s) => ({
       ...Object.fromEntries(
-        Object.entries(s).filter(([k]) => !["requests", "archived_at", "version"].includes(k)),
+        Object.entries(s).filter(
+          ([k]) => !["requests", "archived_at", "version", "settings_version"].includes(k),
+        ),
       ),
       cta: SITE_CTA[s.status],
       brand: publishedBrand(s.slug),
@@ -1661,6 +1687,91 @@ const publicPrivacy = () => ({
     .map((i) => ({ ...i, enabled: undefined, category: PRIVACY_PROVIDERS[i.provider].category })),
 });
 
+// Mirrors services/api/src/site_settings.rs: reviewers change a website's
+// navigation, footer and enquiries directly; every change is audited.
+function siteSettingsRoutes(slug, req, body, user, send) {
+  const site = sites.find((s) => s.slug === slug);
+  if (!site) return send(404, { error: { code: "not_found", message: "Not found." } });
+  const read = () =>
+    send(200, {
+      settings: site.settings,
+      version: site.settings_version,
+      corporate: site.kind === "corporate",
+      can_edit: RANKS[user.role] >= RANKS.reviewer && !site.archived_at,
+      pages: [...pages.values()]
+        .filter((p) => p.site === site && p.published && !p.archived_at && !p.offline)
+        .map((p) => ({ path: `/${p.path}`, title: p.title, show_in_nav: p.show_in_nav !== false })),
+    });
+  if (req.method === "GET") return read();
+  if (RANKS[user.role] < RANKS.reviewer)
+    return send(403, { error: { code: "forbidden", message: "You don't have permission to do that." } });
+  if (site.archived_at)
+    return send(409, { error: { code: "conflict", message: "Restore this website first." } });
+  if (body.version !== site.settings_version)
+    return send(409, {
+      error: {
+        code: "conflict",
+        message: "Someone changed these settings after you opened them. Reload to see the latest.",
+      },
+    });
+  const next = clone(body.settings ?? {});
+  next.navigation ??= { mode: "pages", items: [] };
+  next.footer ??= { note: null, links: [] };
+  next.enquiries ??= { open: true, closed_message: null };
+  const fields = [];
+  const linkOk = (href) => /^(\/(?!\/)[A-Za-z0-9/_.#-]*|https:\/\/[^\s<>"']+)$/.test(href ?? "");
+  for (const [field, list] of [
+    ["navigation.items", next.navigation.items ?? []],
+    ["footer.links", next.footer.links ?? []],
+  ]) {
+    if (list.length > 8) fields.push({ field, code: "too_many", message: "Up to 8 links." });
+    for (const link of list) {
+      link.label = String(link.label ?? "").trim();
+      link.href = String(link.href ?? "").trim();
+      if (!link.label || link.label.length > 40)
+        fields.push({ field, code: "label", message: "Every link needs a label of up to 40 characters." });
+      if (!linkOk(link.href))
+        fields.push({
+          field,
+          code: "href",
+          message: "Links go to a page path such as /platform, or an https:// address.",
+        });
+    }
+  }
+  if (next.navigation.mode === "custom" && !next.navigation.items?.length)
+    fields.push({
+      field: "navigation.items",
+      code: "required",
+      message: "Add at least one link, or use the website's pages.",
+    });
+  if (site.kind === "corporate" && next.enquiries.open === false)
+    fields.push({
+      field: "enquiries.open",
+      code: "corporate",
+      message: "The corporate website always takes enquiries.",
+    });
+  if (fields.length)
+    return send(422, { error: { code: "validation", message: "Some fields need attention.", fields } });
+  next.footer.note = next.footer.note?.trim() || null;
+  next.enquiries.closed_message = next.enquiries.closed_message?.trim() || null;
+  const action =
+    site.settings.enquiries.open && !next.enquiries.open
+      ? "site.enquiries_closed"
+      : !site.settings.enquiries.open && next.enquiries.open
+        ? "site.enquiries_opened"
+        : "site.settings_updated";
+  audit.unshift({
+    id: randomBytes(8).toString("hex"),
+    action,
+    actor_email: user.email,
+    detail: { before: site.settings, after: next },
+    created_at: new Date().toISOString(),
+  });
+  site.settings = next;
+  site.settings_version += 1;
+  return read();
+}
+
 function privacyRoutes(req, body, user, send) {
   const read = () => {
     const recent = consentRecords.filter((r) => Date.now() - r.at < 30 * 86_400_000);
@@ -2077,6 +2188,8 @@ function admin(req, res, url, body, send, raw) {
   if (/^sites\/[a-z0-9_-]+\/brand/.test(path) || path.startsWith("brand/assets/"))
     return brandRoutes(path, req, res, url, body, raw, user, send);
   if (path === "privacy") return privacyRoutes(req, body, user, send);
+  const settingsPath = /^sites\/([a-z0-9_-]+)\/settings$/.exec(path);
+  if (settingsPath) return siteSettingsRoutes(settingsPath[1], req, body, user, send);
   if (path === "sites" || path.startsWith("sites/")) return siteRoutes(path, req, body, user, send);
   return send(404, { error: { code: "not_found", message: "Not found." } });
 }

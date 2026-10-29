@@ -30,6 +30,9 @@ pub enum ApiError {
     /// Forbidden, with a reason the person can act on.
     #[error("not permitted: {0}")]
     NotPermitted(&'static str),
+    /// The website isn't taking enquiries (Admin Studio → website settings).
+    #[error("enquiries closed")]
+    EnquiriesClosed,
     #[error("rate limited")]
     RateLimited { retry_after_secs: u64 },
     #[error("database error: {0}")]
@@ -69,6 +72,12 @@ impl IntoResponse for ApiError {
                 StatusCode::FORBIDDEN,
                 "forbidden",
                 "You don't have permission to do that.",
+                None,
+            ),
+            ApiError::EnquiriesClosed => (
+                StatusCode::CONFLICT,
+                "enquiries_closed",
+                "This product isn't taking enquiries right now.",
                 None,
             ),
             ApiError::RateLimited { .. } => (

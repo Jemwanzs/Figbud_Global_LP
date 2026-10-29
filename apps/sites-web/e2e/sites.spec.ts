@@ -157,3 +157,27 @@ test.describe("cookie consent", () => {
     await expect(page.getByRole("dialog", { name: "Cookie preferences" })).toBeVisible();
   });
 });
+
+test("the Studio's menu, footer note and closed enquiries reach the website", async ({ page }) => {
+  // Mock fixture: Jasiri LMS has its own menu and isn't taking enquiries.
+  await page.goto("/jasiri");
+  const header = page.getByRole("banner");
+  await expect(header.getByRole("link", { name: "Lending platform" })).toHaveAttribute(
+    "href",
+    "/jasiri/platform",
+  );
+  await expect(header.getByRole("link", { name: "FigBud Global" })).toHaveAttribute(
+    "href",
+    "https://figbud.example.com",
+  );
+  // No enquiry button while closed.
+  await expect(
+    header.getByRole("link", { name: /Request a demo|Join the waitlist|Request early access/ }),
+  ).toHaveCount(0);
+  const footer = page.getByRole("contentinfo");
+  await expect(footer).toContainText("Lending software for African lenders.");
+  await expect(footer.getByRole("link", { name: "Security" })).toHaveAttribute("href", "/jasiri/security");
+  // Other websites keep their call to action.
+  await page.goto("/ziwa");
+  await expect(page.getByRole("banner").getByRole("link", { name: "Join the waitlist" })).toBeVisible();
+});

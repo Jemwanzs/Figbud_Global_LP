@@ -98,12 +98,15 @@ struct PublicSite {
     primary_domain: Option<String>,
     position: i32,
     show_on_map: bool,
+    #[serde(skip)]
+    settings: Value,
 }
 
 /// Listed websites (not archived, draft or retired) with their published brand.
 async fn public_sites(State(state): State<SharedState>) -> Result<impl IntoResponse, ApiError> {
     let rows: Vec<PublicSite> = sqlx::query_as(
-        "SELECT slug, kind, name, tagline, description, category, status, primary_domain, position, show_on_map
+        "SELECT slug, kind, name, tagline, description, category, status, primary_domain, position, show_on_map,
+                settings
            FROM sites
           WHERE archived_at IS NULL AND status IN ('coming_soon', 'beta', 'active')
           ORDER BY position, name",
@@ -116,7 +119,9 @@ async fn public_sites(State(state): State<SharedState>) -> Result<impl IntoRespo
         .map(|s| {
             let cta = cta_for(&s.status);
             let brand = brands.remove(&s.slug).unwrap_or(Value::Null);
+            let settings = crate::site_settings::WebsiteSettings::from_stored(s.settings.clone()).public();
             let mut value = serde_json::to_value(s).unwrap_or(Value::Null);
+            value["settings"] = settings;
             value["cta"] = json!(cta);
             value["brand"] = brand;
             value

@@ -17,4 +17,5 @@ pub mod pages;
 pub mod privacy;
 pub mod rate_limit;
 pub mod routes;
+pub mod site_settings;
 pub mod sites;

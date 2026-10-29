@@ -1,5 +1,5 @@
 import { buttonClasses } from "@figbud/ui";
-import { FileStack, Palette } from "lucide-react";
+import { FileStack, Palette, PanelsTopLeft } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -61,6 +61,10 @@ async function Site({ params }: Pick<PageProps<"/admin/sites/[slug]">, "params">
         <Link href={`/admin/sites/${site.slug}/pages`} className={buttonClasses("secondary", "md")}>
           <FileStack aria-hidden className="size-4" />
           Pages
+        </Link>
+        <Link href={`/admin/sites/${site.slug}/website`} className={buttonClasses("secondary", "md")}>
+          <PanelsTopLeft aria-hidden className="size-4" />
+          Navigation & forms
         </Link>
       </div>
       <p className="mt-2 text-muted">

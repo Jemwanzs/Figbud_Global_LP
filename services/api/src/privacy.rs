@@ -187,7 +187,8 @@ fn text(errors: &mut Vec<FieldError>, value: &mut String, field: &'static str, m
     }
 }
 
-fn valid_link(value: &str) -> bool {
+/// A path on the website ("/legal/privacy") or an https:// address.
+pub(crate) fn valid_link(value: &str) -> bool {
     let path_ok = |p: &str| {
         p.bytes()
             .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'/' | b'-' | b'_' | b'.' | b'#'))

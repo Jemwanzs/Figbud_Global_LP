@@ -7,6 +7,7 @@ import { Breadcrumbs } from "@/components/breadcrumbs";
 import { EnquiryForm } from "@/components/contact/enquiry-form";
 import { PageHeader } from "@/components/page-header";
 import { resolvePage } from "@/lib/page";
+import { getClosedEnquiries } from "@/lib/products";
 import { pageMetadata, routes } from "@/lib/site";
 
 export async function generateMetadata({ params }: PageProps<"/[locale]/contact">): Promise<Metadata> {
@@ -18,6 +19,7 @@ export async function generateMetadata({ params }: PageProps<"/[locale]/contact"
 export default async function ContactPage({ params }: PageProps<"/[locale]/contact">) {
   const { locale, dict } = await resolvePage(params);
   const page = dict.pages.contact;
+  const closed = await getClosedEnquiries();
 
   return (
     <>
@@ -45,6 +47,7 @@ export default async function ContactPage({ params }: PageProps<"/[locale]/conta
             <EnquiryForm
               locale={locale}
               copy={dict.form}
+              closed={closed}
               privacyHref={localizePath(locale, routes.privacy)}
             />
           </Suspense>

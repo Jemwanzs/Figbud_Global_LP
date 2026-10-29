@@ -27,7 +27,7 @@ use crate::{
     error::ApiError,
     privacy,
     rate_limit::{RateLimiter, client_ip, ip_hash},
-    sites,
+    site_settings, sites,
 };
 
 pub struct AppState {
@@ -82,6 +82,7 @@ pub fn router(state: SharedState) -> Router {
         .merge(sites::router())
         .merge(brand::router())
         .merge(privacy::router())
+        .merge(site_settings::router())
         .layer(RequestBodyLimitLayer::new(16 * 1024))
         // Articles are larger than any form; the editorial API gets its own limit.
         .merge(cms::editorial::router().layer(RequestBodyLimitLayer::new(512 * 1024)))
@@ -199,6 +200,11 @@ async fn create_enquiry(
                 status: "received",
             }),
         ));
+    }
+    // A website closed to enquiries in the Studio refuses new ones (replays
+    // of enquiries it already accepted still get their reference above).
+    if !site_settings::enquiries_open(&state.pool, enquiry.product.as_str()).await? {
+        return Err(ApiError::EnquiriesClosed);
     }
 
     let id = Uuid::now_v7();

@@ -41,6 +41,10 @@ export function parseSiteParam(param: string): { slug: string; ownDomain: boolea
 export const pageHref = (slug: string, ownDomain: boolean, path: string) =>
   `${ownDomain ? "" : `/${slug}`}/${path}`.replace(/\/$/, "") || "/";
 
+/** Where a Studio navigation or footer link goes: a page path on this website, or an https:// address. */
+export const siteLinkHref = (slug: string, ownDomain: boolean, href: string) =>
+  href.startsWith("/") ? pageHref(slug, ownDomain, href.slice(1)) : href;
+
 /** The canonical URL of a page. */
 export function canonicalUrl(
   site: Pick<ListedSite, "slug" | "primary_domain">,

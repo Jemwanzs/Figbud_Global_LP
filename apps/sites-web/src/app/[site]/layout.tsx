@@ -1,5 +1,5 @@
 import { themeColorViewport } from "@figbud/brand";
-import { CookieConsent, ENGLISH_CONSENT_LABELS, brandIcons } from "@figbud/site-kit";
+import { CookieConsent, ENGLISH_CONSENT_LABELS, brandIcons, enquiriesOpen } from "@figbud/site-kit";
 import { themeInitScript } from "@figbud/ui";
 import type { Metadata, Viewport } from "next";
 import { Outfit } from "next/font/google";
@@ -18,6 +18,7 @@ import {
   getSite,
   pageHref,
   parseSiteParam,
+  siteLinkHref,
   publicApiOrigin,
   rendererOrigin,
 } from "@/lib/sites";
@@ -73,9 +74,19 @@ export default async function SiteLayout({ children, params }: LayoutProps<"/[si
   if (!site) notFound();
   const pages = await getPages(slug);
   const privacy = await getPrivacySettings();
-  const links = pages
-    .filter((p) => p.path !== "" && p.show_in_nav !== false)
-    .map((p) => ({ href: pageHref(slug, ownDomain, p.path), label: p.title }));
+  // The menu: the Studio's own links, or the published pages marked for navigation.
+  const navigation = site.settings?.navigation;
+  const links =
+    navigation?.mode === "custom"
+      ? navigation.items.map((l) => ({ href: siteLinkHref(slug, ownDomain, l.href), label: l.label }))
+      : pages
+          .filter((p) => p.path !== "" && p.show_in_nav !== false)
+          .map((p) => ({ href: pageHref(slug, ownDomain, p.path), label: p.title }));
+  const footer = site.settings?.footer;
+  const footerLinks = (footer?.links ?? []).map((l) => ({
+    href: siteLinkHref(slug, ownDomain, l.href),
+    label: l.label,
+  }));
   const colours = site.brand
     ? ({
         "--product": site.brand.colors.primary,
@@ -105,12 +116,16 @@ export default async function SiteLayout({ children, params }: LayoutProps<"/[si
             homeHref={pageHref(slug, ownDomain, "")}
             logo={site.brand?.logos.horizontal}
             links={links.slice(0, 6)}
-            cta={{ href: enquiryHref(site), label: CTA_LABELS[site.cta] }}
+            cta={enquiriesOpen(site) ? { href: enquiryHref(site), label: CTA_LABELS[site.cta] } : null}
           />
           <main id="main" tabIndex={-1} className="flex-1 outline-none">
             {children}
           </main>
-          <SiteFooter name={site.name} tagline={site.tagline} links={links} />
+          <SiteFooter
+            name={site.name}
+            tagline={footer?.note ?? site.tagline}
+            links={footerLinks.length ? footerLinks : links}
+          />
           {/* The policies are FigBud Global's, on the corporate site. */}
           <CookieConsent
             settings={privacy}

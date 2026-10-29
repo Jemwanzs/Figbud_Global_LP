@@ -2,7 +2,7 @@
 
 import type { Locale } from "@figbud/i18n";
 import { buttonClasses, cn } from "@figbud/ui";
-import { ArrowRight, CircleCheck, LoaderCircle, TriangleAlert } from "lucide-react";
+import { ArrowRight, CircleCheck, Info, LoaderCircle, TriangleAlert } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { type FormEvent, type ReactNode, useEffect, useId, useRef, useState } from "react";
 
@@ -41,15 +41,21 @@ const SERVER_FIELD_ERROR: Record<string, EnquiryErrors[keyof EnquiryErrors]> = {
 export function EnquiryForm({
   locale,
   copy,
+  closed = {},
   privacyHref,
 }: {
   locale: Locale;
   copy: Copy;
+  /** Products not taking enquiries, with the Studio's message ("" for the default). */
+  closed?: Record<string, string>;
   privacyHref: string;
 }) {
   const params = useSearchParams();
   const initialKind = params.get("kind");
-  const initialProduct = params.get("product");
+  const requested = params.get("product");
+  // A link to a closed product says so above the form, which starts on FigBud Global instead.
+  const closedRequest = isEnquiryProduct(requested) && requested in closed ? requested : null;
+  const initialProduct = closedRequest ? null : requested;
 
   const [values, setValues] = useState<EnquiryValues>(() => ({
     kind: isEnquiryKind(initialKind) ? initialKind : "demo_request",
@@ -128,11 +134,13 @@ export function EnquiryForm({
     setStatus({
       state: "error",
       message:
-        result.reason === "rate_limited"
-          ? copy.errors.rateLimited
-          : result.reason === "network"
-            ? copy.errors.network
-            : copy.errors.generic,
+        result.reason === "closed"
+          ? copy.errors.closed.replace("{product}", copy.productOptions[values.product])
+          : result.reason === "rate_limited"
+            ? copy.errors.rateLimited
+            : result.reason === "network"
+              ? copy.errors.network
+              : copy.errors.generic,
     });
   };
 
@@ -187,6 +195,22 @@ export function EnquiryForm({
         {copy.title}
       </h2>
 
+      {closedRequest && (
+        <div
+          role="note"
+          aria-label={copy.closedTitle.replace("{product}", copy.productOptions[closedRequest])}
+          className="mt-6 flex gap-3 rounded-2xl border border-line bg-surface-2 p-4"
+        >
+          <Info aria-hidden className="mt-0.5 size-5 shrink-0 text-muted" />
+          <div>
+            <p className="font-medium text-text">
+              {copy.closedTitle.replace("{product}", copy.productOptions[closedRequest])}
+            </p>
+            <p className="mt-1 text-sm text-muted">{closed[closedRequest] || copy.closedDefault}</p>
+          </div>
+        </div>
+      )}
+
       <div aria-live="assertive">
         {status.state === "error" && (
           <div
@@ -238,8 +262,10 @@ export function EnquiryForm({
               className={inputClass}
             >
               {enquiryProducts.map((product) => (
-                <option key={product} value={product}>
-                  {copy.productOptions[product]}
+                <option key={product} value={product} disabled={product in closed}>
+                  {product in closed
+                    ? copy.closedOption.replace("{product}", copy.productOptions[product])
+                    : copy.productOptions[product]}
                 </option>
               ))}
             </select>

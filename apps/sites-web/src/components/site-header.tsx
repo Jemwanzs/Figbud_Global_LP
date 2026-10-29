@@ -25,7 +25,8 @@ export function SiteHeader({
   homeHref: string;
   logo?: BrandPair | null;
   links: NavLink[];
-  cta: NavLink;
+  /** Absent while the website isn't taking enquiries. */
+  cta?: NavLink | null;
 }) {
   const pathname = usePathname();
   // Own-domain requests are rewritten internally; compare the visible address.
@@ -79,10 +80,12 @@ export function SiteHeader({
         )}
         <div className="ms-auto flex items-center gap-2 sm:gap-3">
           <ThemeToggle labels={{ toLight: "Switch to light theme", toDark: "Switch to dark theme" }} />
-          <a href={cta.href} className={buttonClasses("product", "md")}>
-            {cta.label}
-            <ArrowRight aria-hidden className="size-4 rtl:rotate-180" />
-          </a>
+          {cta && (
+            <a href={cta.href} className={buttonClasses("product", "md")}>
+              {cta.label}
+              <ArrowRight aria-hidden className="size-4 rtl:rotate-180" />
+            </a>
+          )}
         </div>
       </div>
     </header>
