@@ -42,8 +42,8 @@ test.describe("homepage", () => {
     await page.goto("/en#platforms");
     const tabs = page.getByRole("tablist");
     const logo = (name: RegExp) => tabs.getByRole("tab", { name }).locator('img[src^="/brand/assets/"]');
-    // Symbols for ZiraHR and Ziwa LMS; Jasiri's official logo carries its name.
-    for (const name of [/ZiraHR/, /Ziwa LMS/, /Jasiri LMS/])
+    // Symbols for ZiraHR, Expense Now and Ziwa LMS; Jasiri's official logo carries its name.
+    for (const name of [/ZiraHR/, /Expense Now/, /Ziwa LMS/, /Jasiri LMS/])
       await expect(logo(name).filter({ visible: true }).first()).toBeVisible();
     await expect(
       tabs
@@ -51,8 +51,6 @@ test.describe("homepage", () => {
         .getByRole("img", { name: "Jasiri LMS" })
         .first(),
     ).toBeVisible();
-    // Expense Now has no approved logo yet, so it keeps its temporary icon.
-    await expect(logo(/Expense Now/)).toHaveCount(0);
     // The panel follows the tab, with the same logo.
     await tabs.getByRole("tab", { name: /Ziwa LMS/ }).click();
     const panel = page.getByRole("tabpanel");

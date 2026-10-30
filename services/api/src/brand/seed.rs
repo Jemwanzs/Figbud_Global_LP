@@ -3,7 +3,7 @@
 //! For each website without a profile yet:
 //! - `official` files (FigBud's supplied artwork, trimmed or an intact part
 //!   cropped, never redrawn) are stored and **published** as revision 1;
-//! - `proposed` files (recoloured theme variants, the Expense Now concept) are
+//! - `proposed` files (recoloured theme variants) are
 //!   stored and placed in the **draft** only, so nothing proposed goes live
 //!   until someone submits it and an owner or reviewer approves it.
 //!
@@ -40,7 +40,6 @@ macro_rules! seed {
 #[derive(Clone, Copy)]
 enum Slot {
     Horizontal,
-    Stacked,
     Symbol,
     Favicon,
     AppIcon,
@@ -167,53 +166,7 @@ fn plan(slug: &str) -> (&'static str, Vec<Placed>) {
                 ),
             ],
         ),
-        "expense_now" => (
-            "Expense Now",
-            vec![
-                placed(
-                    seed!("expense-now-horizontal-on-dark-proposed.svg", "proposed"),
-                    "Expense Now logo concept (dark backgrounds)",
-                    Horizontal,
-                    true,
-                    false,
-                ),
-                placed(
-                    seed!("expense-now-horizontal-on-light-proposed.svg", "proposed"),
-                    "Expense Now logo concept (light backgrounds)",
-                    Horizontal,
-                    false,
-                    true,
-                ),
-                placed(
-                    seed!("expense-now-stacked-on-dark-proposed.svg", "proposed"),
-                    "Expense Now stacked concept (dark backgrounds)",
-                    Stacked,
-                    true,
-                    false,
-                ),
-                placed(
-                    seed!("expense-now-stacked-on-light-proposed.svg", "proposed"),
-                    "Expense Now stacked concept (light backgrounds)",
-                    Stacked,
-                    false,
-                    true,
-                ),
-                placed(
-                    seed!("expense-now-symbol-proposed.svg", "proposed"),
-                    "Expense Now symbol concept",
-                    Symbol,
-                    true,
-                    true,
-                ),
-                placed(
-                    seed!("expense-now-favicon-proposed.svg", "proposed"),
-                    "Expense Now favicon concept",
-                    Favicon,
-                    false,
-                    false,
-                ),
-            ],
-        ),
+        "expense_now" => ("Expense Now", expense_now_files()),
         "ziwa" => ("Ziwa LMS", ziwa_files()),
         _ => ("", Vec::new()),
     }
@@ -291,6 +244,117 @@ fn ziwa_files() -> Vec<Placed> {
     ]
 }
 
+/// The Expense Now identity (radial burst and two-line wordmark; owner-approved
+/// 30 Oct 2026), rebuilt as vectors from the approved brand sheet by
+/// scripts/brand/expense_now/build.py. Replaces the earlier concept.
+fn expense_now_files() -> Vec<Placed> {
+    use Slot::*;
+    vec![
+        placed(
+            seed!("expense-now-horizontal-on-light-official.svg", "official"),
+            "Expense Now logo (approved, for light backgrounds)",
+            Horizontal,
+            false,
+            true,
+        ),
+        placed(
+            seed!("expense-now-horizontal-on-dark-official.svg", "official"),
+            "Expense Now logo (approved, for dark backgrounds)",
+            Horizontal,
+            true,
+            false,
+        ),
+        placed(
+            seed!("expense-now-symbol-official.svg", "official"),
+            "Expense Now symbol (approved)",
+            Symbol,
+            false,
+            true,
+        ),
+        placed(
+            seed!("expense-now-symbol-on-dark-official.svg", "official"),
+            "Expense Now symbol for dark backgrounds (approved)",
+            Symbol,
+            true,
+            false,
+        ),
+        placed(
+            seed!("expense-now-favicon-official.svg", "official"),
+            "Expense Now favicon (approved symbol on a white tile)",
+            Favicon,
+            false,
+            false,
+        ),
+        placed(
+            seed!("expense-now-app-icon-official.svg", "official"),
+            "Expense Now app icon (approved symbol on a white tile)",
+            AppIcon,
+            false,
+            false,
+        ),
+        placed(
+            seed!("expense-now-favicon-dark-official.svg", "official"),
+            "Expense Now favicon on brown (approved)",
+            LibraryOnly,
+            false,
+            false,
+        ),
+        placed(
+            seed!("expense-now-app-icon-dark-official.svg", "official"),
+            "Expense Now app icon on brown (approved)",
+            LibraryOnly,
+            false,
+            false,
+        ),
+        placed(
+            seed!("expense-now-horizontal-monochrome-official.svg", "official"),
+            "Expense Now logo, monochrome (approved)",
+            LibraryOnly,
+            false,
+            false,
+        ),
+        placed(
+            seed!(
+                "expense-now-horizontal-monochrome-on-dark-official.svg",
+                "official"
+            ),
+            "Expense Now logo, monochrome for dark backgrounds (approved)",
+            LibraryOnly,
+            false,
+            false,
+        ),
+    ]
+}
+
+/// An owner-approved identity that replaces an earlier one on existing
+/// databases, once (see [`upgrade_identity`]).
+struct Identity {
+    slug: &'static str,
+    name: &'static str,
+    files: fn() -> Vec<Placed>,
+    /// Audit action marking the identity as applied.
+    marker: &'static str,
+    /// The published revision's note.
+    note: &'static str,
+}
+
+const IDENTITIES: [Identity; 2] = [
+    Identity {
+        slug: "ziwa",
+        name: "Ziwa LMS",
+        files: ziwa_files,
+        marker: "brand.ziwa_final_identity_seeded",
+        note: "Final Ziwa LMS identity: orange, yellow and brown (approved by the owner, 29 Oct 2026)",
+    },
+    Identity {
+        slug: "expense_now",
+        name: "Expense Now",
+        files: expense_now_files,
+        marker: "brand.expense_now_identity_seeded",
+        note: "Expense Now identity: radial burst and wordmark (approved by the owner, 30 Oct 2026)",
+    },
+];
+
 fn assign(config: &mut BrandConfig, slot: Slot, id: Uuid, on_dark: bool, on_light: bool) {
     let set = |pair: &mut ThemePair| {
         if on_dark {
@@ -302,7 +366,6 @@ fn assign(config: &mut BrandConfig, slot: Slot, id: Uuid, on_dark: bool, on_ligh
     };
     match slot {
         Slot::Horizontal => set(&mut config.logos.horizontal),
-        Slot::Stacked => set(&mut config.logos.stacked),
         Slot::Symbol => set(&mut config.logos.symbol),
         Slot::Favicon => config.favicon = Some(id),
         Slot::AppIcon => config.app_icon = Some(id),
@@ -345,15 +408,8 @@ pub async fn run(pool: &PgPool) -> Result<(), Box<dyn std::error::Error + Send +
             assign(&mut draft, file.slot, id, file.on_dark, file.on_light);
         }
         let has_official = !published.asset_ids().is_empty();
-        let draft_note = match slug.as_str() {
-            "expense_now" => {
-                Some("Proposed Expense Now logo concept: not approved. Review before submitting.")
-            }
-            _ if draft != published => {
-                Some("Proposed light-background versions of the official logos: review before submitting.")
-            }
-            _ => None,
-        };
+        let draft_note = (draft != published)
+            .then_some("Proposed light-background versions of the official logos: review before submitting.");
         let mut tx = pool.begin().await?;
         let created = sqlx::query(
             "INSERT INTO site_brands (site_id, draft, draft_note) VALUES ($1, $2, $3) ON CONFLICT (site_id) DO NOTHING",
@@ -400,14 +456,16 @@ pub async fn run(pool: &PgPool) -> Result<(), Box<dyn std::error::Error + Send +
         .execute(&mut *tx)
         .await?;
         mark_icons_seeded(&mut tx, site_id, false).await?;
-        if slug == "ziwa" {
-            mark_ziwa_identity(&mut tx, site_id, false).await?;
+        if let Some(identity) = IDENTITIES.iter().find(|i| i.slug == slug) {
+            mark_identity(&mut tx, identity.marker, site_id, false).await?;
         }
         tx.commit().await?;
         tracing::info!(%slug, has_official, "brand profile seeded");
     }
     upgrade_icons(pool).await?;
-    upgrade_ziwa_identity(pool).await?;
+    for identity in &IDENTITIES {
+        upgrade_identity(pool, identity).await?;
+    }
     upgrade_figbud_palette(pool).await
 }
 
@@ -504,16 +562,18 @@ async fn upgrade_figbud_palette(pool: &PgPool) -> Result<(), Box<dyn std::error:
     Ok(())
 }
 
-async fn mark_ziwa_identity(
+async fn mark_identity(
     tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    marker: &str,
     site_id: Uuid,
     published: bool,
 ) -> Result<(), sqlx::Error> {
     sqlx::query(
         "INSERT INTO audit_log (id, action, target_type, target_id, detail, site_id)
-         VALUES ($1, 'brand.ziwa_final_identity_seeded', 'site', $2, $3, $4)",
+         VALUES ($1, $2, 'site', $3, $4, $5)",
     )
     .bind(Uuid::now_v7())
+    .bind(marker)
     .bind(site_id.to_string())
     .bind(json!({ "published": published }))
     .bind(site_id)
@@ -522,27 +582,32 @@ async fn mark_ziwa_identity(
     Ok(())
 }
 
-/// One-time upgrade for databases seeded with an earlier Ziwa identity (the
-/// concept, or the blue and green version approved on 28 Oct 2026). The owner
-/// approved the final orange, yellow and brown identity on 29 Oct 2026, so its
-/// files are stored and published as a recorded revision (logos, favicon, app
-/// icon and colours); the draft is replaced, a pending brand change it
-/// supersedes is withdrawn, and the superseded seeded files and concepts are
-/// archived (files uploaded in the Studio are kept). The audit marker means it
-/// never runs twice, so later Studio changes are kept.
-async fn upgrade_ziwa_identity(pool: &PgPool) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+/// One-time upgrade for databases seeded with an earlier identity: the Ziwa
+/// LMS concept or blue and green version (final identity approved 29 Oct
+/// 2026), the Expense Now concept (identity approved 30 Oct 2026). The
+/// approved files are stored and published as a recorded revision (logos,
+/// favicon, app icon and colours); the draft is replaced, a pending brand
+/// change it supersedes is withdrawn, and the superseded seeded files and
+/// concepts are archived (files uploaded in the Studio are kept). The audit
+/// marker means it never runs twice, so later Studio changes are kept.
+async fn upgrade_identity(
+    pool: &PgPool,
+    identity: &Identity,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let pending: Option<Uuid> = sqlx::query_scalar(
         "SELECT s.id FROM sites s JOIN site_brands b ON b.site_id = s.id
-          WHERE s.slug = 'ziwa' AND NOT EXISTS (
-                SELECT 1 FROM audit_log a WHERE a.site_id = s.id AND a.action = 'brand.ziwa_final_identity_seeded')",
+          WHERE s.slug = $1 AND NOT EXISTS (
+                SELECT 1 FROM audit_log a WHERE a.site_id = s.id AND a.action = $2)",
     )
+    .bind(identity.slug)
+    .bind(identity.marker)
     .fetch_optional(pool)
     .await?;
     let Some(site_id) = pending else {
         return Ok(());
     };
     let mut placed = Vec::new();
-    for file in ziwa_files() {
+    for file in (identity.files)() {
         let processed = process(file.seed.bytes, Kind::Svg)
             .map_err(|r| format!("{}: {}", file.seed.file, r.message()))?;
         let (_, id) = store(
@@ -550,7 +615,7 @@ async fn upgrade_ziwa_identity(pool: &PgPool) -> Result<(), Box<dyn std::error::
             site_id,
             &processed,
             file.label,
-            "Ziwa LMS",
+            identity.name,
             file.seed.origin,
             None,
         )
@@ -565,18 +630,18 @@ async fn upgrade_ziwa_identity(pool: &PgPool) -> Result<(), Box<dyn std::error::
             .bind(site_id)
             .fetch_one(&mut *tx)
             .await?;
-    let already: bool = sqlx::query_scalar(
-        "SELECT EXISTS (SELECT 1 FROM audit_log WHERE site_id = $1 AND action = 'brand.ziwa_final_identity_seeded')",
-    )
-    .bind(site_id)
-    .fetch_one(&mut *tx)
-    .await?;
+    let already: bool =
+        sqlx::query_scalar("SELECT EXISTS (SELECT 1 FROM audit_log WHERE site_id = $1 AND action = $2)")
+            .bind(site_id)
+            .bind(identity.marker)
+            .fetch_one(&mut *tx)
+            .await?;
     if already {
         // Another replica got there first.
         tx.rollback().await?;
         return Ok(());
     }
-    let defaults = BrandConfig::default_for("ziwa");
+    let defaults = BrandConfig::default_for(identity.slug);
     let mut config = current
         .and_then(|v| serde_json::from_value::<BrandConfig>(v).ok())
         .unwrap_or_else(|| defaults.clone());
@@ -589,21 +654,23 @@ async fn upgrade_ziwa_identity(pool: &PgPool) -> Result<(), Box<dyn std::error::
     let value = serde_json::to_value(&config)?;
     sqlx::query(
         "UPDATE brand_revisions SET state = 'cancelled', decided_at = now(),
-                decision_note = 'Superseded by the final Ziwa LMS identity'
+                decision_note = 'Superseded by the approved ' || $2 || ' identity'
           WHERE site_id = $1 AND state = 'pending'",
     )
     .bind(site_id)
+    .bind(identity.name)
     .execute(&mut *tx)
     .await?;
     let revision = Uuid::now_v7();
     sqlx::query(
         "INSERT INTO brand_revisions (id, site_id, number, config, note, state, decided_at)
          VALUES ($1, $2, COALESCE((SELECT max(number) FROM brand_revisions WHERE site_id = $2), 0) + 1,
-                 $3, 'Final Ziwa LMS identity: orange, yellow and brown (approved by the owner, 29 Oct 2026)', 'published', now())",
+                 $3, $4, 'published', now())",
     )
     .bind(revision)
     .bind(site_id)
     .bind(&value)
+    .bind(identity.note)
     .execute(&mut *tx)
     .await?;
     sqlx::query(
@@ -625,9 +692,9 @@ async fn upgrade_ziwa_identity(pool: &PgPool) -> Result<(), Box<dyn std::error::
     .bind(&kept)
     .execute(&mut *tx)
     .await?;
-    mark_ziwa_identity(&mut tx, site_id, true).await?;
+    mark_identity(&mut tx, identity.marker, site_id, true).await?;
     tx.commit().await?;
-    tracing::info!("final Ziwa LMS identity published");
+    tracing::info!(site = identity.slug, "approved identity published");
     Ok(())
 }
 

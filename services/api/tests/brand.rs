@@ -157,10 +157,26 @@ async fn seeded_official_logos_are_published_and_proposals_stay_in_draft() {
     );
     assert!(site("zirahr")["brand"]["logos"]["symbol"]["on_dark"]["url"].is_string());
     assert!(site("jasiri")["brand"]["logos"]["horizontal"]["on_dark"]["url"].is_string());
-    assert!(
-        site("expense_now")["brand"].is_null(),
-        "the Expense Now concept is not approved"
+    // The Expense Now identity (30 Oct 2026) is published: logo and symbol for
+    // each theme, favicon and app icon, in the approved palette.
+    let expense = site("expense_now")["brand"].clone();
+    for slot in [
+        &expense["logos"]["horizontal"]["on_dark"],
+        &expense["logos"]["horizontal"]["on_light"],
+        &expense["logos"]["symbol"]["on_dark"],
+        &expense["logos"]["symbol"]["on_light"],
+        &expense["favicon"],
+        &expense["app_icon"],
+    ] {
+        assert_eq!(slot["content_type"], "image/svg+xml", "{expense}");
+        assert_eq!(slot["alt"], "Expense Now");
+    }
+    assert_ne!(
+        expense["logos"]["horizontal"]["on_dark"]["url"], expense["logos"]["horizontal"]["on_light"]["url"],
+        "white and brown wordmarks"
     );
+    assert_eq!(expense["colors"]["primary"], "#ff7a00");
+    assert_eq!(expense["colors"]["accent"], "#ffc107");
     // The final Ziwa LMS identity (29 Oct 2026) is published.
     let ziwa = site("ziwa")["brand"].clone();
     for slot in [
@@ -199,6 +215,52 @@ async fn seeded_official_logos_are_published_and_proposals_stay_in_draft() {
     .await
     .unwrap();
     assert_eq!(markers, 1, "the icon upgrade runs once");
+
+    // Databases seeded with the Expense Now concept are upgraded once: the
+    // approved identity is published as a new revision and the concept archived.
+    let expense_site: Uuid = sqlx::query_scalar("SELECT id FROM sites WHERE slug = 'expense_now'")
+        .fetch_one(&s.pool)
+        .await
+        .unwrap();
+    sqlx::query("DELETE FROM audit_log WHERE action = 'brand.expense_now_identity_seeded' AND site_id = $1")
+        .bind(expense_site)
+        .execute(&s.pool)
+        .await
+        .unwrap();
+    let concept: Uuid = sqlx::query_scalar(
+        "INSERT INTO brand_assets (id, site_id, label, alt_text, content_type, width, height, has_alpha,
+                                   byte_size, sha256, data, origin)
+         VALUES ($1, $2, 'Expense Now logo concept', 'Expense Now', 'image/svg+xml', 40, 20, true, 4,
+                 $3, 'test', 'proposed')
+         RETURNING id",
+    )
+    .bind(Uuid::now_v7())
+    .bind(expense_site)
+    .bind(Uuid::new_v4().to_string())
+    .fetch_one(&s.pool)
+    .await
+    .unwrap();
+    brand::seed::run(&s.pool).await.unwrap();
+    brand::seed::run(&s.pool).await.unwrap();
+    let (note, archived): (String, bool) = sqlx::query_as(
+        "SELECT (SELECT r.note FROM brand_revisions r WHERE r.site_id = $1 ORDER BY r.number DESC LIMIT 1),
+                (SELECT archived_at IS NOT NULL FROM brand_assets WHERE id = $2)",
+    )
+    .bind(expense_site)
+    .bind(concept)
+    .fetch_one(&s.pool)
+    .await
+    .unwrap();
+    assert!(note.contains("Expense Now identity"), "{note}");
+    assert!(archived, "the concept is archived");
+    let markers: i64 = sqlx::query_scalar(
+        "SELECT count(*) FROM audit_log WHERE action = 'brand.expense_now_identity_seeded' AND site_id = $1",
+    )
+    .bind(expense_site)
+    .fetch_one(&s.pool)
+    .await
+    .unwrap();
+    assert_eq!(markers, 1, "the Expense Now upgrade runs once");
 
     // Databases seeded with an earlier Ziwa identity are upgraded once: the
     // final identity is published as a new revision and replaces the draft,
@@ -387,28 +449,27 @@ async fn seeded_official_logos_are_published_and_proposals_stay_in_draft() {
         (StatusCode::OK, Some("image/webp"))
     );
 
-    // Draft-only files are not.
+    // Draft-only files are not: Jasiri's proposed light-background recolour.
     let owner = s.admin("owner").await;
     let (_, studio) = s
-        .call("GET", "/v1/admin/sites/expense_now/brand", Some(&owner), None)
+        .call("GET", "/v1/admin/sites/jasiri/brand", Some(&owner), None)
         .await;
-    let concept = studio["draft"]["logos"]["horizontal"]["on_dark"]
+    let proposal = studio["draft"]["logos"]["horizontal"]["on_light"]
         .as_str()
         .unwrap()
         .to_owned();
-    assert!(studio["draft_note"].as_str().unwrap().contains("not approved"));
-    let (status, _, _) = s.send(get(format!("/v1/brand/assets/{concept}"))).await;
+    let (status, _, _) = s.send(get(format!("/v1/brand/assets/{proposal}"))).await;
     assert_eq!(status, StatusCode::NOT_FOUND);
     let asset = studio["assets"]
         .as_array()
         .unwrap()
         .iter()
-        .find(|a| a["id"] == concept.as_str())
+        .find(|a| a["id"] == proposal.as_str())
         .unwrap();
     assert_eq!(asset["origin"], "proposed");
     assert_eq!(
         asset["used_in"]["draft"][0],
-        json!({ "slot": "horizontal", "theme": "dark" })
+        json!({ "slot": "horizontal", "theme": "light" })
     );
 }
 

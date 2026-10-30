@@ -19,10 +19,11 @@ test("nodes show the published logos and link to configured destinations", async
   const jasiri = visual.getByRole("link", { name: /Jasiri LMS/ });
   await expect(jasiri.getByRole("img", { name: "Jasiri LMS" }).first()).toBeVisible();
 
-  // Coming soon: the built-in icon (concept not approved) and the waitlist.
+  // Coming soon: the approved symbol (30 Oct 2026) and the waitlist.
   const expense = visual.getByRole("link", { name: /Expense Now/ });
   await expect(expense).toHaveAttribute("href", "/en/contact?kind=waitlist&product=expense_now");
-  await expect(expense.locator('img[src^="/brand/assets/"]')).toHaveCount(0);
+  // Symbols for dark and light backgrounds; the theme shows one.
+  await expect(expense.locator('img[src^="/brand/assets/"]').filter({ visible: true })).toHaveCount(1);
   await expect(expense).toContainText("Coming soon");
 
   // No research reference sites anywhere in the hero.

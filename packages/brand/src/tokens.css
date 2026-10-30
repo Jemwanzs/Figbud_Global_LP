@@ -105,12 +105,14 @@
   --product-text: #4ade80;
   --product-soft: rgb(34 197 94 / 0.12);
 }
+/* Expense Now (approved 30 Oct 2026): primary orange #FF7A00, accent yellow
+   #FFC107, brand brown #4E2D17, green #10B981, blue #0B6EDB. */
 [data-product="expense_now"] {
-  --product: #f97316;
-  --product-2: #c2410c;
-  --product-ink: #1c0a02;
-  --product-text: #fb923c;
-  --product-soft: rgb(249 115 22 / 0.13);
+  --product: #ff7a00;
+  --product-2: #ffc107;
+  --product-ink: #2a1405;
+  --product-text: #ff8a1f;
+  --product-soft: rgb(255 122 0 / 0.13);
 }
 [data-product="ziwa"] {
   --product: #fb7a1a;
@@ -133,7 +135,7 @@
 }
 [data-theme="light"] [data-product="expense_now"],
 [data-theme="light"][data-product="expense_now"] {
-  --product-text: #c2410c;
+  --product-text: #a84f00;
 }
 
 @theme inline {

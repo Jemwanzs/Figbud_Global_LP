@@ -1,8 +1,8 @@
 """Prepare FigBud brand assets from the logo files supplied by FigBud.
 
-Usage (Pillow and fontTools required; run once when new source files arrive):
+Usage (Pillow required; run once when new source files arrive):
 
-    python scripts/brand/prepare_brand_assets.py <figbud.png> <zirahr.png> <jasiri.png> <Outfit[wght].ttf>
+    python scripts/brand/prepare_brand_assets.py <figbud.png> <zirahr.png> <jasiri.png>
 
 Writes:
 - packages/brand/assets/official/   the supplied files, byte for byte
@@ -10,7 +10,7 @@ Writes:
 - apps/*/public/                    built-in favicon and app icon fallbacks
     *-official*  exact pixels of the supplied artwork; transparent margins
                  trimmed or an intact part cropped (no redrawing, no recolouring)
-    *-proposed*  recoloured theme variants and the Expense Now concept;
+    *-proposed*  recoloured theme variants;
                  seeded as drafts only, never published without the owner's approval
 
 See docs/BRAND_ASSETS.md.
@@ -20,10 +20,6 @@ import shutil
 import sys
 from pathlib import Path
 
-from fontTools.pens.svgPathPen import SVGPathPen
-from fontTools.pens.transformPen import TransformPen
-from fontTools.ttLib import TTFont
-from fontTools.varLib.instancer import instantiateVariableFont
 from PIL import Image, ImageDraw
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -53,89 +49,8 @@ def save_png(im: Image.Image, name: str) -> None:
     print(f"  {name} {im.size[0]}x{im.size[1]}")
 
 
-def outline(font: TTFont, text: str, x: float, baseline: float, size: float, tracking=0.0) -> tuple[str, float]:
-    """SVG path data for `text` set in `font`, and the advance it used (no <text>, so no font needed)."""
-    glyphs = font.getGlyphSet()
-    cmap = font.getBestCmap()
-    scale = size / font["head"].unitsPerEm
-    pen = SVGPathPen(glyphs)
-    cursor = x
-    for char in text:
-        name = cmap[ord(char)]
-        glyph = glyphs[name]
-        glyph.draw(TransformPen(pen, (scale, 0, 0, -scale, cursor, baseline)))
-        cursor += glyph.width * scale + tracking
-    return pen.getCommands(), cursor - x - tracking
-
-
-# Expense Now concept symbol on a 64 x 64 grid: a rounded tile whose "E" ends in a
-# forward arrow: spending that moves. Original artwork for FigBud; not yet approved.
-def symbol(prefix: str, x=0.0, y=0.0, s=1.0) -> str:
-    t = f'transform="translate({x} {y}) scale({s})"'
-    return f"""<g {t}>
-    <defs><linearGradient id="{prefix}g" x1="6" y1="4" x2="58" y2="60" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#FDBA74"/><stop offset="0.45" stop-color="#F97316"/><stop offset="1" stop-color="#C2410C"/>
-    </linearGradient></defs>
-    <rect width="64" height="64" rx="16" fill="url(#{prefix}g)"/>
-    <path fill="#FFF7ED" d="M19 14h24a4 4 0 0 1 0 8H27v6.5h9.5V25l12 7-12 7v-3.5H27V42h16a4 4 0 0 1 0 8H19a4 4 0 0 1-4-4V18a4 4 0 0 1 4-4Z"/>
-  </g>"""
-
-
-def svg(width: float, height: float, body: str, title: str) -> str:
-    return (
-        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width:.0f} {height:.0f}" '
-        f'width="{width:.0f}" height="{height:.0f}" role="img" aria-label="{title}">\n  {body}\n</svg>\n'
-    )
-
-
-def concept(font: TTFont, prefix: str, title: str, words, mark) -> None:
-    """Horizontal, stacked, symbol and favicon SVGs for a proposed logo concept.
-
-    `words` are (text, colour on dark, colour on light); `mark(id, x, y, scale)`
-    draws the 64 x 64 symbol.
-    """
-    for theme in ("on-dark", "on-light"):
-        colour = (lambda w: w[1]) if theme == "on-dark" else (lambda w: w[2])
-        # Horizontal: symbol + wordmark.
-        paths, cursor = [], 84
-        for i, word in enumerate(words):
-            d, w = outline(font, word[0], cursor, 46, 34, tracking=-0.4)
-            paths.append(f'\n  <path fill="{colour(word)}" d="{d}"/>')
-            cursor += w + (9 if i < len(words) - 1 else 2)
-        (SEED / f"{prefix}-horizontal-{theme}-proposed.svg").write_text(
-            svg(cursor, 64, mark("h", 0, 0, 1) + "".join(paths), title), encoding="utf-8"
-        )
-        # Stacked: symbol above the centred wordmark.
-        widths = [outline(font, word[0], 0, 0, 30, tracking=-0.3)[1] for word in words]
-        total = sum(widths) + 8 * (len(words) - 1)
-        width = max(total, 96) + 8
-        left = (width - total) / 2
-        paths = []
-        for word, w in zip(words, widths):
-            d, _ = outline(font, word[0], left, 112, 30, tracking=-0.3)
-            paths.append(f'\n  <path fill="{colour(word)}" d="{d}"/>')
-            left += w + 8
-        (SEED / f"{prefix}-stacked-{theme}-proposed.svg").write_text(
-            svg(width, 122, mark("s", (width - 72) / 2, 0, 72 / 64) + "".join(paths), title), encoding="utf-8"
-        )
-    (SEED / f"{prefix}-symbol-proposed.svg").write_text(svg(64, 64, mark("y"), title), encoding="utf-8")
-    # Favicon: the same symbol, tile filling the square so it reads at 16 px.
-    (SEED / f"{prefix}-favicon-proposed.svg").write_text(svg(32, 32, mark("f", 0, 0, 0.5), title), encoding="utf-8")
-    print(f"  {prefix}-*-proposed.svg")
-
-
-def expense_now(font: TTFont) -> None:
-    concept(
-        font,
-        "expense-now",
-        "Expense Now",
-        [("Expense", "#FFF7ED", "#1C1917"), ("Now", "#F97316", "#F97316")],
-        symbol,
-    )
-
-
-# Ziwa LMS: the owner approved its identity on 28 Oct 2026; its files are
-# built by scripts/brand/ziwa/build.py.
+# Ziwa LMS and Expense Now: owner-approved identities rebuilt as vectors by
+# scripts/brand/ziwa/build.py and scripts/brand/expense_now/build.py.
 
 
 def on_tile(symbol: Image.Image, size: int, symbol_height: int, background, radius: int) -> Image.Image:
@@ -182,7 +97,7 @@ def icons(figbud_symbol: Image.Image, zirahr_symbol: Image.Image) -> None:
 
 
 def main() -> None:
-    figbud, zirahr, jasiri, font = sys.argv[1:5]
+    figbud, zirahr, jasiri = sys.argv[1:4]
     OFFICIAL.mkdir(parents=True, exist_ok=True)
     SEED.mkdir(parents=True, exist_ok=True)
     for src, name in ((figbud, "figbud-logo.png"), (zirahr, "zirahr-logo.png"), (jasiri, "jasiri-logo.png")):
@@ -208,9 +123,6 @@ def main() -> None:
     save_png(recolour_neutrals(trim(js), INK), "jasiri-horizontal-on-light-proposed.png")
 
     icons(figbud_symbol, zirahr_symbol)
-    font = TTFont(font)
-    instantiateVariableFont(font, {"wght": 600}, inplace=True)
-    expense_now(font)
 
 
 if __name__ == "__main__":

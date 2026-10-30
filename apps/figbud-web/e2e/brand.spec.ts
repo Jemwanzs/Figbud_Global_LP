@@ -39,8 +39,10 @@ test.describe("public websites", () => {
     const zirahr = page.locator("#zirahr");
     await expect(zirahr.getByRole("heading", { level: 2 })).toHaveText("ZiraHR");
     await expect(zirahr.locator('img[src^="/brand/assets/"]').first()).toBeVisible();
-    // The Expense Now concept is not approved, so it keeps its built-in icon.
-    await expect(page.locator('#expense_now img[src^="/brand/assets/"]')).toHaveCount(0);
+    // The approved Expense Now identity (30 Oct 2026), still coming soon.
+    const expense = page.locator("#expense_now");
+    await expect(expense.locator('img[src^="/brand/assets/"]').first()).toBeVisible();
+    await expect(expense).toContainText("Coming soon");
   });
 
   test("logo files are served from the website's own origin, published files only", async ({
@@ -189,17 +191,18 @@ test.describe("admin branding", () => {
     ).toBeDisabled();
   });
 
-  test("seeded profiles: the Expense Now concept waits for approval", async ({ page }) => {
+  test("seeded profiles: the approved Expense Now identity is published", async ({ page }) => {
     await signInAsOwner(page);
     await page.goto("/admin/sites/expense_now/brand");
-    await expect(page.getByText("Proposed Expense Now logo concept: not approved.")).toBeVisible();
     const files = page.getByRole("list", { name: "Brand files" });
-    await expect(
-      files.getByRole("listitem").filter({ hasText: "Expense Now logo concept (dark backgrounds)" }),
-    ).toContainText("Proposed");
-    await expect(page.getByRole("region", { name: "Version history" })).toContainText(
-      "Nothing published yet.",
-    );
+    for (const label of [
+      "Expense Now logo (approved, for dark backgrounds)",
+      "Expense Now logo (approved, for light backgrounds)",
+      "Expense Now favicon (approved symbol on a white tile)",
+      "Expense Now logo, monochrome (approved)",
+    ])
+      await expect(files.getByRole("listitem").filter({ hasText: label })).toContainText("Official");
+    await expect(page.getByRole("region", { name: "Version history" })).toContainText("Version 1");
 
     await page.goto("/admin/sites/zirahr/brand");
     await expect(files.getByRole("listitem").filter({ hasText: "incomplete" })).toContainText("Official");
@@ -272,7 +275,8 @@ test.describe("Studio website cards", () => {
     await expect(card("ZiraHR").getByRole("img", { name: "ZiraHR logo" })).toBeVisible();
     await expect(card("Jasiri LMS").getByRole("img", { name: "Jasiri LMS logo" })).toBeVisible();
     await expect(card("FigBud Global").getByRole("img", { name: "FigBud Global logo" })).toBeVisible();
-    await expect(card("Expense Now")).toContainText("Temporary icon · no approved logo yet");
+    await expect(card("Expense Now").getByRole("img", { name: "Expense Now logo" })).toBeVisible();
+    await expect(card("Expense Now")).not.toContainText("Temporary icon");
     await expect(card("Ziwa LMS")).toContainText("Lending & Credit");
     // The approved Ziwa LMS identity, published.
     await expect(card("Ziwa LMS").getByRole("img", { name: "Ziwa LMS logo" })).toBeVisible();

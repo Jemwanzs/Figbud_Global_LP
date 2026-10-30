@@ -522,7 +522,7 @@ const BRAND_DEFAULTS = {
   figbud: ["#22c55e", "#3b82f6", "#a855f7"],
   zirahr: ["#22d3ee", "#0891b2", "#11e6ff"],
   jasiri: ["#22c55e", "#7c3aed", "#4ade80"],
-  expense_now: ["#f97316", "#ea580c", "#fdba74"],
+  expense_now: ["#ff7a00", "#4e2d17", "#ffc107"],
   ziwa: ["#fb7a1a", "#ffc642", "#d4a97a"],
 };
 const emptyPair = () => ({ on_dark: null, on_light: null });
@@ -694,31 +694,73 @@ const BRAND_SEED = {
       ],
     ],
   ],
+  // The approved Expense Now identity (services/api/src/brand/seed.rs).
   expense_now: [
     "Expense Now",
     [
       [
-        "expense-now-horizontal-on-dark-proposed.svg",
-        "proposed",
-        "Expense Now logo concept (dark backgrounds)",
-        "horizontal",
-        ["on_dark"],
-      ],
-      [
-        "expense-now-horizontal-on-light-proposed.svg",
-        "proposed",
-        "Expense Now logo concept (light backgrounds)",
+        "expense-now-horizontal-on-light-official.svg",
+        "official",
+        "Expense Now logo (approved, for light backgrounds)",
         "horizontal",
         ["on_light"],
       ],
       [
-        "expense-now-symbol-proposed.svg",
-        "proposed",
-        "Expense Now symbol concept",
-        "symbol",
-        ["on_dark", "on_light"],
+        "expense-now-horizontal-on-dark-official.svg",
+        "official",
+        "Expense Now logo (approved, for dark backgrounds)",
+        "horizontal",
+        ["on_dark"],
       ],
-      ["expense-now-favicon-proposed.svg", "proposed", "Expense Now favicon concept", "favicon", []],
+      [
+        "expense-now-symbol-official.svg",
+        "official",
+        "Expense Now symbol (approved)",
+        "symbol",
+        ["on_light"],
+      ],
+      [
+        "expense-now-symbol-on-dark-official.svg",
+        "official",
+        "Expense Now symbol for dark backgrounds (approved)",
+        "symbol",
+        ["on_dark"],
+      ],
+      [
+        "expense-now-favicon-official.svg",
+        "official",
+        "Expense Now favicon (approved symbol on a white tile)",
+        "favicon",
+        [],
+      ],
+      [
+        "expense-now-app-icon-official.svg",
+        "official",
+        "Expense Now app icon (approved symbol on a white tile)",
+        "app_icon",
+        [],
+      ],
+      [
+        "expense-now-favicon-dark-official.svg",
+        "official",
+        "Expense Now favicon on brown (approved)",
+        null,
+        [],
+      ],
+      [
+        "expense-now-app-icon-dark-official.svg",
+        "official",
+        "Expense Now app icon on brown (approved)",
+        null,
+        [],
+      ],
+      [
+        "expense-now-horizontal-monochrome-official.svg",
+        "official",
+        "Expense Now logo, monochrome (approved)",
+        null,
+        [],
+      ],
     ],
   ],
   // The final Ziwa LMS identity (services/api/src/brand/seed.rs).
@@ -814,11 +856,9 @@ for (const [slug, [name, files]] of Object.entries(BRAND_SEED)) {
     draft,
     draft_version: 1,
     draft_note:
-      slug === "expense_now"
-        ? `Proposed ${name} logo concept: not approved. Review before submitting.`
-        : JSON.stringify(draft) !== JSON.stringify(published)
-          ? "Proposed light-background versions of the official logos: review before submitting."
-          : null,
+      JSON.stringify(draft) !== JSON.stringify(published)
+        ? "Proposed light-background versions of the official logos: review before submitting."
+        : null,
     published: official ? published : null,
     published_revision: revision?.id ?? null,
     published_at: revision?.decided_at ?? null,

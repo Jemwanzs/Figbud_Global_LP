@@ -218,7 +218,7 @@ async fn read(
     }
     let emails: Vec<EmailState> = sqlx::query_as(
         "SELECT template, status, attempts, sent_at, last_error FROM email_outbox
-          WHERE enquiry_id = $1 ORDER BY created_at",
+          WHERE enquiry_id = $1 ORDER BY created_at, template",
     )
     .bind(id)
     .fetch_all(&state.pool)

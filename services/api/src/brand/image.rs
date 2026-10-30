@@ -548,9 +548,10 @@ mod tests {
     }
 }
 
-/// Square icon sizes the websites ask for: browser tabs (16, 32, 48), the
-/// Apple touch icon (180) and installable-app icons (192, 512).
-pub const ICON_SIZES: [u32; 6] = [16, 32, 48, 180, 192, 512];
+/// Square icon sizes the websites ask for: browser tabs (16, 32, 48), app
+/// icon sets (128, 256), the Apple touch icon (180) and installable-app
+/// icons (192, 512).
+pub const ICON_SIZES: [u32; 8] = [16, 32, 48, 128, 180, 192, 256, 512];
 
 /// A stored logo as a `size` x `size` PNG: fitted without distortion and
 /// centred on a transparent square. Stored files are already validated, so

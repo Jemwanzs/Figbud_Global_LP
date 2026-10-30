@@ -47,19 +47,30 @@ The same images are the websites' built-in fallbacks (`public/favicon.ico`, `ico
 | ---- | ---------- |
 | `figbud-horizontal-on-light-proposed.png`, `figbud-symbol-on-light-proposed.png` | The FigBud artwork with its white recoloured to FigBud ink (#15120F), for light backgrounds. Shapes are unchanged. |
 | `jasiri-horizontal-on-light-proposed.png` | The Jasiri artwork with its white lettering recoloured to ink; the purple and green accents are unchanged. |
-| `expense-now-*-proposed.svg` | The Expense Now logo concept (section 3). |
+| `expense-now-*-official.svg` | The approved Expense Now identity (section 3), built by `scripts/brand/expense_now/build.py`. |
 
 **Until light-background versions are approved,** the light theme shows the official dark-background logo on a small dark plate. Nothing is recoloured without approval.
 
-## 3. Expense Now: proposed logo concept (not approved)
+## 3. Expense Now: approved identity (30 October 2026)
 
-Expense Now has no official logo yet. The concept is original artwork made for FigBud:
+The owner approved the Expense Now brand sheet on 30 Oct 2026. It replaces the earlier concept (an "E" tile), whose files are archived in Expense Now's library. Expense Now stays **Coming soon** until its launch is approved; the identity changes nothing about its status, waitlist or website.
 
-- **Symbol:** a rounded tile in an orange-to-copper gradient (#FDBA74 → #F97316 → #C2410C). Inside it, a cream "E" whose middle bar becomes a forward arrow, meaning spending that moves. It reads at favicon size and works on dark and light backgrounds.
-- **Wordmark:** "Expense **Now**" set in Outfit SemiBold (the ecosystem typeface, open licence). It is converted to outlines, so the SVG needs no font. "Now" is in the brand orange.
-- **Variations:** horizontal (dark and light backgrounds), stacked (dark and light), symbol only, favicon.
-
-The concept is in the Expense Now brand draft, labelled "Proposed … not approved". To adopt it, review it in the Studio, submit it, and approve it. To replace it, upload the final artwork into the same slots.
+- **The identity:**
+  - **Symbol:** a radial burst of fifteen tapered rays (fine inner points, rounded outer ends) around an open centre, with a small dot beyond one ray, in orange, yellow, blue, green and browns.
+  - **Wordmark:** "Expense" in brand brown (white on dark backgrounds) over "Now" in primary orange, in a heavy geometric sans (Montserrat ExtraBold, open font licence).
+  - **Colours:** Primary Orange #FF7A00, Accent Yellow #FFC107, Brand Brown #4E2D17, Primary Green #10B981, Primary Blue #0B6EDB. These belong to Expense Now only.
+- **How the files were made.** The sheet is a picture, so the logos were rebuilt as clean vectors (`scripts/brand/expense_now/build.py` from `geometry.json`). Nothing was cropped from the sheet and none of its labels, backgrounds or mock-ups are used.
+  - **Symbol:** each ray's inner point, outer end, end width and colour were measured on the sheet's main logo. The five primary colours were snapped to the approved palette; the secondary browns, tans and deep greens were cleaned. Each ray is drawn as a taper from a fine point to a rounded end. On dark backgrounds the four darkest browns and the olive are lifted slightly, as on the sheet's dark versions, so they stay visible.
+  - **Wordmark:** Montserrat ExtraBold outlines (no font needed to display), fitted to the sheet's cap height and baseline. The sheet's letters touch; spacing is tightened to −0.045 em so they never overlap, which makes "Expense" slightly wider than on the sheet.
+  - **Tiles:** favicons and app icons use the sheet's rounded tiles, white or brown (#4E2D17 shading to #2B170A), with the symbol at 80% of the side and 22% corners. Favicons thicken the rays (×1.6) so the burst stays legible at 16–48 px.
+  - If FigBud has the designer's original vector files, uploading them in the Studio replaces these in the same slots.
+- **Files (`services/api/seed/brand/expense-now-*-official.svg`):**
+  - logo for light backgrounds (brown "Expense", the primary logo) and for dark backgrounds (white "Expense");
+  - symbol for light backgrounds and for dark backgrounds (transparent);
+  - favicon and app icon (the symbol on a white tile);
+  - in the library only: favicon and app icon on brown, and the monochrome logo (grey, and white for dark backgrounds).
+- **Icon sizes.** From the published favicon and app icon the API serves square PNGs at 16, 32 and 48 px (browser tabs), 128 and 256 px (app icon sets), 180 px (Apple touch icon), and 192 and 512 px (installable apps). Product websites get a social sharing card generated from the published brand (section 3c).
+- **Publishing.** New databases publish these files as Expense Now's first brand revision. Existing databases are upgraded once on start-up (audit marker `brand.expense_now_identity_seeded`), the same way as Ziwa's (section 3b): a recorded revision ("Expense Now identity: radial burst and wordmark"), the draft replaced, a pending change withdrawn, the concept files archived, Studio uploads kept.
 
 ## 3b. Ziwa LMS: final identity (29 October 2026)
 
@@ -82,7 +93,7 @@ The owner approved the final Ziwa LMS brand sheet on 29 Oct 2026: an orange and 
   - app icon (the symbol on an ivory tile);
   - in the library only: favicon and app icon on brown, and the one-colour brown logo and symbol.
   - No stacked layout: the sheet doesn't show one.
-- **Icon sizes.** Browsers and devices get square PNGs rendered from the published favicon and app icon (16, 32, 48, 180, 192 and 512 px, via `?icon=`), plus the SVG itself, which scales to any other size on the sheet (64, 128 and 256 px).
+- **Icon sizes.** Browsers and devices get square PNGs rendered from the published favicon and app icon (16, 32, 48, 128, 180, 192, 256 and 512 px, via `?icon=`), plus the SVG itself, which scales to any other size.
 - **Publishing.** New databases publish these files as Ziwa's first brand revision. Existing databases are upgraded once on start-up (audit marker `brand.ziwa_final_identity_seeded`):
   - the files are published as a recorded revision ("Final Ziwa LMS identity: orange, yellow and brown"), with the new colours;
   - the draft is replaced, and any pending brand change is withdrawn as superseded;
@@ -108,7 +119,7 @@ Product accent tokens (`packages/brand/src/tokens.css`) now follow each product'
 | FigBud Global (parent palette, 28 Oct 2026) | #22C55E emerald (navy text on it) | #3B82F6 electric blue | #22C55E | #15803D |
 | ZiraHR | #22D3EE cyan | #0891B2 | #67E8F9 | #0E7490 |
 | Jasiri LMS | #22C55E green | #7C3AED purple | #4ADE80 | #15803D |
-| Expense Now (proposed) | #F97316 orange | #C2410C | #FB923C | #C2410C |
+| Expense Now | #FF7A00 orange | #FFC107 yellow | #FF8A1F | #A84F00 |
 | Ziwa LMS (final, 29 Oct 2026) | #FB7A1A orange (deep brown #2B1609 text on it) | #FFC642 yellow | #FB7A1A | #A8480C |
 
 Ziwa's brand profile stores orange, yellow and tan as primary, secondary and accent; brown is its wordmark and button-text colour. Orange #FB7A1A is 2.5:1 on the light theme, so light pages use the darker #A8480C for orange text.
@@ -118,13 +129,13 @@ Ziwa's brand profile stores orange, yellow and tan as primary, secondary and acc
 `ProductLogo` (`@figbud/site-kit`) is the only way pages and the Studio show a product's identity. It always reads the brand profile published in the Studio:
 1. the published symbol;
 2. else the published logo, which carries the name, so the name isn't repeated beside it (Jasiri LMS today);
-3. else the built-in icon, only while a product has no approved logo (Expense Now today).
+3. else the built-in icon, only while a product has no approved logo (none today: every product has one).
 
 `ProductIdentity` pairs it with the name. Both follow the page's light or dark theme, or a fixed surface, and never stretch a file.
 
 Where it is used: the "Distinct platforms" tabs and panels, the hero ecosystem, the Africa map, product menus (desktop and mobile), the Products page and comparison table, product-site headers and footers, and the Studio's website cards.
 
-**Browser icons.** The API renders any published logo as a square PNG at 16, 32, 48, 180, 192 or 512 px (`/v1/brand/assets/{id}?icon=32`), centred without distortion and cached permanently. Each website declares:
+**Browser icons.** The API renders any published logo as a square PNG at 16, 32, 48, 128, 180, 192, 256 or 512 px (`/v1/brand/assets/{id}?icon=32`), centred without distortion and cached permanently. Each website declares:
 - its SVG favicon, plus 16, 32 and 48 px PNGs;
 - a 180 px Apple touch icon;
 - a web manifest with 192 and 512 px icons.
@@ -160,5 +171,5 @@ Each website's brand profile also stores primary, secondary and accent colours. 
 1. **ZiraHR:** please send the complete logo; the supplied file is missing "HR". An SVG is ideal, plus a version for dark backgrounds (light wordmark).
 2. **FigBud Global:** an SVG or larger PNG, a version for light backgrounds, and the stacked "Figbud / GLOBAL" lockup if there is one. Should the header show "Figbud" alone (as supplied) or with "GLOBAL"?
 3. **Jasiri LMS:** an SVG, and a light-background version, or approval of the proposed recolour.
-4. **Expense Now:** approve, adjust or replace the proposed concept.
+4. **Expense Now:** ~~approve, adjust or replace the proposed concept~~ Resolved 30 Oct 2026: the owner approved the brand sheet (section 3).
 5. **Favicons and app icons:** the current ones are made from the supplied symbols; vector or larger artwork would make the home-screen icons sharper.
