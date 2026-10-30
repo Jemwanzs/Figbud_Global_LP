@@ -313,3 +313,16 @@
 [data-theme="light"] .fb-tone-soft {
   background: var(--section-soft, #f1f5f9);
 }
+
+/* Campaigns (campaigns.tsx): rise or fade in once; reduced motion skips it. */
+@keyframes fb-campaign-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.75rem) scale(0.99);
+  }
+}
+@keyframes fb-campaign-fade {
+  from {
+    opacity: 0;
+  }
+}

@@ -1,8 +1,8 @@
 import "server-only";
 
 import { type Product, type ProductStatus, publicProducts } from "@figbud/brand";
-import { type BrandProfile, type ListedSite, enquiriesOpen } from "@figbud/site-kit";
-import { fetchBrandPng, fetchListedSites } from "@figbud/site-kit/server";
+import { type BrandProfile, type ListedSite, type LiveCampaign, enquiriesOpen } from "@figbud/site-kit";
+import { fetchBrandPng, fetchListedSites, fetchLiveCampaigns } from "@figbud/site-kit/server";
 import { cacheLife, cacheTag } from "next/cache";
 
 import { apiOrigin } from "./site";
@@ -74,4 +74,15 @@ export async function getSocialImage(): Promise<Uint8Array | null> {
   cacheTag("sites");
   const asset = (await getBrands()).figbud?.social_image;
   return asset ? fetchBrandPng(apiBase, asset.id, "social") : null;
+}
+
+/**
+ * The website's live campaigns, cached for 30 seconds. Campaigns carry their
+ * end, so they disappear on time in the browser whatever the cache.
+ */
+export async function getLiveCampaigns(slug: string): Promise<LiveCampaign[]> {
+  "use cache";
+  cacheLife({ stale: 30, revalidate: 30, expire: 300 });
+  cacheTag("campaigns", `campaigns:${slug}`);
+  return fetchLiveCampaigns(apiBase, slug);
 }

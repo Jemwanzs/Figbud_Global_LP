@@ -130,6 +130,8 @@ pub struct EnquiryInput {
     pub website: Option<String>,
     /// Milliseconds between the form rendering and its submission.
     pub elapsed_ms: Option<u64>,
+    /// The campaign that brought the visitor (attribution), if any.
+    pub campaign: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

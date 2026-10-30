@@ -1,7 +1,18 @@
 import "server-only";
 
-import { DEFAULT_PRIVACY, type ListedSite, type PageDocument, type PrivacySettings } from "@figbud/site-kit";
-import { fetchBrandPng, fetchListedSites, fetchPrivacySettings } from "@figbud/site-kit/server";
+import {
+  DEFAULT_PRIVACY,
+  type ListedSite,
+  type LiveCampaign,
+  type PageDocument,
+  type PrivacySettings,
+} from "@figbud/site-kit";
+import {
+  fetchBrandPng,
+  fetchListedSites,
+  fetchLiveCampaigns,
+  fetchPrivacySettings,
+} from "@figbud/site-kit/server";
 import { cacheLife, cacheTag } from "next/cache";
 
 import type { PublishedPageRef } from "./addresses";
@@ -93,4 +104,15 @@ export async function getBrandPng(id: string, variant: "social" | 512): Promise<
   cacheLife("minutes");
   cacheTag("sites");
   return fetchBrandPng(apiBase, id, variant);
+}
+
+/**
+ * The website's live campaigns, cached for 30 seconds. Campaigns carry their
+ * end, so they disappear on time in the browser whatever the cache.
+ */
+export async function getLiveCampaigns(slug: string): Promise<LiveCampaign[]> {
+  "use cache";
+  cacheLife({ stale: 30, revalidate: 30, expire: 300 });
+  cacheTag("campaigns", `campaigns:${slug}`);
+  return fetchLiveCampaigns(apiBase, slug);
 }

@@ -56,6 +56,8 @@ export function EnquiryForm({
   // A link to a closed product says so above the form, which starts on FigBud Global instead.
   const closedRequest = isEnquiryProduct(requested) && requested in closed ? requested : null;
   const initialProduct = closedRequest ? null : requested;
+  // The campaign that brought the visitor, kept with the enquiry (attribution).
+  const campaign = /^[0-9a-f-]{36}$/.test(params.get("campaign") ?? "") ? params.get("campaign") : null;
 
   const [values, setValues] = useState<EnquiryValues>(() => ({
     kind: isEnquiryKind(initialKind) ? initialKind : "demo_request",
@@ -111,6 +113,7 @@ export function EnquiryForm({
         ...values,
         locale,
         source_path: window.location.pathname,
+        ...(campaign ? { campaign } : {}),
         elapsed_ms: Math.round(performance.now() - (startedAt.current ?? performance.now())),
       },
       idempotencyKey.current,

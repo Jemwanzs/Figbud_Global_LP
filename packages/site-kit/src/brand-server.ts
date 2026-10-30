@@ -1,4 +1,5 @@
 import type { ListedSite } from "./brand";
+import type { LiveCampaign } from "./campaigns";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
@@ -97,4 +98,25 @@ function assetProxyRoute(apiBase: string, upstreamPath: string, icons: boolean) 
     }
     return new Response(upstream.body, { status: 200, headers });
   };
+}
+
+/**
+ * A website's live campaigns (`GET /v1/sites/{slug}/campaigns`), highest
+ * priority first; empty if the API can't be reached. Wrap it in a short
+ * `"use cache"` function: campaigns carry their end, and websites hide them
+ * on time whatever the cache.
+ */
+export async function fetchLiveCampaigns(apiBase: string, slug: string): Promise<LiveCampaign[]> {
+  try {
+    const response = await fetch(
+      `${apiBase.replace(/\/$/, "")}/v1/sites/${encodeURIComponent(slug)}/campaigns`,
+      {
+        signal: AbortSignal.timeout(5000),
+      },
+    );
+    if (!response.ok) return [];
+    return ((await response.json()) as { campaigns: LiveCampaign[] }).campaigns;
+  } catch {
+    return [];
+  }
 }

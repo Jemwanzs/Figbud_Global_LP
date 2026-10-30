@@ -1,4 +1,4 @@
-import { PageBlocks } from "@figbud/site-kit";
+import { CampaignSlot, PageBlocks } from "@figbud/site-kit";
 import { buttonClasses } from "@figbud/ui";
 import { ArrowRight } from "lucide-react";
 import type { Metadata, ResolvingMetadata } from "next";
@@ -87,6 +87,7 @@ export default async function SitePage({ params }: PageProps<"/[site]/[[...path]
     // Listed but nothing published yet: an honest holding page from the registry.
     return (
       <div className="mx-auto max-w-[92rem] px-5 pt-page-top pb-section sm:px-8 md:px-10 lg:px-16">
+        <CampaignSlot placement="home_hero" className="mb-section-sm block" />
         <div className="max-w-3xl">
           <h1 className="font-display text-display font-semibold tracking-tight text-text">{site.name}</h1>
           {site.tagline && <p className="mt-6 font-display text-title text-text">{site.tagline}</p>}
@@ -103,6 +104,7 @@ export default async function SitePage({ params }: PageProps<"/[site]/[[...path]
   const pages = await getPages(site.slug);
   return (
     <div className="mx-auto max-w-[92rem] px-5 py-section-sm sm:px-8 md:px-10 lg:px-16">
+      {path === "" && <CampaignSlot placement="home_hero" className="mb-block block" />}
       <PageBlocks document={page} resolveHref={hrefResolver(site, ownDomain, pages)} />
     </div>
   );

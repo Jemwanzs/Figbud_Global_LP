@@ -35,6 +35,8 @@ export default async function CookiesPage({ params }: PageProps<"/[locale]/legal
     },
     { name: LOCALE_COOKIE, kind: t.cookie, purpose: t.localePurpose, duration: t.year },
     { name: THEME_STORAGE_KEY, kind: t.storage, purpose: t.themePurpose, duration: t.untilCleared },
+    // Campaigns (P8-M1): a dismissal or "seen" time per promotion, in this browser only.
+    { name: "fb-campaign:*", kind: t.storage, purpose: t.campaignPurpose, duration: t.perVisit },
   ];
   const category = (c: "analytics" | "preferences" | "marketing") =>
     (locale === "en" ? privacy.categories : dict.consent.categories)[c].label.toLowerCase();

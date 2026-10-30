@@ -1,5 +1,8 @@
 import { themeColorViewport } from "@figbud/brand";
 import {
+  CampaignOverlays,
+  CampaignProvider,
+  CampaignSlot,
   CookieConsent,
   ENGLISH_CONSENT_LABELS,
   brandIcons,
@@ -19,6 +22,7 @@ import {
   enquiryHref,
   figbudOrigin,
   getListedSites,
+  getLiveCampaigns,
   getPages,
   getPrivacySettings,
   getSite,
@@ -81,6 +85,7 @@ export default async function SiteLayout({ children, params }: LayoutProps<"/[si
   if (!site) notFound();
   const pages = await getPages(slug);
   const privacy = await getPrivacySettings();
+  const campaigns = await getLiveCampaigns(slug);
   // The menu: the Studio's own links, or the published pages marked for navigation.
   const navigation = site.settings?.navigation;
   const links =
@@ -119,29 +124,48 @@ export default async function SiteLayout({ children, params }: LayoutProps<"/[si
           >
             Skip to content
           </a>
-          <SiteHeader
-            name={site.name}
-            homeHref={pageHref(slug, ownDomain, "")}
-            logo={site.brand?.logos.horizontal}
-            links={links.slice(0, 6)}
-            cta={enquiriesOpen(site) ? { href: enquiryHref(site), label: CTA_LABELS[site.cta] } : null}
-          />
-          <main id="main" tabIndex={-1} className="flex-1 outline-none">
-            {children}
-          </main>
-          <SiteFooter
-            name={site.name}
-            tagline={footer?.note ?? site.tagline}
-            links={footerLinks.length ? footerLinks : links}
-          />
-          {/* The policies are FigBud Global's, on the corporate site. */}
-          <CookieConsent
-            settings={privacy}
-            labels={ENGLISH_CONSENT_LABELS}
-            site={slug}
+          <CampaignProvider
+            campaigns={campaigns}
             apiOrigin={publicApiOrigin}
-            linkBase={`${figbudOrigin}/en`}
-          />
+            enquiryUrl={enquiryHref(site)}
+            pathPrefix={ownDomain ? "" : `/${slug}`}
+            brand={site.brand}
+            product={KNOWN.includes(slug) ? slug : "figbud"}
+          >
+            <CampaignSlot placement="announcement_bar" />
+            <SiteHeader
+              name={site.name}
+              homeHref={pageHref(slug, ownDomain, "")}
+              logo={site.brand?.logos.horizontal}
+              links={links.slice(0, 6)}
+              cta={enquiriesOpen(site) ? { href: enquiryHref(site), label: CTA_LABELS[site.cta] } : null}
+            />
+            <CampaignSlot
+              placement="below_nav"
+              className="mx-auto block w-full max-w-[92rem] px-5 pt-4 sm:px-8 md:px-10 lg:px-16"
+            />
+            <main id="main" tabIndex={-1} className="flex-1 outline-none">
+              {children}
+            </main>
+            <CampaignSlot
+              placement="footer"
+              className="mx-auto block w-full max-w-[92rem] px-5 pb-section-sm sm:px-8 md:px-10 lg:px-16"
+            />
+            <SiteFooter
+              name={site.name}
+              tagline={footer?.note ?? site.tagline}
+              links={footerLinks.length ? footerLinks : links}
+            />
+            {/* The policies are FigBud Global's, on the corporate site. */}
+            <CookieConsent
+              settings={privacy}
+              labels={ENGLISH_CONSENT_LABELS}
+              site={slug}
+              apiOrigin={publicApiOrigin}
+              linkBase={`${figbudOrigin}/en`}
+            />
+            <CampaignOverlays />
+          </CampaignProvider>
         </div>
       </body>
     </html>

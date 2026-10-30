@@ -74,6 +74,8 @@ export interface EnquiryPayload extends Omit<EnquiryValues, "consent"> {
   locale: string;
   source_path: string;
   elapsed_ms: number;
+  /** The campaign that brought the visitor, when there is one. */
+  campaign?: string;
 }
 
 export type SubmitResult =

@@ -20,7 +20,7 @@ use tower_http::{
 use uuid::Uuid;
 
 use crate::{
-    admin, brand, cms,
+    admin, brand, campaigns, cms,
     config::{Config, EmailMode},
     email::{self, outbox, templates},
     enquiry::{EnquiryInput, new_reference},
@@ -38,6 +38,10 @@ pub struct AppState {
     pub auth_limiter: RateLimiter,
     /// Cookie consent records per IP (the address is never stored).
     pub consent_limiter: RateLimiter,
+    /// Campaign impressions and clicks per IP (counts only; nothing stored).
+    pub campaign_limiter: RateLimiter,
+    /// Interactive reward attempts per IP.
+    pub spin_limiter: RateLimiter,
     /// WebAuthn relying party; `None` when admin is disabled.
     pub webauthn: Option<webauthn_rs::Webauthn>,
 }
@@ -49,6 +53,8 @@ impl AppState {
             enquiry_limiter: RateLimiter::new(config.enquiry_rate_limit, config.enquiry_rate_window),
             auth_limiter: RateLimiter::new(20, Duration::from_secs(600)),
             consent_limiter: RateLimiter::new(60, Duration::from_secs(600)),
+            campaign_limiter: RateLimiter::new(300, Duration::from_secs(600)),
+            spin_limiter: RateLimiter::new(10, Duration::from_secs(600)),
             webauthn,
             config,
             pool,
@@ -77,6 +83,7 @@ pub fn router(state: SharedState) -> Router {
         .route("/health", get(health))
         .route("/health/ready", get(ready))
         .route("/v1/enquiries", post(create_enquiry))
+        .merge(campaigns::router())
         .merge(cms::router())
         .merge(admin::router())
         .merge(sites::router())
@@ -192,6 +199,7 @@ async fn create_enquiry(
 
     let min_fill_ms = state.config.min_form_fill.as_millis() as u64;
     let automated = input.looks_automated(min_fill_ms);
+    let campaign = input.campaign.as_deref().and_then(|c| Uuid::parse_str(c).ok());
     let enquiry = input.validate().map_err(ApiError::Validation)?;
 
     // A replayed submission returns the original reference instead of a duplicate.
@@ -248,6 +256,19 @@ async fn create_enquiry(
     .execute(&mut *tx)
     .await?;
 
+    if inserted.rows_affected() > 0
+        && let Some(campaign) = campaign
+    {
+        // Attribution: only a campaign of the enquiry's own website counts.
+        sqlx::query(
+            "UPDATE enquiries e SET campaign_id = c.id FROM campaigns c JOIN sites s ON s.id = c.site_id
+              WHERE e.id = $1 AND c.id = $2 AND s.slug = e.product",
+        )
+        .bind(id)
+        .bind(campaign)
+        .execute(&mut *tx)
+        .await?;
+    }
     if inserted.rows_affected() == 0 {
         // Lost a race with a concurrent replay of the same submission.
         tx.rollback().await?;

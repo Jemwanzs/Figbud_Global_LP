@@ -151,6 +151,25 @@ Studio UI polish is a standing priority (P7-UX2): every milestone reviews the sc
 - **Remaining:**
   - deploying the renderer (approval needed), after which `apps/zirahr-web` can be retired.
 
+## Campaigns & promotions (P8, 30 Oct 2026)
+
+Studio → **Marketing** → Campaigns & Promotions. Full design and rules: [CAMPAIGNS.md](CAMPAIGNS.md).
+
+- **Overview:**
+  - totals (campaigns, live, scheduled, awaiting approval, completed, reward claims);
+  - recorded impressions, clicks, click-through and conversions;
+  - a table by website, and filters by website, type and status.
+- **Create:** a name, the website (exactly one) and a type. The draft starts from that type's template.
+- **Builder:**
+  - identity, banner content, visual design (from the website's brand), display settings, schedule, and rewards for spin to win;
+  - a live preview of the unsaved draft for each placement, on desktop and phone, in dark and light;
+  - results (recorded events, reward stock) and version history.
+- **Publishing:**
+  - Save draft (only with changes), then Submit for approval (with a note).
+  - A reviewer approves, or an owner for reward campaigns.
+  - Pause and resume (immediate), archive and restore, duplicate, and restore any published version to the draft.
+- **Safeguards:** buttons are links or the existing enquiry form; nothing runs scripts. Reward campaigns need terms, a recorded legal review and an owner's approval.
+
 ## Per-website permissions (P7-F1, 30 Oct 2026)
 
 Settings → **Team & access** (owners). Everyone has one Studio role (owner, reviewer, editor, viewer). On top of it, each person (except owners) has website access:

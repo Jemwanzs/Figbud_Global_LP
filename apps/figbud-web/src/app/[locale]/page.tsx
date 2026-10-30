@@ -3,6 +3,8 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
+import { CampaignSlot } from "@figbud/site-kit";
+
 import { Hero } from "@/components/home/hero";
 import {
   AfricaSection,
@@ -35,6 +37,10 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
 
   return (
     <>
+      <CampaignSlot
+        placement="home_hero"
+        className="mx-auto block w-full max-w-[92rem] px-5 pt-page-top sm:px-8 md:px-10 lg:px-16"
+      />
       <Hero locale={locale} dict={dict} products={products} brands={brands} />
       {/* Each boundary hydrates as its own task, keeping the main thread responsive. */}
       <Suspense>

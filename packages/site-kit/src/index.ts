@@ -3,6 +3,7 @@
 export * from "./brand";
 export * from "./blocks";
 export * from "./brand-logo";
+export * from "./campaigns";
 export * from "./consent";
 export * from "./cross-site";
 export * from "./language-switcher";

@@ -425,6 +425,9 @@ const en = {
         consentPurpose: "Remembers your cookie choices: an anonymous ID and the categories you allowed.",
         localePurpose: "Remembers the language you chose.",
         themePurpose: "Remembers whether you chose the light or dark theme.",
+        campaignPurpose:
+          "Remembers that you closed or already saw a promotion, so it isn't shown again too often.",
+        perVisit: "Until the end of your visit, or as the promotion's frequency sets",
         days: "{n} days",
         year: "1 year",
         untilCleared: "Until you clear it",

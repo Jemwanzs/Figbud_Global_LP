@@ -1,6 +1,12 @@
 import { company, publicProducts, themeColorViewport } from "@figbud/brand";
 import { isLocale, localeInfo, locales, localizePath } from "@figbud/i18n";
-import { CookieConsent, brandIcons } from "@figbud/site-kit";
+import {
+  CampaignOverlays,
+  CampaignProvider,
+  CampaignSlot,
+  CookieConsent,
+  brandIcons,
+} from "@figbud/site-kit";
 import { MotionProvider, themeInitScript } from "@figbud/ui";
 import type { Metadata, Viewport } from "next";
 import { IBM_Plex_Sans_Arabic, Outfit } from "next/font/google";
@@ -10,7 +16,7 @@ import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { getDictionary } from "@/i18n/get-dictionary";
 import { getPrivacySettings } from "@/lib/privacy";
-import { getBrands } from "@/lib/products";
+import { getBrands, getLiveCampaigns } from "@/lib/products";
 import { allowIndexing, apiOrigin, siteOrigin } from "@/lib/site";
 
 import "../globals.css";
@@ -66,6 +72,7 @@ export default async function LocaleLayout({ children, params }: LayoutProps<"/[
   const dict = await getDictionary(locale);
   const info = localeInfo[locale];
   const brands = await getBrands();
+  const campaigns = await getLiveCampaigns("figbud");
   const studio = await getPrivacySettings();
   // English pages show the Studio's wording; the other languages their translation.
   const privacy =
@@ -102,25 +109,44 @@ export default async function LocaleLayout({ children, params }: LayoutProps<"/[
           {dict.common.skipToContent}
         </a>
         <MotionProvider>
-          <SiteHeader locale={locale} common={dict.common} products={dict.products} brands={brands} />
-          {info.status === "draft" && (
-            <section aria-labelledby="draft-notice" className="border-b border-line bg-surface">
-              <p id="draft-notice" className="px-5 py-2.5 text-center text-sm text-muted">
-                {dict.common.draftNotice}
-              </p>
-            </section>
-          )}
-          <main id="main" tabIndex={-1} className="outline-none">
-            {children}
-          </main>
-          <SiteFooter locale={locale} dict={dict} brand={brands.figbud} />
-          <CookieConsent
-            settings={privacy}
-            labels={dict.consent.labels}
-            site="figbud"
+          <CampaignProvider
+            campaigns={campaigns}
             apiOrigin={apiOrigin}
-            linkBase={localizePath(locale)}
-          />
+            enquiryUrl={`${localizePath(locale, "/contact")}?product=figbud`}
+            pathPrefix={localizePath(locale)}
+            brand={brands.figbud}
+            product="figbud"
+          >
+            <CampaignSlot placement="announcement_bar" />
+            <SiteHeader locale={locale} common={dict.common} products={dict.products} brands={brands} />
+            <CampaignSlot
+              placement="below_nav"
+              className="mx-auto block w-full max-w-[92rem] px-5 pt-4 sm:px-8 md:px-10 lg:px-16"
+            />
+            {info.status === "draft" && (
+              <section aria-labelledby="draft-notice" className="border-b border-line bg-surface">
+                <p id="draft-notice" className="px-5 py-2.5 text-center text-sm text-muted">
+                  {dict.common.draftNotice}
+                </p>
+              </section>
+            )}
+            <main id="main" tabIndex={-1} className="outline-none">
+              {children}
+            </main>
+            <CampaignSlot
+              placement="footer"
+              className="mx-auto block w-full max-w-[92rem] px-5 pb-section-sm sm:px-8 md:px-10 lg:px-16"
+            />
+            <SiteFooter locale={locale} dict={dict} brand={brands.figbud} />
+            <CookieConsent
+              settings={privacy}
+              labels={dict.consent.labels}
+              site="figbud"
+              apiOrigin={apiOrigin}
+              linkBase={localizePath(locale)}
+            />
+            <CampaignOverlays />
+          </CampaignProvider>
         </MotionProvider>
         <script
           type="application/ld+json"

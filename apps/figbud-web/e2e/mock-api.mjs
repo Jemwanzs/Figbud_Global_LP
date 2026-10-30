@@ -2207,6 +2207,381 @@ function sharedRoutes(path, req, body, user, send) {
   return send(200, { id: item.id });
 }
 
+// Mirrors services/api/src/campaigns (P8-M1): drafts, approval, schedule,
+// pause/archive, public live list, daily event counts and rewards decided here.
+const campaigns = new Map();
+const stamp = () => new Date().toISOString();
+const KINDS = [
+  "hero",
+  "announcement",
+  "floating",
+  "modal",
+  "seasonal",
+  "countdown",
+  "launch",
+  "rewards",
+  "referral",
+  "event",
+];
+function campaignTemplate(kind, siteName) {
+  const placements = {
+    announcement: ["announcement_bar"],
+    floating: ["floating"],
+    modal: ["modal"],
+    rewards: ["modal"],
+    event: ["below_nav"],
+  }[kind] ?? ["home_hero"];
+  return {
+    content: {
+      badge: kind === "seasonal" || kind === "countdown" ? "Limited time" : null,
+      headline: `Replace with your ${siteName} headline`,
+      subheadline: "Replace with a supporting line.",
+      primary: kind === "rewards" ? null : { label: "Request a demo", action: "demo", href: null },
+      countdown: kind === "countdown",
+    },
+    design: {
+      template: "spotlight",
+      align: "start",
+      background: "brand",
+      show_logo: true,
+      radius: "rounded",
+      animation: "rise",
+      button: "solid",
+      image_position: "end",
+      scale: "standard",
+    },
+    display: {
+      placements,
+      pages: kind === "floating" || kind === "announcement" ? "all" : "home",
+      paths: [],
+      devices: "all",
+      frequency: "session",
+      trigger: "immediate",
+      trigger_value: 0,
+      dismissible: true,
+    },
+    schedule: {
+      starts_at: null,
+      ends_at:
+        kind === "countdown" || kind === "seasonal" ? new Date(Date.now() + 14 * 864e5).toISOString() : null,
+      timezone: "Africa/Nairobi",
+      priority: 0,
+      recurrence: "none",
+    },
+    rewards:
+      kind === "rewards"
+        ? {
+            rewards: [
+              {
+                id: "reward-1",
+                label: "Replace with a reward",
+                kind: "other",
+                quantity: 0,
+                weight: 100,
+                instructions: "Replace with how to redeem it.",
+              },
+            ],
+            max_attempts: 1,
+            eligibility: "Replace with who can take part.",
+            redeem_days: 30,
+            legal_review: "",
+          }
+        : null,
+  };
+}
+function campaignProblem(doc) {
+  if (!String(doc?.content?.headline ?? "").trim()) return "Headlines need 1–120 characters.";
+  for (const cta of [doc.content.primary, doc.content.secondary])
+    if (cta && cta.action === "link" && !safeHref(cta.href))
+      return "Links must be a page on the site (starting with /) or an https:// address.";
+  if (!doc.display?.placements?.length || doc.display.placements.length > 3)
+    return "Choose one to three places to show the campaign.";
+  const { starts_at, ends_at } = doc.schedule ?? {};
+  if (starts_at && ends_at && Date.parse(ends_at) <= Date.parse(starts_at))
+    return "The end must be after the start.";
+  return null;
+}
+const liveAt = (doc, now = Date.now()) =>
+  (!doc.schedule.starts_at || Date.parse(doc.schedule.starts_at) <= now) &&
+  (!doc.schedule.ends_at || now < Date.parse(doc.schedule.ends_at));
+function campaignStatus(c) {
+  if (c.archived_at) return "archived";
+  if (!c.published) return "draft";
+  if (c.paused_at) return "paused";
+  if (liveAt(c.published)) return "live";
+  return c.published.schedule.starts_at && Date.parse(c.published.schedule.starts_at) > Date.now()
+    ? "scheduled"
+    : "completed";
+}
+const campaignStats = (c) => ({
+  impressions: c.events.impression,
+  clicks: c.events.click,
+  dismissals: c.events.dismiss,
+  conversions: c.events.conversion,
+  entries: c.entries.length,
+});
+const campaignMd = (text) =>
+  text
+    ? `<p>${String(text).replace(/[&<>]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[ch])}</p>`
+    : null;
+function publicCampaign(c) {
+  const doc = c.published;
+  const open = (r) => r.weight > 0 && (r.quantity == null || (c.awarded[r.id] ?? 0) < r.quantity);
+  const total = (doc.rewards?.rewards ?? []).filter(open).reduce((n, r) => n + r.weight, 0);
+  return {
+    ...doc,
+    id: c.id,
+    reference: c.reference,
+    kind: c.kind,
+    priority: doc.schedule.priority,
+    content: {
+      ...doc.content,
+      body_html: campaignMd(doc.content.body),
+      terms_html: campaignMd(doc.content.terms),
+    },
+    rewards: doc.rewards
+      ? {
+          ...doc.rewards,
+          legal_review: undefined,
+          rewards: doc.rewards.rewards.map((r) => ({
+            id: r.id,
+            label: r.label,
+            description: r.description ?? null,
+            kind: r.kind,
+            available: open(r),
+            odds: open(r) && total ? Math.round((r.weight * 1000) / total) / 10 : 0,
+          })),
+        }
+      : null,
+  };
+}
+function campaignRoutes(path, req, body, user, send) {
+  const rank = RANKS[user.role];
+  const err = (status, message, code = "conflict") => send(status, { error: { code, message } });
+  if (path === "campaigns" && req.method === "GET")
+    return send(200, {
+      items: [...campaigns.values()].map((c) => ({
+        id: c.id,
+        name: c.name,
+        reference: c.reference,
+        kind: c.kind,
+        site: c.site.slug,
+        site_name: c.site.name,
+        owner_name: c.owner_name,
+        status: campaignStatus(c),
+        pending: c.revisions.some((r) => r.state === "pending"),
+        starts_at: c.published?.schedule.starts_at ?? null,
+        ends_at: c.published?.schedule.ends_at ?? null,
+        priority: c.published?.schedule.priority ?? 0,
+        draft_differs: JSON.stringify(c.draft) !== JSON.stringify(c.published),
+        stats: campaignStats(c),
+      })),
+      sites: sites
+        .filter((s) => !s.archived_at)
+        .map((s) => ({ site: s.slug, name: s.name, can_create: rank >= RANKS.editor })),
+      kinds: KINDS,
+    });
+  if (path === "campaigns") {
+    if (rank < RANKS.editor) return err(403, "You don't have permission to do that.", "forbidden");
+    const site = sites.find((x) => x.slug === body.site && !x.archived_at);
+    if (!site) return err(404, "Not found.", "not_found");
+    if (!String(body.name ?? "").trim() || !KINDS.includes(body.kind))
+      return send(422, {
+        error: {
+          code: "validation",
+          message: "Name the campaign.",
+          fields: [{ field: "name", code: "length", message: "Name the campaign (up to 120 characters)." }],
+        },
+      });
+    const id = randomUUID();
+    const reference = `${site.slug.replace(/_/g, "").toUpperCase().slice(0, 6)}-${id.slice(0, 6).toUpperCase()}`;
+    campaigns.set(id, {
+      id,
+      site,
+      name: body.name.trim(),
+      reference,
+      kind: body.kind,
+      objective: "",
+      description: "",
+      owner_id: user.id,
+      owner_name: user.name,
+      draft: campaignTemplate(body.kind, site.name),
+      draft_version: 1,
+      draft_updated_at: stamp(),
+      published: null,
+      published_at: null,
+      paused_at: null,
+      archived_at: null,
+      revisions: [],
+      events: { impression: 0, click: 0, dismiss: 0, conversion: 0 },
+      entries: [],
+      awarded: {},
+    });
+    return send(201, { id, reference });
+  }
+  const m =
+    /^campaigns\/([0-9a-f-]{36})(?:\/(draft|submit|pause|resume|archive|restore|duplicate)|\/revisions\/([0-9a-f-]{36})\/(approve|reject|cancel|restore))?$/.exec(
+      path,
+    );
+  const c = m && campaigns.get(m[1]);
+  if (!c) return err(404, "Not found.", "not_found");
+  const [, , action, revisionId, decision] = m;
+  if (!action && !revisionId)
+    return send(200, {
+      id: c.id,
+      site_id: c.site.id,
+      site_slug: c.site.slug,
+      site_name: c.site.name,
+      name: c.name,
+      reference: c.reference,
+      kind: c.kind,
+      objective: c.objective,
+      description: c.description,
+      owner_id: c.owner_id,
+      owner_name: c.owner_name,
+      draft: c.draft,
+      draft_version: c.draft_version,
+      draft_updated_at: c.draft_updated_at,
+      published: c.published,
+      published_at: c.published_at,
+      starts_at: c.published?.schedule.starts_at ?? null,
+      ends_at: c.published?.schedule.ends_at ?? null,
+      paused_at: c.paused_at,
+      archived_at: c.archived_at,
+      status: campaignStatus(c),
+      draft_differs: JSON.stringify(c.draft) !== JSON.stringify(c.published),
+      revisions: c.revisions.slice().reverse(),
+      stats: campaignStats(c),
+      redeemed: 0,
+      daily: [],
+      stock: (c.published?.rewards?.rewards ?? []).map((r) => ({
+        id: r.id,
+        label: r.label,
+        quantity: r.quantity ?? null,
+        awarded: c.awarded[r.id] ?? 0,
+        weight: r.weight,
+        active: true,
+      })),
+      can_edit: rank >= RANKS.editor && !c.archived_at,
+      can_review: rank >= RANKS.reviewer,
+      can_approve_rewards: rank >= RANKS.owner,
+    });
+  if (rank < RANKS.editor) return err(403, "You don't have permission to do that.", "forbidden");
+  if (action === "draft") {
+    if (body.version !== c.draft_version)
+      return err(409, "Someone else changed this campaign. Reload to see their changes.");
+    const problem = campaignProblem(body.document);
+    if (problem)
+      return send(422, {
+        error: {
+          code: "validation",
+          message: problem,
+          fields: [{ field: "document", code: "invalid", message: problem }],
+        },
+      });
+    Object.assign(c, {
+      name: body.name.trim(),
+      objective: body.objective ?? "",
+      description: body.description ?? "",
+      draft: body.document,
+      draft_version: c.draft_version + 1,
+      draft_updated_at: stamp(),
+    });
+    return send(200, { draft_version: c.draft_version });
+  }
+  if (action === "submit") {
+    if (!String(body.note ?? "").trim())
+      return send(422, {
+        error: {
+          code: "validation",
+          message: "Say what changed.",
+          fields: [{ field: "note", code: "length", message: "Say what changed in up to 300 characters." }],
+        },
+      });
+    if (JSON.stringify(c.draft) === JSON.stringify(c.published))
+      return err(409, "The draft is the same as the published campaign.");
+    if (c.revisions.some((x) => x.state === "pending"))
+      return err(409, "A change to this campaign is already waiting for approval.");
+    if (c.draft.rewards && String(c.draft.rewards.legal_review ?? "").trim().length < 20)
+      return err(
+        409,
+        "Record the legal review (promotion, consumer-protection and gambling rules for each market) before submitting.",
+      );
+    const revision = {
+      id: randomUUID(),
+      number: c.revisions.length + 1,
+      document: structuredClone(c.draft),
+      note: body.note.trim(),
+      state: "pending",
+      requested_by: user.name,
+      requested_by_id: user.id,
+      decided_by: null,
+      decision_note: null,
+      created_at: stamp(),
+      decided_at: null,
+    };
+    c.revisions.push(revision);
+    return send(201, { id: revision.id });
+  }
+  if (["pause", "resume", "archive", "restore"].includes(action)) {
+    if (rank < RANKS.reviewer) return err(403, "You don't have permission to do that.", "forbidden");
+    if (action === "pause") c.paused_at = stamp();
+    if (action === "resume") c.paused_at = null;
+    if (action === "archive") c.archived_at = stamp();
+    if (action === "restore") Object.assign(c, { archived_at: null, paused_at: c.paused_at ?? stamp() });
+    return send(200, { id: c.id });
+  }
+  if (action === "duplicate") {
+    const id = randomUUID();
+    campaigns.set(id, {
+      ...structuredClone({ ...c, site: null }),
+      site: c.site,
+      id,
+      name: `${c.name} (copy)`,
+      reference: `${c.reference.slice(0, 34)}-${id.slice(0, 4).toUpperCase()}`,
+      published: null,
+      revisions: [],
+      paused_at: null,
+      archived_at: null,
+      events: { impression: 0, click: 0, dismiss: 0, conversion: 0 },
+      entries: [],
+      awarded: {},
+    });
+    return send(200, { id });
+  }
+  const revision = c.revisions.find((x) => x.id === revisionId);
+  if (!revision) return err(404, "Not found.", "not_found");
+  if (decision === "restore") {
+    Object.assign(c, { draft: structuredClone(revision.document), draft_version: c.draft_version + 1 });
+    return send(200, { restored: revision.number });
+  }
+  if (revision.state !== "pending") return err(409, "This change has already been decided.");
+  const own = revision.requested_by_id === user.id;
+  if (decision === "approve") {
+    if (rank < RANKS.reviewer) return err(403, "You don't have permission to do that.", "forbidden");
+    if (own && user.role !== "owner")
+      return err(403, "A different reviewer must approve your own change (maker-checker).", "forbidden");
+    if (revision.document.rewards && user.role !== "owner")
+      return err(403, "Interactive reward campaigns need an owner's approval.", "forbidden");
+    Object.assign(revision, {
+      state: "published",
+      decided_by: user.name,
+      decided_at: stamp(),
+      decision_note: body.note ?? null,
+    });
+    Object.assign(c, { published: structuredClone(revision.document), published_at: stamp() });
+    return send(200, { state: "published" });
+  }
+  if (decision === "reject" && rank < RANKS.reviewer)
+    return err(403, "You don't have permission to do that.", "forbidden");
+  Object.assign(revision, {
+    state: decision === "reject" ? "rejected" : "cancelled",
+    decided_by: user.name,
+    decided_at: stamp(),
+  });
+  return send(200, { state: revision.state });
+}
+
 // Mirrors services/api/src/site_settings.rs: reviewers change a website's
 // navigation, footer and enquiries directly; every change is audited.
 function siteSettingsRoutes(slug, req, body, user, send) {
@@ -2785,6 +3160,8 @@ function admin(req, res, url, body, send, raw) {
     return mediaRoutes(path, req, res, url, raw, body, user, send);
   const settingsPath = /^sites\/([a-z0-9_-]+)\/settings$/.exec(path);
   if (settingsPath) return siteSettingsRoutes(settingsPath[1], req, body, user, send);
+  if (path === "campaigns" || path.startsWith("campaigns/"))
+    return campaignRoutes(path, req, body, user, send);
   if (path === "sites" || path.startsWith("sites/")) return siteRoutes(path, req, body, user, send);
   return send(404, { error: { code: "not_found", message: "Not found." } });
 }
@@ -2803,14 +3180,88 @@ createServer(async (req, res) => {
     body = {};
   }
   const url = new URL(req.url ?? "/", `http://localhost:${PORT}`);
+  // Websites call campaign events and spins from the browser (CORS, like the API).
+  const cors = url.pathname.startsWith("/v1/campaigns/")
+    ? { "access-control-allow-origin": "*", "access-control-allow-headers": "content-type" }
+    : {};
+  if (req.method === "OPTIONS") {
+    res.writeHead(204, { ...cors, "access-control-allow-methods": "GET, POST, OPTIONS" });
+    return res.end();
+  }
   const send = (status, payload) => {
-    res.writeHead(status, { "content-type": "application/json" });
+    res.writeHead(status, { "content-type": "application/json", ...cors });
     res.end(JSON.stringify(payload));
   };
   if (url.pathname.startsWith("/v1/admin/")) return admin(req, res, url, body, send, raw);
   if (url.pathname === "/v1/articles") return send(200, list(url));
   if (url.pathname === "/v1/sites") return send(200, publicSites());
   if (url.pathname === "/v1/privacy") return send(200, publicPrivacy());
+  const liveList = /^\/v1\/sites\/([a-z0-9_-]+)\/campaigns$/.exec(url.pathname);
+  if (liveList)
+    return send(200, {
+      campaigns: [...campaigns.values()]
+        .filter(
+          (c) =>
+            c.site.slug === liveList[1] &&
+            c.published &&
+            !c.paused_at &&
+            !c.archived_at &&
+            liveAt(c.published),
+        )
+        .sort((a, b) => b.published.schedule.priority - a.published.schedule.priority)
+        .map(publicCampaign),
+      now: new Date().toISOString(),
+    });
+  const campaignEvent = /^\/v1\/campaigns\/([0-9a-f-]{36})\/(events|spin)$/.exec(url.pathname);
+  if (campaignEvent && req.method === "POST") {
+    const c = campaigns.get(campaignEvent[1]);
+    if (!c?.published) return send(404, { error: { code: "not_found", message: "Not found." } });
+    if (campaignEvent[2] === "events") {
+      if (!(body.kind in c.events))
+        return send(400, { error: { code: "bad_request", message: "unknown event" } });
+      c.events[body.kind] += 1;
+      res.writeHead(204, cors);
+      return res.end();
+    }
+    const email = String(body.email ?? "")
+      .trim()
+      .toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
+      return send(422, {
+        error: {
+          code: "validation",
+          message: "Enter a valid email address.",
+          fields: [{ field: "email", code: "invalid", message: "Enter a valid email address." }],
+        },
+      });
+    const rules = c.published.rewards;
+    if (c.entries.filter((e) => e.email === email).length >= rules.max_attempts)
+      return send(409, {
+        error: { code: "conflict", message: "You've already used every attempt for this promotion." },
+      });
+    const open = rules.rewards.filter(
+      (x) => x.weight > 0 && (x.quantity == null || (c.awarded[x.id] ?? 0) < x.quantity),
+    );
+    if (!open.length)
+      return send(409, {
+        error: { code: "conflict", message: "Every reward in this promotion has been claimed." },
+      });
+    const reward = open[0];
+    c.awarded[reward.id] = (c.awarded[reward.id] ?? 0) + 1;
+    const code = `FB-${randomUUID().slice(0, 10).toUpperCase()}`;
+    c.entries.push({ email, reward: reward.id, code });
+    return send(200, {
+      reward: {
+        id: reward.id,
+        label: reward.label,
+        description: reward.description ?? null,
+        instructions: reward.instructions,
+      },
+      code,
+      redeem_by: new Date(Date.now() + rules.redeem_days * 864e5).toISOString(),
+      attempts_left: rules.max_attempts - c.entries.filter((e) => e.email === email).length,
+    });
+  }
   const mediaFile = /^\/v1\/media\/([0-9a-f-]{36})$/.exec(url.pathname);
   if (mediaFile) {
     const asset = mediaAssets.get(mediaFile[1]);

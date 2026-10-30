@@ -26,7 +26,15 @@ const getTheme = (): Theme => (document.documentElement.dataset.theme === "light
 
 /** Applies and remembers the visitor's theme. */
 export function setTheme(next: Theme) {
+  // Colours change at once: hover and focus transitions would otherwise
+  // animate every surface and text colour through the old theme.
+  const freeze = document.createElement("style");
+  freeze.textContent = "*,*::before,*::after{transition:none!important}";
+  document.head.appendChild(freeze);
   document.documentElement.dataset.theme = next;
+  // Apply the new colours before transitions come back.
+  void window.getComputedStyle(document.body).color;
+  requestAnimationFrame(() => requestAnimationFrame(() => freeze.remove()));
   try {
     localStorage.setItem(THEME_STORAGE_KEY, next);
   } catch {
