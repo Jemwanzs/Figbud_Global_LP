@@ -5,7 +5,7 @@ export type Status = "draft" | "in_review" | "published" | "archived";
 const STYLES: Record<Status | "scheduled", { label: string; className: string }> = {
   draft: { label: "Draft", className: "border-line text-muted" },
   in_review: { label: "In review", className: "border-warning/40 bg-warning/10 text-warning" },
-  scheduled: { label: "Scheduled", className: "border-accent/40 bg-accent-soft text-accent" },
+  scheduled: { label: "Scheduled", className: "border-accent/40 bg-accent-soft text-accent-strong" },
   published: { label: "Published", className: "border-success/30 bg-success/10 text-success" },
   archived: { label: "Archived", className: "border-line bg-surface-2 text-subtle" },
 };

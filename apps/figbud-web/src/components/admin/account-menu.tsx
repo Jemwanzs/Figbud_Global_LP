@@ -62,7 +62,7 @@ export function AccountMenu({ user }: { user: AdminUser }) {
       >
         <span
           aria-hidden
-          className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent-soft text-sm font-semibold text-accent"
+          className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent-soft text-sm font-semibold text-accent-strong"
         >
           {initials(user)}
         </span>

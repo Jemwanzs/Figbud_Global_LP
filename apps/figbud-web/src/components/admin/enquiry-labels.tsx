@@ -43,7 +43,7 @@ export const TEMPLATE_LABELS: Record<string, string> = {
 };
 
 const STYLES: Record<EnquiryStatus, string> = {
-  new: "border-accent/40 bg-accent-soft text-accent",
+  new: "border-accent/40 bg-accent-soft text-accent-strong",
   contacted: "border-warning/40 bg-warning/10 text-warning",
   qualified: "border-success/30 bg-success/10 text-success",
   closed: "border-line bg-surface-2 text-subtle",

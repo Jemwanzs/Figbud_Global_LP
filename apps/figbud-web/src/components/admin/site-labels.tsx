@@ -92,7 +92,7 @@ export const TEMPLATES: { value: string; label: string }[] = [
 
 const STYLES: Record<SiteStatus, string> = {
   draft: "border-line text-muted",
-  coming_soon: "border-accent/40 bg-accent-soft text-accent",
+  coming_soon: "border-accent/40 bg-accent-soft text-accent-strong",
   beta: "border-warning/40 bg-warning/10 text-warning",
   active: "border-success/30 bg-success/10 text-success",
   retired: "border-line bg-surface-2 text-subtle",
