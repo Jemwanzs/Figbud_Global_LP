@@ -24,7 +24,7 @@
   },
   "devDependencies": {
     "@types/react": "^19",
-    "typescript": "^5.9.3"
+    "typescript": "^7.0.2"
   },
   "dependencies": {
     "libphonenumber-js": "^1.13.15"
