@@ -74,7 +74,7 @@ export const routes = {
 } as const;
 
 /** Paths listed in the sitemap. Pages still in progress stay out until published. */
-export const publishedPaths: string[] = [routes.home, routes.products, routes.contact];
+export const publishedPaths: string[] = [routes.home, routes.products, routes.about, routes.contact];
 
 /**
  * Canonical, hreflang and robots metadata for a locale-agnostic path.

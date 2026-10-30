@@ -3,10 +3,9 @@ import { CONSENT_COOKIE, CookieSettingsButton } from "@figbud/site-kit";
 import { THEME_STORAGE_KEY, buttonClasses } from "@figbud/ui";
 import type { Metadata } from "next";
 
-import { InProgressPage } from "@/components/in-progress-page";
+import { LegalPage, legalMetadata } from "@/components/legal-page";
 import { resolvePage } from "@/lib/page";
 import { getPrivacySettings } from "@/lib/privacy";
-import { pageMetadata } from "@/lib/site";
 
 const PROVIDER_NAMES = {
   plausible: "Plausible Analytics",
@@ -15,18 +14,12 @@ const PROVIDER_NAMES = {
   linkedin_insight: "LinkedIn Insight Tag",
 } as const;
 
-// The policy text is being finalised with legal counsel, so the page stays
-// unindexed; the list of cookies below is factual and kept current.
+// The policy text is published from the Studio once legal counsel approves
+// it (unindexed until then); the list of cookies below is factual and kept
+// current, and follows the policy either way.
 export async function generateMetadata({ params }: PageProps<"/[locale]/legal/cookies">): Promise<Metadata> {
   const { locale, dict } = await resolvePage(params);
-  const page = dict.pages.cookies;
-  return pageMetadata({
-    locale,
-    path: "/legal/cookies",
-    title: page.title,
-    description: page.description,
-    published: false,
-  });
+  return legalMetadata(locale, "legal/cookies", dict.pages.cookies);
 }
 
 export default async function CookiesPage({ params }: PageProps<"/[locale]/legal/cookies">) {
@@ -47,13 +40,7 @@ export default async function CookiesPage({ params }: PageProps<"/[locale]/legal
     (locale === "en" ? privacy.categories : dict.consent.categories)[c].label.toLowerCase();
 
   return (
-    <InProgressPage
-      locale={locale}
-      dict={dict}
-      path="/legal/cookies"
-      title={dict.pages.cookies.title}
-      body={dict.pages.legalPending}
-    >
+    <LegalPage locale={locale} dict={dict} path="legal/cookies" title={dict.pages.cookies.title}>
       <section aria-labelledby="cookie-inventory" className="mt-12 max-w-4xl">
         <h2 id="cookie-inventory" className="text-2xl font-semibold text-text">
           {t.title}
@@ -102,6 +89,6 @@ export default async function CookiesPage({ params }: PageProps<"/[locale]/legal
         )}
         <CookieSettingsButton label={t.manage} className={buttonClasses("secondary", "md", "mt-8")} />
       </section>
-    </InProgressPage>
+    </LegalPage>
   );
 }

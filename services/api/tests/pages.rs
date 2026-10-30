@@ -1027,3 +1027,58 @@ async fn performance_budgets_flag_and_stop_heavy_pages() {
         "{body}"
     );
 }
+
+#[tokio::test]
+async fn corporate_pages_start_as_valid_unpublished_drafts() {
+    let Some(s) = Studio::new().await else {
+        eprintln!("skipping: TEST_DATABASE_URL not set");
+        return;
+    };
+    let viewer = s.admin("viewer").await;
+    let (status, list) = s
+        .call("GET", "/v1/admin/sites/figbud/pages", Some(&viewer), None)
+        .await;
+    assert_eq!(status, StatusCode::OK, "{list}");
+    for path in ["about", "legal/privacy", "legal/terms", "legal/cookies"] {
+        let page = list["pages"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|p| p["path"] == path)
+            .unwrap_or_else(|| panic!("{path} is seeded"))
+            .clone();
+        // Seeded drafts are never published; the Studio can open and preview them.
+        if path != "about" {
+            assert_eq!(page["published"], false, "{path}");
+        }
+        let (status, detail) = s
+            .call(
+                "GET",
+                &format!("/v1/admin/pages/{}", page["id"].as_str().unwrap()),
+                Some(&viewer),
+                None,
+            )
+            .await;
+        assert_eq!(status, StatusCode::OK);
+        assert!(
+            detail["preview"]["sections"]
+                .as_array()
+                .is_some_and(|s| !s.is_empty()),
+            "{path}"
+        );
+    }
+    // The owner's official slogans replaced the old default taglines.
+    let taglines: Vec<(String, Option<String>)> =
+        sqlx::query_as("SELECT slug, tagline FROM sites WHERE slug IN ('figbud', 'zirahr') ORDER BY slug")
+            .fetch_all(&s.pool)
+            .await
+            .unwrap();
+    assert_ne!(
+        taglines[0].1.as_deref(),
+        Some("From vision to value, we deliver.")
+    );
+    assert_ne!(
+        taglines[1].1.as_deref(),
+        Some("People. Payroll. Progress. Connected.")
+    );
+}

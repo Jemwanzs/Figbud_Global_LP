@@ -154,6 +154,27 @@ test.describe("navigation", () => {
   });
 });
 
+test.describe("about page", () => {
+  test("tells the company story from approved copy, with the products and their status", async ({ page }) => {
+    await page.goto("/en/about");
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("About Us");
+    await expect(page.getByText("One Vision. Endless Solutions.")).toBeVisible();
+    // A finished page, not the holding notice.
+    await expect(page.getByText("In progress")).toHaveCount(0);
+    for (const name of ["Who we are", "What we believe", "What we build", "What we engineer"])
+      await expect(page.getByText(name, { exact: true })).toBeVisible();
+    await expect(page.getByText("Nairobi, Kenya")).toBeVisible();
+    const products = page.locator("#about-build").locator("xpath=ancestor::section").getByRole("listitem");
+    await expect(products).toHaveCount(4);
+    await expect(products.filter({ hasText: "Expense Now" })).toContainText("Coming soon");
+    await expect(page.getByRole("link", { name: /Talk to Our Team/ }).last()).toHaveAttribute(
+      "href",
+      "/en/contact",
+    );
+    await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", /\/en\/about$/);
+  });
+});
+
 test.describe("products page", () => {
   test("comparison links straight to the pre-filled enquiry form", async ({ page, isMobile }) => {
     await page.goto("/en/products");

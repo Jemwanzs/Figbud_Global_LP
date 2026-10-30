@@ -345,6 +345,13 @@ const en = {
       title: "About Us",
       description: "FigBud Global builds configurable enterprise software in Kenya, for Africa and beyond.",
       lead: "Technology should adapt to your business. Not the other way around.",
+      slogan: "One Vision. Endless Solutions.",
+      whoEyebrow: "Who we are",
+      beliefEyebrow: "What we believe",
+      buildEyebrow: "What we build",
+      buildTitle: "Distinct platforms for the work that matters most.",
+      buildLead: "Each product is a complete platform with its own website, built on one shared foundation.",
+      productLink: "Explore {product}",
     },
     blog: {
       title: "Blog & Insights",

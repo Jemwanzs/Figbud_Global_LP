@@ -1,7 +1,9 @@
 import { indexableLocales, localeInfo, localizePath } from "@figbud/i18n";
 import type { MetadataRoute } from "next";
 
+import { LEGAL_PATHS } from "@/components/legal-page";
 import { getArticles, getPublishedSlugs } from "@/lib/cms";
+import { getCorporatePage } from "@/lib/corporate-pages";
 import { allowIndexing, publishedPaths, routes, siteOrigin } from "@/lib/site";
 
 /**
@@ -12,7 +14,15 @@ import { allowIndexing, publishedPaths, routes, siteOrigin } from "@/lib/site";
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   if (!allowIndexing) return [];
 
-  const pages = publishedPaths.flatMap((path) =>
+  // Legal pages join once their reviewed text is published from the Studio.
+  const legal = await Promise.all(
+    LEGAL_PATHS.map(async (path) => {
+      const page = await getCorporatePage(path);
+      return page && !page.seo_noindex ? `/${path}` : null;
+    }),
+  );
+  const paths = [...publishedPaths, ...legal.filter((p): p is string => p !== null)];
+  const pages = paths.flatMap((path) =>
     indexableLocales.map((locale) => ({
       url: `${siteOrigin}${localizePath(locale, path)}`,
       changeFrequency: path === "/" ? ("weekly" as const) : ("monthly" as const),

@@ -7,5 +7,5 @@ export const config = {
   // Skip Next.js internals, API routes, the (English-only) admin area and any
   // path with a file extension (robots.txt, sitemap.xml, icons, images), and
   // brand logo files.
-  matcher: ["/((?!_next|api|admin|brand/assets|.*\\..*).*)"],
+  matcher: ["/((?!_next|api|admin|brand/assets|media/|.*\\..*).*)"],
 };
