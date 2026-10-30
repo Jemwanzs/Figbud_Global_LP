@@ -41,7 +41,7 @@ export async function SiteFooter({
 
   return (
     <footer className="relative border-t border-line">
-      <Container size="wide" className="grid gap-12 py-16 md:grid-cols-12 md:py-20">
+      <Container size="wide" className="grid gap-10 py-section-sm md:grid-cols-12">
         <div className="md:col-span-5">
           <Link href={localizePath(locale)} className="inline-block rounded-lg" aria-label="FigBud Global">
             <BrandLogo

@@ -86,7 +86,7 @@ export default async function SitePage({ params }: PageProps<"/[site]/[[...path]
     if (path !== "") notFound();
     // Listed but nothing published yet: an honest holding page from the registry.
     return (
-      <div className="mx-auto max-w-[92rem] px-5 py-20 sm:px-8 sm:py-28 md:px-10 lg:px-16">
+      <div className="mx-auto max-w-[92rem] px-5 pt-page-top pb-section sm:px-8 md:px-10 lg:px-16">
         <div className="max-w-3xl">
           <h1 className="font-display text-display font-semibold tracking-tight text-text">{site.name}</h1>
           {site.tagline && <p className="mt-6 font-display text-title text-text">{site.tagline}</p>}
@@ -102,7 +102,7 @@ export default async function SitePage({ params }: PageProps<"/[site]/[[...path]
 
   const pages = await getPages(site.slug);
   return (
-    <div className="mx-auto max-w-[92rem] px-5 py-14 sm:px-8 sm:py-20 md:px-10 lg:px-16">
+    <div className="mx-auto max-w-[92rem] px-5 py-section-sm sm:px-8 md:px-10 lg:px-16">
       <PageBlocks document={page} resolveHref={hrefResolver(site, ownDomain, pages)} />
     </div>
   );

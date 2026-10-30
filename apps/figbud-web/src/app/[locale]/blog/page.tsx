@@ -50,7 +50,7 @@ export default async function BlogPage({ params, searchParams }: PageProps<"/[lo
         title={copy.title}
         lead={copy.lead}
       />
-      <Container size="wide" className="py-12 sm:py-16 lg:py-20">
+      <Container size="wide" className="py-section-sm">
         <Suspense fallback={<ResultsSkeleton />}>
           <BlogResults locale={locale} dict={dict} searchParams={searchParams} />
         </Suspense>

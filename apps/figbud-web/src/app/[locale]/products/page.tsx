@@ -44,7 +44,7 @@ export default async function ProductsPage({ params }: PageProps<"/[locale]/prod
         title={dict.pages.products.title}
         lead={dict.pages.products.lead}
       />
-      <Container size="wide" className="py-16 sm:py-20 lg:py-24">
+      <Container size="wide" className="py-section-sm">
         <ul className="space-y-6 lg:space-y-8">
           {products.map((product, i) => {
             const copy = dict.products[product.slug];
@@ -129,7 +129,7 @@ export default async function ProductsPage({ params }: PageProps<"/[locale]/prod
         </ul>
       </Container>
 
-      <Container size="wide" className="pb-16 sm:pb-20 lg:pb-24">
+      <Container size="wide" className="pb-section">
         <Reveal>
           <h2 className="font-display text-title font-semibold text-text">{page.compare.title}</h2>
           <p className="mt-3 max-w-2xl text-muted">{page.compare.lead}</p>

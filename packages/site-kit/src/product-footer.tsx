@@ -47,7 +47,7 @@ export async function ProductFooter({
   const external = (path: string) => linkProps(figbudLink(locale, path));
   return (
     <footer className="border-t border-line">
-      <div className="mx-auto grid max-w-[92rem] gap-12 px-5 py-14 sm:px-8 md:px-10 lg:grid-cols-12 lg:px-16 lg:py-20">
+      <div className="mx-auto grid max-w-[92rem] gap-10 px-5 py-section-sm sm:px-8 md:px-10 lg:grid-cols-12 lg:px-16">
         <div className="lg:col-span-4">
           <ProductIdentity
             slug={slug}

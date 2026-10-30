@@ -38,7 +38,7 @@ export default async function ContactPage({ params }: PageProps<"/[locale]/conta
         title={page.title}
         lead={page.lead}
       />
-      <Container size="wide" className="grid gap-12 py-16 sm:py-20 lg:grid-cols-12 lg:gap-16 lg:py-24">
+      <Container size="wide" className="grid gap-10 py-section-sm lg:grid-cols-12 lg:gap-16">
         <div className="lg:col-span-7">
           {/* The form reads ?kind=&product= from the URL, which is request-time data. */}
           <Suspense

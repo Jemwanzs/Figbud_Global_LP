@@ -92,7 +92,7 @@ export default async function ArticlePage({ params }: PageProps<"/[locale]/blog/
     <>
       <article>
         <header className="border-b border-line">
-          <Container size="wide" className="pt-12 pb-12 sm:pt-16 sm:pb-14 lg:pt-20">
+          <Container size="wide" className="pt-page-top pb-section-sm">
             <div className="mb-8">
               <Breadcrumbs
                 locale={locale}
@@ -113,7 +113,9 @@ export default async function ArticlePage({ params }: PageProps<"/[locale]/blog/
                   {article.category.name}
                 </Link>
               )}
-              <h1 className="mt-2 font-display text-display font-semibold text-text">{article.title}</h1>
+              <h1 className="mt-2 font-display text-page font-semibold text-balance text-text">
+                {article.title}
+              </h1>
               <p className="mt-6 text-lead text-muted">{article.excerpt}</p>
               <p className="mt-8 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-subtle">
                 {article.author && (
@@ -156,7 +158,7 @@ export default async function ArticlePage({ params }: PageProps<"/[locale]/blog/
           </Container>
         )}
 
-        <Container size="wide" className="grid gap-12 py-12 sm:py-16 lg:grid-cols-12">
+        <Container size="wide" className="grid gap-10 py-section-sm lg:grid-cols-12">
           {toc.length >= 2 && (
             <aside className="lg:order-last lg:col-span-3" aria-labelledby="toc-title">
               <div className="lg:sticky lg:top-28">
@@ -205,7 +207,7 @@ export default async function ArticlePage({ params }: PageProps<"/[locale]/blog/
 
       {article.related.length > 0 && (
         <section aria-labelledby="related-title" className="border-t border-line">
-          <Container size="wide" className="py-14 sm:py-20">
+          <Container size="wide" className="py-section-sm">
             <h2 id="related-title" className="font-display text-title font-semibold text-text">
               {copy.related}
             </h2>

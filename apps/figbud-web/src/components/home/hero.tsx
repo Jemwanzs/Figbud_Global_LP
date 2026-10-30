@@ -29,20 +29,20 @@ export function Hero({
       <HeroBackdrop />
       <Container
         size="wide"
-        className="grid items-center gap-14 pt-10 pb-20 sm:pt-14 lg:grid-cols-12 lg:gap-8 lg:pt-20 lg:pb-28 xl:gap-12"
+        className="grid items-center gap-12 pt-page-top pb-section-sm lg:grid-cols-12 lg:gap-8 xl:gap-12"
       >
         <div className="lg:col-span-6">
           <Eyebrow className="fb-rise">{hero.eyebrow}</Eyebrow>
           {/* The headline is the LCP element: rendered immediately, never animated in. */}
-          <h1 id="hero-title" className="mt-6 font-display text-display font-semibold text-text">
+          <h1 id="hero-title" className="mt-5 font-display text-display font-semibold text-text">
             <span className="block">{hero.titleLead}</span>
             <span className="fb-text-gradient block pb-1">{hero.titleAccent}</span>
           </h1>
-          <p className="fb-rise mt-6 max-w-xl text-lead text-muted" style={{ animationDelay: "120ms" }}>
+          <p className="fb-rise mt-5 max-w-xl text-lead text-muted" style={{ animationDelay: "120ms" }}>
             {hero.lead}
           </p>
           <div
-            className="fb-rise mt-9 flex flex-col gap-3 sm:flex-row sm:items-center"
+            className="fb-rise mt-8 flex flex-col gap-3 sm:flex-row sm:items-center"
             style={{ animationDelay: "200ms" }}
           >
             <Link href={`${localizePath(locale)}#platforms`} className={buttonClasses("primary", "lg")}>
@@ -57,7 +57,7 @@ export function Hero({
             </Link>
           </div>
           <ul
-            className="fb-rise mt-10 flex flex-col gap-3 text-sm text-muted sm:flex-row sm:flex-wrap sm:gap-x-6"
+            className="fb-rise mt-8 flex flex-col gap-3 text-sm text-muted sm:flex-row sm:flex-wrap sm:gap-x-6"
             style={{ animationDelay: "280ms" }}
           >
             {hero.pillars.map((pillar) => (

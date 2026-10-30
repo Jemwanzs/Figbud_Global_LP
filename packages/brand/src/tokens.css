@@ -178,18 +178,35 @@
 }
 
 @theme {
-  /* Fluid type scale: mobile → desktop without breakpoint jumps. */
-  --text-display: clamp(2.6rem, 1.6rem + 4.6vw, 5.4rem);
-  --text-display--line-height: 1.02;
+  /* Fluid type scale: mobile → desktop without breakpoint jumps.
+     display: the home hero only; page: inner page titles (h1);
+     headline: section titles (h2); title: items and cards (h3). */
+  --text-display: clamp(2.5rem, 1.6rem + 4vw, 4.75rem);
+  --text-display--line-height: 1.03;
   --text-display--letter-spacing: -0.035em;
-  --text-headline: clamp(2rem, 1.4rem + 2.6vw, 3.5rem);
-  --text-headline--line-height: 1.06;
+  --text-page: clamp(2.25rem, 1.65rem + 2.6vw, 3.75rem);
+  --text-page--line-height: 1.05;
+  --text-page--letter-spacing: -0.032em;
+  --text-headline: clamp(1.85rem, 1.4rem + 2vw, 3rem);
+  --text-headline--line-height: 1.08;
   --text-headline--letter-spacing: -0.03em;
-  --text-title: clamp(1.4rem, 1.15rem + 1vw, 2rem);
-  --text-title--line-height: 1.18;
+  --text-title: clamp(1.3rem, 1.12rem + 0.75vw, 1.75rem);
+  --text-title--line-height: 1.2;
   --text-title--letter-spacing: -0.02em;
   --text-lead: clamp(1.05rem, 0.98rem + 0.35vw, 1.25rem);
   --text-lead--line-height: 1.6;
+
+  /* Spacing system (docs/UI_STANDARDS.md): fluid, so mobile, tablet and
+     desktop scale smoothly. Utilities: py-section, pt-page-top, mt-stack… */
+  --spacing-page-top: clamp(1.75rem, 1.15rem + 2.2vw, 3.25rem); /* header → first content: 28–52px */
+  --spacing-section: clamp(3.5rem, 2.6rem + 3.2vw, 6rem); /* between page sections: 56–96px */
+  --spacing-section-sm: clamp(
+    2.5rem,
+    2rem + 1.8vw,
+    4rem
+  ); /* compact sections, page headers, footers: 40–64px */
+  --spacing-stack: clamp(2rem, 1.6rem + 1.6vw, 3.5rem); /* section heading → its content: 32–56px */
+  --spacing-block: clamp(3rem, 2.5rem + 1.8vw, 4.5rem); /* between page-builder blocks: 48–72px */
 
   --radius-card: 1.25rem;
   --radius-panel: 1.75rem;

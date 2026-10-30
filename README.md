@@ -5,6 +5,7 @@ Monorepo for the FigBud Global corporate website and its product websites — **
 - **Plan and progress:** [docs/ROADMAP.md](docs/ROADMAP.md) — the single authoritative roadmap
 - **How it works:** [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 - **How to deploy:** [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)
+- **Spacing and typography:** [docs/UI_STANDARDS.md](docs/UI_STANDARDS.md) — shared tokens for every website and the Studio
 - **Repository:** https://github.com/Jemwanzs/Figbud_Global_LP
 
 | Layer     | Technology                                                                 |

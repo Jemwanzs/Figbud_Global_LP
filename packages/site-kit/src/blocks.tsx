@@ -365,7 +365,7 @@ export function PageBlocks({
   return (
     // Blocks respond to the space they are given (container queries), so the
     // Studio preview and the website lay out the same way at the same width.
-    <div className={cn("@container space-y-16 sm:space-y-20", className)}>
+    <div className={cn("@container space-y-block", className)}>
       {document.sections
         // Live pages never show hidden sections; previews show them dimmed and labelled.
         .filter((section) => mode === "preview" || !section.hidden)

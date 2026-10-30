@@ -49,7 +49,7 @@ export function InProgressPage({
         title={title}
         lead={lead}
       />
-      <Container size="wide" className="py-16 sm:py-20">
+      <Container size="wide" className="py-section-sm">
         <p className="max-w-2xl leading-relaxed text-muted">{body ?? copy.body}</p>
         {children}
         <Link href={localizePath(locale)} className={buttonClasses("secondary", "md", "mt-8")}>

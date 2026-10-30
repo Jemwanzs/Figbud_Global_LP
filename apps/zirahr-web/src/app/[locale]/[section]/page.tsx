@@ -40,9 +40,9 @@ export async function generateMetadata({ params }: PageProps<"/[locale]/[section
 export default async function SectionPage({ params }: PageProps<"/[locale]/[section]">) {
   const { locale, item, dict } = await resolve(params);
   return (
-    <Container size="wide" className="py-20 sm:py-28">
+    <Container size="wide" className="py-section">
       <Eyebrow>{dict.section.eyebrow}</Eyebrow>
-      <h1 className="mt-5 font-display text-display font-semibold text-text">{dict.header.nav[item.key]}</h1>
+      <h1 className="mt-5 font-display text-page font-semibold text-text">{dict.header.nav[item.key]}</h1>
       <p className="mt-6 max-w-2xl text-lead text-muted">{dict.section.body}</p>
       <div className="mt-10 flex flex-col gap-3 sm:flex-row">
         <a {...linkProps(enquiryLink("zirahr", locale))} className={buttonClasses("product", "lg")}>

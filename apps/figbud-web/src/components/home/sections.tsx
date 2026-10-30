@@ -30,10 +30,10 @@ function SectionHeading({
   return (
     <Reveal className={className}>
       <Eyebrow>{eyebrow}</Eyebrow>
-      <h2 id={id} className="mt-5 max-w-3xl font-display text-headline font-semibold text-text">
+      <h2 id={id} className="mt-4 max-w-3xl font-display text-headline font-semibold text-balance text-text">
         {title}
       </h2>
-      {lead && <p className="mt-5 max-w-2xl text-lead text-muted">{lead}</p>}
+      {lead && <p className="mt-4 max-w-2xl text-lead text-muted">{lead}</p>}
     </Reveal>
   );
 }
@@ -46,7 +46,7 @@ export function PlatformsSection({
 }: SectionProps & { products: Product[]; brands: Record<string, BrandProfile | null> }) {
   const platforms = dict.home.platforms;
   return (
-    <section id="platforms" aria-labelledby="platforms-title" className="relative py-20 sm:py-24 lg:py-32">
+    <section id="platforms" aria-labelledby="platforms-title" className="relative pt-section-sm pb-section">
       <Container size="wide">
         <SectionHeading
           id="platforms-title"
@@ -54,7 +54,7 @@ export function PlatformsSection({
           title={platforms.title}
           lead={platforms.lead}
         />
-        <Reveal delay={0.1} className="mt-12 lg:mt-16">
+        <Reveal delay={0.1} className="mt-stack">
           <PlatformShowcase
             locale={locale}
             platforms={platforms}
@@ -74,17 +74,23 @@ export function PhilosophySection({ dict }: SectionProps) {
   return (
     <section
       aria-labelledby="philosophy-title"
-      className="relative border-y border-line bg-bg-elevated/50 py-20 sm:py-24 lg:py-32"
+      className="relative border-y border-line bg-bg-elevated/50 py-section"
     >
       <Container>
         <SectionHeading id="philosophy-title" eyebrow={philosophy.eyebrow} title={philosophy.title} />
-        <ol className="mt-14 lg:mt-20">
+        <ol className="mt-stack">
           {philosophy.items.map((item, i) => (
             <li key={item.title} className="border-t border-line last:border-b">
-              <Reveal delay={i * 0.06} className="grid gap-4 py-8 md:grid-cols-12 md:gap-8 md:py-12">
-                <span className="font-mono text-sm text-accent md:col-span-1 md:pt-2">0{i + 1}</span>
-                <h3 className="font-display text-title font-medium text-text md:col-span-5">{item.title}</h3>
-                <p className="leading-relaxed text-muted md:col-span-6 md:pt-1.5 md:text-lg">{item.body}</p>
+              {/* Number, title and description share a baseline on wider screens. */}
+              <Reveal
+                delay={i * 0.06}
+                className="grid gap-2.5 py-6 sm:py-7 md:grid-cols-12 md:items-baseline md:gap-x-8 md:gap-y-0 md:py-8"
+              >
+                <span className="font-mono text-sm text-accent md:col-span-1">0{i + 1}</span>
+                <h3 className="font-display text-title font-medium text-text md:col-span-4">{item.title}</h3>
+                <p className="max-w-prose leading-7 text-muted md:col-span-7 md:text-[1.0625rem]">
+                  {item.body}
+                </p>
               </Reveal>
             </li>
           ))}
@@ -102,7 +108,7 @@ export function AfricaSection({
 }: SectionProps & { products: Product[]; brands: Record<string, BrandProfile | null> }) {
   const africa = dict.home.africa;
   return (
-    <section aria-labelledby="africa-title" className="relative overflow-hidden py-20 sm:py-24 lg:py-32">
+    <section aria-labelledby="africa-title" className="relative overflow-hidden py-section">
       <div
         aria-hidden
         className="pointer-events-none absolute end-[-15%] top-1/2 -z-10 h-[46rem] w-[46rem] -translate-y-1/2 rounded-full bg-[radial-gradient(closest-side,var(--glow),transparent)] opacity-60"
@@ -159,10 +165,7 @@ const capabilityIcons = {
 export function EngineerSection({ dict }: SectionProps) {
   const engineer = dict.home.engineer;
   return (
-    <section
-      aria-labelledby="engineer-title"
-      className="relative border-t border-line py-20 sm:py-24 lg:py-32"
-    >
+    <section aria-labelledby="engineer-title" className="relative border-t border-line py-section">
       <Container size="wide" className="grid gap-14 lg:grid-cols-12 lg:gap-16">
         <div className="lg:col-span-5">
           <div className="lg:sticky lg:top-28">
@@ -182,7 +185,7 @@ export function EngineerSection({ dict }: SectionProps) {
             const Icon = capabilityIcons[item.key as keyof typeof capabilityIcons] ?? Workflow;
             return (
               <li key={item.key} className="border-b border-line first:border-t">
-                <Reveal delay={i * 0.05} className="group flex gap-5 py-8 sm:gap-8 sm:py-10">
+                <Reveal delay={i * 0.05} className="group flex gap-5 py-6 sm:gap-8 sm:py-8">
                   <span className="inline-flex size-12 shrink-0 items-center justify-center rounded-2xl border border-line bg-surface text-accent transition-[transform,background-color,border-color] duration-500 ease-out-expo group-hover:-translate-y-0.5 group-hover:border-accent/40 group-hover:bg-accent-soft">
                     <Icon aria-hidden className="size-5" />
                   </span>
@@ -203,14 +206,11 @@ export function EngineerSection({ dict }: SectionProps) {
 export function CompanySection({ locale, dict }: SectionProps) {
   const company = dict.home.company;
   return (
-    <section
-      aria-labelledby="company-title"
-      className="relative border-t border-line py-20 sm:py-24 lg:py-32"
-    >
+    <section aria-labelledby="company-title" className="relative border-t border-line py-section">
       <Container size="wide" className="grid gap-16 lg:grid-cols-12 lg:gap-12">
         <Reveal className="lg:col-span-7">
           <Eyebrow>{company.eyebrow}</Eyebrow>
-          <h2 id="company-title" className="mt-5 font-display text-headline font-semibold text-text">
+          <h2 id="company-title" className="mt-4 font-display text-headline font-semibold text-text">
             {company.title}
           </h2>
           <p className="mt-6 max-w-xl text-lead text-muted">{company.body}</p>
@@ -268,9 +268,9 @@ export function CompanySection({ locale, dict }: SectionProps) {
 export function FinalCtaSection({ locale, dict }: SectionProps) {
   const cta = dict.home.finalCta;
   return (
-    <section aria-labelledby="final-cta-title" className="pb-20 sm:pb-24 lg:pb-32">
+    <section aria-labelledby="final-cta-title" className="pb-section">
       <Container size="wide">
-        <Reveal className="relative isolate overflow-hidden rounded-[2rem] border border-line bg-surface px-6 py-16 text-center sm:px-12 sm:py-20 lg:py-28">
+        <Reveal className="relative isolate overflow-hidden rounded-[2rem] border border-line bg-surface px-6 py-12 text-center sm:px-12 sm:py-16 lg:py-20">
           <div aria-hidden className="absolute inset-0 -z-10">
             <div className="absolute start-1/2 top-0 h-[34rem] w-[60rem] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(closest-side,var(--glow),transparent)] rtl:translate-x-1/2" />
             <div className="fb-grid absolute inset-0 [mask-image:radial-gradient(ellipse_60%_70%_at_50%_0%,black,transparent)] opacity-50" />
