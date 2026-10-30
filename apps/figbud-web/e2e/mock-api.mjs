@@ -1150,6 +1150,8 @@ function validateDoc(doc) {
       problems.push("Links must be a page on the site (starting with /) or an https:// address.");
     if ((s.type === "hero" || s.type === "call_to_action") && !String(s.heading ?? "").trim())
       problems.push("Headings need 1–120 characters.");
+    if (s.type === "shared" && (!sharedBlocks.get(s.shared_id) || sharedBlocks.get(s.shared_id).archived_at))
+      problems.push("Choose shared content from the library (archived content can't be used).");
     if (s.type === "image" && (!mediaAssets.get(s.image_id) || mediaAssets.get(s.image_id).archived_at))
       problems.push("Choose images from this website's media library (archived images can't be used).");
     if (s.type === "stats" && !String(s.source ?? "").trim())
@@ -1169,11 +1171,28 @@ const md = (t) =>
 // Websites never receive hidden sections; Studio previews keep them (`includeHidden`).
 // Old addresses of moved pages (services/api/src/pages: page_redirects): "slug:path" -> page id.
 const pageRedirects = new Map();
+// Content library (services/api/src/shared.rs): id -> item.
+const sharedBlocks = new Map();
+/** A Shared content section as its item's published content, or unchanged (unpublished/archived). */
+const resolveShared = (s) => {
+  const item = s.type === "shared" && sharedBlocks.get(s.shared_id);
+  return item && item.published && !item.archived_at
+    ? {
+        ...item.published,
+        id: s.id,
+        ...(s.hidden ? { hidden: true } : {}),
+        ...(s.tone ? { tone: s.tone } : {}),
+        shared: { id: item.id, name: item.name, version: item.published_number },
+      }
+    : s;
+};
 const renderDoc = (doc, includeHidden = true) => ({
   ...doc,
   ...(doc.seo_image_id ? { seo_image: mediaInfo(mediaAssets.get(doc.seo_image_id)) } : {}),
   sections: doc.sections
     .filter((s) => includeHidden || !s.hidden)
+    .map(resolveShared)
+    .filter((s) => includeHidden || s.type !== "shared")
     .map((s) => (s.type === "image" ? { ...s, media: mediaInfo(mediaAssets.get(s.image_id)) } : s))
     .filter((s) => includeHidden || s.type !== "image" || s.media)
     .map((s) =>
@@ -1586,6 +1605,42 @@ pageRedirects.set(
   [...pages.values()].find((p) => p.site?.slug === "ziwa" && p.path === "platform").id,
 );
 
+// A published content library item, used on a Ziwa page (P7-D1).
+const dataPromise = {
+  id: "0b6f2c1e-6d4a-4f7e-9a51-2f3c8d9e1a77",
+  name: "Data promise",
+  draft: { type: "text", heading: "Our data promise", body: "Your data stays in **your** region." },
+  draft_version: 1,
+  published: null,
+  published_number: 1,
+  published_at: new Date().toISOString(),
+  archived_at: null,
+  updated_at: new Date().toISOString(),
+  updated_by: "Seed",
+  versions: [],
+};
+dataPromise.published = dataPromise.draft;
+dataPromise.versions.push({
+  number: 1,
+  note: "First version",
+  published_by: "Seed",
+  published_at: dataPromise.published_at,
+  content: dataPromise.draft,
+});
+sharedBlocks.set(dataPromise.id, dataPromise);
+seedPublishedPage(
+  "ziwa",
+  "security",
+  "Security",
+  {
+    sections: [
+      { id: "s-hero", type: "hero", heading: "Security at Ziwa" },
+      { id: "s-promise", type: "shared", shared_id: dataPromise.id, tone: "soft" },
+    ],
+  },
+  { show_in_nav: false },
+);
+
 // Ziwa pages left out of the navigation, and taken offline (renderer tests).
 seedPublishedPage(
   "ziwa",
@@ -1903,6 +1958,132 @@ const publicPrivacy = () => ({
     .filter((i) => i.enabled)
     .map((i) => ({ ...i, enabled: undefined, category: PRIVACY_PROVIDERS[i.provider].category })),
 });
+
+// Mirrors services/api/src/shared.rs: editors edit drafts, reviewers publish
+// numbered versions; pages reference items and always show the published one.
+function sharedRoutes(path, req, body, user, send) {
+  const now = () => new Date().toISOString();
+  const rank = RANKS[user.role];
+  const err = (status, code, message) => send(status, { error: { code, message } });
+  const usedOn = (item) =>
+    [...pages.values()]
+      .filter((p) => !p.archived_at)
+      .flatMap((p) =>
+        [
+          ["draft", p.draft],
+          ["published", p.published],
+        ]
+          .filter(([, doc]) =>
+            (doc?.sections ?? []).some((s) => s.type === "shared" && s.shared_id === item.id),
+          )
+          .map(([state]) => ({
+            page: p.id,
+            title: p.title,
+            path: `/${p.path}`,
+            site: p.site.slug,
+            site_name: p.site.name,
+            state,
+          })),
+      );
+  // Without its version history (the detail adds it).
+  const row = (item) => ({
+    ...Object.fromEntries(Object.entries(item).filter(([k]) => k !== "versions")),
+    draft_differs: JSON.stringify(item.draft) !== JSON.stringify(item.published),
+    used_on: usedOn(item),
+  });
+  const content = (c) =>
+    c && typeof c === "object" && !["image", "shared"].includes(c.type) && typeof c.type === "string"
+      ? validateDoc({ sections: [{ id: "content", ...c }] })
+      : ["Shared content can't hold media images or other shared content."];
+  if (path === "shared" && req.method === "GET")
+    return send(200, {
+      items: [...sharedBlocks.values()].map(row),
+      can_edit: rank >= RANKS.editor,
+      can_publish: rank >= RANKS.reviewer,
+    });
+  if (path === "shared") {
+    if (rank < RANKS.editor) return err(403, "forbidden", "You don't have permission to do that.");
+    const problems = content(body.content);
+    if (!String(body.name ?? "").trim() || problems.length)
+      return err(422, "validation", problems[0] ?? "Name this content (up to 120 characters).");
+    const id = randomUUID();
+    sharedBlocks.set(id, {
+      id,
+      name: body.name.trim(),
+      draft: body.content,
+      draft_version: 1,
+      published: null,
+      published_number: null,
+      published_at: null,
+      archived_at: null,
+      updated_at: now(),
+      updated_by: user.name,
+      versions: [],
+    });
+    return send(201, { id });
+  }
+  const m =
+    /^shared\/([0-9a-f-]{36})(?:\/(draft|publish|archive|unarchive)|\/versions\/(\d+)\/restore)?$/.exec(path);
+  const item = m && sharedBlocks.get(m[1]);
+  if (!item) return err(404, "not_found", "Not found.");
+  if (!m[2] && !m[3])
+    return send(200, {
+      ...row(item),
+      versions: item.versions.slice().reverse(),
+      can_edit: rank >= RANKS.editor && !item.archived_at,
+      can_publish: rank >= RANKS.reviewer && !item.archived_at,
+    });
+  if (rank < RANKS.editor) return err(403, "forbidden", "You don't have permission to do that.");
+  if (m[3]) {
+    const version = item.versions.find((v) => v.number === Number(m[3]));
+    if (!version) return err(404, "not_found", "Not found.");
+    Object.assign(item, { draft: version.content, draft_version: item.draft_version + 1, updated_at: now() });
+    return send(200, { restored: version.number });
+  }
+  if (m[2] === "draft") {
+    if (body.version !== item.draft_version)
+      return err(409, "conflict", "Someone else changed this content. Reload to see their changes.");
+    const problems = content(body.content);
+    if (problems.length) return err(422, "validation", problems[0]);
+    Object.assign(item, {
+      name: String(body.name).trim(),
+      draft: body.content,
+      draft_version: item.draft_version + 1,
+      updated_at: now(),
+      updated_by: user.name,
+    });
+    return send(200, { draft_version: item.draft_version });
+  }
+  if (m[2] === "publish") {
+    if (rank < RANKS.reviewer) return err(403, "forbidden", "You don't have permission to do that.");
+    if (!String(body.note ?? "").trim())
+      return err(422, "validation", "Say what changed (up to 300 characters).");
+    if (JSON.stringify(item.draft) === JSON.stringify(item.published))
+      return err(409, "conflict", "The draft is already published.");
+    const number = item.versions.length + 1;
+    item.versions.push({
+      number,
+      note: body.note.trim(),
+      published_by: user.name,
+      published_at: now(),
+      content: item.draft,
+    });
+    Object.assign(item, { published: item.draft, published_number: number, published_at: now() });
+    return send(200, { version: number });
+  }
+  if (m[2] === "archive") {
+    if (usedOn(item).length)
+      return err(
+        409,
+        "conflict",
+        "This content is used on pages. Remove it from those pages (and publish) first.",
+      );
+    item.archived_at = now();
+    return send(200, { id: item.id });
+  }
+  item.archived_at = null;
+  return send(200, { id: item.id });
+}
 
 // Mirrors services/api/src/site_settings.rs: reviewers change a website's
 // navigation, footer and enquiries directly; every change is audited.
@@ -2417,6 +2598,7 @@ function admin(req, res, url, body, send, raw) {
   if (/^sites\/[a-z0-9_-]+\/brand/.test(path) || path.startsWith("brand/assets/"))
     return brandRoutes(path, req, res, url, body, raw, user, send);
   if (path === "privacy") return privacyRoutes(req, body, user, send);
+  if (path === "shared" || path.startsWith("shared/")) return sharedRoutes(path, req, body, user, send);
   if (/^sites\/[a-z0-9_-]+\/media(\/uploads)?$/.test(path) || path.startsWith("media/"))
     return mediaRoutes(path, req, res, url, raw, body, user, send);
   const settingsPath = /^sites\/([a-z0-9_-]+)\/settings$/.exec(path);

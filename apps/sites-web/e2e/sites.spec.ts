@@ -261,3 +261,13 @@ test("a moved page's old address forwards permanently, and pages can share their
   // Addresses that never existed are still real 404s.
   expect((await request.get("/ziwa/never-existed", { maxRedirects: 0 })).status()).toBe(404);
 });
+
+test("shared content from the library renders like any section, in the page's own style", async ({
+  page,
+}) => {
+  // Mock fixture: Ziwa's Security page uses the published "Data promise" item on a soft band.
+  await page.goto("/ziwa/security");
+  const section = page.locator('section[data-tone="soft"]');
+  await expect(section.getByRole("heading", { name: "Our data promise" })).toBeVisible();
+  await expect(section.locator("strong", { hasText: "your" })).toBeVisible();
+});

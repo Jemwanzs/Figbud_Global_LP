@@ -27,7 +27,7 @@ use crate::{
     error::ApiError,
     media, privacy,
     rate_limit::{RateLimiter, client_ip, ip_hash},
-    site_settings, sites,
+    shared, site_settings, sites,
 };
 
 pub struct AppState {
@@ -84,6 +84,7 @@ pub fn router(state: SharedState) -> Router {
         .merge(privacy::router())
         .merge(site_settings::router())
         .merge(media::router())
+        .merge(shared::router())
         .layer(RequestBodyLimitLayer::new(16 * 1024))
         // Articles are larger than any form; the editorial API gets its own limit.
         .merge(cms::editorial::router().layer(RequestBodyLimitLayer::new(512 * 1024)))

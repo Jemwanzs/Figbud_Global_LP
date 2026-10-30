@@ -223,9 +223,12 @@ async fn public_page(
     .fetch_optional(&state.pool)
     .await?;
     let (site_id, title, published, published_at) = row.ok_or(ApiError::NotFound)?;
-    let doc: PageDoc = serde_json::from_value(published).map_err(|e| ApiError::Internal(e.to_string()))?;
+    let mut doc: PageDoc =
+        serde_json::from_value(published).map_err(|e| ApiError::Internal(e.to_string()))?;
+    let origins = crate::shared::resolve(&state.pool, &mut doc, true).await?;
     let mut value = doc.render(false);
     crate::media::attach(&state.pool, site_id, &mut value, true).await?;
+    crate::shared::annotate(&mut value, &origins);
     value["title"] = json!(title);
     value["published_at"] = json!(published_at);
     Ok((cache_headers(), Json(value)))
@@ -290,6 +293,16 @@ async fn remove_redirect(
     )
     .await?;
     Ok(Json(json!({ "removed": format!("/{from}") })))
+}
+
+/// A draft as the website would show it: shared content resolved (unpublished
+/// items stay visible as gaps), Markdown rendered, image details added.
+async fn preview(pool: &PgPool, site_id: Uuid, mut doc: PageDoc) -> Result<Value, sqlx::Error> {
+    let origins = crate::shared::resolve(pool, &mut doc, false).await?;
+    let mut value = doc.render(true);
+    crate::media::attach(pool, site_id, &mut value, false).await?;
+    crate::shared::annotate(&mut value, &origins);
+    Ok(value)
 }
 
 fn cache_headers() -> [(header::HeaderName, HeaderValue); 1] {
@@ -449,12 +462,10 @@ async fn read(
     .fetch_all(&state.pool)
     .await?;
     let draft_differs = page.published.as_ref() != Some(&page.draft);
-    let mut preview = serde_json::from_value::<PageDoc>(page.draft.clone())
-        .map(|d| d.render(true))
-        .ok();
-    if let Some(preview) = preview.as_mut() {
-        crate::media::attach(&state.pool, page.site_id, preview, false).await?;
-    }
+    let preview = match serde_json::from_value::<PageDoc>(page.draft.clone()) {
+        Ok(doc) => Some(preview(&state.pool, page.site_id, doc).await?),
+        Err(_) => None,
+    };
     let redirects: Vec<(String, DateTime<Utc>)> = sqlx::query_as(
         "SELECT from_path, created_at FROM page_redirects WHERE page_id = $1 ORDER BY created_at DESC",
     )
@@ -496,6 +507,7 @@ async fn save_draft(
     validate_meta(&input.title, &path)?;
     let doc = decode(input.document)?;
     crate::media::check_refs(&state.pool, previous.site_id, &doc).await?;
+    crate::shared::check_refs(&state.pool, &doc).await?;
     let value = serde_json::to_value(&doc).map_err(|e| ApiError::Internal(e.to_string()))?;
     let updated = sqlx::query(
         "UPDATE pages SET title = $3, path = $4, draft = $5, draft_version = draft_version + 1,
@@ -548,8 +560,7 @@ async fn save_draft(
         )
         .await?;
     }
-    let mut preview = doc.render(true);
-    crate::media::attach(&state.pool, previous.site_id, &mut preview, false).await?;
+    let preview = preview(&state.pool, previous.site_id, doc).await?;
     Ok(Json(
         json!({ "draft_version": input.version + 1, "preview": preview }),
     ))

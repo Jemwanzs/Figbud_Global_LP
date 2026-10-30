@@ -44,6 +44,7 @@ import {
   type BlockType,
   type MediaItem,
   PATH_PATTERN,
+  type SharedItem,
   type PageDetail,
   STUDIO_MEDIA_BASE,
   blockLabel,
@@ -455,21 +456,57 @@ function SearchSettings({
   );
 }
 
-function BlockForm({
+export function BlockForm({
   section,
-  library,
-  slug,
+  library = null,
+  sharedLibrary = null,
+  slug = "",
   onChange,
   disabled,
 }: {
   section: PageSection;
-  library: MediaItem[] | null;
-  slug: string;
+  library?: MediaItem[] | null;
+  sharedLibrary?: SharedItem[] | null;
+  slug?: string;
   onChange: (s: PageSection) => void;
   disabled: boolean;
 }) {
   const p = { disabled };
   switch (section.type) {
+    case "shared": {
+      const item = sharedLibrary?.find((i) => i.id === section.shared_id);
+      return (
+        <div className="grid gap-3">
+          <label className="block text-sm font-medium text-text">
+            Shared content
+            <select
+              value={section.shared_id}
+              disabled={disabled || sharedLibrary === null}
+              onChange={(e) => onChange({ ...section, shared_id: e.target.value })}
+              className="mt-1.5 min-h-11 w-full rounded-xl border border-line-strong bg-surface px-3 text-sm font-normal text-text disabled:opacity-60"
+            >
+              {(sharedLibrary ?? []).map((i) => (
+                <option key={i.id} value={i.id}>
+                  {i.name}
+                  {i.published_number ? "" : " (not published yet)"}
+                </option>
+              ))}
+            </select>
+          </label>
+          <p className="text-xs text-subtle">
+            {item?.published_number
+              ? `Shows version ${item.published_number} and updates when a new version is published, on every website using it.`
+              : "It appears on the website once a reviewer publishes it."}{" "}
+            <Link
+              href={`/admin/content/${section.shared_id}`}
+              className="text-accent underline underline-offset-2"
+            >
+              Edit in the content library
+            </Link>
+          </p>
+        </div>
+      );
+    }
     case "image":
       return (
         <div className="grid gap-4">
@@ -968,6 +1005,17 @@ export function PageEditor({ slug, user, initial }: { slug: string; user: AdminU
 
   // Preview: local edits immediately; Markdown uses the API's rendering once saved.
   const [redirects, setRedirects] = useState(initial.redirects ?? []);
+  // The content library, for Shared content sections (archived items can't be chosen).
+  const [sharedLibrary, setSharedLibrary] = useState<SharedItem[] | null>(null);
+  useEffect(() => {
+    let live = true;
+    adminFetch<{ items: SharedItem[] }>("shared")
+      .then((data) => live && setSharedLibrary(data.items.filter((i) => !i.archived_at)))
+      .catch(() => live && setSharedLibrary([]));
+    return () => {
+      live = false;
+    };
+  }, []);
   // The website's media library, for Image blocks (archived images can't be chosen).
   const [library, setLibrary] = useState<MediaItem[] | null>(null);
   useEffect(() => {
@@ -984,6 +1032,20 @@ export function PageEditor({ slug, user, initial }: { slug: string; user: AdminU
     ...draft.document,
     sections: sections.map((section) => {
       const server = rendered?.sections.find((s) => s.id === section.id);
+      if (section.type === "shared") {
+        // The saved preview's resolved content, or the item's published content while a new choice saves.
+        if (server?.shared?.id === section.shared_id) return server;
+        const item = sharedLibrary?.find((i) => i.id === section.shared_id);
+        return item?.published
+          ? ({
+              ...item.published,
+              id: section.id,
+              hidden: section.hidden,
+              tone: section.tone,
+              shared: { id: item.id, name: item.name, version: item.published_number ?? 0 },
+            } as PageSection)
+          : section;
+      }
       if (section.type === "image") {
         // The saved preview's file details, or the library's while a new choice saves.
         const saved =
@@ -1331,6 +1393,7 @@ export function PageEditor({ slug, user, initial }: { slug: string; user: AdminU
                         <BlockForm
                           section={section}
                           library={library}
+                          sharedLibrary={sharedLibrary}
                           slug={slug}
                           disabled={!canEdit}
                           onChange={(next) =>
@@ -1373,9 +1436,16 @@ export function PageEditor({ slug, user, initial }: { slug: string; user: AdminU
                 </div>
                 <button
                   type="button"
-                  disabled={sections.length >= 40 || (adding === "image" && !library?.length)}
+                  disabled={
+                    sections.length >= 40 ||
+                    (adding === "image" && !library?.length) ||
+                    (adding === "shared" && !sharedLibrary?.length)
+                  }
                   onClick={() => {
-                    const section = newSection(adding, library?.[0]?.id);
+                    const section = newSection(
+                      adding,
+                      adding === "shared" ? sharedLibrary?.[0]?.id : library?.[0]?.id,
+                    );
                     setSections([...sections, section]);
                     setOpen(section.id);
                   }}
@@ -1384,6 +1454,15 @@ export function PageEditor({ slug, user, initial }: { slug: string; user: AdminU
                   <Plus aria-hidden className="size-4" />
                   Add
                 </button>
+                {adding === "shared" && sharedLibrary?.length === 0 && (
+                  <p className="w-full text-sm text-subtle">
+                    The content library is empty.{" "}
+                    <Link href="/admin/content" className="text-accent underline underline-offset-2">
+                      Create shared content
+                    </Link>{" "}
+                    first.
+                  </p>
+                )}
                 {adding === "image" && library?.length === 0 && (
                   <p className="w-full text-sm text-subtle">
                     No images yet.{" "}

@@ -96,7 +96,28 @@ export const BLOCKS: { type: BlockType; label: string; hint: string }[] = [
   { type: "faq", label: "Questions", hint: "Expandable questions and answers" },
   { type: "call_to_action", label: "Call to action", hint: "A closing invitation with a button" },
   { type: "image", label: "Image", hint: "A picture from the media library, with a caption" },
+  { type: "shared", label: "Shared content", hint: "A section from the content library, kept in sync" },
 ];
+
+/** A section's content without its page-specific id (a content library item). */
+export const sectionContent = (section: PageSection): Record<string, unknown> =>
+  Object.fromEntries(Object.entries(section).filter(([key]) => key !== "id"));
+
+/** A content library item (`GET /v1/admin/shared`). */
+export interface SharedItem {
+  id: string;
+  name: string;
+  draft: Exclude<PageSection, { type: "image" | "shared" }> | Record<string, unknown>;
+  draft_version: number;
+  published: Record<string, unknown> | null;
+  published_number: number | null;
+  published_at: string | null;
+  archived_at: string | null;
+  updated_at: string;
+  updated_by: string | null;
+  draft_differs: boolean;
+  used_on: { page: string; title: string; path: string; site: string; site_name: string; state: string }[];
+}
 
 /** A media library image (`GET /v1/admin/sites/{slug}/media`). */
 export interface MediaItem {
@@ -123,12 +144,17 @@ const newId = () =>
     ? crypto.randomUUID().replace(/-/g, "")
     : Math.random().toString(36).slice(2);
 
-/** A new section with starter content that passes validation (an Image block needs an image). */
-export function newSection(type: BlockType, imageId = ""): PageSection {
+/**
+ * A new section with starter content that passes validation. Image and
+ * Shared content sections need what they point to (`ref`).
+ */
+export function newSection(type: BlockType, ref = ""): PageSection {
   const id = newId();
   switch (type) {
     case "image":
-      return { id, type, image_id: imageId, caption: "", size: "content" };
+      return { id, type, image_id: ref, caption: "", size: "content" };
+    case "shared":
+      return { id, type, shared_id: ref };
     case "hero":
       return { id, type, heading: "New headline", lead: "", eyebrow: "" };
     case "text":

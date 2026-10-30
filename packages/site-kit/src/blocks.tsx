@@ -20,6 +20,8 @@ interface Base {
   hidden?: boolean;
   /** A band behind the section in the website's theme colours (unset: none). */
   tone?: SectionTone;
+  /** Set by the API when the section comes from the content library. */
+  shared?: { id: string; name: string; version: number };
 }
 
 export type SectionTone = "brand" | "soft";
@@ -57,6 +59,8 @@ export type PageSection = Base &
         /** Added by the API from the media library; `null` when the image is unavailable (previews). */
         media?: MediaInfo | null;
       }
+    /** A content library item; the API replaces it with the item's published content. */
+    | { type: "shared"; shared_id: string }
   );
 
 /** A media library image as the API describes it (alt text comes from the library). */
@@ -298,6 +302,14 @@ function Block({
           </div>
         </div>
       );
+    case "shared":
+      // Only previews see an unresolved item (unpublished or archived); websites never get one.
+      return mode === "preview" ? (
+        <div className="rounded-[var(--radius-panel)] border border-dashed border-line-strong bg-surface-2 p-8 text-center text-sm text-muted">
+          Shared content that isn&apos;t published yet. It appears here once a reviewer publishes it in the
+          content library.
+        </div>
+      ) : null;
     case "image": {
       const wide = section.size === "wide";
       const media = section.media;

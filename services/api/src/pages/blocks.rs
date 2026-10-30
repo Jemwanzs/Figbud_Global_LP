@@ -106,6 +106,9 @@ pub enum Block {
         #[serde(default)]
         size: ImageSize,
     },
+    /// An item from the content library, shown as its latest published
+    /// version wherever it's used (resolved by `crate::shared::resolve`).
+    Shared { shared_id: uuid::Uuid },
 }
 
 /// How wide an Image block is shown.
@@ -354,6 +357,8 @@ impl PageDoc {
                 Block::Image { caption, .. } => {
                     c.optional("sections", caption, 200, "Captions can be up to 200 characters.");
                 }
+                // Checked against the library when the draft is saved.
+                Block::Shared { .. } => {}
             }
         }
         if c.errors.is_empty() {

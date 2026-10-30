@@ -151,6 +151,16 @@ Studio UI polish is a standing priority (P7-UX2): every milestone reviews the sc
 - **Remaining:**
   - deploying the renderer (approval needed), after which `apps/zirahr-web` can be retired.
 
+## Content library (P7-D1, 30 Oct 2026)
+
+Studio → **Content**. Sections written once and used on pages of any FigBud website.
+
+- **Items:** a name and one section (hero, text, features, steps, figures, questions or call to action). Media images can't go in (they belong to one website's library), and items can't contain other items.
+- **On pages:** add the **Shared content** section and choose an item. Pages reference the item, never copy it, and always show its latest published version, in the page's own section style (Default, Brand band, Soft band). A draft never reaches a website; an unpublished or archived item is left out of the website (previews show the gap).
+- **Publishing and versions:** editors edit and save the draft; **reviewers publish** it, with a note, because one publish changes every page using it. Each publish is a numbered version; any version can be restored into the draft and published again.
+- **Usage:** each item lists the pages and websites using it (draft or published); the list shows "On N pages · N websites". An item in use can't be archived.
+- **Audit:** `shared.created`, `shared.draft_saved`, `shared.published`, `shared.version_restored`, `shared.archived`, `shared.unarchived`.
+
 ## Search settings per page (P7-G1, 30 Oct 2026)
 
 In the page builder's **Page** panel:
