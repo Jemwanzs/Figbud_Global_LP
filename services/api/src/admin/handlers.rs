@@ -19,8 +19,8 @@ use webauthn_rs::prelude::{
 };
 
 use super::{
-    AdminSession, Role, audit, challenge_ttl_secs, check_origin, client_meta, create_invite, create_session,
-    set_cookie, token_hash,
+    AdminSession, Role, audit, challenge_ttl_secs, check_origin, client_meta, create_invite_for,
+    create_session, set_cookie, token_hash,
 };
 use crate::{config::AdminConfig, error::ApiError, rate_limit::client_ip, routes::SharedState};
 
@@ -181,15 +181,16 @@ async fn accept_finish(
 
     let mut tx = state.pool.begin().await?;
     // Claiming the invite inside the transaction makes it strictly single-use.
-    let claimed: Option<(String, String)> = sqlx::query_as(
+    let claimed: Option<(String, String, Option<Value>)> = sqlx::query_as(
         "UPDATE admin_invites SET used_at = now()
           WHERE id = $1 AND used_at IS NULL AND expires_at > now()
-      RETURNING email, role",
+      RETURNING email, role, site_grants",
     )
     .bind(invite_id)
     .fetch_optional(&mut *tx)
     .await?;
-    let (email, role) = claimed.ok_or(ApiError::Unauthorized("This invite is invalid, used or expired."))?;
+    let (email, role, site_grants) =
+        claimed.ok_or(ApiError::Unauthorized("This invite is invalid, used or expired."))?;
     if !reg.existing {
         sqlx::query("INSERT INTO admin_users (id, email, name, role) VALUES ($1, $2, $3, $4)")
             .bind(reg.user_id)
@@ -198,6 +199,23 @@ async fn accept_finish(
             .bind(&role)
             .execute(&mut *tx)
             .await?;
+        // Website access chosen in the invite (websites deleted since are skipped).
+        if let Some(Value::Array(grants)) = site_grants {
+            let granted: Vec<(Uuid, Role)> = grants
+                .iter()
+                .filter_map(|g| {
+                    let site = g["site_id"].as_str().and_then(|s| Uuid::parse_str(s).ok())?;
+                    Some((site, Role::parse(g["role"].as_str()?)?))
+                })
+                .collect();
+            let exists: Vec<Uuid> = sqlx::query_scalar("SELECT id FROM sites WHERE id = ANY($1)")
+                .bind(granted.iter().map(|(s, _)| *s).collect::<Vec<_>>())
+                .fetch_all(&mut *tx)
+                .await?;
+            let granted: Vec<(Uuid, Role)> =
+                granted.into_iter().filter(|(s, _)| exists.contains(s)).collect();
+            super::team::store_grants(&mut tx, reg.user_id, Some(&granted), None).await?;
+        }
     }
     sqlx::query("INSERT INTO admin_passkeys (id, user_id, credential_id, passkey) VALUES ($1, $2, $3, $4)")
         .bind(Uuid::now_v7())
@@ -378,13 +396,16 @@ async fn logout(
 }
 
 async fn me(session: AdminSession) -> Json<Value> {
-    Json(json!({ "user": session.user }))
+    Json(json!({ "user": session.user, "access": session.access_json() }))
 }
 
 #[derive(Deserialize)]
 struct NewInvite {
     email: String,
     role: String,
+    /// Selected websites (P7-F1); omitted or null means every website.
+    #[serde(default)]
+    sites: Option<Vec<super::team::GrantInput>>,
 }
 
 async fn invite(
@@ -399,7 +420,19 @@ async fn invite(
     if !crate::enquiry::is_valid_email(email) {
         return Err(ApiError::BadRequest("invalid email address"));
     }
-    let (url, expires_at) = create_invite(&state.pool, admin, email, role, Some(session.user.id)).await?;
+    let sites = match &body.sites {
+        Some(sites) => Some(super::team::resolve_grants(&state.pool, role, sites).await?),
+        None => None,
+    };
+    let (url, expires_at) = create_invite_for(
+        &state.pool,
+        admin,
+        email,
+        role,
+        Some(session.user.id),
+        sites.as_deref(),
+    )
+    .await?;
     Ok((
         StatusCode::CREATED,
         Json(json!({ "invite_url": url, "expires_at": expires_at })),

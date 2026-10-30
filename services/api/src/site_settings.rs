@@ -292,6 +292,7 @@ async fn read(
 ) -> Result<impl IntoResponse, ApiError> {
     session.require(Role::Viewer)?;
     let site = load(&state.pool, &slug).await?;
+    session.require_site(site.id, Role::Viewer)?;
     // Published pages, offered as navigation and footer destinations.
     let pages: Vec<(String, String, bool)> = sqlx::query_as(
         "SELECT path, title, show_in_nav FROM pages
@@ -305,7 +306,7 @@ async fn read(
         "settings": site.settings,
         "version": site.version,
         "corporate": site.kind == "corporate",
-        "can_edit": session.user.role >= Role::Reviewer && !site.archived,
+        "can_edit": session.site_role(site.id) >= Some(Role::Reviewer) && !site.archived,
         "pages": pages.into_iter().map(|(path, title, show_in_nav)| json!({
             "path": format!("/{path}"), "title": title, "show_in_nav": show_in_nav,
         })).collect::<Vec<_>>(),
@@ -327,6 +328,7 @@ async fn update(
 ) -> Result<impl IntoResponse, ApiError> {
     session.require(Role::Reviewer)?;
     let site = load(&state.pool, &slug).await?;
+    session.require_site(site.id, Role::Reviewer)?;
     if site.archived {
         return Err(ApiError::Conflict("Restore this website first."));
     }

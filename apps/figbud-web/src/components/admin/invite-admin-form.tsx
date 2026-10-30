@@ -5,9 +5,16 @@ import { Check, Copy, UserPlus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-import { adminFetch, describePasskeyError, validEmail } from "@/lib/admin-client";
+import { type AdminUser, adminFetch, describePasskeyError, hasRole, validEmail } from "@/lib/admin-client";
 
 import { ActionButton } from "./action-button";
+import {
+  type AccessValue,
+  type SiteOption,
+  SiteAccessPicker,
+  accessBody,
+  accessProblem,
+} from "./site-access-picker";
 
 const ROLES = [
   { value: "editor", label: "Editor", hint: "Writes and edits drafts" },
@@ -17,10 +24,12 @@ const ROLES = [
 ] as const;
 
 /** Owner-only: creates a single-use invite link to send privately. */
-export function InviteAdminForm() {
+export function InviteAdminForm({ sites = [] }: { sites?: SiteOption[] }) {
   const router = useRouter();
   const [email, setEmail] = useState("");
-  const [role, setRole] = useState<string>("editor");
+  const [role, setRole] = useState<AdminUser["role"]>("editor");
+  const [access, setAccess] = useState<AccessValue>({ all: true, sites: {} });
+  const accessIssue = role === "owner" ? null : accessProblem(access);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [invite, setInvite] = useState<{ url: string; expires: string } | null>(null);
@@ -33,12 +42,16 @@ export function InviteAdminForm() {
     setInvite(null);
     setCopied(false);
     try {
+      const scope = accessBody(access);
       const created = await adminFetch<{ invite_url: string; expires_at: string }>("invites", {
         email,
         role,
+        // Omitted means every website (owners always have every website).
+        ...(role !== "owner" && !scope.all_sites ? { sites: scope.sites } : {}),
       });
       setInvite({ url: created.invite_url, expires: new Date(created.expires_at).toUTCString() });
       setEmail("");
+      setAccess({ all: true, sites: {} });
       router.refresh();
     } catch (err) {
       setError(describePasskeyError(err));
@@ -84,7 +97,19 @@ export function InviteAdminForm() {
                   name="invite-role"
                   value={r.value}
                   checked={role === r.value}
-                  onChange={() => setRole(r.value)}
+                  onChange={() => {
+                    setRole(r.value);
+                    // Website roles never exceed the Studio role.
+                    setAccess((a) => ({
+                      ...a,
+                      sites: Object.fromEntries(
+                        Object.entries(a.sites).map(([site, siteRole]) => [
+                          site,
+                          hasRole({ role: r.value }, siteRole) ? siteRole : r.value,
+                        ]),
+                      ),
+                    }));
+                  }}
                   className="mt-0.5 size-4 shrink-0 accent-[var(--color-accent)]"
                 />
                 <span className="min-w-0">
@@ -95,13 +120,16 @@ export function InviteAdminForm() {
             ))}
           </div>
         </fieldset>
+        {sites.length > 0 && (
+          <SiteAccessPicker role={role} sites={sites} value={access} onChange={setAccess} />
+        )}
         <div className="flex flex-col gap-3 border-t border-line pt-5 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-subtle">The link works once and expires after 7 days.</p>
           <ActionButton
             type="submit"
-            ready={validEmail(email)}
+            ready={validEmail(email) && accessIssue === null}
             busy={busy}
-            hint="Enter their work email"
+            hint={!validEmail(email) ? "Enter their work email" : (accessIssue ?? undefined)}
             icon={<UserPlus aria-hidden className="size-4" />}
           >
             Create invite

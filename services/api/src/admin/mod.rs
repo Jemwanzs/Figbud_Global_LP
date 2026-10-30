@@ -10,6 +10,7 @@
 
 mod enquiries;
 mod handlers;
+mod team;
 
 use std::{net::IpAddr, time::Duration};
 
@@ -27,7 +28,9 @@ use webauthn_rs::{Webauthn, WebauthnBuilder};
 
 /// Every admin endpoint: sign-in and team (handlers), enquiries inbox.
 pub fn router() -> axum::Router<SharedState> {
-    handlers::router().merge(enquiries::router())
+    handlers::router()
+        .merge(enquiries::router())
+        .merge(team::router())
 }
 
 use crate::{config::AdminConfig, error::ApiError, routes::SharedState};
@@ -92,6 +95,35 @@ pub struct AdminUser {
 pub struct AdminSession {
     pub user: AdminUser,
     pub session_id: Uuid,
+    pub access: SiteAccess,
+}
+
+/// A website someone was given, with their role on it (P7-F1).
+#[derive(Debug, Clone, Serialize, FromRow)]
+pub struct SiteGrant {
+    #[serde(skip)]
+    pub site_id: Uuid,
+    #[serde(rename = "site")]
+    pub slug: String,
+    pub name: String,
+    #[sqlx(try_from = "String")]
+    pub role: Role,
+}
+
+impl TryFrom<String> for Role {
+    type Error = String;
+
+    fn try_from(raw: String) -> Result<Self, String> {
+        Role::parse(&raw).ok_or(raw)
+    }
+}
+
+/// Which websites a person may work on: every one (with their Studio role),
+/// or only those granted. Read with the session, so changes apply at once.
+#[derive(Debug, Clone)]
+pub enum SiteAccess {
+    All,
+    Only(Vec<SiteGrant>),
 }
 
 impl AdminSession {
@@ -103,6 +135,114 @@ impl AdminSession {
             Err(ApiError::Forbidden)
         }
     }
+
+    /// The person's role on a website, if they may see it at all. A website
+    /// role never exceeds the Studio role.
+    pub fn site_role(&self, site_id: Uuid) -> Option<Role> {
+        match &self.access {
+            SiteAccess::All => Some(self.user.role),
+            SiteAccess::Only(grants) => grants
+                .iter()
+                .find(|g| g.site_id == site_id)
+                .map(|g| g.role.min(self.user.role)),
+        }
+    }
+
+    /// Websites someone can't access don't exist for them (404); a role
+    /// that's too low is refused (403).
+    pub fn require_site(&self, site_id: Uuid, role: Role) -> Result<(), ApiError> {
+        match self.site_role(site_id) {
+            None => Err(ApiError::NotFound),
+            Some(have) if have >= role => Ok(()),
+            Some(_) => Err(ApiError::Forbidden),
+        }
+    }
+
+    /// The websites someone may see, or `None` for every website (for
+    /// filtering lists in SQL).
+    pub fn site_ids(&self) -> Option<Vec<Uuid>> {
+        match &self.access {
+            SiteAccess::All => None,
+            SiteAccess::Only(grants) => Some(grants.iter().map(|g| g.site_id).collect()),
+        }
+    }
+
+    /// Whether someone may see the website with this slug.
+    pub fn sees_slug(&self, slug: &str) -> bool {
+        self.slug_role(slug).is_some()
+    }
+
+    /// [`Self::site_role`] for a website known by its slug (enquiries name
+    /// their website this way).
+    pub fn slug_role(&self, slug: &str) -> Option<Role> {
+        match &self.access {
+            SiteAccess::All => Some(self.user.role),
+            SiteAccess::Only(grants) => grants
+                .iter()
+                .find(|g| g.slug == slug)
+                .map(|g| g.role.min(self.user.role)),
+        }
+    }
+
+    /// Insights and the corporate site's content need access to the corporate
+    /// website (its slug is fixed by the `sites_corporate_is_figbud` constraint).
+    pub fn require_corporate(&self, role: Role) -> Result<(), ApiError> {
+        match self.slug_role("figbud") {
+            None => Err(ApiError::NotFound),
+            Some(have) if have >= role => Ok(()),
+            Some(_) => Err(ApiError::Forbidden),
+        }
+    }
+
+    /// The slugs of the websites someone may see, or `None` for every website.
+    pub fn site_slugs(&self) -> Option<Vec<String>> {
+        match &self.access {
+            SiteAccess::All => None,
+            SiteAccess::Only(grants) => Some(grants.iter().map(|g| g.slug.clone()).collect()),
+        }
+    }
+
+    pub fn all_sites(&self) -> bool {
+        matches!(self.access, SiteAccess::All)
+    }
+
+    /// Changes that reach every website (such as shared content) need
+    /// access to every website.
+    pub fn require_all_sites(&self, role: Role) -> Result<(), ApiError> {
+        self.require(role)?;
+        if self.all_sites() {
+            Ok(())
+        } else {
+            Err(ApiError::NotPermitted(
+                "This changes every website that uses it, so it needs access to all websites.",
+            ))
+        }
+    }
+
+    /// For `/v1/admin/me`: `{ all: true }` or the granted websites.
+    pub fn access_json(&self) -> serde_json::Value {
+        match &self.access {
+            SiteAccess::All => serde_json::json!({ "all": true, "sites": [] }),
+            SiteAccess::Only(grants) => {
+                let sites: Vec<_> = grants
+                    .iter()
+                    .map(|g| serde_json::json!({ "site": g.slug, "name": g.name, "role": g.role.min(self.user.role) }))
+                    .collect();
+                serde_json::json!({ "all": false, "sites": sites })
+            }
+        }
+    }
+}
+
+/// A person's granted websites (archived websites included: access outlives archiving).
+pub async fn grants(pool: &PgPool, user_id: Uuid) -> Result<Vec<SiteGrant>, sqlx::Error> {
+    sqlx::query_as(
+        "SELECT g.site_id, s.slug, s.name, g.role FROM admin_site_grants g JOIN sites s ON s.id = g.site_id
+          WHERE g.user_id = $1 ORDER BY s.position, s.name",
+    )
+    .bind(user_id)
+    .fetch_all(pool)
+    .await
 }
 
 impl FromRequestParts<SharedState> for AdminSession {
@@ -217,6 +357,7 @@ struct SessionRow {
     email: String,
     name: String,
     role: String,
+    all_sites: bool,
     last_login_at: Option<DateTime<Utc>>,
 }
 
@@ -227,22 +368,31 @@ pub async fn authenticate(pool: &PgPool, token: &str) -> Result<Option<AdminSess
            FROM admin_users u
           WHERE s.token_hash = $1 AND u.id = s.user_id
             AND s.revoked_at IS NULL AND s.expires_at > now() AND u.disabled_at IS NULL
-      RETURNING s.id AS session_id, u.id, u.email, u.name, u.role, u.last_login_at",
+      RETURNING s.id AS session_id, u.id, u.email, u.name, u.role, u.all_sites, u.last_login_at",
     )
     .bind(token_hash(token))
     .fetch_optional(pool)
     .await?;
-    Ok(row.and_then(|r| {
-        Some(AdminSession {
-            session_id: r.session_id,
-            user: AdminUser {
-                id: r.id,
-                email: r.email,
-                name: r.name,
-                role: Role::parse(&r.role)?,
-                last_login_at: r.last_login_at,
-            },
-        })
+    let Some(r) = row else { return Ok(None) };
+    let Some(role) = Role::parse(&r.role) else {
+        return Ok(None);
+    };
+    // Owners always have every website.
+    let access = if r.all_sites || role == Role::Owner {
+        SiteAccess::All
+    } else {
+        SiteAccess::Only(grants(pool, r.id).await?)
+    };
+    Ok(Some(AdminSession {
+        session_id: r.session_id,
+        user: AdminUser {
+            id: r.id,
+            email: r.email,
+            name: r.name,
+            role,
+            last_login_at: r.last_login_at,
+        },
+        access,
     }))
 }
 
@@ -280,11 +430,30 @@ pub async fn create_invite(
     role: Role,
     created_by: Option<Uuid>,
 ) -> Result<(String, DateTime<Utc>), sqlx::Error> {
+    create_invite_for(pool, admin, email, role, created_by, None).await
+}
+
+/// [`create_invite`] limited to selected websites (`sites`: website id and
+/// role), applied when the invite is accepted; `None` means every website.
+pub async fn create_invite_for(
+    pool: &PgPool,
+    admin: &AdminConfig,
+    email: &str,
+    role: Role,
+    created_by: Option<Uuid>,
+    sites: Option<&[(Uuid, Role)]>,
+) -> Result<(String, DateTime<Utc>), sqlx::Error> {
     let token = new_token();
     let id = Uuid::now_v7();
+    let site_grants = sites.map(|sites| {
+        sites
+            .iter()
+            .map(|(site_id, role)| serde_json::json!({ "site_id": site_id, "role": role.as_str() }))
+            .collect::<Vec<_>>()
+    });
     let expires_at: DateTime<Utc> = sqlx::query_scalar(
-        "INSERT INTO admin_invites (id, token_hash, email, role, created_by, expires_at)
-         VALUES ($1, $2, $3, $4, $5, now() + make_interval(secs => $6))
+        "INSERT INTO admin_invites (id, token_hash, email, role, created_by, expires_at, site_grants)
+         VALUES ($1, $2, $3, $4, $5, now() + make_interval(secs => $6), $7)
       RETURNING expires_at",
     )
     .bind(id)
@@ -293,6 +462,7 @@ pub async fn create_invite(
     .bind(role.as_str())
     .bind(created_by)
     .bind(INVITE_TTL.as_secs_f64())
+    .bind(site_grants.as_ref().map(|g| serde_json::json!(g)))
     .fetch_one(pool)
     .await?;
     audit(
@@ -300,7 +470,8 @@ pub async fn create_invite(
         created_by,
         "admin.invite_created",
         Some(("invite", id.to_string())),
-        serde_json::json!({ "email": email.trim().to_lowercase(), "role": role.as_str() }),
+        serde_json::json!({ "email": email.trim().to_lowercase(), "role": role.as_str(), "all_sites": sites.is_none(),
+                            "sites": site_grants }),
         None,
     )
     .await?;

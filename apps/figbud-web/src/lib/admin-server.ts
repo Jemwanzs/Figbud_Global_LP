@@ -25,8 +25,8 @@ export async function adminGet<T>(path: string): Promise<{ status: number; data?
 
 /** The signed-in admin, `null` when signed out, or `"unavailable"` if the API is down. */
 export async function currentAdmin(): Promise<AdminUser | null | "unavailable"> {
-  const { status, data } = await adminGet<{ user: AdminUser }>("me");
-  if (data) return data.user;
+  const { status, data } = await adminGet<{ user: AdminUser; access?: AdminUser["access"] }>("me");
+  if (data) return { ...data.user, access: data.access };
   return status === 401 || status === 404 ? null : "unavailable";
 }
 

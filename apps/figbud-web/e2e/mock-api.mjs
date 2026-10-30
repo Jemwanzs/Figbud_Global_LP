@@ -174,6 +174,37 @@ const listRow = (a) => ({
 });
 
 const publicUser = (u) => ({ id: u.id, email: u.email, name: u.name, role: u.role });
+// Per-website permissions (services/api/src/admin/team.rs, P7-F1).
+const invites = new Map(); // token -> { role, grants }
+const allSites = (u) => u.role === "owner" || !u.grants;
+const grantsOf = (u) =>
+  (u.grants ?? []).map((g) => ({
+    site: g.site,
+    name: sites.find((s) => s.slug === g.site)?.name ?? g.site,
+    role: g.role,
+  }));
+const siteRole = (u, slug) => {
+  if (allSites(u)) return u.role;
+  const g = u.grants.find((x) => x.site === slug);
+  return g && (RANKS[g.role] < RANKS[u.role] ? g.role : u.role);
+};
+const accessOf = (u) => ({ all: allSites(u), sites: allSites(u) ? [] : grantsOf(u) });
+/** Mirrors team::resolve_grants: an error message, or the grants. */
+function checkGrants(role, list) {
+  if (role === "owner") return "Owners always have every website.";
+  if (!Array.isArray(list) || !list.length)
+    return "Choose at least one website, or give access to all websites.";
+  const seen = new Set();
+  for (const g of list) {
+    if (!["viewer", "editor", "reviewer"].includes(g.role))
+      return "Choose viewer, editor or reviewer for each website.";
+    if (RANKS[g.role] > RANKS[role]) return "A website role can't be higher than the person's Studio role.";
+    if (!sites.some((s) => s.slug === g.site)) return "One of the chosen websites doesn't exist.";
+    if (seen.has(g.site)) return "Each website can be chosen once.";
+    seen.add(g.site);
+  }
+  return list.map((g) => ({ site: g.site, role: g.role }));
+}
 
 function readCookie(req) {
   return /(?:^|;\s*)figbud_admin=([0-9a-f]{64})/.exec(req.headers.cookie ?? "")?.[1];
@@ -361,7 +392,8 @@ function siteRoutes(path, req, body, user, send) {
     };
   };
   const withBrand = (s) => ({ ...siteRow(s), brand: publishedBrand(s.slug), workspace: workspace(s) });
-  if (path === "sites" && req.method === "GET") return send(200, sites.map(withBrand));
+  if (path === "sites" && req.method === "GET")
+    return send(200, sites.filter((s) => siteRole(user, s.slug)).map(withBrand));
   if (path === "sites" && req.method === "POST") {
     if (user.role !== "owner") return forbidden();
     const errors = fieldsOf(body, true);
@@ -2394,11 +2426,14 @@ function admin(req, res, url, body, send, raw) {
       });
     }
     usedInvites.add(c.token);
+    // Invites created through the Studio carry a role and website access; others make owners.
+    const invite = invites.get(c.token);
     const user = {
       id: randomBytes(8).toString("hex"),
       email: c.email,
       name: c.name,
-      role: "owner",
+      role: invite?.role ?? "owner",
+      grants: invite?.grants ?? null,
       credentialId: body.credential.rawId,
     };
     users.set(user.email, user);
@@ -2440,7 +2475,51 @@ function admin(req, res, url, body, send, raw) {
   }
   const user = userOf();
   if (!user) return send(401, { error: { code: "unauthorized", message: "Please sign in." } });
-  if (path === "me") return send(200, { user: publicUser(user) });
+  if (path === "me") return send(200, { user: publicUser(user), access: accessOf(user) });
+  // Websites someone can't access don't exist for them.
+  const sitePath = /^sites\/([a-z0-9_-]+)/.exec(path);
+  if (sitePath && !siteRole(user, sitePath[1]))
+    return send(404, { error: { code: "not_found", message: "Not found." } });
+  if (path === "team" || path.startsWith("team/")) {
+    if (user.role !== "owner") return send(403, { error: { code: "forbidden", message: "Forbidden." } });
+    if (path === "team")
+      return send(200, {
+        members: [...users.values()].map((u) => ({
+          ...publicUser(u),
+          all_sites: allSites(u),
+          sites: allSites(u) ? [] : grantsOf(u),
+          last_login_at: null,
+          disabled_at: null,
+        })),
+        sites: sites.map((s) => ({ site: s.slug, name: s.name, archived: Boolean(s.archived_at) })),
+      });
+    const m = /^team\/([0-9a-f]+)\/access$/.exec(path);
+    const target = m && [...users.values()].find((u) => u.id === m[1]);
+    if (!target) return send(404, { error: { code: "not_found", message: "Not found." } });
+    if (target.role === "owner")
+      return send(409, { error: { code: "conflict", message: "Owners always have every website." } });
+    if (body.all_sites) target.grants = null;
+    else {
+      const grants = checkGrants(target.role, body.sites);
+      if (typeof grants === "string")
+        return send(422, {
+          error: {
+            code: "validation",
+            message: grants,
+            fields: [{ field: "sites", code: "invalid", message: grants }],
+          },
+        });
+      target.grants = grants;
+    }
+    audit.unshift({
+      id: randomBytes(8).toString("hex"),
+      action: "admin.access_changed",
+      actor_email: user.email,
+      detail: { email: target.email },
+      created_at: new Date().toISOString(),
+    });
+    return send(200, { all_sites: allSites(target), sites: allSites(target) ? [] : grantsOf(target) });
+  }
   if (path === "logout") {
     sessions.delete(readCookie(req));
     res.setHeader("set-cookie", "figbud_admin=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0");
@@ -2449,6 +2528,19 @@ function admin(req, res, url, body, send, raw) {
   }
   if (path === "invites" && req.method === "POST") {
     const token = randomBytes(32).toString("hex");
+    let grants = null;
+    if (body.sites) {
+      grants = checkGrants(body.role, body.sites);
+      if (typeof grants === "string")
+        return send(422, {
+          error: {
+            code: "validation",
+            message: grants,
+            fields: [{ field: "sites", code: "invalid", message: grants }],
+          },
+        });
+    }
+    invites.set(token, { role: body.role, grants });
     audit.unshift({
       id: token.slice(0, 16),
       action: "admin.invite_created",

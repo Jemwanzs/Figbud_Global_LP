@@ -1,4 +1,4 @@
-import { ArrowRight, Cookie } from "lucide-react";
+import { ArrowRight, Cookie, Users } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
@@ -47,6 +47,33 @@ async function Settings() {
             </span>
           </Link>
         </li>
+        {user.role === "owner" && (
+          <li>
+            <Link
+              href="/admin/settings/team"
+              className="group flex h-full items-start gap-4 rounded-2xl border border-line bg-surface p-6 transition-colors hover:border-line-strong"
+            >
+              <span
+                aria-hidden
+                className="grid size-10 shrink-0 place-items-center rounded-xl bg-accent-soft text-accent"
+              >
+                <Users className="size-5" />
+              </span>
+              <span className="min-w-0">
+                <span className="flex items-center gap-2 font-semibold text-text">
+                  Team & access
+                  <ArrowRight
+                    aria-hidden
+                    className="size-4 transition-transform group-hover:translate-x-0.5"
+                  />
+                </span>
+                <span className="mt-1 block text-sm text-muted">
+                  Everyone in the Studio, their roles, and which websites each person works on.
+                </span>
+              </span>
+            </Link>
+          </li>
+        )}
       </ul>
     </AdminShell>
   );

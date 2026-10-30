@@ -259,6 +259,13 @@ async fn admin_asset(
     Query(size): Query<SizeQuery>,
 ) -> Result<Response, ApiError> {
     session.require(Role::Viewer)?;
+    if !session.all_sites() {
+        let site: Option<Uuid> = sqlx::query_scalar("SELECT site_id FROM brand_assets WHERE id = $1")
+            .bind(id)
+            .fetch_optional(&state.pool)
+            .await?;
+        session.require_site(site.ok_or(ApiError::NotFound)?, Role::Viewer)?;
+    }
     Ok(image_response(
         delivered(&state.pool, id, &size).await?,
         "private, max-age=86400",
@@ -329,6 +336,7 @@ async fn read(
 ) -> Result<impl IntoResponse, ApiError> {
     session.require(Role::Viewer)?;
     let site = site(&state.pool, &slug).await?;
+    session.require_site(site.id, Role::Viewer)?;
     let row = ensure_profile(&state.pool, &site).await?;
     let draft = parse(Some(row.draft.clone())).unwrap_or_else(|| BrandConfig::default_for(&slug));
     let published = parse(row.published.clone());
@@ -475,6 +483,7 @@ async fn save_draft(
 ) -> Result<impl IntoResponse, ApiError> {
     session.require(Role::Editor)?;
     let site = site(&state.pool, &slug).await?;
+    session.require_site(site.id, Role::Editor)?;
     let previous = ensure_profile(&state.pool, &site).await?;
     let config = decode(input.config)?;
     validate_assets(&state.pool, site.id, &config).await?;
@@ -531,6 +540,7 @@ async fn upload(
 ) -> Result<impl IntoResponse, ApiError> {
     session.require(Role::Editor)?;
     let site = site(&state.pool, &slug).await?;
+    session.require_site(site.id, Role::Editor)?;
     let mut errors = Vec::new();
     let label = trimmed(query.label.as_deref()).filter(|l| l.chars().count() <= 120);
     let alt = trimmed(query.alt.as_deref()).filter(|a| a.chars().count() <= 200);
@@ -662,6 +672,7 @@ async fn asset_action(
 ) -> Result<impl IntoResponse, ApiError> {
     session.require(Role::Editor)?;
     let site = site(&state.pool, &slug).await?;
+    session.require_site(site.id, Role::Editor)?;
     let row = ensure_profile(&state.pool, &site).await?;
     let in_use = [
         parse(Some(row.draft)),
@@ -719,6 +730,7 @@ async fn submit(
 ) -> Result<impl IntoResponse, ApiError> {
     session.require(Role::Editor)?;
     let site = site(&state.pool, &slug).await?;
+    session.require_site(site.id, Role::Editor)?;
     let row = ensure_profile(&state.pool, &site).await?;
     let note = input.note.trim();
     if note.is_empty() || note.chars().count() > 300 {
@@ -783,6 +795,7 @@ async fn revision_action(
     body: Option<Json<DecisionInput>>,
 ) -> Result<impl IntoResponse, ApiError> {
     let site = site(&state.pool, &slug).await?;
+    session.require_site(site.id, Role::Viewer)?;
     let row = ensure_profile(&state.pool, &site).await?;
     let revision: Option<(Value, String, Option<Uuid>, i32)> = sqlx::query_as(
         "SELECT config, state, requested_by, number FROM brand_revisions WHERE id = $1 AND site_id = $2",
@@ -800,7 +813,7 @@ async fn revision_action(
 
     if action == "restore" {
         // Rollback: copy an earlier published version into the draft for review.
-        session.require(Role::Editor)?;
+        session.require_site(site.id, Role::Editor)?;
         if current != "published" {
             return Err(ApiError::Conflict("Only published versions can be restored."));
         }
@@ -836,7 +849,7 @@ async fn revision_action(
     }
     let outcome = match action.as_str() {
         "approve" => {
-            session.require(Role::Reviewer)?;
+            session.require_site(site.id, Role::Reviewer)?;
             if own && session.user.role != Role::Owner {
                 return Err(ApiError::NotPermitted(
                     "A different reviewer must approve your own change (maker-checker).",
@@ -858,7 +871,7 @@ async fn revision_action(
             "published"
         }
         "reject" => {
-            session.require(Role::Reviewer)?;
+            session.require_site(site.id, Role::Reviewer)?;
             let mut tx = state.pool.begin().await?;
             mark(&mut tx, id, "rejected", &session, &note).await?;
             tx.commit().await?;

@@ -230,7 +230,7 @@ async fn list(
     session: AdminSession,
     Query(query): Query<ListQuery>,
 ) -> Result<impl IntoResponse, ApiError> {
-    session.require(Role::Viewer)?;
+    session.require_corporate(Role::Viewer)?;
     let status = trimmed(query.status.as_deref());
     if status
         .as_deref()
@@ -316,7 +316,7 @@ async fn read(
     session: AdminSession,
     Path(id): Path<Uuid>,
 ) -> Result<impl IntoResponse, ApiError> {
-    session.require(Role::Viewer)?;
+    session.require_corporate(Role::Viewer)?;
     Ok(Json(load(&state, id).await?))
 }
 
@@ -436,7 +436,7 @@ async fn create(
     session: AdminSession,
     Json(input): Json<ArticleInput>,
 ) -> Result<impl IntoResponse, ApiError> {
-    session.require(Role::Editor)?;
+    session.require_corporate(Role::Editor)?;
     let valid = validate(&input)?;
     let id = Uuid::now_v7();
     let mut tx = state.pool.begin().await?;
@@ -488,7 +488,7 @@ async fn update(
     Path(id): Path<Uuid>,
     Json(input): Json<ArticleInput>,
 ) -> Result<impl IntoResponse, ApiError> {
-    session.require(Role::Editor)?;
+    session.require_corporate(Role::Editor)?;
     let valid = validate(&input)?;
     let expected = input.version.ok_or(ApiError::BadRequest("version is required"))?;
     let mut tx = state.pool.begin().await?;
@@ -505,7 +505,7 @@ async fn update(
     }
     // Live and archived articles are changed by reviewers, who are accountable for what is public.
     if matches!(status.as_str(), "published" | "archived") {
-        session.require(Role::Reviewer)?;
+        session.require_corporate(Role::Reviewer)?;
     }
     let (category, author) = references(&mut tx, &valid).await?;
     let updated = sqlx::query(
@@ -563,7 +563,7 @@ async fn submit(
     session: AdminSession,
     Path(id): Path<Uuid>,
 ) -> Result<impl IntoResponse, ApiError> {
-    session.require(Role::Editor)?;
+    session.require_corporate(Role::Editor)?;
     exists(&state, id).await?;
     let moved: Option<String> = sqlx::query_scalar(
         "WITH old AS (SELECT status FROM cms_articles WHERE id = $1 FOR UPDATE)
@@ -591,7 +591,7 @@ async fn publish(
     Path(id): Path<Uuid>,
     body: Option<Json<PublishInput>>,
 ) -> Result<impl IntoResponse, ApiError> {
-    session.require(Role::Reviewer)?;
+    session.require_corporate(Role::Reviewer)?;
     let article = load(&state, id).await?;
     if article.last_edited_by_id == Some(session.user.id) && session.user.role != Role::Owner {
         return Err(ApiError::NotPermitted(
@@ -634,7 +634,7 @@ async fn archive(
     session: AdminSession,
     Path(id): Path<Uuid>,
 ) -> Result<impl IntoResponse, ApiError> {
-    session.require(Role::Reviewer)?;
+    session.require_corporate(Role::Reviewer)?;
     exists(&state, id).await?;
     let previous: Option<String> = sqlx::query_scalar(
         "WITH old AS (SELECT status FROM cms_articles WHERE id = $1 FOR UPDATE)
@@ -662,7 +662,7 @@ async fn restore(
     session: AdminSession,
     Path(id): Path<Uuid>,
 ) -> Result<impl IntoResponse, ApiError> {
-    session.require(Role::Reviewer)?;
+    session.require_corporate(Role::Reviewer)?;
     exists(&state, id).await?;
     let moved: Option<String> = sqlx::query_scalar(
         "WITH old AS (SELECT status FROM cms_articles WHERE id = $1 FOR UPDATE)
@@ -692,7 +692,7 @@ async fn versions(
     session: AdminSession,
     Path(id): Path<Uuid>,
 ) -> Result<impl IntoResponse, ApiError> {
-    session.require(Role::Viewer)?;
+    session.require_corporate(Role::Viewer)?;
     exists(&state, id).await?;
     let rows: Vec<VersionRow> = sqlx::query_as(
         "SELECT version, title, edited_by, created_at FROM cms_article_versions
@@ -715,7 +715,7 @@ async fn taxonomy(
     State(state): State<SharedState>,
     session: AdminSession,
 ) -> Result<impl IntoResponse, ApiError> {
-    session.require(Role::Viewer)?;
+    session.require_corporate(Role::Viewer)?;
     let categories: Vec<Term> = sqlx::query_as(
         "SELECT slug, name, description AS detail FROM cms_categories ORDER BY position, name",
     )
@@ -761,7 +761,7 @@ async fn create_category(
     session: AdminSession,
     Json(input): Json<TermInput>,
 ) -> Result<impl IntoResponse, ApiError> {
-    session.require(Role::Reviewer)?;
+    session.require_corporate(Role::Reviewer)?;
     let (name, slug) = term_slug(&input)?;
     let id = Uuid::now_v7();
     let inserted = sqlx::query(
@@ -833,7 +833,7 @@ async fn preview(
     session: AdminSession,
     Json(input): Json<PreviewInput>,
 ) -> Result<impl IntoResponse, ApiError> {
-    session.require(Role::Editor)?;
+    session.require_corporate(Role::Editor)?;
     if input.body_markdown.chars().count() > MAX_BODY_CHARS {
         return Err(ApiError::BadRequest("article is too long"));
     }

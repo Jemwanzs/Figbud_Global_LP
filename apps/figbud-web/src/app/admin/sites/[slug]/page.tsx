@@ -10,6 +10,7 @@ import { SiteForm } from "@/components/admin/site-form";
 import { type AdminSite, SiteMark, SiteStatusPill, categoryLabel } from "@/components/admin/site-labels";
 import { SiteLifecycle, type StatusRequest } from "@/components/admin/site-lifecycle";
 import { adminGet, requireAdmin } from "@/lib/admin-server";
+import { forSite } from "@/lib/admin-client";
 
 export const metadata: Metadata = { title: "Website" };
 
@@ -87,7 +88,7 @@ async function Site({ params }: Pick<PageProps<"/admin/sites/[slug]">, "params">
           <h2 id="lifecycle" className="font-semibold text-text">
             Marketing status
           </h2>
-          <SiteLifecycle site={site} requests={data.status_requests} user={user} />
+          <SiteLifecycle site={site} requests={data.status_requests} user={forSite(user, slug)} />
         </aside>
       </div>
     </AdminShell>

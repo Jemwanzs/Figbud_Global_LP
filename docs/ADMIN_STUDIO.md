@@ -151,6 +151,21 @@ Studio UI polish is a standing priority (P7-UX2): every milestone reviews the sc
 - **Remaining:**
   - deploying the renderer (approval needed), after which `apps/zirahr-web` can be retired.
 
+## Per-website permissions (P7-F1, 30 Oct 2026)
+
+Settings → **Team & access** (owners). Everyone has one Studio role (owner, reviewer, editor, viewer). On top of it, each person (except owners) has website access:
+
+- **All websites:** their Studio role on every website, including new ones. Everyone starts here, so nothing changed for existing people.
+- **Selected websites:** only the websites chosen, each with its own role (viewer, editor or reviewer), never above the Studio role. Someone who's an editor in the Studio can be an editor on ZiraHR and a viewer on Jasiri.
+
+What a limit means:
+
+- Websites without access don't appear: the Websites list leaves them out and their pages, media, branding, settings and status requests answer "not found". With a lower role there, editing is refused and the controls are hidden.
+- The **Enquiries** inbox shows enquiries for their websites only. **Insights** (the corporate blog) needs access to the corporate website.
+- **Shared content** reaches every website that uses it, so creating, editing, publishing or archiving items needs access to all websites; usage lists leave out other websites.
+- Changes apply from the person's next click (access is read with every request) and are audited (`admin.access_changed`, with before and after).
+- **Invites** can choose the websites too (Overview → Invite an admin → Website access); they're applied when the invite is accepted.
+
 ## Performance budgets (P7-G4, 30 Oct 2026)
 
 Every page editor has a **Performance** panel: what a visitor's phone downloads for the saved draft, measured by the API each time the draft saves.

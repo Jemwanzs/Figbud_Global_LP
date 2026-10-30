@@ -275,6 +275,7 @@ async fn remove_redirect(
 ) -> Result<impl IntoResponse, ApiError> {
     session.require(Role::Editor)?;
     let page = page(&state.pool, id).await?;
+    session.require_site(page.site_id, Role::Editor)?;
     let from = input.from_path.trim_matches('/').to_owned();
     let removed = sqlx::query("DELETE FROM page_redirects WHERE page_id = $1 AND from_path = $2")
         .bind(id)
@@ -349,6 +350,7 @@ async fn list(
 ) -> Result<impl IntoResponse, ApiError> {
     session.require(Role::Viewer)?;
     let site = site(&state.pool, &slug).await?;
+    session.require_site(site.id, Role::Viewer)?;
     let rows: Vec<PageRow> = sqlx::query_as(concat!(
         page_select!(),
         "WHERE p.site_id = $1 ORDER BY p.archived_at IS NOT NULL, p.position, p.path"
@@ -408,6 +410,7 @@ async fn create(
 ) -> Result<impl IntoResponse, ApiError> {
     session.require(Role::Editor)?;
     let site = site(&state.pool, &slug).await?;
+    session.require_site(site.id, Role::Editor)?;
     let path = input.path.trim().trim_matches('/').to_owned();
     validate_meta(&input.title, &path)?;
     let template = input.template.as_deref().unwrap_or("blank");
@@ -456,6 +459,7 @@ async fn read(
 ) -> Result<impl IntoResponse, ApiError> {
     session.require(Role::Viewer)?;
     let page = page(&state.pool, id).await?;
+    session.require_site(page.site_id, Role::Viewer)?;
     let site: (String, String, Value) =
         sqlx::query_as("SELECT slug, name, settings FROM sites WHERE id = $1")
             .bind(page.site_id)
@@ -517,6 +521,7 @@ async fn save_draft(
 ) -> Result<impl IntoResponse, ApiError> {
     session.require(Role::Editor)?;
     let previous = page(&state.pool, id).await?;
+    session.require_site(previous.site_id, Role::Editor)?;
     if previous.archived_at.is_some() {
         return Err(ApiError::Conflict("Restore this page before editing it."));
     }
@@ -602,6 +607,7 @@ async fn submit(
 ) -> Result<impl IntoResponse, ApiError> {
     session.require(Role::Editor)?;
     let page = page(&state.pool, id).await?;
+    session.require_site(page.site_id, Role::Editor)?;
     let note = input.note.trim();
     if note.is_empty() || note.chars().count() > 300 {
         return Err(ApiError::Validation(vec![FieldError {
@@ -684,6 +690,7 @@ async fn revision_action(
     body: Option<Json<DecisionInput>>,
 ) -> Result<impl IntoResponse, ApiError> {
     let page = page(&state.pool, id).await?;
+    session.require_site(page.site_id, Role::Viewer)?;
     #[derive(FromRow)]
     struct Decided {
         document: Value,
@@ -714,7 +721,7 @@ async fn revision_action(
 
     if action == "restore" {
         // Rollback: copy an earlier published version into the draft for review.
-        session.require(Role::Editor)?;
+        session.require_site(page.site_id, Role::Editor)?;
         if current != "published" {
             return Err(ApiError::Conflict("Only published versions can be restored."));
         }
@@ -744,7 +751,7 @@ async fn revision_action(
     }
     let outcome = match action.as_str() {
         "approve" => {
-            session.require(Role::Reviewer)?;
+            session.require_site(page.site_id, Role::Reviewer)?;
             if own && session.user.role != Role::Owner {
                 return Err(ApiError::NotPermitted(
                     "A different reviewer must approve your own change (maker-checker).",
@@ -783,7 +790,7 @@ async fn revision_action(
             "published"
         }
         "reject" => {
-            session.require(Role::Reviewer)?;
+            session.require_site(page.site_id, Role::Reviewer)?;
             let mut tx = state.pool.begin().await?;
             mark(&mut tx, revision, "rejected", &session, &note).await?;
             tx.commit().await?;
@@ -791,7 +798,8 @@ async fn revision_action(
         }
         "cancel" => {
             // Reviewers may also call off a schedule that was approved.
-            let unschedule = current == "scheduled" && session.user.role >= Role::Reviewer;
+            let unschedule =
+                current == "scheduled" && session.site_role(page.site_id) >= Some(Role::Reviewer);
             if !own && session.user.role != Role::Owner && !unschedule {
                 return Err(ApiError::NotPermitted(
                     "Only the requester or an owner can cancel this change.",
@@ -848,10 +856,11 @@ async fn page_action(
     Path((id, action)): Path<(Uuid, String)>,
 ) -> Result<impl IntoResponse, ApiError> {
     let page = page(&state.pool, id).await?;
+    session.require_site(page.site_id, Role::Viewer)?;
     match action.as_str() {
         "archive" => {
             // Archiving takes a page off the websites, so it needs a reviewer.
-            session.require(Role::Reviewer)?;
+            session.require_site(page.site_id, Role::Reviewer)?;
             if page.archived_at.is_some() {
                 return Err(ApiError::Conflict("This page is already archived."));
             }
@@ -874,7 +883,7 @@ async fn page_action(
             Ok(Json(json!({ "id": id })))
         }
         "restore" => {
-            session.require(Role::Reviewer)?;
+            session.require_site(page.site_id, Role::Reviewer)?;
             if page.archived_at.is_none() {
                 return Err(ApiError::Conflict("This page isn't archived."));
             }
@@ -902,7 +911,7 @@ async fn page_action(
         // Visibility changes the live website at once, so it needs a reviewer;
         // content and versions are kept, and each change is audited and reversible.
         "offline" | "online" | "show-in-nav" | "hide-from-nav" => {
-            session.require(Role::Reviewer)?;
+            session.require_site(page.site_id, Role::Reviewer)?;
             if page.archived_at.is_some() {
                 return Err(ApiError::Conflict("Restore this page first."));
             }
@@ -941,7 +950,7 @@ async fn page_action(
             Ok(Json(json!({ "id": id, column: value })))
         }
         "duplicate" => {
-            session.require(Role::Editor)?;
+            session.require_site(page.site_id, Role::Editor)?;
             // A copy is a new draft at a free address: "<path>-copy", "-copy-2", …
             let base = if page.path.is_empty() {
                 "home".to_owned()
@@ -1005,6 +1014,7 @@ async fn reorder(
 ) -> Result<impl IntoResponse, ApiError> {
     session.require(Role::Editor)?;
     let site = site(&state.pool, &slug).await?;
+    session.require_site(site.id, Role::Editor)?;
     let existing: Vec<Uuid> =
         sqlx::query_scalar("SELECT id FROM pages WHERE site_id = $1 AND archived_at IS NULL")
             .bind(site.id)

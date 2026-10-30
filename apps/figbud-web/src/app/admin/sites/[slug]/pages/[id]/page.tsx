@@ -7,6 +7,7 @@ import { AdminShell, AdminUnavailable } from "@/components/admin/admin-shell";
 import { PageEditor } from "@/components/admin/page-editor";
 import type { PageDetail } from "@/components/admin/page-types";
 import { adminGet, requireAdmin } from "@/lib/admin-server";
+import { forSite } from "@/lib/admin-client";
 
 export const metadata: Metadata = { title: "Edit page" };
 
@@ -47,7 +48,7 @@ async function Editor({ params }: Pick<PageProps<"/admin/sites/[slug]/pages/[id]
       <h1 className="mt-2 font-display text-3xl font-semibold tracking-tight text-text">{data.page.title}</h1>
       <div className="mt-6">
         {/* Keyed by page id so switching pages starts a fresh editor. */}
-        <PageEditor key={data.page.id} slug={slug} user={user} initial={data} />
+        <PageEditor key={data.page.id} slug={slug} user={forSite(user, slug)} initial={data} />
       </div>
     </AdminShell>
   );

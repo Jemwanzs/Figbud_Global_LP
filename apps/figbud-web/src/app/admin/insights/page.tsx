@@ -6,7 +6,7 @@ import { Suspense } from "react";
 
 import { AdminShell, AdminUnavailable } from "@/components/admin/admin-shell";
 import { ArticleStatus, type Status } from "@/components/admin/article-status";
-import { hasRole } from "@/lib/admin-client";
+import { forSite, hasRole } from "@/lib/admin-client";
 import { adminGet, requireAdmin } from "@/lib/admin-server";
 
 export const metadata: Metadata = { title: "Insights" };
@@ -65,7 +65,7 @@ async function Insights({ searchParams }: Pick<PageProps<"/admin/insights">, "se
           <h1 className="font-display text-3xl font-semibold tracking-tight text-text">Insights</h1>
           <p className="mt-2 text-muted">Blog & Insights articles, from first draft to published.</p>
         </div>
-        {hasRole(user, "editor") && (
+        {hasRole(forSite(user, "figbud"), "editor") && (
           <Link href="/admin/insights/new" className={buttonClasses("primary", "md")}>
             <Plus aria-hidden className="size-4" />
             New article

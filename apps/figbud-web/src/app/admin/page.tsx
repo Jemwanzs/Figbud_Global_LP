@@ -108,7 +108,15 @@ async function Dashboard() {
     adminGet<{ status: string }[]>("cms/articles"),
     user.role === "owner" ? adminGet<AuditEntry[]>("audit") : Promise.resolve({ data: undefined }),
     adminGet<{ total: number }>("enquiries?status=new"),
-    adminGet<{ status: string; archived_at?: string | null; pending_to_status?: string | null }[]>("sites"),
+    adminGet<
+      {
+        slug: string;
+        name: string;
+        status: string;
+        archived_at?: string | null;
+        pending_to_status?: string | null;
+      }[]
+    >("sites"),
   ]);
   const liveSites = sites.data?.filter(
     (s) => !s.archived_at && ["coming_soon", "beta", "active"].includes(s.status),
@@ -216,7 +224,11 @@ async function Dashboard() {
               Invitees create a passkey on their own device. Re-inviting an existing admin adds a passkey for
               a new device.
             </p>
-            <InviteAdminForm />
+            <InviteAdminForm
+              sites={(sites.data ?? [])
+                .filter((s) => !s.archived_at)
+                .map((s) => ({ site: s.slug, name: s.name }))}
+            />
           </section>
           <section
             aria-labelledby="activity"

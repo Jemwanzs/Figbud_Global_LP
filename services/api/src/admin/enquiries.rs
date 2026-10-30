@@ -136,7 +136,8 @@ async fn list(
     let rows: Vec<Row> = sqlx::query_as(filtered!(
         "SELECT e.id, e.reference, e.kind, e.product, e.name, e.email, e.company, e.status, e.is_spam, e.created_at,
                 COUNT(*) OVER () AS total",
-        "ORDER BY e.created_at DESC, e.id LIMIT $6 OFFSET $7"
+        // People limited to selected websites see those websites' enquiries (P7-F1).
+        "AND ($8::text[] IS NULL OR e.product = ANY($8)) ORDER BY e.created_at DESC, e.id LIMIT $6 OFFSET $7"
     ))
     .bind(&f.status)
     .bind(&f.kind)
@@ -145,6 +146,7 @@ async fn list(
     .bind(f.include_spam)
     .bind(PER_PAGE)
     .bind((page - 1) * PER_PAGE)
+    .bind(session.site_slugs())
     .fetch_all(&state.pool)
     .await?;
     let total = rows.first().map_or(0, |r| r.total);
@@ -211,6 +213,9 @@ async fn read(
     .fetch_optional(&state.pool)
     .await?
     .ok_or(ApiError::NotFound)?;
+    if !session.sees_slug(&detail.product) {
+        return Err(ApiError::NotFound);
+    }
     let emails: Vec<EmailState> = sqlx::query_as(
         "SELECT template, status, attempts, sent_at, last_error FROM email_outbox
           WHERE enquiry_id = $1 ORDER BY created_at",
@@ -245,6 +250,15 @@ async fn set_status(
 ) -> Result<impl IntoResponse, ApiError> {
     session.require(Role::Editor)?;
     let status = one_of(Some(&input.status), &STATUSES)?.ok_or(ApiError::BadRequest("status is required"))?;
+    let product: Option<String> = sqlx::query_scalar("SELECT product FROM enquiries WHERE id = $1")
+        .bind(id)
+        .fetch_optional(&state.pool)
+        .await?;
+    match product.and_then(|p| session.slug_role(&p)) {
+        None => return Err(ApiError::NotFound),
+        Some(role) if role < Role::Editor => return Err(ApiError::Forbidden),
+        Some(_) => {}
+    }
     let previous: Option<String> = sqlx::query_scalar(
         "WITH old AS (SELECT status FROM enquiries WHERE id = $1 FOR UPDATE)
          UPDATE enquiries e SET status = $2, is_spam = ($2 = 'spam'), updated_at = now()

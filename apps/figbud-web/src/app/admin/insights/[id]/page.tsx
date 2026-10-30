@@ -6,6 +6,7 @@ import { Suspense } from "react";
 import { AdminShell, AdminUnavailable } from "@/components/admin/admin-shell";
 import { type Article, ArticleEditor, type Taxonomy, type Version } from "@/components/admin/article-editor";
 import { adminGet, requireAdmin } from "@/lib/admin-server";
+import { forSite } from "@/lib/admin-client";
 
 export const metadata: Metadata = { title: "Edit article" };
 
@@ -44,7 +45,7 @@ async function EditArticle({ params }: Pick<PageProps<"/admin/insights/[id]">, "
       </h1>
       <ArticleEditor
         key={article.data.id}
-        user={user}
+        user={forSite(user, "figbud")}
         taxonomy={taxonomy.data}
         article={article.data}
         versions={versions.data ?? []}

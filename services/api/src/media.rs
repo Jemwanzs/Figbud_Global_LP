@@ -242,6 +242,13 @@ async fn admin_media(
     Query(size): Query<SizeQuery>,
 ) -> Result<Response, ApiError> {
     session.require(Role::Viewer)?;
+    if !session.all_sites() {
+        let site: Option<Uuid> = sqlx::query_scalar("SELECT site_id FROM media_assets WHERE id = $1")
+            .bind(id)
+            .fetch_optional(&state.pool)
+            .await?;
+        session.require_site(site.ok_or(ApiError::NotFound)?, Role::Viewer)?;
+    }
     Ok(image_response(
         bytes(&state.pool, id, size.w).await?,
         "private, max-age=86400",
@@ -303,6 +310,7 @@ async fn list(
 ) -> Result<impl IntoResponse, ApiError> {
     session.require(Role::Viewer)?;
     let site = site_id(&state.pool, &slug).await?;
+    session.require_site(site, Role::Viewer)?;
     let rows: Vec<MediaRow> = sqlx::query_as(
         "SELECT m.id, m.label, m.alt_text, m.content_type, m.width, m.height, m.byte_size, m.archived_at,
                 m.created_at, u.name AS created_by
@@ -327,7 +335,7 @@ async fn list(
         })
         .collect();
     Ok(Json(
-        json!({ "items": items, "can_edit": session.user.role >= Role::Editor }),
+        json!({ "items": items, "can_edit": session.site_role(site) >= Some(Role::Editor) }),
     ))
 }
 
@@ -368,6 +376,7 @@ async fn upload(
 ) -> Result<impl IntoResponse, ApiError> {
     session.require(Role::Editor)?;
     let site = site_id(&state.pool, &slug).await?;
+    session.require_site(site, Role::Editor)?;
     let (label, alt, mut errors) = text_errors(query.label.as_deref(), query.alt.as_deref());
     let declared = headers
         .get(header::CONTENT_TYPE)
@@ -482,6 +491,7 @@ async fn update(
             .fetch_optional(&state.pool)
             .await?;
     let (site, old_label, old_alt) = before.ok_or(ApiError::NotFound)?;
+    session.require_site(site, Role::Editor)?;
     sqlx::query("UPDATE media_assets SET label = $2, alt_text = $3, updated_at = now() WHERE id = $1")
         .bind(id)
         .bind(&label)
@@ -512,6 +522,7 @@ async fn action(
             .fetch_optional(&state.pool)
             .await?;
     let (site, archived_at) = row.ok_or(ApiError::NotFound)?;
+    session.require_site(site, Role::Editor)?;
     match action.as_str() {
         "archive" => {
             if archived_at.is_some() {

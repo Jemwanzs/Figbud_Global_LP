@@ -188,6 +188,8 @@ async fn list(
         .collect();
     let sites: Vec<Value> = rows
         .into_iter()
+        // People limited to selected websites see only those (P7-F1).
+        .filter(|site| session.site_role(site.id).is_some())
         .map(|site| {
             let brand = brands.remove(&site.slug).unwrap_or(Value::Null);
             let workspace = workspaces.remove(&site.slug).unwrap_or(Value::Null);
@@ -263,6 +265,7 @@ async fn read(
 ) -> Result<impl IntoResponse, ApiError> {
     session.require(Role::Viewer)?;
     let site = load(&state.pool, &slug).await?;
+    session.require_site(site.id, Role::Viewer)?;
     let requests: Vec<StatusRequest> = sqlx::query_as(
         "SELECT r.id, r.from_status, r.to_status, r.reason, rq.name AS requested_by, r.requested_by AS requested_by_id,
                 r.decision, dc.name AS decided_by, r.decision_note, r.created_at, r.decided_at
@@ -643,6 +646,7 @@ async fn request_status(
 ) -> Result<impl IntoResponse, ApiError> {
     session.require(Role::Reviewer)?;
     let site = load(&state.pool, &slug).await?;
+    session.require_site(site.id, Role::Reviewer)?;
     if site.kind == "corporate" {
         return Err(ApiError::NotPermitted("The corporate website is always active."));
     }
@@ -714,6 +718,7 @@ async fn decide(
 ) -> Result<impl IntoResponse, ApiError> {
     session.require(Role::Reviewer)?;
     let site = load(&state.pool, &slug).await?;
+    session.require_site(site.id, Role::Reviewer)?;
     let note = body.and_then(|b| trimmed(b.0.note.as_deref()));
     if note.as_ref().is_some_and(|n| n.chars().count() > 500) {
         return Err(ApiError::BadRequest("note is too long"));

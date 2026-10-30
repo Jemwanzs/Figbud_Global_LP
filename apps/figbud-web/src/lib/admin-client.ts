@@ -10,6 +10,14 @@ export interface AdminUser {
   name: string;
   role: "owner" | "reviewer" | "editor" | "viewer";
   last_login_at?: string;
+  /** Which websites they work on (P7-F1); absent means every website. */
+  access?: SiteAccess;
+}
+
+/** Every website with the Studio role, or selected websites, each with its own role. */
+export interface SiteAccess {
+  all: boolean;
+  sites: { site: string; name: string; role: AdminUser["role"] }[];
 }
 
 export interface FieldError {
@@ -173,6 +181,19 @@ const RANK: Record<AdminUser["role"], number> = { viewer: 0, editor: 1, reviewer
 /** Mirrors the API's role order (owner > reviewer > editor > viewer) for showing controls. */
 export function hasRole(user: Pick<AdminUser, "role">, minimum: AdminUser["role"]): boolean {
   return RANK[user.role] >= RANK[minimum];
+}
+
+/**
+ * The person as they act on one website: their role there (never above
+ * their Studio role). Pass it to website components so their role checks
+ * follow per-website access; the API enforces the same rule.
+ */
+export function forSite(user: AdminUser, slug: string): AdminUser {
+  if (!user.access || user.access.all) return user;
+  const grant = user.access.sites.find((s) => s.site === slug);
+  const role = grant && RANK[grant.role] < RANK[user.role] ? grant.role : user.role;
+  // Without access the API answers 404; show nothing editable meanwhile.
+  return { ...user, role: grant ? role : "viewer" };
 }
 
 export const ROLE_LABELS: Record<AdminUser["role"], string> = {

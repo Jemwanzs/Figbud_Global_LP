@@ -277,7 +277,9 @@ async fn list(
     let rows: Vec<Row> = sqlx::query_as(concat!(select!(), "ORDER BY b.archived_at IS NOT NULL, b.name"))
         .fetch_all(&state.pool)
         .await?;
-    let used = usage(&state.pool, None).await?;
+    let mut used = usage(&state.pool, None).await?;
+    // Pages on websites someone can't access stay out of the usage lists.
+    used.retain(|u| session.sees_slug(&u.4));
     let items: Vec<Value> = rows
         .into_iter()
         .map(|row| {
@@ -290,8 +292,8 @@ async fn list(
         .collect();
     Ok(Json(json!({
         "items": items,
-        "can_edit": session.user.role >= Role::Editor,
-        "can_publish": session.user.role >= Role::Reviewer,
+        "can_edit": session.user.role >= Role::Editor && session.all_sites(),
+        "can_publish": session.user.role >= Role::Reviewer && session.all_sites(),
     })))
 }
 
@@ -310,7 +312,8 @@ async fn read(
     .bind(id)
     .fetch_all(&state.pool)
     .await?;
-    let used = usage(&state.pool, Some(id)).await?;
+    let mut used = usage(&state.pool, Some(id)).await?;
+    used.retain(|u| session.sees_slug(&u.4));
     let mut value = serde_json::to_value(&row).map_err(|e| ApiError::Internal(e.to_string()))?;
     value["draft_differs"] = json!(row.published.as_ref() != Some(&row.draft));
     value["used_on"] = usage_json(&used, &id.to_string());
@@ -318,8 +321,10 @@ async fn read(
         .into_iter()
         .map(|(number, note, by, at)| json!({ "number": number, "note": note, "published_by": by, "published_at": at }))
         .collect::<Vec<_>>());
-    value["can_edit"] = json!(session.user.role >= Role::Editor && row.archived_at.is_none());
-    value["can_publish"] = json!(session.user.role >= Role::Reviewer && row.archived_at.is_none());
+    value["can_edit"] =
+        json!(session.user.role >= Role::Editor && session.all_sites() && row.archived_at.is_none());
+    value["can_publish"] =
+        json!(session.user.role >= Role::Reviewer && session.all_sites() && row.archived_at.is_none());
     Ok(Json(value))
 }
 
@@ -335,7 +340,7 @@ async fn create(
     session: AdminSession,
     Json(input): Json<CreateInput>,
 ) -> Result<impl IntoResponse, ApiError> {
-    session.require(Role::Editor)?;
+    session.require_all_sites(Role::Editor)?;
     let name = name(&input.name)?;
     let block = content(input.content)?;
     let id = Uuid::now_v7();
@@ -375,7 +380,7 @@ async fn save_draft(
     Path(id): Path<Uuid>,
     Json(input): Json<DraftInput>,
 ) -> Result<impl IntoResponse, ApiError> {
-    session.require(Role::Editor)?;
+    session.require_all_sites(Role::Editor)?;
     let row = load(&state.pool, id).await?;
     if row.archived_at.is_some() {
         return Err(ApiError::Conflict("Restore this content before editing it."));
@@ -427,7 +432,7 @@ async fn publish(
     Json(input): Json<PublishInput>,
 ) -> Result<impl IntoResponse, ApiError> {
     // One change reaches every website using the content: reviewers only.
-    session.require(Role::Reviewer)?;
+    session.require_all_sites(Role::Reviewer)?;
     let note = input.note.trim().to_owned();
     if note.is_empty() || note.chars().count() > 300 {
         return Err(invalid("note", "Say what changed (up to 300 characters)."));
@@ -482,7 +487,7 @@ async fn restore_version(
     session: AdminSession,
     Path((id, number)): Path<(Uuid, i32)>,
 ) -> Result<impl IntoResponse, ApiError> {
-    session.require(Role::Editor)?;
+    session.require_all_sites(Role::Editor)?;
     let row = load(&state.pool, id).await?;
     if row.archived_at.is_some() {
         return Err(ApiError::Conflict("Restore this content before editing it."));
@@ -519,7 +524,7 @@ async fn archive_action(
     session: AdminSession,
     Path((id, action)): Path<(Uuid, String)>,
 ) -> Result<impl IntoResponse, ApiError> {
-    session.require(Role::Editor)?;
+    session.require_all_sites(Role::Editor)?;
     let row = load(&state.pool, id).await?;
     match action.as_str() {
         "archive" => {

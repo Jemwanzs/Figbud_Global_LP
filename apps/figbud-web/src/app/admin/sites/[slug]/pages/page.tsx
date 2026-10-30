@@ -7,6 +7,7 @@ import { AdminShell, AdminUnavailable } from "@/components/admin/admin-shell";
 import type { PageList } from "@/components/admin/page-types";
 import { PagesManager } from "@/components/admin/pages-manager";
 import { adminGet, requireAdmin } from "@/lib/admin-server";
+import { forSite } from "@/lib/admin-client";
 
 export const metadata: Metadata = { title: "Pages" };
 
@@ -53,7 +54,7 @@ async function Pages({ params }: Pick<PageProps<"/admin/sites/[slug]/pages">, "p
         <PagesManager
           key={data.pages.map((p) => `${p.id}:${p.position}:${p.archived_at ?? ""}`).join()}
           slug={slug}
-          user={user}
+          user={forSite(user, slug)}
           initial={data}
         />
       </div>

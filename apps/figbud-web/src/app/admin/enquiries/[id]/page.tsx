@@ -15,7 +15,7 @@ import {
   TEMPLATE_LABELS,
 } from "@/components/admin/enquiry-labels";
 import { EnquiryStatusForm } from "@/components/admin/enquiry-status-form";
-import { hasRole } from "@/lib/admin-client";
+import { forSite, hasRole } from "@/lib/admin-client";
 import { adminGet, requireAdmin } from "@/lib/admin-server";
 
 export const metadata: Metadata = { title: "Enquiry" };
@@ -136,7 +136,7 @@ async function Enquiry({ params }: Pick<PageProps<"/admin/enquiries/[id]">, "par
         </div>
 
         <aside className="space-y-6" aria-label="Follow-up">
-          {hasRole(user, "editor") && (
+          {hasRole(forSite(user, e.product), "editor") && (
             <section className="fb-panel rounded-[var(--radius-panel)] p-6">
               <EnquiryStatusForm id={e.id} status={e.status} />
             </section>

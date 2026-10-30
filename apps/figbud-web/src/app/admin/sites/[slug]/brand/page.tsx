@@ -8,6 +8,7 @@ import { BrandStudio } from "@/components/admin/brand-studio";
 import type { BrandStudioData } from "@/components/admin/brand-types";
 import type { AdminSite } from "@/components/admin/site-labels";
 import { adminGet, requireAdmin } from "@/lib/admin-server";
+import { forSite } from "@/lib/admin-client";
 
 export const metadata: Metadata = { title: "Branding" };
 
@@ -52,7 +53,13 @@ async function Brand({ params }: Pick<PageProps<"/admin/sites/[slug]/brand">, "p
         published version; changes here stay in the draft until they are approved.
       </p>
       <div className="mt-6">
-        <BrandStudio slug={slug} siteName={name} tagline={tagline} user={user} initial={brand.data} />
+        <BrandStudio
+          slug={slug}
+          siteName={name}
+          tagline={tagline}
+          user={forSite(user, slug)}
+          initial={brand.data}
+        />
       </div>
     </AdminShell>
   );
