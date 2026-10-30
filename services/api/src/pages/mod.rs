@@ -11,6 +11,7 @@
 //! current version stays live, until [`publish_due`] publishes it.
 
 pub mod blocks;
+pub mod budget;
 pub mod import;
 pub mod templates;
 
@@ -296,13 +297,25 @@ async fn remove_redirect(
 }
 
 /// A draft as the website would show it: shared content resolved (unpublished
-/// items stay visible as gaps), Markdown rendered, image details added.
-async fn preview(pool: &PgPool, site_id: Uuid, mut doc: PageDoc) -> Result<Value, sqlx::Error> {
+/// items stay visible as gaps), Markdown rendered, image details added; with
+/// its performance budget (P7-G4).
+async fn preview(
+    pool: &PgPool,
+    site_id: Uuid,
+    mut doc: PageDoc,
+) -> Result<(Value, budget::Budget), sqlx::Error> {
     let origins = crate::shared::resolve(pool, &mut doc, false).await?;
     let mut value = doc.render(true);
+    let budget = budget::assess(pool, site_id, &value).await?;
     crate::media::attach(pool, site_id, &mut value, false).await?;
     crate::shared::annotate(&mut value, &origins);
-    Ok(value)
+    Ok((value, budget))
+}
+
+/// The budget of a document as websites would receive it once published.
+async fn weigh(pool: &PgPool, site_id: Uuid, mut doc: PageDoc) -> Result<budget::Budget, sqlx::Error> {
+    crate::shared::resolve(pool, &mut doc, true).await?;
+    budget::assess(pool, site_id, &doc.render(false)).await
 }
 
 fn cache_headers() -> [(header::HeaderName, HeaderValue); 1] {
@@ -462,9 +475,12 @@ async fn read(
     .fetch_all(&state.pool)
     .await?;
     let draft_differs = page.published.as_ref() != Some(&page.draft);
-    let preview = match serde_json::from_value::<PageDoc>(page.draft.clone()) {
-        Ok(doc) => Some(preview(&state.pool, page.site_id, doc).await?),
-        Err(_) => None,
+    let (preview, budget) = match serde_json::from_value::<PageDoc>(page.draft.clone()) {
+        Ok(doc) => {
+            let (preview, budget) = preview(&state.pool, page.site_id, doc).await?;
+            (Some(preview), Some(budget))
+        }
+        Err(_) => (None, None),
     };
     let redirects: Vec<(String, DateTime<Utc>)> = sqlx::query_as(
         "SELECT from_path, created_at FROM page_redirects WHERE page_id = $1 ORDER BY created_at DESC",
@@ -478,6 +494,7 @@ async fn read(
         "site": { "slug": site.0, "name": site.1, "theme": theme },
         "draft_differs": draft_differs,
         "preview": preview,
+        "budget": budget,
         "revisions": revisions,
     })))
 }
@@ -560,9 +577,9 @@ async fn save_draft(
         )
         .await?;
     }
-    let preview = preview(&state.pool, previous.site_id, doc).await?;
+    let (preview, budget) = preview(&state.pool, previous.site_id, doc).await?;
     Ok(Json(
-        json!({ "draft_version": input.version + 1, "preview": preview }),
+        json!({ "draft_version": input.version + 1, "preview": preview, "budget": budget }),
     ))
 }
 
@@ -602,6 +619,11 @@ async fn submit(
     }
     if page.published.as_ref() == Some(&page.draft) {
         return Err(ApiError::Conflict("The draft is the same as the published page."));
+    }
+    if weigh(&state.pool, page.site_id, doc).await?.over() {
+        return Err(ApiError::Conflict(
+            "This page is over its performance budget. Make it lighter (see Performance) before submitting.",
+        ));
     }
     if let Some(at) = input.publish_at {
         let now = Utc::now();
@@ -728,7 +750,12 @@ async fn revision_action(
                     "A different reviewer must approve your own change (maker-checker).",
                 ));
             }
-            decode(document.clone())?;
+            let doc = decode(document.clone())?;
+            if weigh(&state.pool, page.site_id, doc).await?.over() {
+                return Err(ApiError::Conflict(
+                    "This version is over the performance budget. Reject it, or make the draft lighter and submit again.",
+                ));
+            }
             let mut tx = state.pool.begin().await?;
             if publish_at.is_some_and(|at| at > Utc::now()) {
                 // Approved for later: the current version stays live until then.

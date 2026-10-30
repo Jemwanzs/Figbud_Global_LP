@@ -1203,6 +1203,43 @@ const renderDoc = (doc, includeHidden = true) => ({
           : s,
     ),
 });
+// Mirrors services/api/src/pages/budget.rs (P7-G4): what a phone downloads.
+const BUDGETS = [
+  ["sections", "Sections shown", 16, 30, "count"],
+  ["images", "Images", 6, 12, "count"],
+  ["image_bytes", "Image download on a phone", 800 * 1024, 2 * 1024 * 1024, "bytes"],
+  ["largest_image", "Largest image on a phone", 250 * 1024, 500 * 1024, "bytes"],
+  ["text_bytes", "Text and layout", 50 * 1024, 120 * 1024, "bytes"],
+];
+const pageBudget = (doc) => {
+  const shown = renderDoc(doc, false).sections;
+  const images = [...new Set(shown.filter((s) => s.type === "image").map((s) => s.image_id))].map(
+    (id) => mediaAssets.get(id)?.byte_size ?? 0,
+  );
+  const text = shown
+    .filter((s) => s.type !== "image")
+    // Websites show the rendered Markdown, not its source.
+    .map(({ body, ...rest }) => (rest.body_html ? rest : { ...rest, body }))
+    .reduce((n, s) => n + JSON.stringify(s).length, 0);
+  const values = [
+    shown.length,
+    images.length,
+    images.reduce((a, b) => a + b, 0),
+    Math.max(0, ...images),
+    text,
+  ];
+  const checks = BUDGETS.map(([key, label, warn, limit, unit], i) => ({
+    key,
+    label,
+    value: values[i],
+    warn,
+    limit,
+    unit,
+    level: values[i] > limit ? "over" : values[i] > warn ? "warn" : "ok",
+  }));
+  const rank = { ok: 0, warn: 1, over: 2 };
+  return { level: checks.reduce((l, c) => (rank[c.level] > rank[l] ? c.level : l), "ok"), checks };
+};
 const pageSummary = (p) => ({
   id: p.id,
   path: p.path,
@@ -1239,6 +1276,7 @@ const pageDetail = (p) => ({
   site: { slug: p.site.slug, name: p.site.name, theme: p.site.settings.theme },
   draft_differs: JSON.stringify(p.draft) !== JSON.stringify(p.published),
   preview: renderDoc(p.draft),
+  budget: pageBudget(p.draft),
   revisions: p.revisions.slice().sort((a, b) => b.number - a.number),
   redirects: [...pageRedirects.entries()]
     .filter(([, id]) => id === p.id)
@@ -1386,7 +1424,11 @@ function pagesRoutes(path, req, body, user, send) {
       draft_version: page.draft_version + 1,
       draft_updated_at: now(),
     });
-    return send(200, { draft_version: page.draft_version, preview: renderDoc(page.draft) });
+    return send(200, {
+      draft_version: page.draft_version,
+      preview: renderDoc(page.draft),
+      budget: pageBudget(page.draft),
+    });
   }
   if (action === "submit") {
     if (rank < RANKS.editor) return forbidden();
@@ -1395,6 +1437,10 @@ function pagesRoutes(path, req, body, user, send) {
         { field: "note", code: "length", message: "Say what changed in up to 300 characters." },
       ]);
     if (!page.draft.sections.length) return conflict("Add at least one section before submitting.");
+    if (pageBudget(page.draft).level === "over")
+      return conflict(
+        "This page is over its performance budget. Make it lighter (see Performance) before submitting.",
+      );
     if (page.revisions.some((r) => r.state === "pending" || r.state === "scheduled"))
       return conflict("A change to this page is already waiting for approval or scheduled.");
     const at = body.publish_at ? new Date(body.publish_at) : null;
@@ -1480,6 +1526,10 @@ function pagesRoutes(path, req, body, user, send) {
   if (revisionAction !== "cancel" && rank < RANKS.reviewer) return forbidden();
   if (revisionAction === "approve" && own && user.role !== "owner")
     return forbidden("A different reviewer must approve your own change (maker-checker).");
+  if (revisionAction === "approve" && pageBudget(revision.document).level === "over")
+    return conflict(
+      "This version is over the performance budget. Reject it, or make the draft lighter and submit again.",
+    );
   const later = revisionAction === "approve" && revision.publish_at && revision.publish_at > now();
   Object.assign(revision, {
     state: later

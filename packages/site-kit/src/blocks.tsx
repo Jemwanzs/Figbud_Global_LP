@@ -166,12 +166,15 @@ function Block({
   section,
   mode,
   top,
+  first,
   resolve,
   mediaBase,
 }: {
   section: PageSection;
   mode: Mode;
   top: 1 | 2;
+  /** The page's first section: an image there is the main content, so it loads at once. */
+  first: boolean;
   resolve?: HrefResolver;
   mediaBase?: string;
 }) {
@@ -323,7 +326,8 @@ function Block({
               alt={media.alt}
               width={media.width}
               height={media.height}
-              loading="lazy"
+              loading={first ? "eager" : "lazy"}
+              fetchPriority={first ? "high" : undefined}
               decoding="async"
               className="h-auto w-full rounded-[var(--radius-panel)] border border-line bg-surface-2 object-cover"
             />
@@ -385,6 +389,7 @@ export function PageBlocks({
               section={section}
               mode={mode}
               top={i === 0 ? firstHeading : 2}
+              first={i === 0}
               resolve={resolveHref}
               mediaBase={mediaBase}
             />

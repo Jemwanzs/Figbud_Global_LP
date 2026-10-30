@@ -151,6 +151,23 @@ Studio UI polish is a standing priority (P7-UX2): every milestone reviews the sc
 - **Remaining:**
   - deploying the renderer (approval needed), after which `apps/zirahr-web` can be retired.
 
+## Performance budgets (P7-G4, 30 Oct 2026)
+
+Every page editor has a **Performance** panel: what a visitor's phone downloads for the saved draft, measured by the API each time the draft saves.
+
+| Measure | Warning | Limit |
+| --- | --- | --- |
+| Sections shown | 16 | 30 |
+| Images | 6 | 12 |
+| Image download on a phone (960 px renditions) | 800 KB | 2 MB |
+| Largest image on a phone | 250 KB | 500 KB |
+| Text and layout | 50 KB | 120 KB |
+
+- Hidden sections don't count; shared content counts as its published version; an image used twice downloads once.
+- **Past a warning:** the panel says "Getting heavy" and what to change.
+- **Over a limit:** "Over budget"; Submit for publishing is disabled, and the API refuses to submit or approve the page (approval re-checks the version being approved, since shared content can change after submission). Scheduled changes already approved still go live.
+- The first section of a page, if it's an image, loads at once with high priority; later images load as visitors scroll.
+
 ## Content library (P7-D1, 30 Oct 2026)
 
 Studio → **Content**. Sections written once and used on pages of any FigBud website.

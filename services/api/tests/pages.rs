@@ -438,6 +438,14 @@ async fn build_publish_restore_and_archive_a_page() {
         .find(|e| e["action"] == "page.archived" && e["detail"]["page"] == id.as_str())
         .expect("page.archived in the feed");
     assert_eq!(archived["site_name"], "Page Site");
+    // Previous and new values stay in the log, not in the feed.
+    let saved = log
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|e| e["action"] == "page.draft_saved" && e["detail"]["page"] == id.as_str())
+        .expect("page.draft_saved in the feed");
+    assert!(saved["detail"].get("from").is_none() && saved["detail"].get("to").is_none());
 }
 
 #[tokio::test]
@@ -857,4 +865,165 @@ async fn page_visibility_hidden_sections_and_the_zirahr_import() {
         "People. Payroll. Progress. Connected."
     );
     assert_eq!(zirahr["sections"][1]["items"].as_array().unwrap().len(), 10);
+}
+
+#[tokio::test]
+async fn performance_budgets_flag_and_stop_heavy_pages() {
+    let Some(s) = Studio::new().await else {
+        eprintln!("skipping: TEST_DATABASE_URL not set");
+        return;
+    };
+    let (owner, editor, reviewer) = (
+        s.admin("owner").await,
+        s.admin("editor").await,
+        s.admin("reviewer").await,
+    );
+    let slug = s.listed_site(&owner).await;
+    let (status, created) = s
+        .call(
+            "POST",
+            &format!("/v1/admin/sites/{slug}/pages"),
+            Some(&editor),
+            Some(json!({ "title": "Guide", "path": "guide", "template": "blank" })),
+        )
+        .await;
+    assert_eq!(status, StatusCode::CREATED, "{created}");
+    let id = created["id"].as_str().unwrap().to_owned();
+    let check = |budget: &Value, key: &str| {
+        budget["checks"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|c| c["key"] == key)
+            .cloned()
+            .unwrap()
+    };
+
+    // Sixteen long text sections: more text than the budget allows.
+    let long = "Plain words for a long guide. ".repeat(330);
+    let heavy: Vec<Value> = (0..16)
+        .map(|i| json!({ "id": format!("t{i}"), "type": "text", "body": long }))
+        .collect();
+    let (status, saved) = s
+        .call(
+            "POST",
+            &format!("/v1/admin/pages/{id}/draft"),
+            Some(&editor),
+            Some(
+                json!({ "title": "Guide", "path": "guide", "document": { "sections": heavy }, "version": 1 }),
+            ),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "{saved}");
+    assert_eq!(saved["budget"]["level"], "over");
+    assert_eq!(check(&saved["budget"], "text_bytes")["level"], "over");
+    assert_eq!(check(&saved["budget"], "sections")["value"], 16);
+    assert_eq!(check(&saved["budget"], "images")["level"], "ok");
+    let (status, body) = s
+        .call(
+            "POST",
+            &format!("/v1/admin/pages/{id}/submit"),
+            Some(&editor),
+            Some(json!({ "note": "Guide" })),
+        )
+        .await;
+    assert_eq!(status, StatusCode::CONFLICT);
+    assert!(
+        body["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("performance budget"),
+        "{body}"
+    );
+
+    // Hidden sections aren't sent to websites, so they don't count.
+    let mut hidden = heavy.clone();
+    for section in hidden.iter_mut().skip(3) {
+        section["hidden"] = json!(true);
+    }
+    let (status, saved) = s
+        .call(
+            "POST",
+            &format!("/v1/admin/pages/{id}/draft"),
+            Some(&editor),
+            Some(json!({ "title": "Guide", "path": "guide", "document": { "sections": hidden }, "version": 2 })),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "{saved}");
+    assert_eq!(saved["budget"]["level"], "ok", "{}", saved["budget"]);
+    assert_eq!(check(&saved["budget"], "sections")["value"], 3);
+    let (_, detail) = s
+        .call("GET", &format!("/v1/admin/pages/{id}"), Some(&editor), None)
+        .await;
+    assert_eq!(detail["budget"], saved["budget"]);
+
+    // Within budget: it can be submitted and approved.
+    let (status, submitted) = s
+        .call(
+            "POST",
+            &format!("/v1/admin/pages/{id}/submit"),
+            Some(&editor),
+            Some(json!({ "note": "Guide" })),
+        )
+        .await;
+    assert_eq!(status, StatusCode::CREATED, "{submitted}");
+    let revision = submitted["id"].as_str().unwrap();
+    let (status, _) = s
+        .call(
+            "POST",
+            &format!("/v1/admin/pages/{id}/revisions/{revision}/approve"),
+            Some(&reviewer),
+            Some(json!({})),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK);
+
+    // A version that grew past the budget after it was submitted can't be approved.
+    let (_, detail) = s
+        .call("GET", &format!("/v1/admin/pages/{id}"), Some(&editor), None)
+        .await;
+    let version = detail["page"]["draft_version"].clone();
+    let mut lighter = hidden.clone();
+    lighter[0]["body"] = json!("A shorter guide.");
+    let (status, _) = s
+        .call(
+            "POST",
+            &format!("/v1/admin/pages/{id}/draft"),
+            Some(&editor),
+            Some(json!({ "title": "Guide", "path": "guide", "document": { "sections": lighter }, "version": version })),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK);
+    let (status, submitted) = s
+        .call(
+            "POST",
+            &format!("/v1/admin/pages/{id}/submit"),
+            Some(&editor),
+            Some(json!({ "note": "Shorter" })),
+        )
+        .await;
+    assert_eq!(status, StatusCode::CREATED, "{submitted}");
+    let revision = submitted["id"].as_str().unwrap();
+    sqlx::query("UPDATE page_revisions SET document = $2 WHERE id = $1::uuid")
+        .bind(revision)
+        .bind(json!({ "sections": heavy }))
+        .execute(&s.pool)
+        .await
+        .unwrap();
+    let (status, body) = s
+        .call(
+            "POST",
+            &format!("/v1/admin/pages/{id}/revisions/{revision}/approve"),
+            Some(&reviewer),
+            Some(json!({})),
+        )
+        .await;
+    assert_eq!(status, StatusCode::CONFLICT, "{body}");
+    assert!(
+        body["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("performance budget"),
+        "{body}"
+    );
 }

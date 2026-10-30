@@ -424,9 +424,11 @@ async fn audit_log(
     session: AdminSession,
 ) -> Result<impl IntoResponse, ApiError> {
     session.require(Role::Owner)?;
+    // The feed names what happened; previous and new values (whole page
+    // documents, brand drafts) stay in the log without being sent.
     let entries: Vec<AuditEntry> = sqlx::query_as(
         "SELECT a.id, a.action, u.email AS actor_email, s.name AS site_name, a.target_type, a.target_id,
-                a.detail, a.created_at
+                a.detail - 'from' - 'to' AS detail, a.created_at
            FROM audit_log a
            LEFT JOIN admin_users u ON u.id = a.actor_user_id
            LEFT JOIN sites s ON s.id = a.site_id

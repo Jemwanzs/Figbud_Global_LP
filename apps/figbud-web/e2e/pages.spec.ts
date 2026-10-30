@@ -287,3 +287,35 @@ test("hide a section, and manage a page's visibility without losing it", async (
     .analyze();
   expect(results.violations.map((v) => v.id)).toEqual([]);
 });
+
+test("the performance budget flags a heavy page and stops it being submitted", async ({ page }) => {
+  await signInAsOwner(page);
+  await newSite(page);
+  await page.getByRole("link", { name: "Pages" }).click();
+  await page.getByRole("radio", { name: /^Features/ }).check();
+  await page.getByRole("button", { name: "Create page" }).click();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Features");
+  const performance = page.getByRole("region", { name: "Performance" });
+  await expect(performance).toContainText("Within budget");
+  await expect(performance.locator('[data-check="images"]')).toContainText("0 of 12");
+
+  // One long text section, duplicated past the text budget.
+  await page.getByLabel("Add a section").selectOption("text");
+  await page.getByRole("button", { name: "Add", exact: true }).click();
+  await page.getByLabel("Text (Markdown)").fill("Plain words for a long guide. ".repeat(330));
+  await saved(page);
+  const duplicate = page
+    .getByRole("list", { name: "Sections" })
+    .getByRole("button", { name: "Duplicate Text section" });
+  for (let i = 0; i < 14; i++) await duplicate.first().click();
+  await saved(page);
+  await expect(performance).toContainText("Over budget");
+  const text = performance.locator('[data-check="text_bytes"]');
+  await expect(text).toHaveAttribute("data-level", "over");
+  await expect(text).toContainText("Shorten the text, or split it across pages.");
+
+  // Over a limit, it can't be submitted; the reason is next to the button.
+  await page.getByLabel("What changed?").fill("A long guide");
+  await expect(page.getByRole("button", { name: "Submit for publishing" })).toBeDisabled();
+  await expect(page.getByText("Make the page lighter first (see Performance)")).toBeVisible();
+});

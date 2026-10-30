@@ -39,11 +39,13 @@ import { sameValue, useSavedBaseline, useUnsavedChangesWarning } from "@/lib/for
 
 import { ActionButton } from "./action-button";
 import { LocalTime, fromLocalInput, localInputFromNow } from "./local-time";
+import { PerformancePanel } from "./page-budget";
 import {
   BLOCKS,
   type BlockType,
   type MediaItem,
   PATH_PATTERN,
+  type PageBudget,
   type SharedItem,
   type PageDetail,
   STUDIO_MEDIA_BASE,
@@ -873,6 +875,7 @@ export function PageEditor({ slug, user, initial }: { slug: string; user: AdminU
   const [saveError, setSaveError] = useState<string | null>(null);
   const version = useRef(initial.page.draft_version);
   const [rendered, setRendered] = useState<PageDocument | null>(initial.preview);
+  const [budget, setBudget] = useState<PageBudget | null>(initial.budget ?? null);
   const [past, setPast] = useState<Draft[]>([]);
   const [future, setFuture] = useState<Draft[]>([]);
   const [open, setOpen] = useState<string | null>(null);
@@ -905,6 +908,7 @@ export function PageEditor({ slug, user, initial }: { slug: string; user: AdminU
       const fresh = await adminFetch<PageDetail>(`pages/${pageId}`);
       setData(fresh);
       setRendered(fresh.preview);
+      setBudget(fresh.budget ?? null);
       if (resetDraft) {
         const next = { title: fresh.page.title, path: fresh.page.path, document: fresh.page.draft };
         setDraft(next);
@@ -925,7 +929,7 @@ export function PageEditor({ slug, user, initial }: { slug: string; user: AdminU
       setSave("saving");
       setSaveError(null);
       try {
-        const saved = await adminFetch<{ draft_version: number; preview: PageDocument }>(
+        const saved = await adminFetch<{ draft_version: number; preview: PageDocument; budget: PageBudget }>(
           `pages/${pageId}/draft`,
           {
             ...draft,
@@ -935,6 +939,7 @@ export function PageEditor({ slug, user, initial }: { slug: string; user: AdminU
         version.current = saved.draft_version;
         markSaved(draft);
         setRendered(saved.preview);
+        setBudget(saved.budget);
         setSave((s) => (s === "saving" ? "saved" : s));
         reload(false).catch(() => undefined);
       } catch (err) {
@@ -1108,11 +1113,13 @@ export function PageEditor({ slug, user, initial }: { slug: string; user: AdminU
             ? "Add at least one section"
             : !data.draft_differs
               ? "The draft matches the published page"
-              : !note.trim()
-                ? "Say what changed"
-                : timing === "scheduled"
-                  ? scheduleProblem(publishAtIso)
-                  : null;
+              : budget?.level === "over"
+                ? "Make the page lighter first (see Performance)"
+                : !note.trim()
+                  ? "Say what changed"
+                  : timing === "scheduled"
+                    ? scheduleProblem(publishAtIso)
+                    : null;
 
   const saveText: Record<SaveState, string> = {
     saved: "Draft saved",
@@ -1537,6 +1544,8 @@ export function PageEditor({ slug, user, initial }: { slug: string; user: AdminU
               )}
             </div>
           </section>
+
+          <PerformancePanel budget={budget} headingId={`${uid}-performance`} />
 
           <section aria-labelledby={`${uid}-publish`} className="fb-panel rounded-[var(--radius-panel)] p-5">
             <h2 id={`${uid}-publish`} className="font-semibold text-text">

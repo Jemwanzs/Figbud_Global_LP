@@ -58,6 +58,22 @@ export interface PageRevision {
   publish_at: string | null;
 }
 
+/** Performance budget of a page (services/api/src/pages/budget.rs, P7-G4). */
+export type BudgetLevel = "ok" | "warn" | "over";
+
+export interface PageBudget {
+  level: BudgetLevel;
+  checks: {
+    key: string;
+    label: string;
+    value: number;
+    warn: number;
+    limit: number;
+    unit: "count" | "bytes";
+    level: BudgetLevel;
+  }[];
+}
+
 export interface PageDetail {
   page: {
     id: string;
@@ -79,6 +95,8 @@ export interface PageDetail {
   draft_differs: boolean;
   /** The saved draft as websites would receive it (Markdown rendered). */
   preview: PageDocument | null;
+  /** What a phone downloads for the saved draft, against the budget. */
+  budget?: PageBudget | null;
   revisions: PageRevision[];
   /** Old addresses of this page that forward to it (P7-G1). */
   redirects?: { from_path: string; created_at: string }[];
