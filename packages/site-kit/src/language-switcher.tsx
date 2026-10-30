@@ -1,7 +1,7 @@
 "use client";
 
 import { LOCALE_COOKIE, type Locale, localeInfo, localizePath, locales } from "@figbud/i18n";
-import { cn } from "@figbud/ui";
+import { InverseTheme, cn } from "@figbud/ui";
 import { Check, ChevronDown, Globe } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useId, useRef, useState } from "react";
@@ -56,33 +56,36 @@ export function LanguageSwitcher({
         </span>
         <ChevronDown aria-hidden className={cn("size-3.5 transition-transform", open && "rotate-180")} />
       </button>
-      <div id={listId} hidden={!open} className="absolute end-0 top-full z-10 w-56 pt-2">
-        <ul className="fb-panel fb-rise rounded-2xl p-1.5 [animation-duration:.3s]">
-          {locales.map((code) => {
-            const info = localeInfo[code];
-            return (
-              <li key={code}>
-                <Link
-                  href={localizePath(code, pathname)}
-                  hrefLang={info.tag}
-                  lang={info.tag}
-                  aria-current={code === locale ? "true" : undefined}
-                  onClick={() => {
-                    rememberLocale(code);
-                    close();
-                  }}
-                  className="flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm text-muted transition-colors hover:bg-surface-2 hover:text-text aria-[current]:text-text"
-                >
-                  <span className="flex-1">{info.label}</span>
-                  {info.status === "draft" && (
-                    <span className="text-[0.7rem] text-subtle">{labels.inReview}</span>
-                  )}
-                  {code === locale && <Check aria-hidden className="size-4 text-accent" />}
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
+      <div id={listId} hidden={!open} className="absolute end-0 top-full z-50 w-56 pt-2">
+        {/* Dropdowns use the opposite theme (InverseTheme). */}
+        <InverseTheme className="fb-panel fb-rise rounded-2xl p-1.5 text-text shadow-[var(--shadow-elevated)] [animation-duration:.3s]">
+          <ul>
+            {locales.map((code) => {
+              const info = localeInfo[code];
+              return (
+                <li key={code}>
+                  <Link
+                    href={localizePath(code, pathname)}
+                    hrefLang={info.tag}
+                    lang={info.tag}
+                    aria-current={code === locale ? "true" : undefined}
+                    onClick={() => {
+                      rememberLocale(code);
+                      close();
+                    }}
+                    className="flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm text-muted transition-colors hover:bg-surface-2 hover:text-text aria-[current]:text-text"
+                  >
+                    <span className="flex-1">{info.label}</span>
+                    {info.status === "draft" && (
+                      <span className="text-[0.7rem] text-subtle">{labels.inReview}</span>
+                    )}
+                    {code === locale && <Check aria-hidden className="size-4 text-accent" />}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </InverseTheme>
       </div>
     </div>
   );

@@ -74,3 +74,19 @@ Shared fields live in `packages/site-kit/src/forms.tsx` (components) and `phone.
   - Two columns from `sm` up: name and work email, company and job title, country and phone. Selects and the message span both columns, and everything stacks on phones.
   - Inputs are 48px high, with labels above, "optional" or the hint on the right of the label, and errors below the field.
   - Pop-up lists stay inside the viewport (measured when opened) and scroll within themselves.
+
+## Navigation dropdowns (UI-NAV1, 31 Oct 2026)
+
+Navbar dropdowns use the **opposite theme** to the page: a dark panel on a light page, a light panel on a dark page. They stand out from the content behind them without a heavy border or overlay.
+
+- **How:** wrap the panel in `InverseTheme` from `@figbud/ui`. It sets `data-theme` to the other theme (and `data-inverse`), so every token inside the panel (`--surface`, `--text`, `--muted`, `--line`, product accents and brand-on-background logo variants) switches with no extra classes. When the page theme changes, the panel follows. Don't hand-pick dark or light colours for a dropdown.
+- **Where:** the corporate Products menu and the language selector. The language selector is shared through `ProductHeader`, so product websites get it too. Any new navbar dropdown uses the same pattern. Full-screen mobile menus are dialogs, not dropdowns, and stay in the page theme.
+- **Look:** `fb-panel` surface (solid in inverse panels), 16–20px radius, `--shadow-elevated`, 6–8px inner padding, 44px-high rows with a `surface-2` hover, and the `fb-rise` entrance (0.3s). Product logos keep the version made for the panel's background, and product accents use their dark- or light-background values.
+- **Placement:** the panel stays inside the viewport (`w-[min(26rem,calc(100vw-2rem))]`) and scrolls within itself when taller than the screen (`max-h-[calc(100dvh-6rem)]`). It always sits above page content (`z-50`).
+- **Alignment:** rows line up whether a product has a symbol or only a wordmark. Wordmark-only rows get an empty 40px slot, so names and taglines start at the same position.
+- **Accessibility:**
+  - The trigger is a `button` with `aria-expanded` and `aria-controls`.
+  - Hover opens the Products menu on desktop, and a click after hovering keeps it open. Keyboard and touch toggle it.
+  - Escape and a press outside close it (`useDismiss`). Escape from inside the panel returns focus to the trigger.
+  - Text in both panel themes meets WCAG AA contrast, which the accessibility scans check.
+- **Tests:** `apps/figbud-web/e2e/site.spec.ts` ("navbar dropdowns use the opposite theme…") checks both page themes: the panel's `data-theme` and actual background colour, staying on screen, Escape and focus return.

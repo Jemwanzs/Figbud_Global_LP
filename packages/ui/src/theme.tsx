@@ -1,7 +1,7 @@
 "use client";
 
 import { Moon, Sun } from "lucide-react";
-import { useSyncExternalStore } from "react";
+import { type ComponentProps, useSyncExternalStore } from "react";
 
 import { cn } from "./cn";
 
@@ -94,5 +94,19 @@ export function ThemeToggle({ labels, className }: { labels: ThemeLabels; classN
         )}
       />
     </button>
+  );
+}
+
+/**
+ * A surface in the opposite theme (UI-NAV1): navigation dropdowns are dark on
+ * light pages and light on dark pages. Setting `data-theme` here re-points
+ * every colour token for everything inside, so text, borders, badges and
+ * logos follow without per-component styling. Use it for every navbar
+ * dropdown or submenu (not full-screen drawers, which stay in the page theme).
+ */
+export function InverseTheme({ className, ...props }: ComponentProps<"div">) {
+  const theme = useTheme();
+  return (
+    <div data-theme={theme === "dark" ? "light" : "dark"} data-inverse="" className={className} {...props} />
   );
 }

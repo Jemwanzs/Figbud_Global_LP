@@ -56,7 +56,8 @@ const en = {
   products: {
     zirahr: {
       category: "People technology",
-      tagline: "People. Payroll. Progress. Connected.",
+      // The official ZiraHR slogan (owner, 30 Oct 2026).
+      tagline: "HR Simplified. Business Amplified.",
       summary:
         "Workforce operations, compliant payroll, approvals and intelligence in one configurable platform.",
       highlights: [

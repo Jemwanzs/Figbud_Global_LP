@@ -277,6 +277,36 @@
   background: var(--fb-paper);
   padding: 0.3rem 0.5rem;
 }
+/* Inside a surface in the opposite theme (InverseTheme: navigation
+   dropdowns), logos follow that surface, not the page. */
+[data-theme="light"] [data-theme="dark"] .fb-brand-on-light:not(.fb-brand-solo) {
+  display: none;
+}
+[data-theme="light"] [data-theme="dark"] .fb-brand-on-dark:not(.fb-brand-solo) {
+  display: inline-flex;
+}
+[data-theme="light"] [data-theme="dark"] .fb-brand-on-dark.fb-brand-solo {
+  background: none;
+  padding: 0;
+}
+[data-theme="light"] [data-theme="dark"] .fb-brand-on-light.fb-brand-solo {
+  background: var(--fb-paper);
+  padding: 0.3rem 0.5rem;
+}
+[data-theme="dark"] [data-theme="light"] .fb-brand-on-light:not(.fb-brand-solo) {
+  display: inline-flex;
+}
+[data-theme="dark"] [data-theme="light"] .fb-brand-on-dark:not(.fb-brand-solo) {
+  display: none;
+}
+[data-theme="dark"] [data-theme="light"] .fb-brand-on-light.fb-brand-solo {
+  background: none;
+  padding: 0;
+}
+[data-theme="dark"] [data-theme="light"] .fb-brand-on-dark.fb-brand-solo {
+  background: var(--fb-ink);
+  padding: 0.3rem 0.5rem;
+}
 
 /* Cookie consent banner (consent.tsx): rises in once, never moves content. */
 @keyframes fb-consent-in {
@@ -331,4 +361,10 @@
    (--font-flags), then the system's emoji; letter codes as a last resort. */
 .fb-flag {
   font-family: var(--font-flags, ""), "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
+}
+
+/* Dropdowns in the opposite theme (InverseTheme) are opaque, so no page
+   colour bleeds through: deep navy on light pages, white on dark pages. */
+.fb-panel[data-inverse] {
+  background: var(--surface);
 }

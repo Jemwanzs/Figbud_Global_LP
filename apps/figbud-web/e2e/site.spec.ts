@@ -127,6 +127,69 @@ test.describe("navigation", () => {
     await expect(dialog).toBeHidden();
   });
 
+  test("navbar dropdowns use the opposite theme, stay on screen and close with Escape", async ({
+    page,
+    isMobile,
+  }) => {
+    test.skip(isMobile, "desktop navbar");
+    // Light page first, then dark: the panels always take the other theme.
+    await page.addInitScript(() => {
+      if (!sessionStorage.getItem("fb-nav-test")) {
+        sessionStorage.setItem("fb-nav-test", "1");
+        localStorage.setItem("fb-theme", "light");
+      }
+    });
+    await page.goto("/en/contact");
+    const nav = page.getByRole("navigation").first();
+    const products = nav.getByRole("button", { name: "Products" });
+    const language = page.getByRole("banner").getByRole("button", { name: /^EN/ });
+    const background = (panel: ReturnType<typeof page.locator>) =>
+      panel.evaluate((el) => getComputedStyle(el).backgroundColor);
+    const lightness = (rgb: string) =>
+      rgb.match(/\d+/g)!.slice(0, 3).reduce((sum, v) => sum + Number(v), 0) / 3;
+
+    for (const [pageTheme, panelTheme] of [
+      ["light", "dark"],
+      ["dark", "light"],
+    ] as const) {
+      await expect(page.locator("html")).toHaveAttribute("data-theme", pageTheme);
+
+      await products.click();
+      await expect(products).toHaveAttribute("aria-expanded", "true");
+      const menu = page.locator(`#${await products.getAttribute("aria-controls")} > [data-inverse]`);
+      await expect(menu).toBeVisible();
+      await expect(menu).toHaveAttribute("data-theme", panelTheme);
+      const shade = lightness(await background(menu));
+      expect(panelTheme === "dark" ? shade < 80 : shade > 200, `${panelTheme} panel`).toBe(true);
+      await expect(menu.locator('[data-product="zirahr"]')).toContainText(
+        "HR Simplified. Business Amplified.",
+      );
+      const box = (await menu.boundingBox())!;
+      const width = page.viewportSize()!.width;
+      expect(box.x).toBeGreaterThanOrEqual(0);
+      expect(box.x + box.width).toBeLessThanOrEqual(width);
+      await page.keyboard.press("Escape");
+      await expect(products).toHaveAttribute("aria-expanded", "false");
+      await expect(menu).toBeHidden();
+
+      // Keyboard: open with Enter; Escape from a link in the list goes back to the trigger
+      // (focused directly, as Safari's Tab skips links by default).
+      await language.focus();
+      await page.keyboard.press("Enter");
+      const list = page.locator(`#${await language.getAttribute("aria-controls")} > [data-inverse]`);
+      await expect(list).toHaveAttribute("data-theme", panelTheme);
+      await expect(list.getByRole("link", { name: /English/ })).toHaveAttribute("aria-current", "true");
+      await list.getByRole("link", { name: /English/ }).focus();
+      await page.keyboard.press("Escape");
+      await expect(list).toBeHidden();
+      await expect(language).toBeFocused();
+
+      if (pageTheme === "light") {
+        await page.getByRole("button", { name: "Switch to dark theme" }).click();
+      }
+    }
+  });
+
   test("inner pages show breadcrumbs with matching structured data", async ({ page }) => {
     await page.goto("/en/products");
     const trail = page.getByRole("navigation", { name: "Breadcrumb" });

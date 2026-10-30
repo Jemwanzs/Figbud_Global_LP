@@ -137,6 +137,20 @@
 [data-theme="light"][data-product="expense_now"] {
   --product-text: #a84f00;
 }
+/* A dark surface on a light page (InverseTheme: navigation dropdowns) keeps
+   the dark-background product colours. */
+[data-theme="light"] [data-theme="dark"] [data-product="zirahr"] {
+  --product-text: #67e8f9;
+}
+[data-theme="light"] [data-theme="dark"] [data-product="jasiri"] {
+  --product-text: #4ade80;
+}
+[data-theme="light"] [data-theme="dark"] [data-product="expense_now"] {
+  --product-text: #ff8a1f;
+}
+[data-theme="light"] [data-theme="dark"] [data-product="ziwa"] {
+  --product-text: #fb7a1a;
+}
 
 @theme inline {
   --color-bg: var(--bg);

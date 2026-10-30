@@ -2,7 +2,7 @@
 
 import { publicProducts } from "@figbud/brand";
 import { LOCALE_COOKIE, type Locale, localeInfo, localizePath, locales, stripLocale } from "@figbud/i18n";
-import { FigBudWordmark, StatusBadge, ThemeToggle, buttonClasses, cn } from "@figbud/ui";
+import { FigBudWordmark, InverseTheme, StatusBadge, ThemeToggle, buttonClasses, cn } from "@figbud/ui";
 import { ArrowRight, ArrowUpRight, ChevronDown, Menu, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -142,17 +142,29 @@ function ProductsMenu({ locale, common, products, brands, active }: HeaderProps 
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const panelId = useId();
+  const hovered = useRef(false);
   const close = useCallback(() => setOpen(false), []);
   useDismiss(ref, open, close);
 
   return (
-    <div ref={ref} className="relative" onMouseLeave={close}>
+    <div
+      ref={ref}
+      className="relative"
+      onMouseLeave={() => {
+        hovered.current = false;
+        close();
+      }}
+    >
       <button
         type="button"
         aria-expanded={open}
         aria-controls={panelId}
-        onClick={() => setOpen((v) => !v)}
-        onMouseEnter={() => setOpen(true)}
+        // A mouse click after hovering keeps the menu open; keyboard and touch toggle it.
+        onClick={(event) => setOpen((v) => (hovered.current && event.detail > 0 ? true : !v))}
+        onMouseEnter={() => {
+          hovered.current = true;
+          setOpen(true);
+        }}
         className={cn(
           "relative inline-flex min-h-11 items-center gap-1.5 rounded-full px-4 text-[0.95rem] transition-colors",
           active || open ? "text-text" : "text-muted hover:text-text",
@@ -169,9 +181,10 @@ function ProductsMenu({ locale, common, products, brands, active }: HeaderProps 
       <div
         id={panelId}
         hidden={!open}
-        className="absolute start-1/2 top-full w-[26rem] -translate-x-1/2 pt-3 rtl:translate-x-1/2"
+        className="absolute start-1/2 top-full z-50 w-[min(26rem,calc(100vw-2rem))] -translate-x-1/2 pt-3 rtl:translate-x-1/2"
       >
-        <div className="fb-panel fb-rise rounded-[1.25rem] p-2 [animation-duration:.35s]">
+        {/* The opposite theme (InverseTheme), within the viewport, scrolling if it must. */}
+        <InverseTheme className="fb-panel fb-rise max-h-[calc(100dvh-6rem)] overflow-y-auto overscroll-contain rounded-[1.25rem] p-2 text-text shadow-[var(--shadow-elevated)] [animation-duration:.35s]">
           <p className="px-3 pt-2 pb-1 text-xs font-medium tracking-[0.14em] text-subtle uppercase">
             {common.productsMenu.title}
           </p>
@@ -188,9 +201,12 @@ function ProductsMenu({ locale, common, products, brands, active }: HeaderProps 
                     onClick={close}
                     className="group flex items-start gap-3.5 rounded-2xl p-3 transition-colors hover:bg-surface-2"
                   >
-                    {productLogoKind(brands[product.slug]) !== "wordmark" && (
-                      <ProductLogo slug={product.slug} brand={brands[product.slug]} name={product.name} />
-                    )}
+                    {/* A fixed slot keeps names and taglines aligned, wordmark-only products included. */}
+                    <span className="flex size-10 shrink-0 items-center justify-center">
+                      {productLogoKind(brands[product.slug]) !== "wordmark" && (
+                        <ProductLogo slug={product.slug} brand={brands[product.slug]} name={product.name} />
+                      )}
+                    </span>
                     <span className="min-w-0 flex-1">
                       <span className="flex items-center gap-2">
                         {productLogoKind(brands[product.slug]) === "wordmark" ? (
@@ -226,15 +242,17 @@ function ProductsMenu({ locale, common, products, brands, active }: HeaderProps 
               );
             })}
           </ul>
-          <Link
-            href={localizePath(locale, routes.products)}
-            onClick={close}
-            className="mt-1 flex items-center justify-between rounded-2xl border-t border-line px-3 py-3 text-sm text-muted transition-colors hover:text-text"
-          >
-            {common.productsMenu.viewAll}
-            <ArrowRight aria-hidden className="size-4 rtl:rotate-180" />
-          </Link>
-        </div>
+          <div className="mx-1 mt-1 border-t border-line pt-1">
+            <Link
+              href={localizePath(locale, routes.products)}
+              onClick={close}
+              className="-mx-1 flex items-center justify-between rounded-xl px-3 py-3 text-sm text-muted transition-colors hover:bg-surface-2 hover:text-text"
+            >
+              {common.productsMenu.viewAll}
+              <ArrowRight aria-hidden className="size-4 rtl:rotate-180" />
+            </Link>
+          </div>
+        </InverseTheme>
       </div>
     </div>
   );
