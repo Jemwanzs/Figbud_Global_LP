@@ -146,7 +146,10 @@ test.describe("navigation", () => {
     const background = (panel: ReturnType<typeof page.locator>) =>
       panel.evaluate((el) => getComputedStyle(el).backgroundColor);
     const lightness = (rgb: string) =>
-      rgb.match(/\d+/g)!.slice(0, 3).reduce((sum, v) => sum + Number(v), 0) / 3;
+      rgb
+        .match(/\d+/g)!
+        .slice(0, 3)
+        .reduce((sum, v) => sum + Number(v), 0) / 3;
 
     for (const [pageTheme, panelTheme] of [
       ["light", "dark"],
