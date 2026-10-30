@@ -132,6 +132,40 @@ pub struct EnquiryInput {
     pub elapsed_ms: Option<u64>,
     /// The campaign that brought the visitor (attribution), if any.
     pub campaign: Option<String>,
+    /// ISO 3166-1 alpha-2 country of `phone` when it isn't written in
+    /// international form (`+…`).
+    pub phone_country: Option<String>,
+    /// A second number (needs a first one; never the same number).
+    pub phone_secondary: Option<String>,
+    pub phone_secondary_country: Option<String>,
+}
+
+/// Phone numbers an enquiry can carry.
+pub const MAX_PHONES: usize = 2;
+
+/// An ISO 3166-1 alpha-2 code known to the telephone numbering metadata.
+pub fn country_id(code: &str) -> Option<phonenumber::country::Id> {
+    let code = code.trim();
+    if code.len() != 2 || !code.bytes().all(|b| b.is_ascii_alphabetic()) {
+        return None;
+    }
+    code.to_ascii_uppercase().parse().ok()
+}
+
+/// A phone number validated with libphonenumber metadata for its country
+/// (from `+…`, else `region`), in E.164 form (`+254712345678`). Syntax and
+/// numbering-plan validity only: it doesn't prove the line exists.
+pub fn normalize_phone(raw: &str, region: Option<&str>) -> Option<String> {
+    let raw = raw.trim();
+    if raw.is_empty() || raw.len() > 32 {
+        return None;
+    }
+    let region = region.and_then(country_id);
+    if region.is_none() && !raw.starts_with('+') {
+        return None;
+    }
+    let number = phonenumber::parse(region, raw).ok()?;
+    phonenumber::is_valid(&number).then(|| number.format().mode(phonenumber::Mode::E164).to_string())
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -142,7 +176,11 @@ pub struct Enquiry {
     pub email: String,
     pub company: Option<String>,
     pub job_title: Option<String>,
+    /// E.164.
     pub phone: Option<String>,
+    /// E.164; only with `phone`, never the same number.
+    pub phone_secondary: Option<String>,
+    /// ISO 3166-1 alpha-2, upper case.
     pub country: Option<String>,
     pub company_size: Option<String>,
     pub message: Option<String>,
@@ -209,23 +247,49 @@ impl EnquiryInput {
             );
         }
 
-        let phone = optional_line(self.phone.as_deref());
-        if let Some(phone) = &phone {
-            let allowed = phone.chars().all(|c| c.is_ascii_digit() || " +-()".contains(c));
-            let digits = phone.chars().filter(char::is_ascii_digit).count();
-            if !allowed || !(7..=15).contains(&digits) || phone.len() > 32 {
-                fail(
-                    "phone",
-                    "invalid",
-                    "Enter a valid phone number, including the country code.",
-                );
-            }
-        }
-
         let country = optional_line(self.country.as_deref());
-        if country.as_ref().is_some_and(|c| c.chars().count() > 80) {
-            fail("country", "too_long", "Country must be 80 characters or fewer.");
+        if country.as_deref().is_some_and(|c| country_id(c).is_none()) {
+            fail("country", "invalid", "Choose a country from the list.");
         }
+        let country = country.map(|c| c.to_ascii_uppercase());
+
+        // Numbers are read with their own country (or, failing that, the chosen
+        // country) and stored in E.164; a second number needs a first one.
+        let region = |own: &Option<String>| own.clone().or_else(|| country.clone());
+        let raw_phone = optional_line(self.phone.as_deref());
+        let phone = raw_phone
+            .as_deref()
+            .map(|p| normalize_phone(p, region(&self.phone_country).as_deref()));
+        if phone.as_ref().is_some_and(Option::is_none) {
+            fail(
+                "phone",
+                "invalid",
+                "Enter a valid phone number for the selected country.",
+            );
+        }
+        let phone = phone.flatten();
+        let raw_secondary = optional_line(self.phone_secondary.as_deref());
+        let phone_secondary = match (&raw_phone, raw_secondary.as_deref()) {
+            // A second number without a first one is dropped, as the form does.
+            (None, _) | (_, None) => None,
+            (Some(_), Some(raw)) => {
+                let normalized = normalize_phone(raw, region(&self.phone_secondary_country).as_deref());
+                if normalized.is_none() {
+                    fail(
+                        "phone_secondary",
+                        "invalid",
+                        "Enter a valid second phone number for the selected country.",
+                    );
+                } else if phone.is_some() && normalized == phone {
+                    fail(
+                        "phone_secondary",
+                        "duplicate",
+                        "The second number is the same as the first.",
+                    );
+                }
+                normalized
+            }
+        };
 
         let company_size = optional_line(self.company_size.as_deref());
         if company_size
@@ -289,6 +353,7 @@ impl EnquiryInput {
                 company,
                 job_title,
                 phone,
+                phone_secondary,
                 country,
                 company_size,
                 message,
@@ -424,8 +489,67 @@ mod tests {
         assert_eq!(input.validate().unwrap_err()[0].field, "phone");
 
         let mut input = valid_input();
-        input.phone = Some("+254 (0) 700-000-000".into());
-        assert!(input.validate().is_ok());
+        input.phone = Some("+254 (0) 712-345-678".into());
+        assert_eq!(input.validate().unwrap().phone.as_deref(), Some("+254712345678"));
+    }
+
+    #[test]
+    fn phones_are_validated_per_country_and_stored_in_e164() {
+        // A national number with its country.
+        let mut input = valid_input();
+        input.phone = Some("0712 345 678".into());
+        input.phone_country = Some("ke".into());
+        assert_eq!(input.validate().unwrap().phone.as_deref(), Some("+254712345678"));
+        // No country and no "+": refused rather than guessed.
+        let mut input = valid_input();
+        input.phone = Some("0712345678".into());
+        assert_eq!(input.validate().unwrap_err()[0].field, "phone");
+        // The chosen country is the fallback; too short for Kenya is refused.
+        let mut input = valid_input();
+        input.country = Some("KE".into());
+        input.phone = Some("07123".into());
+        assert_eq!(input.validate().unwrap_err()[0].field, "phone");
+        // Shared dialling codes: a US and a Canadian number under +1.
+        for (number, region) in [("(201) 555-0123", "US"), ("(604) 555-0123", "CA")] {
+            let mut input = valid_input();
+            input.phone = Some(number.into());
+            input.phone_country = Some(region.into());
+            assert!(
+                input.validate().unwrap().phone.unwrap().starts_with("+1"),
+                "{region}"
+            );
+        }
+    }
+
+    #[test]
+    fn second_numbers_need_a_first_and_must_differ() {
+        let mut input = valid_input();
+        input.phone = Some("+254712345678".into());
+        input.phone_secondary = Some("+256 772 123 456".into());
+        let enquiry = input.validate().unwrap();
+        assert_eq!(enquiry.phone_secondary.as_deref(), Some("+256772123456"));
+        // The same number twice (written differently) is refused.
+        let mut input = valid_input();
+        input.phone = Some("+254712345678".into());
+        input.phone_secondary = Some("0712 345678".into());
+        input.phone_secondary_country = Some("KE".into());
+        assert_eq!(input.validate().unwrap_err()[0].code, "duplicate");
+        // Without a first number, a second one is dropped.
+        let mut input = valid_input();
+        input.phone_secondary = Some("+256772123456".into());
+        assert_eq!(input.validate().unwrap().phone_secondary, None);
+    }
+
+    #[test]
+    fn countries_are_iso_codes() {
+        let mut input = valid_input();
+        input.country = Some("ke".into());
+        assert_eq!(input.validate().unwrap().country.as_deref(), Some("KE"));
+        for bad in ["Kenya", "XX", "K"] {
+            let mut input = valid_input();
+            input.country = Some(bad.into());
+            assert_eq!(input.validate().unwrap_err()[0].field, "country", "{bad}");
+        }
     }
 
     #[test]

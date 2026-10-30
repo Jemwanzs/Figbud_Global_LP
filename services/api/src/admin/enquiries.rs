@@ -170,6 +170,7 @@ struct Detail {
     company: Option<String>,
     job_title: Option<String>,
     phone: Option<String>,
+    phone_secondary: Option<String>,
     country: Option<String>,
     company_size: Option<String>,
     message: Option<String>,
@@ -205,7 +206,7 @@ async fn read(
 ) -> Result<impl IntoResponse, ApiError> {
     session.require(Role::Viewer)?;
     let detail: Detail = sqlx::query_as(
-        "SELECT id, reference, kind, product, name, email, company, job_title, phone, country, company_size, message,
+        "SELECT id, reference, kind, product, name, email, company, job_title, phone, phone_secondary, country, company_size, message,
                 locale, source_path, status, is_spam, created_at, updated_at
            FROM enquiries WHERE id = $1",
     )
@@ -297,6 +298,7 @@ struct ExportRow {
     country: Option<String>,
     company_size: Option<String>,
     message: Option<String>,
+    phone_secondary: Option<String>,
 }
 
 /// One CSV cell: quoted, and neutralised if a spreadsheet could read it as a formula.
@@ -318,7 +320,7 @@ async fn export(
     let f = validate(&filters)?;
     let rows: Vec<ExportRow> = sqlx::query_as(filtered!(
         "SELECT e.reference, e.created_at, e.kind, e.product, e.status, e.name, e.email, e.company, e.job_title,
-                e.phone, e.country, e.company_size, e.message",
+                e.phone, e.country, e.company_size, e.message, e.phone_secondary",
         "ORDER BY e.created_at DESC LIMIT $6"
     ))
     .bind(&f.status)
@@ -331,7 +333,7 @@ async fn export(
     .await?;
 
     let mut csv = String::from(
-        "reference,received_at,kind,product,status,name,email,company,job_title,phone,country,company_size,message\r\n",
+        "reference,received_at,kind,product,status,name,email,company,job_title,phone,country,company_size,message,phone_secondary\r\n",
     );
     for r in &rows {
         let fields = [
@@ -348,6 +350,8 @@ async fn export(
             r.country.as_deref().unwrap_or(""),
             r.company_size.as_deref().unwrap_or(""),
             r.message.as_deref().unwrap_or(""),
+            // Added last (30 Oct 2026), so existing columns keep their positions.
+            r.phone_secondary.as_deref().unwrap_or(""),
         ];
         csv.push_str(&fields.iter().map(|v| cell(v)).collect::<Vec<_>>().join(","));
         csv.push_str("\r\n");

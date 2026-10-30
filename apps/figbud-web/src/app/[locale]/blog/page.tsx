@@ -1,6 +1,6 @@
 import { type Locale, localizePath } from "@figbud/i18n";
 import { Container, buttonClasses } from "@figbud/ui";
-import { ArrowLeft, ArrowRight, Search, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Newspaper, Search, X } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
@@ -104,7 +104,18 @@ async function BlogResults({
   // No articles at all yet: an honest empty state, no filters to play with.
   if (!filtered && articles.data.total === 0) {
     return (
-      <Notice title={copy.emptyTitle} body={copy.emptyBody}>
+      <Notice title={copy.emptyTitle} body={copy.emptyBody} icon>
+        {/* What the blog will cover: the topics already promised on the home page. */}
+        <ul className="mt-6 flex flex-wrap gap-2" aria-label={dict.home.company.insightsTitle}>
+          {dict.home.company.topics.map((topic) => (
+            <li
+              key={topic.title}
+              className="rounded-full border border-line bg-surface px-3.5 py-1.5 text-sm text-muted"
+            >
+              {topic.title}
+            </li>
+          ))}
+        </ul>
         <div className="mt-8 flex flex-col gap-3 sm:flex-row">
           <Link href={localizePath(locale, routes.products)} className={buttonClasses("primary", "md")}>
             {dict.common.cta.exploreProducts}
@@ -184,7 +195,9 @@ async function BlogResults({
       )}
 
       {items.length === 0 ? (
-        <Notice title={copy.noResultsTitle} body={copy.noResultsBody} />
+        <div className="mt-10">
+          <Notice title={copy.noResultsTitle} body={copy.noResultsBody} />
+        </div>
       ) : (
         <ul className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {items.map((article) => (
@@ -251,11 +264,33 @@ function TopicLink({ href, active, children }: { href: string; active: boolean; 
   );
 }
 
-function Notice({ title, body, children }: { title: string; body: string; children?: React.ReactNode }) {
+/**
+ * Empty, unavailable and no-results states: aligned with the page title (no
+ * box or extra indentation), compact, with the next steps right below.
+ */
+function Notice({
+  title,
+  body,
+  icon,
+  children,
+}: {
+  title: string;
+  body: string;
+  icon?: boolean;
+  children?: React.ReactNode;
+}) {
   return (
-    <div className="mt-10 rounded-[var(--radius-panel)] border border-dashed border-line-strong p-8 sm:p-12">
+    <div className="max-w-3xl">
+      {icon && (
+        <span
+          aria-hidden
+          className="mb-5 inline-flex size-11 items-center justify-center rounded-2xl bg-accent-soft text-accent-strong"
+        >
+          <Newspaper className="size-5" />
+        </span>
+      )}
       <h2 className="font-display text-title font-semibold text-text">{title}</h2>
-      <p className="mt-4 max-w-2xl leading-relaxed text-muted">{body}</p>
+      <p className="mt-3 max-w-2xl leading-7 text-muted">{body}</p>
       {children}
     </div>
   );

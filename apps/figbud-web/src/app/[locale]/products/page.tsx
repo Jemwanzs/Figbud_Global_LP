@@ -8,11 +8,19 @@ import Link from "next/link";
 
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { PageHeader } from "@/components/page-header";
-import { BrandLogo, ProductIdentity, ProductMark, hasLogo } from "@figbud/site-kit";
+import {
+  BrandLogo,
+  JsonLd,
+  ProductIdentity,
+  ProductMark,
+  hasLogo,
+  organizationLd,
+  softwareApplicationLd,
+} from "@figbud/site-kit";
 import { fill } from "@/lib/format";
 import { getBrands, getPublicProducts } from "@/lib/products";
 import { resolvePage } from "@/lib/page";
-import { pageMetadata, productLink, routes } from "@/lib/site";
+import { pageMetadata, productLink, routes, siteOrigin } from "@/lib/site";
 
 export async function generateMetadata({ params }: PageProps<"/[locale]/products">): Promise<Metadata> {
   const { locale, dict } = await resolvePage(params);
@@ -27,8 +35,28 @@ export default async function ProductsPage({ params }: PageProps<"/[locale]/prod
   const [products, brands] = await Promise.all([getPublicProducts(), getBrands()]);
   const statusOf = (slug: ProductSlug) => products.find((p) => p.slug === slug)!.status;
 
+  // Each product as a web application, from what this page shows (no offers or ratings).
+  const structured = {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    itemListElement: products.map((product, i) => {
+      const link = productLink(product.slug, locale, product.status);
+      return {
+        "@type": "ListItem",
+        position: i + 1,
+        item: softwareApplicationLd({
+          name: product.name,
+          description: dict.products[product.slug].summary,
+          url: link.external ? link.href : `${siteOrigin}${link.href}`,
+          publisher: organizationLd(siteOrigin),
+        }),
+      };
+    }),
+  };
+
   return (
     <>
+      <JsonLd data={structured} />
       <PageHeader
         breadcrumbs={
           <Breadcrumbs

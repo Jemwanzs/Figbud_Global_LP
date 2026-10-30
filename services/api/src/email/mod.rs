@@ -223,6 +223,7 @@ mod tests {
             company: None,
             job_title: None,
             phone: None,
+            phone_secondary: None,
             country: None,
             company_size: None,
             message: None,

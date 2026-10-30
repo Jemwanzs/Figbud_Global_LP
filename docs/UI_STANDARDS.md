@@ -48,3 +48,29 @@ Outfit throughout. Long titles use `text-balance` so lines break evenly. Body co
   - Hero headline 86px → 76px at most; section titles 56px → 48px.
   - Inner page titles have their own step (60px), instead of the hero size.
 - **Page headers, products, contact, blog, footers, product sites, Studio:** tokens replace scattered values; page headers start about 50% closer to the header.
+
+## Forms (UI-F1, 30 Oct 2026)
+
+Shared fields live in `packages/site-kit/src/forms.tsx` (components) and `phone.ts` (data and validation, usable on the server and in tests). Use them wherever a country or phone number is asked for; don't add free-text country or phone fields.
+
+- **Email:** `type="email"`, `autoComplete="email"`, no spellcheck. Business forms label it "Work email" with a quiet "company email preferred" note. That's a preference, never a rule: Gmail, Yahoo, Outlook and other personal addresses are accepted.
+  - Leading and trailing spaces are trimmed.
+  - The syntax is checked when the field is left (not while typing), and again by the API.
+  - A valid address doesn't prove the mailbox exists; use a confirmation email when ownership matters.
+- **Country (`CountrySelect`):**
+  - A searchable list of every country with a telephone numbering plan (245, from libphonenumber metadata bundled with the app, no network calls).
+  - Names follow the page language (`Intl.DisplayNames`). Each option shows a flag, the name and the calling code.
+  - Search works by name, ISO code or calling code. FigBud's first markets are listed first.
+  - Stored as the ISO 3166-1 alpha-2 code.
+- **Phone (`PhoneInput`, `PhoneNumbers`):**
+  - The country button (flag and calling code) and the number sit side by side; the input uses `type="tel"` with the phone keyboard and `autoComplete="tel"`.
+  - Numbers are validated for their own country with libphonenumber metadata (shared calling codes such as +1 are resolved by the chosen country). Then they're sent and stored in E.164 (`+254712345678`); the API re-validates with the Rust port.
+  - Choosing a country in the form sets an *empty* phone's country; a number already typed keeps its own.
+  - "Add another number" appears only once the first number is valid (up to `max`, two on enquiry forms).
+  - A new number starts in the first one's country and can change it. The same number twice is refused.
+  - Explicitly clearing the first number removes the others, and they're never sent. A number that's only temporarily invalid while being edited keeps the others.
+- **Flags:** flag emoji where the system has them. Where it doesn't (Windows), the corporate site loads a small flag-only font (Twemoji Country Flags via `country-flag-emoji-polyfill`, Twemoji artwork CC-BY 4.0), self-hosted and fetched only when a flag is shown.
+- **Layout:**
+  - Two columns from `sm` up: name and work email, company and job title, country and phone. Selects and the message span both columns, and everything stacks on phones.
+  - Inputs are 48px high, with labels above, "optional" or the hint on the right of the label, and errors below the field.
+  - Pop-up lists stay inside the viewport (measured when opened) and scroll within themselves.

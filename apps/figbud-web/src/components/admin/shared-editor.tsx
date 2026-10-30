@@ -35,8 +35,18 @@ export function SharedEditor({ item }: { item: SharedDetail }) {
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState<"save" | "publish" | "other" | null>(null);
   const [message, setMessage] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
+  const [version, setVersion] = useState(item.draft_version);
   const form = { name, section };
   const { dirty, markSaved } = useSavedBaseline(form);
+  // The server's draft moved on (a version restored, or someone else's save):
+  // reload it. A save here keeps the form (and the note being written).
+  if (item.draft_version > version) {
+    const next = { name: item.name, section: asSection(item.draft as Record<string, unknown>) };
+    setVersion(item.draft_version);
+    setName(next.name);
+    setSection(next.section);
+    markSaved(next);
+  }
   useUnsavedChangesWarning(item.can_edit && dirty);
   const pages = item.used_on.filter((u, i, all) => all.findIndex((x) => x.page === u.page) === i);
   const sites = new Set(item.used_on.map((u) => u.site)).size;
@@ -65,7 +75,12 @@ export function SharedEditor({ item }: { item: SharedDetail }) {
       "save",
       async () => {
         const content = sectionContent(section);
-        await adminFetch(`shared/${item.id}/draft`, { name, content, version: item.draft_version });
+        const saved = await adminFetch<{ draft_version: number }>(`shared/${item.id}/draft`, {
+          name,
+          content,
+          version,
+        });
+        setVersion(saved.draft_version);
         markSaved();
       },
       "Draft saved. Publish it to update the websites.",

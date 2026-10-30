@@ -6,6 +6,8 @@ Monorepo for the FigBud Global corporate website and its product websites — **
 - **How it works:** [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 - **How to deploy:** [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)
 - **Spacing and typography:** [docs/UI_STANDARDS.md](docs/UI_STANDARDS.md) — shared tokens for every website and the Studio
+- **SEO:** [docs/SEO.md](docs/SEO.md) — release rules, Studio settings, CI quality gate
+- **Campaigns:** [docs/CAMPAIGNS.md](docs/CAMPAIGNS.md) — campaigns and promotions engine
 - **Repository:** https://github.com/Jemwanzs/Figbud_Global_LP
 
 | Layer     | Technology                                                                 |

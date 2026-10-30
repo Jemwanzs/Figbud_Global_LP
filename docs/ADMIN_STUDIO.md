@@ -151,6 +151,14 @@ Studio UI polish is a standing priority (P7-UX2): every milestone reviews the sc
 - **Remaining:**
   - deploying the renderer (approval needed), after which `apps/zirahr-web` can be retired.
 
+## SEO & search visibility (P9, 30 Oct 2026)
+
+Studio → **SEO** (overview of every website you can access), and Websites → a website → **SEO**. Full specification: [SEO.md](SEO.md).
+
+- **Search identity (reviewers and owners):** indexing switch, title template with preview, default description, languages, target markets, focus phrases (internal), official profiles, and Search Console and Bing verification tokens. Applies to that website only; version-checked and audited.
+- **Health check:** live pages, pages in search, and issues to fix, improve or note for each published page, linking to the page editor. Page-level SEO stays in each page's Search settings and its approval flow.
+- **Search data:** Search Console and Bing are shown as not connected until API access exists (Q21). Analytics follows Privacy & Cookies; Core Web Vitals come from Lighthouse in CI.
+
 ## Campaigns & promotions (P8, 30 Oct 2026)
 
 Studio → **Marketing** → Campaigns & Promotions. Full design and rules: [CAMPAIGNS.md](CAMPAIGNS.md).

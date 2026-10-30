@@ -271,3 +271,29 @@ test("shared content from the library renders like any section, in the page's ow
   await expect(section.getByRole("heading", { name: "Our data promise" })).toBeVisible();
   await expect(section.locator("strong", { hasText: "your" })).toBeVisible();
 });
+
+test("search identity and structured data from the Studio (SEO & search visibility)", async ({ page }) => {
+  await page.goto("/zirahr");
+  // Search Console verification tag set for ZiraHR in the Studio.
+  await expect(page.locator('meta[name="google-site-verification"]')).toHaveAttribute(
+    "content",
+    "mock-google-verification-1",
+  );
+  const blocks = await page.locator('script[type="application/ld+json"]').allTextContents();
+  const data = blocks.flatMap((b) => {
+    const parsed = JSON.parse(b) as Record<string, unknown> | Record<string, unknown>[];
+    return Array.isArray(parsed) ? parsed : [parsed];
+  });
+  const app = data.find((d) => d["@type"] === "SoftwareApplication");
+  expect(app).toMatchObject({
+    name: "ZiraHR",
+    applicationCategory: "BusinessApplication",
+    operatingSystem: "Web",
+  });
+  expect(JSON.stringify(data)).not.toMatch(/aggregateRating|offers|review/);
+  expect(data.some((d) => d["@type"] === "WebSite")).toBe(true);
+  // Inner pages describe their place in the website.
+  await page.goto("/ziwa/platform");
+  const inner = (await page.locator('script[type="application/ld+json"]').allTextContents()).join(" ");
+  expect(inner).toContain('"@type":"BreadcrumbList"');
+});

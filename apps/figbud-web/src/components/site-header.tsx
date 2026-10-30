@@ -40,6 +40,9 @@ const navItems = [
 export function SiteHeader({ locale, common, products, brands }: HeaderProps) {
   const pathname = usePathname();
   const current = stripLocale(pathname);
+  // Articles are separate in each language (their own addresses), so other
+  // languages link to their blog rather than to an address that doesn't exist.
+  const switchPath = /^\/blog\/[^/]+$/.test(current) ? "/blog" : current;
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
@@ -106,7 +109,7 @@ export function SiteHeader({ locale, common, products, brands }: HeaderProps) {
         <div className="ms-auto flex items-center gap-1 sm:gap-2">
           <LanguageSwitcher
             locale={locale}
-            pathname={current}
+            pathname={switchPath}
             labels={common.language}
             className="hidden md:block"
           />
@@ -353,7 +356,7 @@ function MobileMenu({
               {locales.map((code) => (
                 <li key={code}>
                   <Link
-                    href={localizePath(code, pathname)}
+                    href={localizePath(code, /^\/blog\/[^/]+$/.test(pathname) ? "/blog" : pathname)}
                     hrefLang={localeInfo[code].tag}
                     lang={localeInfo[code].tag}
                     aria-current={code === locale ? "true" : undefined}

@@ -7,6 +7,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./footer": "./src/product-footer.tsx",
+    "./phone": "./src/phone.ts",
     "./server": "./src/server.ts",
     "./styles.css": "./src/styles.css"
   },
@@ -24,5 +25,8 @@
   "devDependencies": {
     "@types/react": "^19",
     "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "libphonenumber-js": "^1.13.15"
   }
 }

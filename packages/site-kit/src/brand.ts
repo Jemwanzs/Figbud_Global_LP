@@ -4,6 +4,8 @@
  * itself at `/brand/assets/{id}` (see `brandAssetRoute` in ./server).
  */
 
+import type { SiteSeo } from "./seo";
+
 export interface BrandAsset {
   id: string;
   alt: string;
@@ -86,6 +88,8 @@ export interface ListedSite {
   /** Shown on the corporate Africa expansion map (Admin → Websites → settings). */
   show_on_map?: boolean;
   settings?: WebsiteSettings;
+  /** Search identity (Studio → SEO & search visibility). */
+  seo?: SiteSeo;
 }
 
 export const BRAND_ASSET_PATH = "/brand/assets/";

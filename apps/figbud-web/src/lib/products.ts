@@ -1,7 +1,13 @@
 import "server-only";
 
 import { type Product, type ProductStatus, publicProducts } from "@figbud/brand";
-import { type BrandProfile, type ListedSite, type LiveCampaign, enquiriesOpen } from "@figbud/site-kit";
+import {
+  type BrandProfile,
+  type ListedSite,
+  type LiveCampaign,
+  type SiteSeo,
+  enquiriesOpen,
+} from "@figbud/site-kit";
 import { fetchBrandPng, fetchListedSites, fetchLiveCampaigns } from "@figbud/site-kit/server";
 import { cacheLife, cacheTag } from "next/cache";
 
@@ -85,4 +91,10 @@ export async function getLiveCampaigns(slug: string): Promise<LiveCampaign[]> {
   cacheLife({ stale: 30, revalidate: 30, expire: 300 });
   cacheTag("campaigns", `campaigns:${slug}`);
   return fetchLiveCampaigns(apiBase, slug);
+}
+
+/** The corporate website's search identity (Studio → FigBud Global → SEO & search visibility). */
+export async function getCorporateSeo(): Promise<SiteSeo | null> {
+  const sites = await getListedSites();
+  return sites?.find((s) => s.slug === "figbud")?.seo ?? null;
 }

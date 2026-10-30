@@ -27,7 +27,7 @@ use crate::{
     error::ApiError,
     media, privacy,
     rate_limit::{RateLimiter, client_ip, ip_hash},
-    shared, site_settings, sites,
+    seo, shared, site_settings, sites,
 };
 
 pub struct AppState {
@@ -83,6 +83,7 @@ pub fn router(state: SharedState) -> Router {
         .route("/health", get(health))
         .route("/health/ready", get(ready))
         .route("/v1/enquiries", post(create_enquiry))
+        .merge(seo::router())
         .merge(campaigns::router())
         .merge(cms::router())
         .merge(admin::router())
@@ -230,8 +231,8 @@ async fn create_enquiry(
     let inserted = sqlx::query(
         "INSERT INTO enquiries (id, reference, idempotency_key, kind, product, name, email, company, job_title,
                                 phone, country, company_size, message, locale, source_path, user_agent, ip_hash,
-                                is_spam, status)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+                                is_spam, status, phone_secondary)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
          ON CONFLICT (idempotency_key) DO NOTHING",
     )
     .bind(id)
@@ -253,6 +254,7 @@ async fn create_enquiry(
     .bind(ip_hash)
     .bind(automated)
     .bind(if automated { "spam" } else { "new" })
+    .bind(&enquiry.phone_secondary)
     .execute(&mut *tx)
     .await?;
 

@@ -2,7 +2,8 @@ export * from "./products";
 
 export const company = {
   name: "FigBud Global",
-  tagline: "From vision to value, we deliver.",
+  // The official slogan (owner, 30 Oct 2026).
+  tagline: "One Vision. Endless Solutions.",
   /** Proposed production origin of the corporate site. Not yet provisioned. */
   proposedOrigin: "https://figbudglobal.com",
   foundingCountry: "Kenya",

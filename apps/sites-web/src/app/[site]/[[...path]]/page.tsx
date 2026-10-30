@@ -1,4 +1,13 @@
-import { CampaignSlot, PageBlocks } from "@figbud/site-kit";
+import {
+  CampaignSlot,
+  JsonLd,
+  PageBlocks,
+  breadcrumbLd,
+  faqLd,
+  organizationLd,
+  softwareApplicationLd,
+  websiteLd,
+} from "@figbud/site-kit";
 import { buttonClasses } from "@figbud/ui";
 import { ArrowRight } from "lucide-react";
 import type { Metadata, ResolvingMetadata } from "next";
@@ -7,6 +16,7 @@ import { notFound } from "next/navigation";
 import {
   canonicalUrl,
   enquiryHref,
+  figbudOrigin,
   getPage,
   getPages,
   getSite,
@@ -50,7 +60,8 @@ export async function generateMetadata(
   if (!site) return {};
   if (!page) return path === "" ? { robots: { index: false, follow: true } } : {};
   const canonical = canonicalUrl(site, ownDomain, path);
-  const description = page.seo_description || site.description || site.tagline || undefined;
+  const description =
+    page.seo_description || site.seo?.default_description || site.description || site.tagline || undefined;
   return {
     title:
       path === ""
@@ -72,8 +83,8 @@ export async function generateMetadata(
     ...(page.seo_image
       ? { twitter: { card: "summary_large_image", images: [`/media/${page.seo_image.id}?w=1440`] } }
       : {}),
-    // Kept out of search engines in the Studio.
-    ...(page.seo_noindex ? { robots: { index: false, follow: true } } : {}),
+    // Kept out of search engines in the Studio (the page, or the whole website).
+    ...(page.seo_noindex || site.seo?.indexing === false ? { robots: { index: false, follow: true } } : {}),
   };
 }
 
@@ -102,8 +113,33 @@ export default async function SitePage({ params }: PageProps<"/[site]/[[...path]
   }
 
   const pages = await getPages(site.slug);
+  // Structured data from what the page shows: the product on its home page,
+  // breadcrumbs on inner pages, and its questions and answers.
+  const home = canonicalUrl(site, ownDomain, "");
+  const sameAs = site.seo?.same_as ?? [];
+  const structured = [
+    ...(path === ""
+      ? [
+          softwareApplicationLd({
+            name: site.name,
+            description: page.seo_description || site.description || site.tagline,
+            url: home,
+            publisher: organizationLd(figbudOrigin),
+            sameAs,
+          }),
+          websiteLd(site.name, home, site.seo?.languages?.[0] ?? "en"),
+        ]
+      : [
+          breadcrumbLd([
+            { name: site.name, url: home },
+            { name: page.title, url: canonicalUrl(site, ownDomain, path) },
+          ]),
+        ]),
+    faqLd(page),
+  ].filter((d) => d !== null);
   return (
     <div className="mx-auto max-w-[92rem] px-5 py-section-sm sm:px-8 md:px-10 lg:px-16">
+      <JsonLd data={structured} />
       {path === "" && <CampaignSlot placement="home_hero" className="mb-block block" />}
       <PageBlocks document={page} resolveHref={hrefResolver(site, ownDomain, pages)} />
     </div>

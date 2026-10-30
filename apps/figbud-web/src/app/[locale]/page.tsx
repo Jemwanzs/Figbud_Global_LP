@@ -1,9 +1,9 @@
-import { isLocale } from "@figbud/i18n";
+import { isLocale, localeInfo, localizePath } from "@figbud/i18n";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
-import { CampaignSlot } from "@figbud/site-kit";
+import { CampaignSlot, JsonLd, websiteLd } from "@figbud/site-kit";
 
 import { Hero } from "@/components/home/hero";
 import {
@@ -16,7 +16,7 @@ import {
 } from "@/components/home/sections";
 import { getDictionary } from "@/i18n/get-dictionary";
 import { getBrands, getMapProducts, getPublicProducts } from "@/lib/products";
-import { pageMetadata } from "@/lib/site";
+import { pageMetadata, siteOrigin } from "@/lib/site";
 
 export async function generateMetadata({ params }: PageProps<"/[locale]">): Promise<Metadata> {
   const { locale } = await params;
@@ -37,6 +37,9 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
 
   return (
     <>
+      <JsonLd
+        data={websiteLd(dict.meta.siteName, `${siteOrigin}${localizePath(locale)}`, localeInfo[locale].tag)}
+      />
       <CampaignSlot
         placement="home_hero"
         className="mx-auto block w-full max-w-[92rem] px-5 pt-page-top sm:px-8 md:px-10 lg:px-16"

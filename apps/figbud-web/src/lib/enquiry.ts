@@ -1,3 +1,5 @@
+import { type PhoneEntry, isCountryCode, phoneE164 } from "@figbud/site-kit/phone";
+
 /**
  * Enquiry form model shared by the browser form. The Rust API is the source
  * of truth and re-validates everything; these checks mirror its rules so
@@ -26,7 +28,9 @@ export interface EnquiryValues {
   email: string;
   company: string;
   job_title: string;
-  phone: string;
+  /** The first number, then optionally a second (UI-F1). */
+  phones: PhoneEntry[];
+  /** ISO 3166-1 alpha-2, or "" when not given. */
   country: string;
   company_size: string;
   message: string;
@@ -35,8 +39,11 @@ export interface EnquiryValues {
   website: string;
 }
 
-export type FieldErrorCode = "required" | "email" | "consent" | "messageShort";
-export type EnquiryErrors = Partial<Record<keyof EnquiryValues, FieldErrorCode>>;
+export type FieldErrorCode = "required" | "email" | "consent" | "messageShort" | "phone" | "phoneDuplicate";
+export type EnquiryErrors = Partial<Record<keyof EnquiryValues | "phone_secondary", FieldErrorCode>>;
+
+/** Phone numbers an enquiry can carry (the API enforces the same limit). */
+export const MAX_PHONES = 2;
 
 export const requiresCompany = (kind: EnquiryKind) =>
   kind === "demo_request" || kind === "partnership" || kind === "sales";
@@ -54,11 +61,37 @@ export function isEnquiryProduct(value: string | null): value is EnquiryProduct 
 
 const EMAIL = /^[^\s@]{1,64}@[^\s@.]+(\.[^\s@.]+)*\.[^\s@.]{2,}$/;
 
+/**
+ * Syntax only: personal and company addresses are both accepted (the label
+ * only prefers a work address), and a valid address doesn't prove the
+ * mailbox exists.
+ */
+export function emailError(email: string): FieldErrorCode | undefined {
+  const value = email.trim();
+  if (!value) return "required";
+  return EMAIL.test(value) ? undefined : "email";
+}
+
+/** Errors for the phone numbers: per number, and a second number equal to the first. */
+export function phoneErrors(phones: PhoneEntry[]): Pick<EnquiryErrors, "phones" | "phone_secondary"> {
+  const errors: Pick<EnquiryErrors, "phones" | "phone_secondary"> = {};
+  const [first, second] = phones;
+  if (first?.number.trim() && !phoneE164(first)) errors.phones = "phone";
+  if (first?.number.trim() && second?.number.trim()) {
+    const e164 = phoneE164(second);
+    if (!e164) errors.phone_secondary = "phone";
+    else if (e164 === phoneE164(first)) errors.phone_secondary = "phoneDuplicate";
+  }
+  return errors;
+}
+
 export function validateEnquiry(values: EnquiryValues): EnquiryErrors {
   const errors: EnquiryErrors = {};
   if (values.name.trim().length < 2) errors.name = "required";
-  if (!values.email.trim()) errors.email = "required";
-  else if (!EMAIL.test(values.email.trim())) errors.email = "email";
+  const email = emailError(values.email);
+  if (email) errors.email = email;
+  Object.assign(errors, phoneErrors(values.phones));
+  if (values.country && !isCountryCode(values.country)) errors.country = "required";
   if (requiresCompany(values.kind) && !values.company.trim()) errors.company = "required";
   const message = values.message.trim();
   if (requiresMessage(values.kind)) {
@@ -69,13 +102,39 @@ export function validateEnquiry(values: EnquiryValues): EnquiryErrors {
   return errors;
 }
 
-export interface EnquiryPayload extends Omit<EnquiryValues, "consent"> {
+export interface EnquiryPayload extends Omit<EnquiryValues, "consent" | "phones"> {
   consent: boolean;
+  /** E.164 when valid; the API validates again with `phone_country`. */
+  phone: string;
+  phone_country: string;
+  phone_secondary?: string;
+  phone_secondary_country?: string;
   locale: string;
   source_path: string;
   elapsed_ms: number;
   /** The campaign that brought the visitor, when there is one. */
   campaign?: string;
+}
+
+/**
+ * The API's fields from the form values: trimmed email, numbers in E.164 (a
+ * second number only alongside a first one).
+ */
+export function payloadFields(values: EnquiryValues) {
+  const { consent, phones, ...rest } = values;
+  const [first, second] = phones;
+  const number = (entry?: PhoneEntry) => (entry ? (phoneE164(entry) ?? entry.number.trim()) : "");
+  const primary = number(first);
+  return {
+    ...rest,
+    consent,
+    email: values.email.trim(),
+    phone: primary,
+    phone_country: first?.country ?? "",
+    ...(primary && second?.number.trim()
+      ? { phone_secondary: number(second), phone_secondary_country: second.country }
+      : {}),
+  };
 }
 
 export type SubmitResult =

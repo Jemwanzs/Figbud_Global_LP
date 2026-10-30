@@ -326,3 +326,9 @@
     opacity: 0;
   }
 }
+
+/* Country flags (forms.tsx): the flag font where the app provides one
+   (--font-flags), then the system's emoji; letter codes as a last resort. */
+.fb-flag {
+  font-family: var(--font-flags, ""), "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
+}

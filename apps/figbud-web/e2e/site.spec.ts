@@ -235,6 +235,87 @@ test.describe("contact form", () => {
   });
 });
 
+test.describe("smart contact fields", () => {
+  test("country selector, international phones and a dependent second number", async ({ page }) => {
+    let sent: Record<string, unknown> = {};
+    await page.route("**/v1/enquiries", async (route) => {
+      sent = JSON.parse(route.request().postData() ?? "{}");
+      await route.fulfill({
+        status: 201,
+        contentType: "application/json",
+        headers: { "access-control-allow-origin": "*" },
+        body: JSON.stringify({ reference: "FBG-2610-PHONE1", status: "received" }),
+      });
+    });
+    await page.goto("/en/contact?kind=waitlist&product=ziwa");
+    // The email label prefers a company address but accepts any valid one.
+    const email = page.getByLabel(/^Work email/);
+    await expect(page.getByText("company email preferred")).toBeVisible();
+    await email.fill(" amina@");
+    await email.blur();
+    await expect(page.getByText("Enter a valid email address, like name@company.com.")).toBeVisible();
+    await email.fill(" amina.wanjiru@gmail.com ");
+    await email.blur();
+    await expect(email).toHaveValue("amina.wanjiru@gmail.com");
+    await expect(email).not.toHaveAttribute("aria-invalid", "true");
+
+    // Searchable country list; an empty phone follows the chosen country.
+    await page.getByRole("button", { name: /^Country/ }).click();
+    const search = page.getByRole("combobox", { name: "Search countries" });
+    await search.fill("ugan");
+    await expect(page.getByRole("option", { name: /Uganda \+256/ })).toBeVisible();
+    await search.press("Enter");
+    await expect(page.getByRole("button", { name: /^Country/ })).toContainText("Uganda");
+    await expect(page.getByRole("button", { name: /Phone country: Uganda \+256/ })).toBeVisible();
+
+    // Country-aware validation when leaving the field.
+    const phone = page.getByLabel("Phone", { exact: true });
+    await phone.fill("0772");
+    await phone.blur();
+    await expect(page.getByText("Enter a valid phone number for the selected country.")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Add another number" })).toHaveCount(0);
+    await phone.fill("0772 123456");
+    await phone.blur();
+    await expect(page.getByText("Enter a valid phone number for the selected country.")).toHaveCount(0);
+
+    // A second number starts in the first one's country and can't repeat it.
+    await page.getByRole("button", { name: "Add another number" }).click();
+    await expect(page.getByRole("button", { name: /Phone country: Uganda/ })).toHaveCount(2);
+    const second = page.getByLabel("Second phone", { exact: true });
+    await second.fill("+256 772 123 456");
+    await second.blur();
+    await expect(page.getByText("This is the same number as the first one.")).toBeVisible();
+    // Clearing the first number removes the second.
+    await phone.fill("");
+    await expect(second).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Add another number" })).toHaveCount(0);
+
+    // Two valid numbers, in different countries, are sent in E.164.
+    await phone.fill("0772123456");
+    await phone.blur();
+    await page.getByRole("button", { name: "Add another number" }).click();
+    await page
+      .getByRole("button", { name: /Phone country: Uganda/ })
+      .nth(1)
+      .click();
+    await page.getByRole("combobox", { name: "Search countries" }).fill("254");
+    await page.getByRole("option", { name: /Kenya/ }).first().click();
+    await page.getByLabel("Second phone", { exact: true }).fill("0712 345 678");
+    await page.getByLabel("Full name").fill("Amina Wanjiru");
+    await page.getByRole("checkbox").check();
+    await page.getByRole("button", { name: "Send enquiry" }).click();
+    await expect(page.getByText("FBG-2610-PHONE1")).toBeVisible();
+    expect(sent).toMatchObject({
+      email: "amina.wanjiru@gmail.com",
+      country: "UG",
+      phone: "+256772123456",
+      phone_country: "UG",
+      phone_secondary: "+254712345678",
+      phone_secondary_country: "KE",
+    });
+  });
+});
+
 test.describe("narrow screens", () => {
   test.use({ viewport: { width: 360, height: 780 } });
 

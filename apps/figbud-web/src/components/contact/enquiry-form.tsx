@@ -1,6 +1,7 @@
 "use client";
 
 import type { Locale } from "@figbud/i18n";
+import { CountrySelect, type CountryCode, PhoneNumbers } from "@figbud/site-kit";
 import { buttonClasses, cn } from "@figbud/ui";
 import { ArrowRight, CircleCheck, Info, LoaderCircle, TriangleAlert } from "lucide-react";
 import { useSearchParams } from "next/navigation";
@@ -10,11 +11,15 @@ import type { Dictionary } from "@/i18n/get-dictionary";
 import {
   type EnquiryErrors,
   type EnquiryValues,
+  MAX_PHONES,
   companySizes,
+  emailError,
   enquiryKinds,
   enquiryProducts,
   isEnquiryKind,
   isEnquiryProduct,
+  payloadFields,
+  phoneErrors,
   requiresCompany,
   requiresMessage,
   submitEnquiry,
@@ -33,6 +38,9 @@ type Status =
 const SERVER_FIELD_ERROR: Record<string, EnquiryErrors[keyof EnquiryErrors]> = {
   name: "required",
   email: "email",
+  phone: "phone",
+  phone_secondary: "phone",
+  country: "required",
   company: "required",
   message: "required",
   consent: "consent",
@@ -66,7 +74,8 @@ export function EnquiryForm({
     email: "",
     company: "",
     job_title: "",
-    phone: "",
+    // Kenya first (FigBud's home market); the country chosen below is carried over.
+    phones: [{ country: "KE", number: "" }],
     country: "",
     company_size: "",
     message: "",
@@ -110,7 +119,7 @@ export function EnquiryForm({
     const result = await submitEnquiry(
       apiOrigin,
       {
-        ...values,
+        ...payloadFields(values),
         locale,
         source_path: window.location.pathname,
         ...(campaign ? { campaign } : {}),
@@ -127,7 +136,9 @@ export function EnquiryForm({
       const serverErrors: EnquiryErrors = {};
       for (const field of result.fields) {
         if (field in SERVER_FIELD_ERROR) {
-          serverErrors[field as keyof EnquiryValues] = SERVER_FIELD_ERROR[field];
+          // The API names the first number `phone`; the form keeps numbers in `phones`.
+          const key = field === "phone" ? "phones" : field;
+          serverErrors[key as keyof EnquiryErrors] = SERVER_FIELD_ERROR[field];
         }
       }
       setErrors(serverErrors);
@@ -179,7 +190,27 @@ export function EnquiryForm({
     );
   }
 
-  const errorText = (field: keyof EnquiryValues) => {
+  // Checked when a field is left, not while typing.
+  const checkEmail = () => {
+    setValues((v) => ({ ...v, email: v.email.trim() }));
+    setErrors((e) => ({ ...e, email: values.email.trim() ? emailError(values.email) : undefined }));
+  };
+  const checkPhones = () =>
+    setErrors((e) => ({
+      ...e,
+      phones: undefined,
+      phone_secondary: undefined,
+      ...phoneErrors(values.phones),
+    }));
+  const chooseCountry = (code: CountryCode) =>
+    setValues((v) => ({
+      ...v,
+      country: code,
+      // An empty first number follows the country; a number already typed keeps its own.
+      phones: v.phones[0] && !v.phones[0].number.trim() ? [{ ...v.phones[0], country: code }] : v.phones,
+    }));
+
+  const errorText = (field: keyof EnquiryErrors) => {
     const code = errors[field];
     return code ? copy.errors[code] : undefined;
   };
@@ -286,15 +317,17 @@ export function EnquiryForm({
             />
           )}
         </Field>
-        <Field id={`${formId}-email`} label={copy.email} error={errorText("email")}>
+        <Field id={`${formId}-email`} label={copy.email} hint={copy.emailHint} error={errorText("email")}>
           {(props) => (
             <input
               {...props}
               type="email"
               autoComplete="email"
               inputMode="email"
+              spellCheck={false}
               value={values.email}
               onChange={(e) => set("email", e.target.value)}
+              onBlur={checkEmail}
               className={inputClass}
             />
           )}
@@ -326,30 +359,42 @@ export function EnquiryForm({
             />
           )}
         </Field>
-        <Field id={`${formId}-phone`} label={copy.phone} optional={copy.optional}>
+        <Field
+          id={`${formId}-country`}
+          label={copy.country}
+          optional={copy.optional}
+          error={errorText("country")}
+        >
           {(props) => (
-            <input
-              {...props}
-              type="tel"
-              autoComplete="tel"
-              inputMode="tel"
-              value={values.phone}
-              onChange={(e) => set("phone", e.target.value)}
-              className={inputClass}
+            <CountrySelect
+              id={props.id}
+              value={(values.country as CountryCode) || ""}
+              onChange={chooseCountry}
+              locale={locale}
+              labels={copy.countries}
+              invalid={props["aria-invalid"]}
+              describedBy={props["aria-describedby"]}
             />
           )}
         </Field>
-        <Field id={`${formId}-country`} label={copy.country} optional={copy.optional}>
-          {(props) => (
-            <input
-              {...props}
-              autoComplete="country-name"
-              value={values.country}
-              onChange={(e) => set("country", e.target.value)}
-              className={inputClass}
-            />
-          )}
-        </Field>
+        <div>
+          <PhoneNumbers
+            id={`${formId}-phone`}
+            label={copy.phone}
+            optional={copy.optional}
+            value={values.phones}
+            max={MAX_PHONES}
+            locale={locale}
+            labels={{ ...copy.countries, ...copy.phones }}
+            onChange={(phones) => {
+              setValues((v) => ({ ...v, phones }));
+              if (errors.phones || errors.phone_secondary)
+                setErrors((e) => ({ ...e, phones: undefined, phone_secondary: undefined }));
+            }}
+            onBlur={checkPhones}
+            errors={[errorText("phones"), errorText("phone_secondary")]}
+          />
+        </div>
         <Field
           id={`${formId}-size`}
           label={copy.companySize}
@@ -462,6 +507,7 @@ function Field({
   id,
   label,
   optional,
+  hint,
   error,
   className,
   children,
@@ -469,6 +515,8 @@ function Field({
   id: string;
   label: string;
   optional?: string;
+  /** A note beside the label that isn't a requirement, e.g. "company email preferred". */
+  hint?: string;
   error?: string;
   className?: string;
   children: (props: {
@@ -484,7 +532,7 @@ function Field({
     <div className={className}>
       <label htmlFor={id} className="flex items-baseline justify-between gap-2 text-sm font-medium text-text">
         {label}
-        {optional && <span className="text-xs font-normal text-subtle">{optional}</span>}
+        {(optional ?? hint) && <span className="text-xs font-normal text-subtle">{optional ?? hint}</span>}
       </label>
       <div className="mt-2">
         {children({

@@ -33,6 +33,7 @@ interface Detail {
     company?: string;
     job_title?: string;
     phone?: string;
+    phone_secondary?: string;
     country?: string;
     company_size?: string;
     message?: string;
@@ -103,20 +104,21 @@ async function Enquiry({ params }: Pick<PageProps<"/admin/enquiries/[id]">, "par
                 <Mail aria-hidden className="size-4" />
                 {e.email}
               </a>
-              {e.phone && (
+              {[e.phone, e.phone_secondary].filter(Boolean).map((phone) => (
                 <a
-                  href={`tel:${e.phone}`}
+                  key={phone}
+                  href={`tel:${phone}`}
                   className="inline-flex min-h-11 items-center gap-2 rounded-full border border-line px-4 text-sm text-text hover:border-line-strong"
                 >
                   <Phone aria-hidden className="size-4" />
-                  {e.phone}
+                  {phone}
                 </a>
-              )}
+              ))}
             </div>
             <dl className="mt-5 grid gap-x-6 gap-y-3 text-sm sm:grid-cols-2">
               <Field label="Company" value={e.company} />
               <Field label="Job title" value={e.job_title} />
-              <Field label="Country" value={e.country} />
+              <Field label="Country" value={countryName(e.country)} />
               <Field label="Company size" value={e.company_size} />
               <Field label="Language" value={e.locale} />
               <Field label="Sent from" value={e.source_path} />
@@ -195,4 +197,14 @@ function Field({ label, value }: { label: string; value?: ReactNode }) {
       <dd className="mt-0.5 text-text">{value || "—"}</dd>
     </div>
   );
+}
+
+/** New enquiries store an ISO code ("KE"); earlier ones kept the text typed. */
+function countryName(country?: string) {
+  if (!country || !/^[A-Z]{2}$/.test(country)) return country;
+  try {
+    return `${new Intl.DisplayNames(["en"], { type: "region" }).of(country) ?? country} (${country})`;
+  } catch {
+    return country;
+  }
 }

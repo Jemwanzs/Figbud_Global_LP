@@ -37,8 +37,8 @@ async function Shared({ params }: Pick<PageProps<"/admin/content/[id]">, "params
       </p>
       <h1 className="mt-3 font-display text-3xl font-semibold tracking-tight text-text">{data.name}</h1>
       <div className="mt-8">
-        {/* Keyed by version, so a restore or save reloads the form from the server. */}
-        <SharedEditor key={`${data.draft_version}-${data.published_number}`} item={data} />
+        {/* Keyed by the published version: a publish reloads the form; a save keeps it. */}
+        <SharedEditor key={data.published_number ?? 0} item={data} />
       </div>
     </AdminShell>
   );

@@ -8,6 +8,7 @@ import {
   brandIcons,
   enquiriesOpen,
   siteThemeStyle,
+  verificationMeta,
 } from "@figbud/site-kit";
 import { themeInitScript } from "@figbud/ui";
 import type { Metadata, Viewport } from "next";
@@ -68,13 +69,19 @@ export async function generateMetadata({ params }: LayoutProps<"/[site]">): Prom
     manifest: `/manifest.webmanifest?site=${site.slug}${ownDomain ? "&own=1" : ""}`,
     title: {
       default: site.tagline ? `${site.name} — ${site.tagline}` : site.name,
-      template: `%s · ${site.name}`,
+      // The website's own template (Studio → SEO & search visibility).
+      template: site.seo?.title_template ?? `%s · ${site.name}`,
     },
-    description: site.description ?? site.tagline ?? undefined,
+    description: site.seo?.default_description ?? site.description ?? site.tagline ?? undefined,
+    verification: verificationMeta(site.seo),
     applicationName: site.name,
     openGraph: { type: "website", siteName: site.name },
     twitter: { card: "summary_large_image" },
-    robots: allowIndexing ? undefined : { index: false, follow: false },
+    robots: !allowIndexing
+      ? { index: false, follow: false }
+      : site.seo?.indexing === false
+        ? { index: false, follow: true }
+        : undefined,
   };
 }
 

@@ -347,6 +347,7 @@ const publicSites = () =>
       ),
       cta: SITE_CTA[s.status],
       brand: publishedBrand(s.slug),
+      seo: seoPublic(siteSeo(s.slug)),
     }));
 const RANKS = { viewer: 0, editor: 1, reviewer: 2, owner: 3 };
 
@@ -2582,6 +2583,178 @@ function campaignRoutes(path, req, body, user, send) {
   return send(200, { state: revision.state });
 }
 
+// Mirrors services/api/src/seo.rs (P9-S1): per-website search identity,
+// page checks and the overview.
+const seoSettings = new Map([["zirahr", { google_verification: "mock-google-verification-1" }]]);
+const SEO_DEFAULTS = {
+  title_template: null,
+  default_description: null,
+  google_verification: null,
+  bing_verification: null,
+  same_as: [],
+  markets: [],
+  languages: ["en"],
+  focus_keywords: [],
+  indexing: true,
+};
+const siteSeo = (slug) => ({ ...SEO_DEFAULTS, ...(seoSettings.get(slug) ?? {}) });
+// Focus phrases and markets stay internal (seo.rs `public()`).
+const seoPublic = (settings) =>
+  Object.fromEntries(Object.entries(settings).filter(([k]) => k !== "focus_keywords" && k !== "markets"));
+function seoAudit(slug, settings) {
+  const live = [...pages.values()].filter(
+    (p) => p.site?.slug === slug && p.published && !p.archived_at && !p.offline,
+  );
+  const titleOf = (p) => {
+    const base = p.published.seo_title || p.title;
+    return settings.title_template ? settings.title_template.replace("%s", base) : base;
+  };
+  const counts = {};
+  for (const p of live)
+    if (!p.published.seo_noindex)
+      counts[titleOf(p).toLowerCase()] = (counts[titleOf(p).toLowerCase()] ?? 0) + 1;
+  return live.map((p) => {
+    const issues = [];
+    const title = titleOf(p);
+    const indexable = settings.indexing && !p.published.seo_noindex;
+    if (title.length > 60)
+      issues.push({
+        code: "title_long",
+        severity: "warning",
+        message: `The search title is ${title.length} characters; search results show about 60.`,
+      });
+    if (indexable && counts[title.toLowerCase()] > 1)
+      issues.push({
+        code: "title_duplicate",
+        severity: "error",
+        message: "Another page has the same search title.",
+      });
+    if (!p.published.seo_description)
+      issues.push({
+        code: "description_missing",
+        severity: "warning",
+        message: "Add a search description (about 150 characters).",
+      });
+    const first = p.published.sections.find((x) => !x.hidden);
+    if (first?.type !== "hero")
+      issues.push({
+        code: "no_h1",
+        severity: "warning",
+        message: "Start the page with a hero section: it's the page's main heading (h1).",
+      });
+    if (!indexable)
+      issues.push({
+        code: "noindex",
+        severity: "info",
+        message: "Hidden from search engines (not in the sitemap).",
+      });
+    return { id: p.id, title: p.title, path: `/${p.path}`, search_title: title, indexable, issues };
+  });
+}
+function seoSummary(audit, settings) {
+  const siteIssues = [];
+  if (!settings.indexing)
+    siteIssues.push({
+      code: "site_noindex",
+      severity: "warning",
+      message: "Search indexing is off for the whole website.",
+    });
+  if (!settings.google_verification)
+    siteIssues.push({
+      code: "gsc_unverified",
+      severity: "info",
+      message: "Add the Google Search Console verification token to prove ownership.",
+    });
+  const all = [...audit.flatMap((a) => a.issues), ...siteIssues];
+  return {
+    siteIssues,
+    summary: {
+      pages: audit.length,
+      indexable: audit.filter((a) => a.indexable).length,
+      errors: all.filter((i) => i.severity === "error").length,
+      warnings: all.filter((i) => i.severity === "warning").length,
+      infos: all.filter((i) => i.severity === "info").length,
+    },
+  };
+}
+const seoIntegrations = (settings) => ({
+  search_console: { verification_tag: Boolean(settings.google_verification), data: "not_connected" },
+  bing: { verification_tag: Boolean(settings.bing_verification), data: "not_connected" },
+  analytics: [],
+  core_web_vitals: "lighthouse_ci",
+});
+const seoVersions = new Map();
+function seoRoutes(path, req, body, user, send) {
+  if (path === "seo")
+    return send(200, {
+      sites: sites
+        .filter((x) => !x.archived_at)
+        .map((site) => {
+          const settings = siteSeo(site.slug);
+          const audit = seoAudit(site.slug, settings);
+          return {
+            site: site.slug,
+            name: site.name,
+            primary_domain: site.primary_domain ?? null,
+            indexing: settings.indexing,
+            summary: seoSummary(audit, settings).summary,
+            integrations: seoIntegrations(settings),
+          };
+        }),
+    });
+  const m = /^sites\/([a-z0-9_-]+)\/seo$/.exec(path);
+  const site = m && sites.find((x) => x.slug === m[1]);
+  if (!site) return send(404, { error: { code: "not_found", message: "Not found." } });
+  const version = seoVersions.get(site.slug) ?? 1;
+  if (req.method === "POST") {
+    if (RANKS[user.role] < RANKS.reviewer)
+      return send(403, { error: { code: "forbidden", message: "Forbidden." } });
+    if (body.version !== version)
+      return send(409, {
+        error: {
+          code: "conflict",
+          message: "Someone changed these settings after you opened them. Reload to see the latest.",
+        },
+      });
+    const next = { ...SEO_DEFAULTS, ...body.settings };
+    if (
+      next.title_template &&
+      (next.title_template.split("%s").length !== 2 || next.title_template.length > 70)
+    )
+      return send(422, {
+        error: {
+          code: "validation",
+          message: "Check the title template.",
+          fields: [
+            {
+              field: "title_template",
+              code: "invalid",
+              message: "Use %s once for the page title, up to 70 characters.",
+            },
+          ],
+        },
+      });
+    next.same_as = next.same_as.map((x) => x.trim()).filter(Boolean);
+    next.focus_keywords = next.focus_keywords.map((x) => x.trim()).filter(Boolean);
+    seoSettings.set(site.slug, next);
+    seoVersions.set(site.slug, version + 1);
+    return send(200, { settings: next, version: version + 1 });
+  }
+  const settings = siteSeo(site.slug);
+  const audit = seoAudit(site.slug, settings);
+  const { summary, siteIssues } = seoSummary(audit, settings);
+  return send(200, {
+    site: { slug: site.slug, name: site.name, primary_domain: site.primary_domain ?? null },
+    settings,
+    version,
+    can_edit: RANKS[user.role] >= RANKS.reviewer,
+    summary,
+    site_issues: siteIssues,
+    pages: audit,
+    integrations: seoIntegrations(settings),
+  });
+}
+
 // Mirrors services/api/src/site_settings.rs: reviewers change a website's
 // navigation, footer and enquiries directly; every change is audited.
 function siteSettingsRoutes(slug, req, body, user, send) {
@@ -3162,6 +3335,7 @@ function admin(req, res, url, body, send, raw) {
   if (settingsPath) return siteSettingsRoutes(settingsPath[1], req, body, user, send);
   if (path === "campaigns" || path.startsWith("campaigns/"))
     return campaignRoutes(path, req, body, user, send);
+  if (path === "seo" || /^sites\/[a-z0-9_-]+\/seo$/.test(path)) return seoRoutes(path, req, body, user, send);
   if (path === "sites" || path.startsWith("sites/")) return siteRoutes(path, req, body, user, send);
   return send(404, { error: { code: "not_found", message: "Not found." } });
 }
