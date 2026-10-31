@@ -297,3 +297,18 @@ test("search identity and structured data from the Studio (SEO & search visibili
   const inner = (await page.locator('script[type="application/ld+json"]').allTextContents()).join(" ");
   expect(inner).toContain('"@type":"BreadcrumbList"');
 });
+
+test("pricing stays off the website until switched on: a request-a-quote page instead (P11)", async ({
+  page,
+}) => {
+  await page.goto("/zirahr/pricing");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("ZiraHR pricing");
+  await expect(page.getByRole("link", { name: "Request a quote" })).toHaveAttribute(
+    "href",
+    /kind=demo_request|product=zirahr/,
+  );
+  await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", /noindex/);
+  // No prices, cards or calculator while hidden.
+  await expect(page.getByText(/KES/)).toHaveCount(0);
+  await expect(page.getByRole("radiogroup", { name: "Billing cycle" })).toHaveCount(0);
+});

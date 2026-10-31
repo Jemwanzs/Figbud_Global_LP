@@ -207,6 +207,30 @@ Studio → Marketing, then the tabs **Trusted By**, **Testimonials** and **Succe
   Studio actions refresh the corporate website at once (cache tag `proof`); product websites within minutes.
 - **Never invented:** the seeded records in the e2e mock API are synthetic test fixtures. Production starts empty, and Q22 lists what's needed before any organisation can be shown.
 
+## Pricing Studio (P11, 31 Oct 2026)
+
+Websites → a product website → **Pricing**. The rules are in [PRICING.md](PRICING.md); this section covers the workspace.
+
+- **Tabs:**
+  - Overview;
+  - Modules & items (recurring);
+  - Plans;
+  - Billing, tax & terms: cycles and discounts, minimum subscription, currency and manual rates, tax, rounding, commercial models, quotation validity and terms;
+  - Implementation (one-off groups A–E);
+  - Calculator;
+  - Quotes;
+  - Publishing;
+  - History.
+- **Draft:** saving never changes published prices (version-checked; a changed draft cancels a pending request). Amounts are validated as you type.
+- **Open calculator in a new tab:** `/admin/pricing-workspace/{slug}` has the product's branding, no Studio navigation and a print-ready layout. It uses the published prices, or the draft with a notice when nothing is published.
+- **Quotations:** `/admin/pricing/quotes/{id}` shows the customer document plus the workflow and internal notes.
+  - The customer page is `/quote#t=…`, loaded through `/quote/api`, so the API's shared endpoint needs no browser access.
+  - That page is noindex and sends no referrer.
+- **API:**
+  - Studio: `GET /v1/admin/sites/{slug}/pricing`; `POST …/pricing/draft`; `POST …/pricing/{submit|publish|reject|rollback|visibility}`; `POST …/pricing/calculate` (draft or published); `GET/POST …/pricing/quotes`; `GET /v1/admin/pricing/quotes/{id}`; `POST …/{update|submit|approve|reject|share|unshare|mark_sent|accept|decline}`.
+  - Public: `GET /v1/sites/{slug}/pricing`, `POST /v1/sites/{slug}/pricing/calculate` (only while shown, rate-limited) and `GET /v1/quotes/shared` (`x-quote-token`).
+  - Tables (migration 24): `pricing_books`, `pricing_versions` and `pricing_quotes`.
+
 ## Per-website permissions (P7-F1, 30 Oct 2026)
 
 Settings → **Team & access** (owners). Everyone has one Studio role (owner, reviewer, editor, viewer). On top of it, each person (except owners) has website access:

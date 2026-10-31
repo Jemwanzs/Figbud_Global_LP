@@ -13,5 +13,6 @@ export * from "./language-switcher";
 export * from "./product-glyph";
 export * from "./privacy";
 export * from "./proof";
+export * from "./pricing";
 export * from "./product-header";
 export * from "./use-dismiss";

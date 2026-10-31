@@ -16,6 +16,7 @@ pub mod enquiry;
 pub mod error;
 pub mod media;
 pub mod pages;
+pub mod pricing;
 pub mod privacy;
 pub mod proof;
 pub mod rate_limit;

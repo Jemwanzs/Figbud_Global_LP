@@ -2773,6 +2773,529 @@ function proofRoutes(path, req, body, user, send) {
   );
 }
 
+// ---------------------------------------------------------------- pricing
+// Mirrors services/api/src/pricing: one price book per website (draft,
+// approval, versions, a separate website-visibility switch that starts off)
+// and quotations with frozen snapshots and hashed customer links. The
+// arithmetic here is a simplified copy for UI tests only; the API's Rust
+// engine (exact decimals) is the source of truth and is tested there.
+const pricingBooks = new Map(); // site slug -> state
+const quotes = new Map(); // id -> quote
+const PRICING_CYCLES = { monthly: 1, quarterly: 3, semi_annual: 6, annual: 12 };
+const pricingItem = (id, name, extra = {}) => ({
+  id,
+  name,
+  description: "",
+  category: "core",
+  group: null,
+  method: "per_employee",
+  unit_label: "employees",
+  billing: "monthly",
+  rate: null,
+  minimum_charge: null,
+  tiers: [],
+  tier_mode: "volume",
+  cycle_terms: [],
+  min_qty: null,
+  max_qty: null,
+  taxable: true,
+  discountable: true,
+  one_off_mode: "charged",
+  effective_from: null,
+  availability: "available",
+  active: true,
+  public: false,
+  ...extra,
+});
+const startingBook = (slug) => ({
+  currency: "KES",
+  supported_currencies: ["KES"],
+  fx_source: "Manual rates entered by FigBud",
+  fx_rates: [],
+  tax: { name: "VAT", rate: null, presentation: "exclusive" },
+  decimals: 2,
+  cycles: Object.keys(PRICING_CYCLES).map((key) => ({
+    key,
+    enabled: true,
+    discount: { kind: "none", value: "0" },
+  })),
+  items:
+    slug !== "zirahr"
+      ? []
+      : [
+          pricingItem("core_hr", "Core HR (Employee 360)"),
+          pricingItem("payroll", "Payroll & compliance", {
+            method: "per_payroll_employee",
+            unit_label: "payroll employees",
+          }),
+          pricingItem("leave", "Leave management"),
+          pricingItem("analytics", "Reporting & analytics", { method: "flat", unit_label: "organisation" }),
+          pricingItem("ai_assistant", "AI assistant", {
+            category: "add_on",
+            method: "flat",
+            availability: "planned",
+          }),
+          pricingItem("setup_configuration", "Initial system configuration", {
+            category: "implementation",
+            group: "setup",
+            method: "flat",
+            unit_label: "project",
+            billing: "one_off",
+            discountable: false,
+          }),
+          pricingItem("training_admin", "Administrator training", {
+            category: "implementation",
+            group: "training",
+            method: "per_participant",
+            unit_label: "participants",
+            billing: "one_off",
+            discountable: false,
+          }),
+          pricingItem("integration_custom", "Custom integrations", {
+            category: "integration",
+            group: "integrations",
+            method: "custom_quote",
+            unit_label: "scope",
+            billing: "one_off",
+            discountable: false,
+          }),
+        ],
+  plans: [],
+  models:
+    slug !== "zirahr"
+      ? []
+      : [
+          {
+            id: "subscription",
+            kind: "subscription",
+            name: "Subscription",
+            description: "Monthly or multi-period subscriptions, with optional implementation.",
+            item_ids: ["core_hr", "payroll", "leave"],
+            default_cycle: "monthly",
+            enabled: true,
+          },
+        ],
+  minimum_monthly_subscription: null,
+  quote_validity_days: 30,
+  terms: "",
+});
+const money = (n) => (Math.round((n + Number.EPSILON) * 100) / 100).toFixed(2);
+function pricingCalculate(book, input) {
+  const cycle = book.cycles.find((c) => c.key === input.cycle && c.enabled);
+  if (!cycle) return [422, "That billing cycle isn't offered."];
+  const months = PRICING_CYCLES[input.cycle];
+  const rate = book.tax.rate ? Number(book.tax.rate) : null;
+  const inclusive = book.tax.presentation === "inclusive";
+  const tax = (net, taxable) =>
+    rate && taxable ? (inclusive ? (net * rate) / (100 + rate) : (net * rate) / 100) : 0;
+  const recurring = [],
+    oneOff = [],
+    unpriced = [];
+  for (const line of input.lines ?? []) {
+    const item = book.items.find((i) => i.id === line.item_id && i.active);
+    if (!item) return [422, "One of the items isn't in this price book."];
+    if (item.availability === "planned") {
+      unpriced.push({ item_id: item.id, name: item.name, reason: "planned" });
+      continue;
+    }
+    const headcount = ["per_employee", "per_user", "per_payroll_employee"].includes(item.method);
+    const qty = line.quantity ?? (headcount ? input.employees : 1);
+    const mode = line.mode ?? item.one_off_mode;
+    if (item.method === "custom_quote") {
+      unpriced.push({ item_id: item.id, name: item.name, reason: "custom_quote" });
+      continue;
+    }
+    if (item.billing === "one_off" && mode === "scoped") {
+      unpriced.push({ item_id: item.id, name: item.name, reason: "scoped" });
+      continue;
+    }
+    if (item.billing === "one_off" && mode === "optional") continue;
+    if (item.rate === null || item.rate === undefined || item.rate === "") {
+      unpriced.push({ item_id: item.id, name: item.name, reason: "rate_not_set" });
+      continue;
+    }
+    let amount = item.method === "flat" ? Number(item.rate) : Number(item.rate) * qty;
+    const notes = [];
+    if (item.minimum_charge && Number(item.minimum_charge) > amount) {
+      amount = Number(item.minimum_charge);
+      notes.push("minimum");
+    }
+    const base = {
+      item_id: item.id,
+      name: item.name,
+      category: item.category,
+      method: item.method,
+      billing: item.billing,
+      quantity: qty,
+      unit_label: item.unit_label,
+      unit_rate: money(Number(item.rate)),
+    };
+    if (item.billing === "one_off") {
+      const gross = mode === "included" ? 0 : amount;
+      notes.push(mode === "included" ? "included" : "charged");
+      oneOff.push({
+        ...base,
+        gross: money(gross),
+        discount: "0.00",
+        net: money(gross),
+        tax: money(tax(gross, item.taxable)),
+        notes,
+      });
+      continue;
+    }
+    const gross = item.billing === "annual" ? (amount * months) / 12 : amount * months;
+    const discount =
+      item.discountable && cycle.discount.kind === "percent"
+        ? (gross * Number(cycle.discount.value)) / 100
+        : 0;
+    recurring.push({
+      ...base,
+      gross: money(gross),
+      discount: money(discount),
+      net: money(gross - discount),
+      tax: money(tax(gross - discount, item.taxable)),
+      notes,
+    });
+  }
+  const sum = (list, k) => list.reduce((t, l) => t + Number(l[k]), 0);
+  const subNet = sum(recurring, "net"),
+    subTax = sum(recurring, "tax"),
+    oneNet = sum(oneOff, "net"),
+    oneTax = sum(oneOff, "tax");
+  const renewal = inclusive ? subNet : subNet + subTax;
+  return [
+    200,
+    {
+      currency: book.currency,
+      fx_rate: "1",
+      cycle: input.cycle,
+      months,
+      employees: input.employees,
+      recurring,
+      one_off: oneOff,
+      unpriced,
+      subscription_subtotal: money(sum(recurring, "gross")),
+      discount_total: money(sum(recurring, "discount")),
+      minimum_adjustment: "0.00",
+      subscription_net: money(subNet),
+      subscription_tax: money(subTax),
+      one_off_total: money(oneNet),
+      one_off_tax: money(oneTax),
+      tax_total: money(subTax + oneTax),
+      tax_rate: book.tax.rate,
+      tax_presentation: book.tax.presentation,
+      due_first_period: money(renewal + (inclusive ? oneNet : oneNet + oneTax)),
+      renewal_amount: money(renewal),
+      annualized_subscription: money((subNet * 12) / months),
+      proration_factor: null,
+      warnings: unpriced.length ? ["Some items have no price yet and are left out of the totals."] : [],
+    },
+  ];
+}
+const pricingState = (slug) => {
+  if (!pricingBooks.has(slug))
+    pricingBooks.set(slug, {
+      draft: startingBook(slug),
+      draft_version: 0,
+      published: null,
+      published_number: 0,
+      public_visible: false,
+      review: null,
+      versions: [],
+      effective_from: null,
+    });
+  return pricingBooks.get(slug);
+};
+const publicBook = (book) => {
+  const items = book.items.filter(
+    (i) =>
+      i.public &&
+      i.active &&
+      i.availability === "available" &&
+      i.method !== "custom_quote" &&
+      (i.rate || i.tiers.length),
+  );
+  return { ...book, fx_rates: [], fx_source: "", models: [], terms: "", plans: [], items };
+};
+const quoteView = (q) => ({
+  id: q.id,
+  reference: q.reference,
+  customer_name: q.customer_name,
+  status: q.status,
+  currency: q.currency,
+  due_first_period: q.snapshot.calculation.due_first_period,
+  renewal_amount: q.snapshot.calculation.renewal_amount,
+  issue_date: q.issue_date,
+  expiry_date: q.expiry_date,
+  book_version: q.book_version,
+  created_at: q.created_at,
+  updated_at: q.updated_at,
+});
+function pricingRoutes(path, req, body, user, send) {
+  const nope = (status, code, message) => send(status, { error: { code, message } });
+  const rank = RANKS[user.role];
+  const m = /^sites\/([a-z0-9_-]+)\/pricing(?:\/([a-z_]+))?$/.exec(path);
+  if (m) {
+    const slug = m[1];
+    const site = sites.find((x) => x.slug === slug);
+    if (!site) return nope(404, "not_found", "Not found.");
+    const st = pricingState(slug);
+    const action = m[2];
+    if (!action && req.method === "GET") {
+      const changes = !st.published
+        ? { first: true, items: [], settings_changed: true }
+        : {
+            first: false,
+            settings_changed: false,
+            items: st.draft.items.flatMap((i) => {
+              const before = st.published.items.find((x) => x.id === i.id);
+              if (!before) return [{ item_id: i.id, name: i.name, change: "added", after: i.rate }];
+              return JSON.stringify(before) !== JSON.stringify(i)
+                ? [{ item_id: i.id, name: i.name, change: "changed", before: before.rate, after: i.rate }]
+                : [];
+            }),
+          };
+      const status = st.review
+        ? "in_review"
+        : !st.published
+          ? "draft"
+          : JSON.stringify(st.published) !== JSON.stringify(st.draft)
+            ? "changes_pending"
+            : "published";
+      return send(200, {
+        site: { slug, name: site.name },
+        draft: st.draft,
+        draft_version: st.draft_version,
+        published: st.published,
+        published_number: st.published_number,
+        public_visible: st.public_visible,
+        effective_from: st.effective_from,
+        review: st.review ? { ...st.review, own: st.review.by === user.id } : null,
+        versions: [...st.versions].reverse(),
+        changes,
+        status,
+        can_edit: rank >= RANKS.editor,
+        can_review: rank >= RANKS.reviewer,
+        user_id: user.id,
+      });
+    }
+    if (action === "draft") {
+      if (rank < RANKS.editor) return nope(403, "forbidden", "You don't have permission to do that.");
+      if (body.version !== st.draft_version)
+        return nope(
+          409,
+          "conflict",
+          "Someone else saved this pricing meanwhile. Reload to see their changes.",
+        );
+      const doc = body.document ?? {};
+      const bad = (doc.items ?? []).some(
+        (i) => (i.rate && !/^\d+(\.\d{1,4})?$/.test(i.rate)) || !/^[a-z0-9_-]+$/.test(i.id),
+      );
+      if (bad)
+        return send(422, {
+          error: {
+            code: "validation",
+            message: "Some fields need attention.",
+            fields: [
+              { field: "items", code: "rate", message: "Rates and minimum charges are zero or more." },
+            ],
+          },
+        });
+      if (JSON.stringify(doc) !== JSON.stringify(st.draft)) st.review = null;
+      st.draft = clone(doc);
+      st.draft_version += 1;
+      return send(200, { version: st.draft_version });
+    }
+    if (action === "calculate") {
+      const book = body.source === "published" ? st.published : st.draft;
+      if (!book) return nope(409, "conflict", "No pricing version is published yet.");
+      const [status, result] = pricingCalculate(book, body.input ?? {});
+      return status === 200
+        ? send(200, result)
+        : send(422, {
+            error: {
+              code: "validation",
+              message: result,
+              fields: [{ field: "input", code: "invalid", message: result }],
+            },
+          });
+    }
+    if (action === "quotes" && req.method === "GET")
+      return send(200, {
+        quotes: [...quotes.values()]
+          .filter((q) => q.site === slug)
+          .reverse()
+          .map(quoteView),
+      });
+    if (action === "quotes") {
+      if (rank < RANKS.editor) return nope(403, "forbidden", "You don't have permission to do that.");
+      if (!st.published) return nope(409, "conflict", "Publish a pricing version before issuing quotations.");
+      if (!String(body.customer_name ?? "").trim())
+        return send(422, {
+          error: {
+            code: "validation",
+            message: "Some fields need attention.",
+            fields: [
+              {
+                field: "customer_name",
+                code: "required",
+                message: "Name the customer or organisation (up to 160 characters).",
+              },
+            ],
+          },
+        });
+      const [status, calculation] = pricingCalculate(st.published, body.input ?? {});
+      if (status !== 200) return nope(422, "validation", calculation);
+      const id = randomUUID();
+      const year = new Date().getFullYear();
+      const n = [...quotes.values()].filter((q) => q.site === slug).length + 1;
+      const issue = new Date().toISOString().slice(0, 10);
+      const expiry = new Date(Date.now() + st.published.quote_validity_days * 864e5)
+        .toISOString()
+        .slice(0, 10);
+      quotes.set(id, {
+        id,
+        site: slug,
+        reference: `${slug
+          .toUpperCase()
+          .replace(/[^A-Z0-9]/g, "")
+          .slice(0, 6)}-Q-${year}-${String(n).padStart(4, "0")}`,
+        customer_name: body.customer_name.trim(),
+        customer_contact: body.customer_contact ?? "",
+        status: "draft",
+        input: clone(body.input),
+        snapshot: { calculation, model: null, tax_name: st.published.tax.name },
+        book_version: st.published_number,
+        currency: calculation.currency,
+        issue_date: issue,
+        expiry_date: expiry,
+        terms: st.published.terms,
+        internal_notes: body.internal_notes ?? "",
+        token: null,
+        submitted_by: null,
+        version: 1,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      });
+      return send(200, { id, reference: quotes.get(id).reference });
+    }
+    if (action === "submit") {
+      if (rank < RANKS.editor) return nope(403, "forbidden", "You don't have permission to do that.");
+      st.review = {
+        by: user.id,
+        requested_by: user.name,
+        requested_at: new Date().toISOString(),
+        note: body.note || null,
+      };
+      st.effective_from = body.effective_from ?? null;
+      return send(200, { ok: true });
+    }
+    if (rank < RANKS.reviewer) return nope(403, "forbidden", "You don't have permission to do that.");
+    if (action === "publish") {
+      if (!st.review) return nope(409, "conflict", "Ask for approval first.");
+      if (st.review.by === user.id && user.role !== "owner")
+        return nope(
+          403,
+          "not_permitted",
+          "A different reviewer must approve your own request (maker-checker).",
+        );
+      st.published = clone(st.draft);
+      st.published_number += 1;
+      st.versions.push({
+        number: st.published_number,
+        note: body.note || st.review.note || "Approved",
+        effective_from: st.effective_from,
+        requested_by: st.review.requested_by,
+        published_by: user.name,
+        created_at: new Date().toISOString(),
+      });
+      st.review = null;
+      return send(200, { ok: true });
+    }
+    if (action === "reject") {
+      st.review = null;
+      return send(200, { ok: true });
+    }
+    if (action === "visibility") {
+      if (body.visible && !st.published)
+        return nope(409, "conflict", "Publish a pricing version before showing prices on the website.");
+      st.public_visible = Boolean(body.visible);
+      return send(200, { ok: true });
+    }
+    if (action === "rollback") {
+      const v = st.versions.find((x) => x.number === body.version);
+      if (!v) return nope(404, "not_found", "Not found.");
+      return send(200, { ok: true });
+    }
+    return nope(404, "not_found", "Not found.");
+  }
+  const qm = /^pricing\/quotes\/([0-9a-f-]{36})(?:\/([a-z_]+))?$/.exec(path);
+  const q = qm && quotes.get(qm[1]);
+  if (!q) return nope(404, "not_found", "Not found.");
+  const siteName = sites.find((x) => x.slug === q.site)?.name ?? q.site;
+  const detail = () => ({
+    ...quoteView(q),
+    site: { slug: q.site, name: siteName },
+    customer_contact: q.customer_contact,
+    input: q.input,
+    snapshot: q.snapshot,
+    terms: q.terms,
+    internal_notes: q.internal_notes,
+    version: q.version,
+    shared: Boolean(q.token),
+    own_submission: q.submitted_by === user.id,
+    can_edit: rank >= RANKS.editor,
+    can_review: rank >= RANKS.reviewer,
+  });
+  const action = qm[2];
+  if (!action) return send(200, detail());
+  const set = (status) => {
+    q.status = status;
+    q.version += 1;
+    q.updated_at = new Date().toISOString();
+  };
+  if (action === "submit") {
+    if (q.snapshot.calculation.unpriced.length)
+      return send(422, {
+        error: {
+          code: "validation",
+          message: "Some fields need attention.",
+          fields: [
+            {
+              field: "input",
+              code: "unpriced",
+              message:
+                "Some items have no price yet. Price them in the published book, or remove them, first.",
+            },
+          ],
+        },
+      });
+    q.submitted_by = user.id;
+    set("pending_approval");
+  } else if (action === "approve") {
+    if (rank < RANKS.reviewer) return nope(403, "forbidden", "You don't have permission to do that.");
+    if (q.submitted_by === user.id && user.role !== "owner")
+      return nope(
+        403,
+        "not_permitted",
+        "A different reviewer must approve your own quotation (maker-checker).",
+      );
+    set("approved");
+  } else if (action === "reject") set("draft");
+  else if (action === "share") {
+    if (!["approved", "sent", "accepted"].includes(q.status))
+      return nope(409, "conflict", "Only approved quotations can be shared.");
+    q.token = randomBytes(32).toString("hex");
+    if (q.status === "approved") set("sent");
+    return send(200, { ...quoteView(q), token: q.token });
+  } else if (action === "unshare") q.token = null;
+  else if (action === "mark_sent") set("sent");
+  else if (action === "accept") set("accepted");
+  else if (action === "decline") set("declined");
+  else return nope(404, "not_found", "Not found.");
+  return send(200, quoteView(q));
+}
+
 function campaignRoutes(path, req, body, user, send) {
   const rank = RANKS[user.role];
   const err = (status, message, code = "conflict") => send(status, { error: { code, message } });
@@ -3761,6 +4284,8 @@ function admin(req, res, url, body, send, raw) {
   if (path === "campaigns" || path.startsWith("campaigns/"))
     return campaignRoutes(path, req, body, user, send);
   if (path === "proof" || path.startsWith("proof/")) return proofRoutes(path, req, body, user, send);
+  if (/^sites\/[a-z0-9_-]+\/pricing(\/|$)/.test(path) || path.startsWith("pricing/"))
+    return pricingRoutes(path, req, body, user, send);
   if (path === "seo" || /^sites\/[a-z0-9_-]+\/seo$/.test(path)) return seoRoutes(path, req, body, user, send);
   if (path === "sites" || path.startsWith("sites/")) return siteRoutes(path, req, body, user, send);
   return send(404, { error: { code: "not_found", message: "Not found." } });
@@ -3796,6 +4321,42 @@ createServer(async (req, res) => {
   if (url.pathname === "/v1/articles") return send(200, list(url));
   if (url.pathname === "/v1/sites") return send(200, publicSites());
   if (url.pathname === "/v1/privacy") return send(200, publicPrivacy());
+  const publicPricing = /^\/v1\/sites\/([a-z0-9_-]+)\/pricing(\/calculate)?$/.exec(url.pathname);
+  if (publicPricing) {
+    const st = pricingBooks.get(publicPricing[1]);
+    const visible = st?.public_visible && st.published;
+    if (!publicPricing[2])
+      return send(200, visible ? { visible: true, book: publicBook(st.published) } : { visible: false });
+    if (!visible) return send(404, { error: { code: "not_found", message: "Not found." } });
+    const [status, result] = pricingCalculate(publicBook(st.published), body);
+    return status === 200
+      ? send(200, result)
+      : send(422, {
+          error: {
+            code: "validation",
+            message: result,
+            fields: [{ field: "input", code: "item", message: result }],
+          },
+        });
+  }
+  if (url.pathname === "/v1/quotes/shared") {
+    const token = String(req.headers["x-quote-token"] ?? "");
+    const q = token.length === 64 ? [...quotes.values()].find((x) => x.token === token) : null;
+    if (!q || !["approved", "sent", "accepted", "declined", "expired"].includes(q.status))
+      return send(404, { error: { code: "not_found", message: "Not found." } });
+    return send(200, {
+      reference: q.reference,
+      product: sites.find((x) => x.slug === q.site)?.name ?? q.site,
+      customer_name: q.customer_name,
+      status: q.status,
+      issue_date: q.issue_date,
+      expiry_date: q.expiry_date,
+      calculation: q.snapshot.calculation,
+      tax_name: q.snapshot.tax_name,
+      model: q.snapshot.model,
+      terms: q.terms,
+    });
+  }
   const proofList = /^\/v1\/sites\/([a-z0-9_-]+)\/proof$/.exec(url.pathname);
   if (proofList) return send(200, publicProof(proofList[1]));
   const liveList = /^\/v1\/sites\/([a-z0-9_-]+)\/campaigns$/.exec(url.pathname);

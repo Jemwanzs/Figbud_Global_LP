@@ -25,7 +25,7 @@ use crate::{
     email::{self, outbox, templates},
     enquiry::{EnquiryInput, new_reference},
     error::ApiError,
-    media, privacy, proof,
+    media, pricing, privacy, proof,
     rate_limit::{RateLimiter, client_ip, ip_hash},
     seo, shared, site_settings, sites,
 };
@@ -42,6 +42,8 @@ pub struct AppState {
     pub campaign_limiter: RateLimiter,
     /// Interactive reward attempts per IP.
     pub spin_limiter: RateLimiter,
+    /// Public pricing calculations and shared quotation views per IP.
+    pub pricing_limiter: RateLimiter,
     /// WebAuthn relying party; `None` when admin is disabled.
     pub webauthn: Option<webauthn_rs::Webauthn>,
 }
@@ -55,6 +57,7 @@ impl AppState {
             consent_limiter: RateLimiter::new(60, Duration::from_secs(600)),
             campaign_limiter: RateLimiter::new(300, Duration::from_secs(600)),
             spin_limiter: RateLimiter::new(10, Duration::from_secs(600)),
+            pricing_limiter: RateLimiter::new(300, Duration::from_secs(600)),
             webauthn,
             config,
             pool,
@@ -86,6 +89,7 @@ pub fn router(state: SharedState) -> Router {
         .merge(seo::router())
         .merge(campaigns::router())
         .merge(proof::router())
+        .merge(pricing::router())
         .merge(cms::router())
         .merge(admin::router())
         .merge(sites::router())

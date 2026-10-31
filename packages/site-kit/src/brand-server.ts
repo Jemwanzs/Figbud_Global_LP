@@ -1,5 +1,6 @@
 import type { ListedSite } from "./brand";
 import type { LiveCampaign } from "./campaigns";
+import type { PriceBook } from "./pricing";
 import type { PublicProof } from "./proof";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
@@ -137,5 +138,26 @@ export async function fetchProof(apiBase: string, slug: string): Promise<PublicP
     return (await response.json()) as PublicProof;
   } catch {
     return { organizations: [], testimonials: [], metrics: [] };
+  }
+}
+
+/**
+ * A website's public prices (`GET /v1/sites/{slug}/pricing`, P11): the API's
+ * public view of the published book, only while "Show pricing on the website"
+ * is on; otherwise (or if the API can't be reached) `null`.
+ */
+export async function fetchPublicPricing(apiBase: string, slug: string): Promise<PriceBook | null> {
+  try {
+    const response = await fetch(
+      `${apiBase.replace(/\/$/, "")}/v1/sites/${encodeURIComponent(slug)}/pricing`,
+      {
+        signal: AbortSignal.timeout(5000),
+      },
+    );
+    if (!response.ok) return null;
+    const data = (await response.json()) as { visible: boolean; book?: PriceBook };
+    return data.visible && data.book ? data.book : null;
+  } catch {
+    return null;
   }
 }

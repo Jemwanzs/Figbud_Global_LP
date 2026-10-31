@@ -5,6 +5,7 @@ import {
   type ListedSite,
   type LiveCampaign,
   type PageDocument,
+  type PriceBook,
   type PrivacySettings,
   type PublicProof,
 } from "@figbud/site-kit";
@@ -14,6 +15,7 @@ import {
   fetchLiveCampaigns,
   fetchPrivacySettings,
   fetchProof,
+  fetchPublicPricing,
 } from "@figbud/site-kit/server";
 import { cacheLife, cacheTag } from "next/cache";
 
@@ -128,4 +130,15 @@ export async function getProof(slug: string): Promise<PublicProof> {
   cacheLife("minutes");
   cacheTag("proof", `proof:${slug}`);
   return fetchProof(apiBase, slug);
+}
+
+/**
+ * Public prices, only while the website shows them (Studio → the website →
+ * Pricing → Publishing); `null` otherwise. Cached for a few minutes.
+ */
+export async function getPublicPricing(slug: string): Promise<PriceBook | null> {
+  "use cache";
+  cacheLife("minutes");
+  cacheTag("pricing", `pricing:${slug}`);
+  return fetchPublicPricing(apiBase, slug);
 }

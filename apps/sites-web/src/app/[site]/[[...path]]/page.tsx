@@ -3,6 +3,7 @@ import {
   JsonLd,
   PageBlocks,
   ProofMetrics,
+  PublicPricing,
   Testimonials,
   TrustedBy,
   breadcrumbLd,
@@ -23,8 +24,10 @@ import {
   getPage,
   getPages,
   getProof,
+  getPublicPricing,
   getSite,
   hrefResolver,
+  pageHref,
   parseSiteParam,
 } from "@/lib/sites";
 
@@ -62,6 +65,16 @@ export async function generateMetadata(
 ): Promise<Metadata> {
   const { site, ownDomain, path, page } = await load(params);
   if (!site) return {};
+  if (!page && path === "pricing") {
+    // Built-in pricing page (no Studio page at /pricing): indexed only while prices are shown.
+    const book = await getPublicPricing(site.slug);
+    return {
+      title: "Pricing",
+      description: `${site.name} pricing.`,
+      alternates: { canonical: canonicalUrl(site, ownDomain, path) },
+      ...(book ? {} : { robots: { index: false, follow: true } }),
+    };
+  }
   if (!page) return path === "" ? { robots: { index: false, follow: true } } : {};
   const canonical = canonicalUrl(site, ownDomain, path);
   const description =
@@ -92,6 +105,51 @@ export async function generateMetadata(
   };
 }
 
+/**
+ * The built-in pricing page (P11): published public prices while the website
+ * shows them (Studio → Pricing → Publishing; off by default), otherwise a
+ * request-a-quote call to action.
+ */
+async function PricingPage({
+  site,
+  ownDomain,
+}: {
+  site: NonNullable<Awaited<ReturnType<typeof getSite>>>;
+  ownDomain: boolean;
+}) {
+  const book = await getPublicPricing(site.slug);
+  return (
+    <div className="mx-auto max-w-[92rem] px-5 pt-page-top pb-section sm:px-8 md:px-10 lg:px-16">
+      <h1 className="font-display text-page font-semibold tracking-tight text-text">{`${site.name} pricing`}</h1>
+      {book ? (
+        <>
+          <p className="mt-4 max-w-2xl text-lead text-muted">
+            Choose modules and your number of employees for an estimate. Implementation, integrations and
+            support are quoted for your organisation.
+          </p>
+          <div className="mt-stack">
+            <PublicPricing
+              book={book}
+              endpoint={pageHref(site.slug, ownDomain, "pricing-calculate")}
+              quoteHref={enquiryHref(site)}
+            />
+          </div>
+        </>
+      ) : (
+        <div className="mt-6 max-w-2xl">
+          <p className="text-lead text-muted">
+            {`Pricing for ${site.name} depends on your modules, number of employees and implementation needs. Tell us about your organisation and we'll prepare a quotation.`}
+          </p>
+          <a href={enquiryHref(site)} className={buttonClasses("product", "lg", "mt-8")}>
+            Request a quote
+            <ArrowRight aria-hidden className="size-4 rtl:rotate-180" />
+          </a>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /** Section headings for customer proof on product websites (English, like their pages). */
 const PROOF_LABELS = {
   trustedBy: {
@@ -111,6 +169,7 @@ export default async function SitePage({ params }: PageProps<"/[site]/[[...path]
   if (!site) notFound();
 
   if (!page) {
+    if (path === "pricing") return <PricingPage site={site} ownDomain={ownDomain} />;
     // Old addresses of moved pages are forwarded earlier, by the proxy.
     if (path !== "") notFound();
     // Listed but nothing published yet: an honest holding page from the registry.
