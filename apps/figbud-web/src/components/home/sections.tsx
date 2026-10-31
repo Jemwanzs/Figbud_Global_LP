@@ -1,7 +1,7 @@
 import type { Product } from "@figbud/brand";
-import type { BrandProfile } from "@figbud/site-kit";
-import { type Locale, localizePath } from "@figbud/i18n";
-import { Container, Eyebrow, Reveal, buttonClasses } from "@figbud/ui";
+import { type BrandProfile, ProofMetrics, type PublicProof, Testimonials, TrustedBy } from "@figbud/site-kit";
+import { type Locale, localeInfo, localizePath } from "@figbud/i18n";
+import { Container, Eyebrow, Reveal, RevealGroup, buttonClasses, revealOrder } from "@figbud/ui";
 import { ArrowRight, Calculator, Cable, ChartSpline, ShieldCheck, Workflow } from "lucide-react";
 import Link from "next/link";
 
@@ -43,7 +43,13 @@ export function PlatformsSection({
   dict,
   products,
   brands,
-}: SectionProps & { products: Product[]; brands: Record<string, BrandProfile | null> }) {
+  rotation,
+}: SectionProps & {
+  products: Product[];
+  brands: Record<string, BrandProfile | null>;
+  /** Seconds per product when rotation is on (Studio), else null. */
+  rotation: number | null;
+}) {
   const platforms = dict.home.platforms;
   return (
     <section id="platforms" aria-labelledby="platforms-title" className="relative pt-section-sm pb-section">
@@ -62,6 +68,7 @@ export function PlatformsSection({
             items={products}
             brands={brands}
             common={dict.common}
+            rotation={rotation}
           />
         </Reveal>
       </Container>
@@ -74,24 +81,38 @@ export function PhilosophySection({ dict }: SectionProps) {
   return (
     <section
       aria-labelledby="philosophy-title"
-      className="relative border-y border-line bg-bg-elevated/50 py-section"
+      className="relative overflow-x-clip border-y border-line bg-bg-elevated/50 py-section"
     >
       <Container>
         <SectionHeading id="philosophy-title" eyebrow={philosophy.eyebrow} title={philosophy.title} />
         <ol className="mt-stack">
           {philosophy.items.map((item, i) => (
-            <li key={item.title} className="border-t border-line last:border-b">
-              {/* Number, title and description share a baseline on wider screens. */}
-              <Reveal
-                delay={i * 0.06}
-                className="grid gap-2.5 py-6 sm:py-7 md:grid-cols-12 md:items-baseline md:gap-x-8 md:gap-y-0 md:py-8"
-              >
-                <span className="font-mono text-sm text-accent md:col-span-1">0{i + 1}</span>
-                <h3 className="font-display text-title font-medium text-text md:col-span-4">{item.title}</h3>
-                <p className="max-w-prose leading-7 text-muted md:col-span-7 md:text-[1.0625rem]">
+            <li key={item.title} className="relative border-t border-line last:border-b">
+              {/* Each row reveals on its own as it scrolls in: accent line, number,
+                  title, then description. Number, title and description share a
+                  baseline on wider screens. */}
+              <RevealGroup className="grid gap-2.5 py-6 sm:py-7 md:grid-cols-12 md:items-baseline md:gap-x-8 md:gap-y-0 md:py-8">
+                <span
+                  aria-hidden
+                  style={revealOrder(0)}
+                  className="fb-reveal-line absolute start-0 -top-px h-px w-2/5 bg-gradient-to-r from-accent/80 to-transparent rtl:bg-gradient-to-l"
+                />
+                <span className="fb-reveal-roll font-mono text-sm text-accent md:col-span-1">
+                  <span style={revealOrder(1)}>0{i + 1}</span>
+                </span>
+                <h3
+                  style={revealOrder(2, { x: "calc(var(--motion-distance-lg) * -1)", y: "0px" })}
+                  className="fb-reveal-item font-display text-title font-medium text-text md:col-span-4"
+                >
+                  {item.title}
+                </h3>
+                <p
+                  style={revealOrder(3, { x: "calc(var(--motion-distance) * -1)", y: "0px" })}
+                  className="fb-reveal-item max-w-prose leading-7 text-muted md:col-span-7 md:text-[1.0625rem]"
+                >
                   {item.body}
                 </p>
-              </Reveal>
+              </RevealGroup>
             </li>
           ))}
         </ol>
@@ -165,7 +186,10 @@ const capabilityIcons = {
 export function EngineerSection({ dict }: SectionProps) {
   const engineer = dict.home.engineer;
   return (
-    <section aria-labelledby="engineer-title" className="relative border-t border-line py-section">
+    <section
+      aria-labelledby="engineer-title"
+      className="relative overflow-x-clip border-t border-line py-section"
+    >
       <Container size="wide" className="grid gap-14 lg:grid-cols-12 lg:gap-16">
         <div className="lg:col-span-5">
           <div className="lg:sticky lg:top-28">
@@ -176,30 +200,72 @@ export function EngineerSection({ dict }: SectionProps) {
               lead={engineer.lead}
             />
             <Reveal delay={0.1} className="mt-10">
-              <WorkflowDemo copy={engineer.workflow} />
+              <WorkflowDemo copy={engineer.workflow} note={dict.common.syntheticData} />
             </Reveal>
           </div>
         </div>
         <ul className="lg:col-span-7 lg:pt-4">
-          {engineer.items.map((item, i) => {
+          {engineer.items.map((item) => {
             const Icon = capabilityIcons[item.key as keyof typeof capabilityIcons] ?? Workflow;
             return (
-              <li key={item.key} className="border-b border-line first:border-t">
-                <Reveal delay={i * 0.05} className="group flex gap-5 py-6 sm:gap-8 sm:py-8">
-                  <span className="inline-flex size-12 shrink-0 items-center justify-center rounded-2xl border border-line bg-surface text-accent transition-[transform,background-color,border-color] duration-500 ease-out-expo group-hover:-translate-y-0.5 group-hover:border-accent/40 group-hover:bg-accent-soft">
-                    <Icon aria-hidden className="size-5" />
+              <li key={item.key} className="relative border-b border-line first:border-t">
+                {/* Accent line, icon glow, then text, as each capability scrolls in. */}
+                <RevealGroup className="group flex gap-5 py-6 sm:gap-8 sm:py-8">
+                  <span
+                    aria-hidden
+                    style={revealOrder(0)}
+                    className="fb-reveal-line absolute start-0 -top-px h-px w-1/3 bg-gradient-to-r from-accent/70 to-transparent rtl:bg-gradient-to-l"
+                  />
+                  <span
+                    style={revealOrder(1)}
+                    className="fb-reveal-item fb-reveal-glow inline-flex size-12 shrink-0 items-center justify-center rounded-2xl border border-line bg-surface text-accent transition-[transform,background-color,border-color,box-shadow] duration-500 ease-out-expo group-hover:-translate-y-1 group-hover:border-accent/40 group-hover:bg-accent-soft group-hover:shadow-[0_12px_28px_-14px_var(--accent)]"
+                  >
+                    <Icon
+                      aria-hidden
+                      className="size-5 transition-transform duration-500 ease-out-expo group-hover:scale-110"
+                    />
                   </span>
-                  <span>
-                    <h3 className="text-xl font-medium tracking-tight text-text sm:text-2xl">{item.title}</h3>
+                  <span style={revealOrder(2)} className="fb-reveal-item">
+                    <h3 className="text-xl font-medium tracking-tight text-text transition-colors duration-300 group-hover:text-accent sm:text-2xl">
+                      {item.title}
+                    </h3>
                     <p className="mt-2 max-w-xl leading-relaxed text-muted">{item.body}</p>
                   </span>
-                </Reveal>
+                </RevealGroup>
               </li>
             );
           })}
         </ul>
       </Container>
     </section>
+  );
+}
+
+/** Trusted By logos (Studio → Content & Marketing); nothing renders until one is published. */
+export function TrustedBySection({ dict, proof }: SectionProps & { proof: PublicProof }) {
+  return (
+    <TrustedBy
+      organizations={proof.organizations}
+      labels={dict.home.proof.trustedBy}
+      className="border-t border-line pt-section-sm pb-section-sm"
+    />
+  );
+}
+
+/** Verified metrics and testimonials; each renders only when something is published. */
+export function CustomerProofSection({ locale, dict, proof }: SectionProps & { proof: PublicProof }) {
+  if (!proof.metrics.length && !proof.testimonials.length) return null;
+  return (
+    <div className="border-t border-line py-section">
+      <Container size="wide" className="space-y-section">
+        <ProofMetrics
+          metrics={proof.metrics}
+          locale={localeInfo[locale].tag}
+          labels={dict.home.proof.metrics}
+        />
+        <Testimonials testimonials={proof.testimonials} labels={dict.home.proof.testimonials} />
+      </Container>
+    </div>
   );
 }
 

@@ -17,6 +17,7 @@ pub mod error;
 pub mod media;
 pub mod pages;
 pub mod privacy;
+pub mod proof;
 pub mod rate_limit;
 pub mod routes;
 pub mod seo;

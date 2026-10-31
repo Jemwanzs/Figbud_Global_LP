@@ -221,7 +221,11 @@ async fn public_media(
                AND p.archived_at IS NULL AND NOT p.offline AND p.published IS NOT NULL
                AND s.archived_at IS NULL AND s.status IN ('coming_soon', 'beta', 'active')
                AND (jsonb_path_exists(p.published, '$.sections[*] ? (@.image_id == $id)', jsonb_build_object('id', $1::text))
-                    OR p.published->>'seo_image_id' = $1::text))",
+                    OR p.published->>'seo_image_id' = $1::text))
+         -- Logos and photos of published Trusted By organisations and testimonials (P10).
+         OR EXISTS (SELECT 1 FROM proof_items pi JOIN media_assets m ON m.id = $1 AND m.archived_at IS NULL
+                     WHERE pi.published IS NOT NULL AND pi.active AND pi.archived_at IS NULL AND pi.published_sites <> '{}'
+                       AND $1::text IN (pi.published->>'logo_id', pi.published->>'favicon_id', pi.published->>'photo_id'))",
     )
     .bind(id)
     .fetch_one(&state.pool)

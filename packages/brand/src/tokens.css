@@ -20,6 +20,19 @@
   /* Fixed surface for logo files made for dark backgrounds. */
   --fb-ink: var(--fb-navy);
   --fb-paper: #f8fafc;
+
+  /* Motion tokens (UI-MO1, docs/UI_STANDARDS.md "Motion"): one set of
+     durations, easings and distances for every animated component. */
+  --motion-fast: 180ms; /* hover and press feedback */
+  --motion-base: 320ms; /* small state changes */
+  --motion-slow: 700ms; /* reveals and slides */
+  --motion-slower: 1100ms; /* count-ups and accent lines */
+  --motion-stagger: 110ms; /* between items revealed in sequence */
+  --motion-distance: 18px; /* reveal travel */
+  --motion-distance-lg: 36px; /* row and panel travel */
+  --motion-ease: cubic-bezier(0.16, 1, 0.3, 1); /* = --ease-out-expo */
+  --motion-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --motion-marquee: 48s; /* one loop of a logo row */
 }
 
 :root,

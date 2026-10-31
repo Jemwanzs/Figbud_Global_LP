@@ -256,6 +256,7 @@ const seedSite = (n, slug, kind, name, tagline, category, template, status) => (
     footer: { note: null, links: [] },
     enquiries: { open: true, closed_message: null },
     theme: { brand_section: null, soft_section: null },
+    motion: { product_rotation: false, rotation_seconds: 9 },
   },
   settings_version: 1,
 });
@@ -1038,13 +1039,22 @@ const mediaInfo = (asset) =>
 const mediaPublic = (asset) =>
   asset &&
   !asset.archived_at &&
-  [...pages.values()].some(
+  ([...pages.values()].some(
     (p) =>
       p.site?.slug === asset.site &&
       !p.archived_at &&
       !p.offline &&
       sectionImages(p.published).includes(asset.id),
-  );
+  ) ||
+    // Logos and photos of published Trusted By organisations and testimonials (proof.rs).
+    [...proofItems.values()].some(
+      (i) =>
+        i.published &&
+        i.active &&
+        !i.archived_at &&
+        i.published_sites.length &&
+        [i.published.logo_id, i.published.favicon_id, i.published.photo_id].includes(asset.id),
+    ));
 
 function mediaRoutes(path, req, res, url, raw, body, user, send) {
   const editor = RANKS[user.role] >= RANKS.editor;
@@ -2356,6 +2366,413 @@ function publicCampaign(c) {
       : null,
   };
 }
+// ---------------------------------------------------------------- customers & proof
+// Mirrors services/api/src/proof.rs: Trusted By organisations, testimonials and
+// metrics with drafts, maker-checker publication, versions and website targeting.
+const proofItems = new Map();
+const PROOF_TEMPLATES = {
+  organization: {
+    name: "",
+    relationship: "customer",
+    website: null,
+    description: null,
+    logo_id: null,
+    favicon_id: null,
+    permission: { relationship_confirmed: false, display_approved: false, evidence: "" },
+  },
+  testimonial: {
+    quote: "",
+    organization_id: null,
+    organization_name: null,
+    person_name: null,
+    person_title: null,
+    photo_id: null,
+    product: null,
+    industry: null,
+    country: null,
+    permission: { quote_approved: false, name_approved: false, photo_approved: false, evidence: "" },
+  },
+  metric: {
+    label: "",
+    value: 0,
+    format: "number",
+    currency: null,
+    compact: false,
+    decimals: 0,
+    prefix: null,
+    suffix: null,
+    source: "",
+    period: "",
+    verified: false,
+  },
+};
+const proofTitle = (i) =>
+  String(
+    i.kind === "organization"
+      ? i.draft.name
+      : i.kind === "testimonial"
+        ? i.draft.quote
+        : (i.draft.label ?? ""),
+  ).slice(0, 80);
+const blank = (v) => (typeof v === "string" ? v.trim() || null : (v ?? null));
+function proofPublishErrors(kind, d) {
+  const e = [];
+  const err = (field, code, message) => e.push({ field, code, message });
+  const p = d.permission ?? {};
+  if (kind === "organization") {
+    if (!d.name) err("name", "required", "Name the organisation.");
+    if (!d.logo_id) err("logo_id", "required", "Add the organisation's approved logo.");
+    if (!p.relationship_confirmed || !p.display_approved)
+      err("permission", "required", "Confirm the relationship and their approval to be shown publicly.");
+    if (!p.evidence) err("permission.evidence", "required", "Record where the approval is kept.");
+  } else if (kind === "testimonial") {
+    if ((d.quote ?? "").length < 20)
+      err("quote", "required", "Add the approved quotation (at least 20 characters).");
+    if (!d.organization_id && !d.organization_name && !d.person_name)
+      err("person_name", "required", "Attribute it to a person or an organisation.");
+    if (!p.quote_approved)
+      err("permission", "required", "Confirm the customer approved this quotation for publication.");
+    if (d.person_name && !p.name_approved)
+      err("permission", "name", "Confirm the person approved showing their name.");
+    if (d.photo_id && !p.photo_approved)
+      err("permission", "photo", "Confirm the person approved showing their photograph.");
+    if (!p.evidence) err("permission.evidence", "required", "Record where the approval is kept.");
+  } else {
+    if (!d.label) err("label", "required", "Name what the figure measures.");
+    if ((d.source ?? "").length < 3 || (d.period ?? "").length < 3)
+      err("source", "required", "Every published figure needs its source and measurement period.");
+    if (!d.verified) err("verified", "required", "Confirm the figure was checked against its source.");
+  }
+  return e;
+}
+function proofNormalise(kind, input) {
+  const d = { ...clone(PROOF_TEMPLATES[kind]), ...clone(input ?? {}) };
+  const fields = [];
+  for (const key of Object.keys(d)) if (typeof d[key] === "string") d[key] = d[key].trim();
+  for (const key of [
+    "website",
+    "description",
+    "organization_name",
+    "person_name",
+    "person_title",
+    "product",
+    "industry",
+    "country",
+    "currency",
+    "prefix",
+    "suffix",
+  ])
+    if (key in d) d[key] = blank(d[key]);
+  if (d.permission) d.permission = { ...d.permission, evidence: String(d.permission.evidence ?? "").trim() };
+  if (kind === "organization" && d.website && !/^https:\/\/[^\s<>"']+$/.test(d.website))
+    fields.push({ field: "website", code: "format", message: "Use the organisation's https:// address." });
+  if (kind === "testimonial" && d.country) {
+    d.country = d.country.toUpperCase();
+    if (!/^[A-Z]{2}$/.test(d.country))
+      fields.push({ field: "country", code: "format", message: "Choose a country from the list." });
+  }
+  if (kind === "metric") {
+    if (d.currency) d.currency = d.currency.toUpperCase();
+    if (d.format === "currency" && !/^[A-Z]{3}$/.test(d.currency ?? ""))
+      fields.push({
+        field: "currency",
+        code: "format",
+        message: "Use a three-letter currency code such as KES.",
+      });
+    if (d.format !== "currency") d.currency = null;
+    if (!(Number.isFinite(d.value) && d.value >= 0))
+      fields.push({ field: "value", code: "range", message: "Enter a figure of zero or more." });
+  }
+  return [d, fields];
+}
+function proofStatus(i) {
+  if (i.archived_at) return "archived";
+  if (i.review) return "in_review";
+  if (!i.published) return i.published_number ? "unpublished" : "draft";
+  return JSON.stringify(i.published) !== JSON.stringify(i.draft) ||
+    i.published_sites.join() !== i.sites.join()
+    ? "changes_pending"
+    : "published";
+}
+const proofSummary = (i) => ({
+  id: i.id,
+  kind: i.kind,
+  title: proofTitle(i),
+  status: proofStatus(i),
+  active: i.active,
+  sort_order: i.sort_order,
+  sites: i.sites,
+  published_sites: i.published_sites,
+  published_at: i.published_at,
+  updated_at: i.updated_at,
+});
+function newProof(kind, by) {
+  const item = {
+    id: randomUUID(),
+    kind,
+    draft: clone(PROOF_TEMPLATES[kind]),
+    sites: [],
+    draft_version: 1,
+    published: null,
+    published_sites: [],
+    published_number: 0,
+    published_at: null,
+    review: null,
+    active: true,
+    sort_order: 0,
+    archived_at: null,
+    versions: [],
+    created_by: by,
+    updated_at: new Date().toISOString(),
+  };
+  proofItems.set(item.id, item);
+  return item;
+}
+function proofPublicDoc(i) {
+  const d = i.published;
+  const media = (id) => {
+    const a = id && mediaAssets.get(id);
+    return a && !a.archived_at ? { id: a.id, alt: a.alt_text, width: a.width, height: a.height } : null;
+  };
+  if (i.kind === "organization")
+    return {
+      id: i.id,
+      name: d.name,
+      relationship: d.relationship,
+      website: d.website,
+      description: d.description,
+      logo: media(d.logo_id),
+    };
+  if (i.kind === "testimonial") {
+    const org = d.organization_id && proofItems.get(d.organization_id);
+    return {
+      id: i.id,
+      quote: d.quote,
+      organization_name: d.organization_name,
+      organization_logo: org?.published && org.active ? media(org.published.logo_id) : null,
+      person_name: d.person_name,
+      person_title: d.person_name ? d.person_title : null,
+      photo: media(d.photo_id),
+      product: d.product,
+      industry: d.industry,
+      country: d.country,
+    };
+  }
+  const { verified, ...rest } = d;
+  void verified;
+  return { id: i.id, ...rest };
+}
+function publicProof(slug) {
+  const live = [...proofItems.values()]
+    .filter((i) => i.published && i.active && !i.archived_at && i.published_sites.includes(slug))
+    .sort((a, b) => a.sort_order - b.sort_order);
+  return {
+    organizations: live.filter((i) => i.kind === "organization").map(proofPublicDoc),
+    testimonials: live.filter((i) => i.kind === "testimonial").map(proofPublicDoc),
+    metrics: live.filter((i) => i.kind === "metric").map(proofPublicDoc),
+  };
+}
+function proofRoutes(path, req, body, user, send) {
+  const notFound = () => send(404, { error: { code: "not_found", message: "Not found." } });
+  const forbidden = () =>
+    send(403, { error: { code: "forbidden", message: "You don't have permission to do that." } });
+  const conflict = (message) => send(409, { error: { code: "conflict", message } });
+  const invalid = (fields) =>
+    send(422, { error: { code: "validation", message: "Some fields need attention.", fields } });
+  const canEdit = RANKS[user.role] >= RANKS.editor;
+  const canReview = RANKS[user.role] >= RANKS.reviewer;
+  if (path === "proof" && req.method === "GET")
+    return send(200, {
+      items: [...proofItems.values()].map(proofSummary),
+      can_edit: canEdit,
+      can_review: canReview,
+    });
+  if (path === "proof" && req.method === "POST") {
+    if (!canEdit) return forbidden();
+    if (!PROOF_TEMPLATES[body.kind])
+      return send(400, { error: { code: "bad_request", message: "unknown kind" } });
+    return send(200, { id: newProof(body.kind, user.id).id });
+  }
+  const m = /^proof\/([0-9a-f-]{36})(?:\/([a-z_]+))?$/.exec(path);
+  const item = m && proofItems.get(m[1]);
+  if (!item) return notFound();
+  const action = m[2];
+  const detail = () => {
+    const users = (id) => (id === user.id ? user.name : "Another reviewer");
+    return {
+      ...proofSummary(item),
+      draft: item.draft,
+      draft_version: item.draft_version,
+      published: item.published,
+      published_number: item.published_number,
+      review: item.review
+        ? {
+            requested_at: item.review.at,
+            requested_by: users(item.review.by),
+            note: item.review.note,
+            own: item.review.by === user.id,
+          }
+        : null,
+      publish_errors: proofPublishErrors(item.kind, item.draft),
+      versions: [...item.versions].reverse(),
+      can_edit: canEdit,
+      can_review: canReview,
+    };
+  };
+  if (!action && req.method === "GET") return send(200, detail());
+  if (action === "draft") {
+    if (!canEdit) return forbidden();
+    if (item.archived_at) return conflict("Restore this record before editing it.");
+    if (body.version !== item.draft_version)
+      return conflict("Someone else saved this record meanwhile. Reload to see their changes.");
+    const targets = [...new Set((body.sites ?? []).map((x) => String(x).trim()).filter(Boolean))].sort();
+    const [doc, fields] = proofNormalise(item.kind, body.document);
+    if (targets.some((slug) => !sites.some((x) => x.slug === slug && !x.archived_at)))
+      fields.push({ field: "sites", code: "invalid", message: "Choose websites from the list." });
+    if (fields.length) return invalid(fields);
+    const changed =
+      JSON.stringify(doc) !== JSON.stringify(item.draft) || targets.join() !== item.sites.join();
+    item.draft = doc;
+    item.sites = targets;
+    item.draft_version += 1;
+    item.updated_at = new Date().toISOString();
+    if (changed) item.review = null;
+    return send(200, { version: item.draft_version, publish_errors: proofPublishErrors(item.kind, doc) });
+  }
+  const note = String(body?.note ?? "").trim() || null;
+  if (action === "submit") {
+    if (!canEdit) return forbidden();
+    if (proofStatus(item) === "published") return conflict("Nothing has changed since it was published.");
+    const errors = proofPublishErrors(item.kind, item.draft);
+    if (!item.sites.length)
+      errors.push({
+        field: "sites",
+        code: "required",
+        message: "Choose at least one website to show it on.",
+      });
+    if (errors.length) return invalid(errors);
+    item.review = { by: user.id, at: new Date().toISOString(), note };
+    return send(200, proofSummary(item));
+  }
+  if (!canReview) return forbidden();
+  if (action === "publish") {
+    if (!item.review) return conflict("Ask for approval first.");
+    if (item.review.by === user.id && user.role !== "owner")
+      return send(403, {
+        error: {
+          code: "not_permitted",
+          message: "A different reviewer must approve your own request (maker-checker).",
+        },
+      });
+    item.published = clone(item.draft);
+    if (item.kind === "testimonial" && item.draft.organization_id) {
+      const org = proofItems.get(item.draft.organization_id);
+      if (!org?.published)
+        return invalid([
+          {
+            field: "organization_id",
+            code: "unpublished",
+            message: "Publish the organisation in Trusted By first.",
+          },
+        ]);
+      item.published.organization_name = org.published.name;
+    }
+    item.published_sites = [...item.sites];
+    item.published_number += 1;
+    item.published_at = new Date().toISOString();
+    item.versions.push({
+      number: item.published_number,
+      note: note ?? item.review.note ?? "Approved",
+      sites: [...item.sites],
+      requested_by: "Requester",
+      published_by: user.name,
+      created_at: item.published_at,
+    });
+    item.review = null;
+  } else if (action === "reject") {
+    if (!item.review) return conflict("There's no request to decline.");
+    item.review = null;
+  } else if (action === "unpublish") {
+    if (!item.published) return conflict("It isn't published.");
+    item.published = null;
+    item.published_sites = [];
+  } else if (action === "settings") {
+    if (typeof body.active === "boolean") item.active = body.active;
+    if (Number.isInteger(body.sort_order)) item.sort_order = body.sort_order;
+  } else if (action === "archive") {
+    if (item.published) return conflict("Unpublish it before archiving.");
+    item.archived_at = new Date().toISOString();
+    item.review = null;
+  } else if (action === "restore") {
+    item.archived_at = null;
+  } else return notFound();
+  return send(200, proofSummary(item));
+}
+
+// Synthetic, clearly labelled test records (never real organisations).
+{
+  const [, logo] = storeMedia(
+    "figbud",
+    ICON_PNG,
+    "image/png",
+    "Synthetic logo",
+    "Synthetic Test Organisation",
+    "Seed",
+  );
+  const seed = (kind, draft, sites) => {
+    const item = newProof(kind, "seed");
+    Object.assign(item.draft, draft);
+    item.sites = sites;
+    item.published = clone(item.draft);
+    item.published_sites = [...sites];
+    item.published_number = 1;
+    item.published_at = new Date().toISOString();
+    item.versions.push({
+      number: 1,
+      note: "Seeded test data",
+      sites,
+      requested_by: null,
+      published_by: "Seed",
+      created_at: item.published_at,
+    });
+    return item;
+  };
+  const org = seed(
+    "organization",
+    {
+      name: "Synthetic Test Organisation",
+      logo_id: logo.id,
+      permission: { relationship_confirmed: true, display_approved: true, evidence: "Test fixture" },
+    },
+    ["figbud", "zirahr"],
+  );
+  seed(
+    "testimonial",
+    {
+      quote: "Synthetic test quotation used only by automated tests.",
+      organization_id: org.id,
+      organization_name: org.draft.name,
+      permission: { quote_approved: true, evidence: "Test fixture" },
+    },
+    ["figbud"],
+  );
+  seed(
+    "metric",
+    {
+      label: "Synthetic test metric",
+      value: 1250000,
+      format: "currency",
+      currency: "KES",
+      compact: true,
+      suffix: "+",
+      source: "Test fixture",
+      period: "Test period",
+      verified: true,
+    },
+    ["figbud"],
+  );
+}
+
 function campaignRoutes(path, req, body, user, send) {
   const rank = RANKS[user.role];
   const err = (status, message, code = "conflict") => send(status, { error: { code, message } });
@@ -2787,7 +3204,15 @@ function siteSettingsRoutes(slug, req, body, user, send) {
   next.footer ??= { note: null, links: [] };
   next.enquiries ??= { open: true, closed_message: null };
   next.theme ??= { brand_section: null, soft_section: null };
+  next.motion ??= { product_rotation: false, rotation_seconds: 9 };
   const fields = [];
+  const seconds = next.motion.rotation_seconds;
+  if (!Number.isInteger(seconds) || seconds < 6 || seconds > 20)
+    fields.push({
+      field: "motion.rotation_seconds",
+      code: "range",
+      message: "Between 6 and 20 seconds, so visitors have time to read.",
+    });
   // The API also checks contrast (site_settings.rs); the mock checks the format.
   for (const key of ["brand_section", "soft_section"]) {
     const value = (next.theme[key] ?? "").trim().toLowerCase();
@@ -3335,6 +3760,7 @@ function admin(req, res, url, body, send, raw) {
   if (settingsPath) return siteSettingsRoutes(settingsPath[1], req, body, user, send);
   if (path === "campaigns" || path.startsWith("campaigns/"))
     return campaignRoutes(path, req, body, user, send);
+  if (path === "proof" || path.startsWith("proof/")) return proofRoutes(path, req, body, user, send);
   if (path === "seo" || /^sites\/[a-z0-9_-]+\/seo$/.test(path)) return seoRoutes(path, req, body, user, send);
   if (path === "sites" || path.startsWith("sites/")) return siteRoutes(path, req, body, user, send);
   return send(404, { error: { code: "not_found", message: "Not found." } });
@@ -3370,6 +3796,8 @@ createServer(async (req, res) => {
   if (url.pathname === "/v1/articles") return send(200, list(url));
   if (url.pathname === "/v1/sites") return send(200, publicSites());
   if (url.pathname === "/v1/privacy") return send(200, publicPrivacy());
+  const proofList = /^\/v1\/sites\/([a-z0-9_-]+)\/proof$/.exec(url.pathname);
+  if (proofList) return send(200, publicProof(proofList[1]));
   const liveList = /^\/v1\/sites\/([a-z0-9_-]+)\/campaigns$/.exec(url.pathname);
   if (liveList)
     return send(200, {

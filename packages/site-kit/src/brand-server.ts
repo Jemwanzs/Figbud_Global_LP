@@ -1,5 +1,6 @@
 import type { ListedSite } from "./brand";
 import type { LiveCampaign } from "./campaigns";
+import type { PublicProof } from "./proof";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
@@ -118,5 +119,23 @@ export async function fetchLiveCampaigns(apiBase: string, slug: string): Promise
     return ((await response.json()) as { campaigns: LiveCampaign[] }).campaigns;
   } catch {
     return [];
+  }
+}
+
+/**
+ * A website's published Trusted By organisations, testimonials and verified
+ * metrics (`GET /v1/sites/{slug}/proof`, P10); empty if the API can't be
+ * reached, so the sections simply don't render. Wrap it in a `"use cache"`
+ * function tagged `proof`.
+ */
+export async function fetchProof(apiBase: string, slug: string): Promise<PublicProof> {
+  try {
+    const response = await fetch(`${apiBase.replace(/\/$/, "")}/v1/sites/${encodeURIComponent(slug)}/proof`, {
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!response.ok) return { organizations: [], testimonials: [], metrics: [] };
+    return (await response.json()) as PublicProof;
+  } catch {
+    return { organizations: [], testimonials: [], metrics: [] };
   }
 }

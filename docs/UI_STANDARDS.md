@@ -90,3 +90,42 @@ Navbar dropdowns use the **opposite theme** to the page: a dark panel on a light
   - Escape and a press outside close it (`useDismiss`). Escape from inside the panel returns focus to the trigger.
   - Text in both panel themes meets WCAG AA contrast, which the accessibility scans check.
 - **Tests:** `apps/figbud-web/e2e/site.spec.ts` ("navbar dropdowns use the opposite theme…") checks both page themes: the panel's `data-theme` and actual background colour, staying on screen, Escape and focus return.
+
+## Motion (UI-MO1, 31 Oct 2026)
+
+Motion explains and guides. It never decorates for its own sake, and content never depends on it.
+
+- **Tokens** (`packages/brand/src/tokens.css`):
+  - `--motion-fast` 180ms for hover and press feedback;
+  - `--motion-base` 320ms for small state changes;
+  - `--motion-slow` 700ms for reveals and slides;
+  - `--motion-slower` 1.1s for count-ups and accent lines;
+  - `--motion-stagger` 110ms between items in a sequence;
+  - `--motion-distance` 18px and `--motion-distance-lg` 36px of travel;
+  - `--motion-ease` (expo out) and `--motion-ease-standard`;
+  - `--motion-marquee` 48s per logo loop.
+  Use the tokens; don't hard-code timings.
+- **One trigger:** `armReveal` in `@figbud/ui` arms after hydration, only for content still below the fold and only with motion allowed. It fires once, when content is meaningfully visible (IntersectionObserver, no scroll handlers). Server HTML, visitors without JavaScript, search engines and reduced motion always get the final state, so motion can't hide content or hurt the LCP.
+- **Components (reuse them, don't write new animation code):**
+  - `Reveal`: one block fades and lifts.
+  - `RevealGroup` + `revealOrder()`: a row reveals its parts in sequence. `fb-reveal-item` fades and travels, `fb-reveal-line` draws an accent line, `fb-reveal-roll` rolls a number up, and `fb-reveal-glow` gives a one-off glow. Each group fires on its own, at its own scroll position. Sideways travel follows the reading direction.
+  - `CountUp`: figures count up once. The final, formatted value (currency such as KES, percent, compact, decimals) is in the server HTML and is what screen readers get, and an invisible copy reserves the width so nothing shifts.
+  - `Marquee`: a slow, seamless right-to-left row with faded edges. Repeats are hidden from assistive technology and keyboard focus, and hover, focus and its pause button stop it (WCAG 2.2.2). With reduced motion it's a still row that scrolls sideways; with fewer than three items it's a still, centred row.
+  - Sliders follow the home showcase (`platform-showcase.tsx`): transform-based track, inert off-screen panels, `touch-action: pan-y` so vertical scrolling is never captured, swipe threshold 48px, a sideways trackpad threshold, visible previous and next controls, and a position indicator.
+- **Rules:**
+  - Animate `transform` and `opacity` only.
+  - No layout shift: reserve space, and don't change heights on load.
+  - No bouncing, spinning or dramatic zooms.
+  - Hover effects are extras: everything is reachable without hover.
+  - Automatic movement is off unless an editor turns it on, and then it pauses on hover, focus, interaction, off screen and in hidden tabs, has a pause control and never runs with reduced motion.
+  - Animated sections clip sideways overflow (`overflow-x: clip`) so travel never causes page scroll.
+- **Illustrative content:** previews and demonstrations show synthetic data and say so ("Illustrative product activity · synthetic data").
+- **Tests:** `site.spec.ts` ("motion and product discovery") checks the slider (buttons, swipe, inert panels), complete server HTML and reduced motion. The narrow-screen tests check for no horizontal overflow, including in Arabic.
+
+## Product cards (UI-PR1, 31 Oct 2026)
+
+`apps/figbud-web/src/components/products/product-cards.tsx`:
+- **`ProductSpotlight`** (the first live product): its story and an interactive synthetic preview, stacked on phones.
+- **`ProductCard`:** equal proportions in a 1/2/3-column grid. A brand accent line and glow, the approved logo as the h2, status, category, tagline, summary and highlights all stay visible. The demo request or waitlist and the product website sit at the bottom.
+- **Hover and focus:** a 4px lift, the product-tinted border and shadow; no lift with reduced motion.
+- Logos come from the brand registry. Product names stay h2 under the page h1.

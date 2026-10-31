@@ -139,6 +139,8 @@ Studio UI polish is a standing priority (P7-UX2): every milestone reviews the sc
 
 **Navigation, footer & forms** (P7-E2, 29 Oct 2026): Websites → a website → Navigation & forms. Settings live in `sites.settings` (validated by `services/api/src/site_settings.rs`; an empty document means the defaults), are read and saved at `GET/POST /v1/admin/sites/{slug}/settings` with a version check, and reach the websites through `GET /v1/sites` (`settings`). The editor suggests the website's published pages as destinations.
 
+**Home page motion** (UI-MO2, 31 Oct 2026): FigBud Global → Navigation & forms → Home page motion. One switch makes Our Platforms move slowly from product to product, at 6–20 seconds per product (the API refuses anything else). It's off by default, and reviewers change it like the other settings (audited, version-checked). The website still pauses rotation on hover, keyboard focus, any tap or swipe, while it's off screen or the tab is hidden; it stops for good once a visitor chooses a product, has a pause button, and never moves for visitors who prefer reduced motion.
+
 **Website cards** show each workspace at a glance: live pages of total, sections, changes awaiting approval or scheduled (pages and brand), and when anything was last published (`workspace` in `GET /v1/admin/sites`). Actions appear only where the screen exists: Manage, Branding, Pages, Open website.
 
 **ZiraHR, the first complete integration.**
@@ -177,6 +179,33 @@ Studio → **Marketing** → Campaigns & Promotions. Full design and rules: [CAM
   - A reviewer approves, or an owner for reward campaigns.
   - Pause and resume (immediate), archive and restore, duplicate, and restore any published version to the draft.
 - **Safeguards:** buttons are links or the existing enquiry form; nothing runs scripts. Reward campaigns need terms, a recorded legal review and an owner's approval.
+
+## Content & Marketing: Trusted By, testimonials and metrics (P10-T1..T3, 31 Oct 2026)
+
+Studio → Marketing, then the tabs **Trusted By**, **Testimonials** and **Success metrics**, next to Campaigns & Promotions. Records are created once and shown on any selection of websites, without copies.
+
+- **Model:** `proof_items` (migration 23), one table for the three kinds, with typed content validated by `services/api/src/proof.rs`.
+  - Each record has a working **draft** (with its chosen websites) and a **published snapshot** (with the websites it was approved for). Websites only ever read the snapshot.
+  - Every approval adds a row to `proof_versions` (history), and every action is audited (`proof.created`, `proof.draft_saved`, `proof.submitted`, `proof.published`, `proof.rejected`, `proof.unpublished`, `proof.settings_changed`, `proof.archived`, `proof.restored`).
+- **Kinds:**
+  - **Organisation (Trusted By):** name, relationship (customer, partner, technology provider, other), website, short description, logo and icon from the FigBud Global media library, and permission (relationship confirmed, display approved, where the approval is recorded).
+  - **Testimonial:** the approved quotation, an organisation from Trusted By (its name and logo) or a name, the person's name and designation, a photograph, product, industry, country, and permission (quote approved, name approved, photo approved, where it's recorded). The designation only shows with an approved name.
+  - **Metric:** what it measures, the figure, shown as number, currency (ISO code such as KES) or percentage, compact notation, decimals, short marks before or after (">", "+"), the source and the measurement period (both shown publicly), and "checked against its source".
+- **Workflow:**
+  - Editors with access to FigBud Global and every targeted website save drafts. Saving never changes what websites show, and a changed draft cancels a pending request, because approval covers what was asked for.
+  - "Ask for approval" works only when the API's publication checks pass:
+    - organisations: a name, a logo, a confirmed relationship, display approval and evidence;
+    - testimonials: a quote of 20+ characters, an attribution, quote approval, name and photo approval when those are shown, and evidence;
+    - metrics: a label, a source, a period and verification;
+    - all: at least one website.
+    The editor shows the same checklist.
+  - Reviewers approve and publish, or decline. A reviewer can't approve their own request; owners can (maker-checker, as for pages and campaigns). A testimonial naming an organisation needs that organisation published first, and carries its approved name.
+  - Reviewers can also hide a record without unpublishing it (active switch), set its display order, unpublish it, and archive or restore it. A published record can't be archived, and an organisation used by a testimonial can't be archived.
+- **Publicly:** `GET /v1/sites/{slug}/proof` returns the published, active records approved for that website, in order, without permission evidence. Logos and photos are served from the website's own origin (`/media/{id}`), and only while a published, active record uses them. Sections render only when there's something to show:
+  - FigBud Global: Trusted By after Our Platforms, then metrics and testimonials after What We Engineer.
+  - Product websites: all three after the home page's own sections.
+  Studio actions refresh the corporate website at once (cache tag `proof`); product websites within minutes.
+- **Never invented:** the seeded records in the e2e mock API are synthetic test fixtures. Production starts empty, and Q22 lists what's needed before any organisation can be shown.
 
 ## Per-website permissions (P7-F1, 30 Oct 2026)
 

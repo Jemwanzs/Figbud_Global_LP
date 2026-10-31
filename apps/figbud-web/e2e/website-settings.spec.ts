@@ -108,4 +108,15 @@ test("Studio: a website's navigation, footer and enquiry switch", async ({ page 
   await page.goto("/admin/sites/figbud/website");
   await expect(page.getByRole("switch", { name: "Taking enquiries" })).toBeDisabled();
   await expect(page.getByText("The corporate website always takes enquiries.")).toBeVisible();
+
+  // Home page motion (corporate only): off by default, never faster than 6 seconds.
+  // Not saved on here, so other tests never see the showcase rotate.
+  const rotation = page.getByRole("switch", { name: "Products change only when visitors choose" });
+  await expect(rotation).toHaveAttribute("aria-checked", "false");
+  await rotation.click();
+  await page.getByLabel("Seconds on each product").fill("3");
+  await page.getByRole("button", { name: "Save settings" }).click();
+  await expect(page.getByText("Between 6 and 20 seconds, so visitors have time to read.")).toBeVisible();
+  await page.getByRole("switch", { name: "Products rotate slowly" }).click();
+  await expect(page.getByLabel("Seconds on each product")).toBeHidden();
 });

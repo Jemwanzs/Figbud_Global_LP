@@ -9,13 +9,15 @@ import { Hero } from "@/components/home/hero";
 import {
   AfricaSection,
   CompanySection,
+  CustomerProofSection,
   EngineerSection,
   FinalCtaSection,
   PhilosophySection,
   PlatformsSection,
+  TrustedBySection,
 } from "@/components/home/sections";
 import { getDictionary } from "@/i18n/get-dictionary";
-import { getBrands, getMapProducts, getPublicProducts } from "@/lib/products";
+import { getBrands, getMapProducts, getProductRotation, getProof, getPublicProducts } from "@/lib/products";
 import { pageMetadata, siteOrigin } from "@/lib/site";
 
 export async function generateMetadata({ params }: PageProps<"/[locale]">): Promise<Metadata> {
@@ -29,10 +31,12 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
   const { locale } = await params;
   if (!isLocale(locale)) notFound();
   const dict = await getDictionary(locale);
-  const [products, mapProducts, brands] = await Promise.all([
+  const [products, mapProducts, brands, rotation, proof] = await Promise.all([
     getPublicProducts(),
     getMapProducts(),
     getBrands(),
+    getProductRotation(),
+    getProof(),
   ]);
 
   return (
@@ -47,7 +51,16 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
       <Hero locale={locale} dict={dict} products={products} brands={brands} />
       {/* Each boundary hydrates as its own task, keeping the main thread responsive. */}
       <Suspense>
-        <PlatformsSection locale={locale} dict={dict} products={products} brands={brands} />
+        <PlatformsSection
+          locale={locale}
+          dict={dict}
+          products={products}
+          brands={brands}
+          rotation={rotation}
+        />
+      </Suspense>
+      <Suspense>
+        <TrustedBySection locale={locale} dict={dict} proof={proof} />
       </Suspense>
       <Suspense>
         <PhilosophySection locale={locale} dict={dict} />
@@ -57,6 +70,9 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
       </Suspense>
       <Suspense>
         <EngineerSection locale={locale} dict={dict} />
+      </Suspense>
+      <Suspense>
+        <CustomerProofSection locale={locale} dict={dict} proof={proof} />
       </Suspense>
       <Suspense>
         <CompanySection locale={locale} dict={dict} />

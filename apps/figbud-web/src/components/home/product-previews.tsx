@@ -4,6 +4,8 @@ import { cn } from "@figbud/ui";
 import { Check, CircleDashed } from "lucide-react";
 import { m } from "motion/react";
 
+import type { ProductSlug } from "@figbud/brand";
+
 import type { Dictionary } from "@/i18n/get-dictionary";
 
 /*
@@ -341,4 +343,13 @@ export function ZiwaPreview({ copy }: { copy: Previews["ziwa"] }) {
       </div>
     </div>
   );
+}
+
+/** The synthetic preview for a product (home showcase, Products spotlight). */
+export function ProductPreview({ slug, copy }: { slug: ProductSlug; copy: Previews }) {
+  if (slug === "zirahr") return <ZiraPreview copy={copy.zirahr} />;
+  if (slug === "jasiri") return <JasiriPreview copy={copy.jasiri} />;
+  if (slug === "ziwa") return <ZiwaPreview copy={copy.ziwa} />;
+  if (slug === "expense_now") return <ExpensePreview copy={copy.expense_now} />;
+  return null;
 }

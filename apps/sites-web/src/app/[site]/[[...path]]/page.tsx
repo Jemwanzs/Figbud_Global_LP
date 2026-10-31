@@ -2,6 +2,9 @@ import {
   CampaignSlot,
   JsonLd,
   PageBlocks,
+  ProofMetrics,
+  Testimonials,
+  TrustedBy,
   breadcrumbLd,
   faqLd,
   organizationLd,
@@ -19,6 +22,7 @@ import {
   figbudOrigin,
   getPage,
   getPages,
+  getProof,
   getSite,
   hrefResolver,
   parseSiteParam,
@@ -88,6 +92,20 @@ export async function generateMetadata(
   };
 }
 
+/** Section headings for customer proof on product websites (English, like their pages). */
+const PROOF_LABELS = {
+  trustedBy: {
+    eyebrow: "Trusted by",
+    title: "Trusted by teams building what comes next.",
+    lead: "Growing alongside ambitious businesses and technology partners.",
+    list: "Organisations that work with us",
+    pause: "Pause logos",
+    play: "Play logos",
+  },
+  metrics: { eyebrow: "Results", title: "Measured, not estimated.", source: "Source:" },
+  testimonials: { eyebrow: "Customers", title: "In our customers' words.", list: "Customer testimonials" },
+};
+
 export default async function SitePage({ params }: PageProps<"/[site]/[[...path]]">) {
   const { site, ownDomain, path, page } = await load(params);
   if (!site) notFound();
@@ -112,7 +130,7 @@ export default async function SitePage({ params }: PageProps<"/[site]/[[...path]
     );
   }
 
-  const pages = await getPages(site.slug);
+  const [pages, proof] = await Promise.all([getPages(site.slug), path === "" ? getProof(site.slug) : null]);
   // Structured data from what the page shows: the product on its home page,
   // breadcrumbs on inner pages, and its questions and answers.
   const home = canonicalUrl(site, ownDomain, "");
@@ -142,6 +160,14 @@ export default async function SitePage({ params }: PageProps<"/[site]/[[...path]
       <JsonLd data={structured} />
       {path === "" && <CampaignSlot placement="home_hero" className="mb-block block" />}
       <PageBlocks document={page} resolveHref={hrefResolver(site, ownDomain, pages)} />
+      {/* Approved customer proof for this website (home page); nothing renders without it. */}
+      {proof && proof.organizations.length + proof.metrics.length + proof.testimonials.length > 0 && (
+        <div className="space-y-section pt-section">
+          <TrustedBy organizations={proof.organizations} labels={PROOF_LABELS.trustedBy} />
+          <ProofMetrics metrics={proof.metrics} locale="en" labels={PROOF_LABELS.metrics} />
+          <Testimonials testimonials={proof.testimonials} labels={PROOF_LABELS.testimonials} />
+        </div>
+      )}
     </div>
   );
 }

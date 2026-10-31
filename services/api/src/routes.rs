@@ -25,7 +25,7 @@ use crate::{
     email::{self, outbox, templates},
     enquiry::{EnquiryInput, new_reference},
     error::ApiError,
-    media, privacy,
+    media, privacy, proof,
     rate_limit::{RateLimiter, client_ip, ip_hash},
     seo, shared, site_settings, sites,
 };
@@ -85,6 +85,7 @@ pub fn router(state: SharedState) -> Router {
         .route("/v1/enquiries", post(create_enquiry))
         .merge(seo::router())
         .merge(campaigns::router())
+        .merge(proof::router())
         .merge(cms::router())
         .merge(admin::router())
         .merge(sites::router())

@@ -6,12 +6,14 @@ import {
   type LiveCampaign,
   type PageDocument,
   type PrivacySettings,
+  type PublicProof,
 } from "@figbud/site-kit";
 import {
   fetchBrandPng,
   fetchListedSites,
   fetchLiveCampaigns,
   fetchPrivacySettings,
+  fetchProof,
 } from "@figbud/site-kit/server";
 import { cacheLife, cacheTag } from "next/cache";
 
@@ -115,4 +117,15 @@ export async function getLiveCampaigns(slug: string): Promise<LiveCampaign[]> {
   cacheLife({ stale: 30, revalidate: 30, expire: 300 });
   cacheTag("campaigns", `campaigns:${slug}`);
   return fetchLiveCampaigns(apiBase, slug);
+}
+
+/**
+ * Trusted By organisations, testimonials and verified metrics approved for
+ * this website (Studio → Content & Marketing), cached for a few minutes.
+ */
+export async function getProof(slug: string): Promise<PublicProof> {
+  "use cache";
+  cacheLife("minutes");
+  cacheTag("proof", `proof:${slug}`);
+  return fetchProof(apiBase, slug);
 }

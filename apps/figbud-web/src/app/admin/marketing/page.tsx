@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { AdminShell, AdminUnavailable } from "@/components/admin/admin-shell";
 import type { CampaignList } from "@/components/admin/campaign-types";
 import { CampaignsOverview } from "@/components/admin/campaigns-overview";
+import { MarketingTabs } from "@/components/admin/marketing-tabs";
 import { adminGet, requireAdmin } from "@/lib/admin-server";
 
 export const metadata: Metadata = { title: "Campaigns & Promotions" };
@@ -23,7 +24,7 @@ async function Marketing() {
   if (!data) return <AdminUnavailable />;
   return (
     <AdminShell user={user} active="/admin/marketing">
-      <p className="text-sm text-subtle">Marketing</p>
+      <p className="text-sm text-subtle">Content & Marketing</p>
       <h1 className="mt-2 font-display text-3xl font-semibold tracking-tight text-text">
         Campaigns & Promotions
       </h1>
@@ -32,6 +33,7 @@ async function Marketing() {
         Every campaign belongs to one website, uses its approved brand, and goes live only after approval and
         inside its schedule.
       </p>
+      <MarketingTabs active="campaigns" />
       <div className="mt-8">
         <CampaignsOverview data={data} />
       </div>

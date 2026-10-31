@@ -243,6 +243,156 @@
   animation: fb-rise 0.9s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
+/* Reveal groups (RevealGroup in @figbud/ui): the group gets data-reveal="waiting"
+   only after hydration, below the fold and with motion allowed, so server HTML,
+   no-JS visits and reduced motion always show the final state. Items reveal in
+   order (--reveal-order) with transforms and opacity only. */
+[data-reveal="waiting"] .fb-reveal-item {
+  opacity: 0;
+  transform: translate3d(
+    calc(var(--reveal-x, 0px) * var(--reveal-dir, 1)),
+    var(--reveal-y, var(--motion-distance)),
+    0
+  );
+}
+/* Sideways travel follows the reading direction. */
+[dir="rtl"] [data-reveal] {
+  --reveal-dir: -1;
+}
+[data-reveal="waiting"] .fb-reveal-line {
+  transform: scaleX(0);
+}
+[data-reveal="waiting"] .fb-reveal-roll > * {
+  transform: translate3d(0, 110%, 0);
+}
+[data-reveal="shown"] .fb-reveal-item,
+[data-reveal="shown"] .fb-reveal-roll > * {
+  transition:
+    opacity var(--motion-slow) var(--motion-ease),
+    transform var(--motion-slow) var(--motion-ease);
+  transition-delay: calc(var(--reveal-order, 0) * var(--motion-stagger));
+}
+[data-reveal="shown"] .fb-reveal-line {
+  transition: transform var(--motion-slower) var(--motion-ease);
+  transition-delay: calc(var(--reveal-order, 0) * var(--motion-stagger));
+}
+.fb-reveal-line {
+  transform-origin: left;
+}
+[dir="rtl"] .fb-reveal-line {
+  transform-origin: right;
+}
+.fb-reveal-roll {
+  display: inline-flex;
+  overflow: hidden;
+}
+/* A one-off glow when the group appears (engineering icons). */
+[data-reveal="shown"] .fb-reveal-glow {
+  animation: fb-illuminate var(--motion-slower) var(--motion-ease) both;
+  animation-delay: calc(var(--reveal-order, 0) * var(--motion-stagger) + 200ms);
+}
+@keyframes fb-illuminate {
+  40% {
+    box-shadow:
+      0 0 0 4px var(--accent-soft),
+      0 0 28px -4px var(--accent);
+    border-color: color-mix(in oklab, var(--accent) 55%, transparent);
+  }
+}
+
+/* Horizontal product slider (home → Our Platforms, UI-MO2). Panels sit side
+   by side; the track slides by whole panels. From lg up the next panel peeks
+   in, and the last one aligns with the end so no empty space shows. The
+   finger's offset (--drag) is added while swiping, without transition. */
+.fb-slider {
+  --slide-gap: 1rem;
+  --slide-peek: 0px;
+  --slide-width: calc(100% - var(--slide-peek));
+}
+@media (min-width: 64rem) {
+  .fb-slider {
+    --slide-gap: 1.25rem;
+    --slide-peek: 4.5rem;
+  }
+}
+.fb-slider-track {
+  --slide-dir: 1;
+  translate: calc(
+      var(--slide-dir) * -1 *
+        min(
+          var(--slide) * (var(--slide-width) + var(--slide-gap)),
+          var(--slides) * (var(--slide-width) + var(--slide-gap)) - var(--slide-peek)
+        ) +
+        var(--drag, 0px)
+    )
+    0;
+  transition: translate var(--motion-slow) var(--motion-ease);
+}
+[dir="rtl"] .fb-slider-track {
+  --slide-dir: -1;
+}
+.fb-slider-track[data-dragging] {
+  transition: none;
+}
+/* Rotation progress under the active product tab. */
+.fb-progress {
+  transform-origin: left;
+  animation: fb-progress linear both;
+}
+[dir="rtl"] .fb-progress {
+  transform-origin: right;
+}
+@keyframes fb-progress {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+/* Logo marquee (Marquee in @figbud/ui): two identical halves move by -50% so
+   the loop never jumps; hover and keyboard focus pause it; edges fade. */
+.fb-marquee {
+  overflow: hidden;
+  mask-image: linear-gradient(to right, transparent, black 8%, black 92%, transparent);
+}
+.fb-marquee-track {
+  display: flex;
+  width: max-content;
+  animation: fb-marquee var(--marquee-duration, var(--motion-marquee)) linear infinite;
+}
+.fb-marquee:hover .fb-marquee-track,
+.fb-marquee:focus-within .fb-marquee-track,
+.fb-marquee[data-paused] .fb-marquee-track {
+  animation-play-state: paused;
+}
+[dir="rtl"] .fb-marquee-track {
+  animation-direction: reverse;
+}
+@keyframes fb-marquee {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  /* A still row the visitor can scroll sideways instead. */
+  .fb-marquee {
+    overflow-x: auto;
+    mask-image: none;
+    scrollbar-width: thin;
+  }
+  .fb-marquee-track {
+    animation: none;
+  }
+  .fb-marquee-copy {
+    display: none;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

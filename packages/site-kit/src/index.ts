@@ -12,5 +12,6 @@ export * from "./cross-site";
 export * from "./language-switcher";
 export * from "./product-glyph";
 export * from "./privacy";
+export * from "./proof";
 export * from "./product-header";
 export * from "./use-dismiss";

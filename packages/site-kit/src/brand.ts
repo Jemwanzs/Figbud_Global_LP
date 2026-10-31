@@ -47,6 +47,8 @@ export interface WebsiteSettings {
   enquiries: { open: boolean; closed_message?: string | null };
   /** Section band colours (P7-E1); unset means the design system's neutral bands. */
   theme?: SiteTheme;
+  /** Home page motion (UI-MO2): optional, slow product rotation. */
+  motion?: { product_rotation: boolean; rotation_seconds: number };
 }
 
 export interface SiteTheme {

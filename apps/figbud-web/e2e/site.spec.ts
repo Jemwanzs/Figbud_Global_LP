@@ -63,6 +63,89 @@ test.describe("homepage", () => {
   });
 });
 
+test.describe("motion and product discovery (UI-MO1, UI-MO2)", () => {
+  test("the product slider moves by button and swipe, with one live panel", async ({ page, isMobile }) => {
+    await page.goto("/en#platforms");
+    const panel = page.getByRole("tabpanel");
+    await expect(panel).toHaveCount(1);
+    await expect(panel.getByRole("heading", { name: "ZiraHR" })).toBeVisible();
+    // The next product is named on the control, and products off screen are inert.
+    const next = page.getByRole("button", { name: "Next: Jasiri LMS" });
+    await expect(async () => {
+      await next.click();
+      await expect(page.getByRole("tab", { name: /Jasiri LMS/ })).toHaveAttribute("aria-selected", "true", {
+        timeout: 1_000,
+      });
+    }).toPass();
+    await expect(page.getByText("2 of 4")).toBeVisible();
+    await expect(page.locator('[role="tabpanel"][inert]')).toHaveCount(3);
+    await page.getByRole("button", { name: "Previous product" }).click();
+    await expect(page.getByRole("tab", { name: /ZiraHR/ })).toHaveAttribute("aria-selected", "true");
+
+    if (isMobile) {
+      // A sideways swipe on the slider moves to the next product; the page doesn't scroll sideways.
+      const box = (await page.locator(".fb-slider").boundingBox())!;
+      const y = box.y + Math.min(box.height / 2, 200);
+      await page.locator(".fb-slider").evaluate(
+        (el, { x0, x1, y }) => {
+          const fire = (type: string, x: number) =>
+            el.dispatchEvent(
+              new PointerEvent(type, {
+                bubbles: true,
+                pointerId: 7,
+                pointerType: "touch",
+                clientX: x,
+                clientY: y,
+              }),
+            );
+          fire("pointerdown", x0);
+          for (let x = x0; x >= x1; x -= 20) fire("pointermove", x);
+          fire("pointerup", x1);
+        },
+        { x0: box.x + box.width - 40, x1: box.x + 40, y },
+      );
+      await expect(page.getByRole("tab", { name: /Jasiri LMS/ })).toHaveAttribute("aria-selected", "true");
+    }
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth),
+    ).toBeLessThanOrEqual(0);
+  });
+
+  test("animated sections are complete in the server HTML and with reduced motion", async ({
+    page,
+    request,
+  }) => {
+    const html = await (await request.get("/en")).text();
+    for (const text of ["Configurable by design.", "Reliable by architecture.", "Flexible for growth."])
+      expect(html).toContain(text);
+    // Nothing is hidden before hydration: reveal states are added only by the browser.
+    expect(html).not.toContain('data-reveal="waiting"');
+
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.goto("/en");
+    const row = page.getByRole("heading", { name: "Flexible for growth." });
+    await row.scrollIntoViewIfNeeded();
+    await expect(row).toHaveCSS("opacity", "1");
+    await expect(page.locator("[data-reveal]")).toHaveCount(0);
+    // The workflow demonstration says it's illustrative.
+    await expect(
+      page.locator("section[aria-labelledby=engineer-title]").getByText("Illustrative product activity"),
+    ).toBeVisible();
+  });
+
+  test("the Products page spotlights a live product and jumps to each product", async ({ page }) => {
+    await page.goto("/en/products");
+    const jump = page.getByRole("navigation", { name: "Products on this page" });
+    await expect(jump.getByRole("link")).toHaveCount(4);
+    await expect(page.locator("#zirahr")).toContainText("Featured platform");
+    await expect(page.locator("#zirahr")).toContainText("Illustrative product activity");
+    await jump.getByRole("link", { name: "Ziwa LMS" }).click();
+    await expect(page).toHaveURL(/#ziwa$/);
+    // The card comes into view (on phones it is taller than the screen).
+    await expect(page.locator("#ziwa").getByRole("heading", { level: 2 })).toBeInViewport();
+  });
+});
+
 test.describe("theme and language", () => {
   test("dark by default whatever the device prefers; one button switches and is remembered", async ({
     page,

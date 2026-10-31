@@ -62,6 +62,15 @@ export function productLink(
   return { href: `${localizePath(locale, "/products")}#${slug}`, external: false };
 }
 
+/** The pre-filled enquiry form: a waitlist for coming-soon products, otherwise a demo request. */
+export function enquiryHref(
+  locale: Locale,
+  { slug, status }: { slug: ProductSlug; status: ProductStatus },
+): string {
+  const kind = status === "coming_soon" ? "waitlist" : "demo_request";
+  return `${localizePath(locale, "/contact")}?kind=${kind}&product=${slug}`;
+}
+
 export const routes = {
   home: "/",
   products: "/products",

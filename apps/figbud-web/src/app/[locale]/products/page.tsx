@@ -1,26 +1,18 @@
 import type { Product, ProductSlug } from "@figbud/brand";
-import { type Locale, localizePath } from "@figbud/i18n";
+import { localizePath } from "@figbud/i18n";
 import { Container, Eyebrow, Reveal, StatusBadge, buttonClasses } from "@figbud/ui";
-import { ArrowRight, ArrowUpRight, Check } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import Link from "next/link";
 
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { PageHeader } from "@/components/page-header";
-import {
-  BrandLogo,
-  JsonLd,
-  ProductIdentity,
-  ProductMark,
-  hasLogo,
-  organizationLd,
-  softwareApplicationLd,
-} from "@figbud/site-kit";
-import { fill } from "@/lib/format";
+import { ProductCard, ProductSpotlight } from "@/components/products/product-cards";
+import { JsonLd, ProductIdentity, organizationLd, softwareApplicationLd } from "@figbud/site-kit";
 import { getBrands, getPublicProducts } from "@/lib/products";
 import { resolvePage } from "@/lib/page";
-import { pageMetadata, productLink, routes, siteOrigin } from "@/lib/site";
+import { enquiryHref, pageMetadata, productLink, routes, siteOrigin } from "@/lib/site";
 
 export async function generateMetadata({ params }: PageProps<"/[locale]/products">): Promise<Metadata> {
   const { locale, dict } = await resolvePage(params);
@@ -34,6 +26,9 @@ export default async function ProductsPage({ params }: PageProps<"/[locale]/prod
   const page = dict.pages.products;
   const [products, brands] = await Promise.all([getPublicProducts(), getBrands()]);
   const statusOf = (slug: ProductSlug) => products.find((p) => p.slug === slug)!.status;
+  // The spotlight goes to the first live product (registry order); the rest are cards.
+  const featured = products.find((p) => p.status === "active") ?? products[0];
+  const others = products.filter((p) => p !== featured);
 
   // Each product as a web application, from what this page shows (no offers or ratings).
   const structured = {
@@ -72,88 +67,46 @@ export default async function ProductsPage({ params }: PageProps<"/[locale]/prod
         title={dict.pages.products.title}
         lead={dict.pages.products.lead}
       />
-      <Container size="wide" className="py-section-sm">
-        <ul className="space-y-6 lg:space-y-8">
-          {products.map((product, i) => {
-            const copy = dict.products[product.slug];
-            const link = productLink(product.slug, locale, product.status);
-            const comingSoon = product.status === "coming_soon";
-            const enquiry = enquiryHref(locale, product);
-            return (
-              <li key={product.slug} id={product.slug} data-product={product.slug} className="scroll-mt-28">
-                <Reveal
-                  delay={i * 0.05}
-                  className="relative overflow-hidden rounded-[var(--radius-panel)] border border-line bg-surface p-6 sm:p-10 lg:p-12"
+      {/* Jump between products without scrolling through every card. */}
+      <Container size="wide" className="pt-section-sm">
+        <nav aria-label={page.jumpLabel}>
+          <ul className="flex snap-x [scrollbar-width:none] gap-2 overflow-x-auto pb-1">
+            {products.map((product) => (
+              <li key={product.slug} data-product={product.slug} className="shrink-0 snap-start">
+                <a
+                  href={`#${product.slug}`}
+                  className="inline-flex min-h-11 items-center gap-2 rounded-full border border-line bg-surface px-4 text-sm text-muted transition-[color,border-color] duration-[var(--motion-fast)] hover:border-product/50 hover:text-text"
                 >
-                  <div
-                    aria-hidden
-                    className="pointer-events-none absolute end-[-8%] -top-32 h-80 w-80 rounded-full bg-[radial-gradient(closest-side,var(--product-soft),transparent)]"
-                  />
-                  <div className="relative grid gap-10 lg:grid-cols-12">
-                    <div className="lg:col-span-6">
-                      <div className="flex flex-wrap items-center gap-4">
-                        {!hasLogo(brands[product.slug]?.logos.horizontal) && (
-                          <ProductMark slug={product.slug} brand={brands[product.slug]} size="lg" />
-                        )}
-                        <div>
-                          <h2 className="text-2xl font-semibold tracking-tight text-text sm:text-3xl">
-                            <BrandLogo
-                              pair={brands[product.slug]?.logos.horizontal}
-                              height={52}
-                              maxWidth={220}
-                              alt={product.name}
-                              fallback={product.name}
-                            />
-                          </h2>
-                          <p className="text-sm text-product-text">{copy.category}</p>
-                        </div>
-                        <StatusBadge
-                          status={product.status}
-                          label={common.status[product.status]}
-                          className="ms-auto self-start"
-                        />
-                      </div>
-                      <p className="mt-8 font-display text-title font-medium text-text">{copy.tagline}</p>
-                      <p className="mt-4 max-w-xl leading-relaxed text-muted">{copy.summary}</p>
-                    </div>
-                    <div className="flex flex-col lg:col-span-6 lg:ps-8">
-                      <ul className="space-y-3.5 lg:pt-2">
-                        {copy.highlights.map((item) => (
-                          <li key={item} className="flex items-start gap-3 text-text">
-                            <span className="mt-0.5 inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-product-soft text-product-text">
-                              <Check aria-hidden className="size-3" strokeWidth={3} />
-                            </span>
-                            {item}
-                          </li>
-                        ))}
-                      </ul>
-                      <div className="mt-8 flex flex-col gap-3 sm:flex-row lg:mt-auto lg:pt-10">
-                        <Link
-                          href={enquiry}
-                          className={buttonClasses(comingSoon ? "secondary" : "product", "lg")}
-                        >
-                          {comingSoon ? common.cta.joinWaitlist : common.cta.requestDemo}
-                          <ArrowRight aria-hidden className="size-4 rtl:rotate-180" />
-                        </Link>
-                        {link.external && (
-                          <a
-                            href={link.href}
-                            target="_blank"
-                            rel="noopener"
-                            className={buttonClasses("secondary", "lg")}
-                          >
-                            {fill(common.cta.visitSite, { product: product.name })}
-                            <ArrowUpRight aria-hidden className="size-4" />
-                            <span className="sr-only">({common.opensInNewTab})</span>
-                          </a>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </Reveal>
+                  <span aria-hidden className="size-2 rounded-full bg-product" />
+                  {product.name}
+                </a>
               </li>
-            );
-          })}
+            ))}
+          </ul>
+        </nav>
+      </Container>
+
+      <Container size="wide" className="pt-6 pb-section-sm">
+        {featured && (
+          <Reveal>
+            <ProductSpotlight
+              product={featured}
+              locale={locale}
+              dict={dict}
+              brand={brands[featured.slug]}
+              label={page.featured}
+            />
+          </Reveal>
+        )}
+        {/* Supporting products: equal cards, three across on wide screens, stacked on phones. */}
+        <ul className="mt-6 grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+          {others.map((product, i) => (
+            <li key={product.slug} className="flex">
+              <Reveal delay={i * 0.06} className="flex w-full">
+                <ProductCard product={product} locale={locale} dict={dict} brand={brands[product.slug]} />
+              </Reveal>
+            </li>
+          ))}
         </ul>
       </Container>
 
@@ -279,12 +232,6 @@ export default async function ProductsPage({ params }: PageProps<"/[locale]/prod
       </Container>
     </>
   );
-}
-
-/** The pre-filled enquiry form: a waitlist for coming-soon products, otherwise a demo request. */
-function enquiryHref(locale: Locale, { slug, status }: Pick<Product, "slug" | "status">): string {
-  const kind = status === "coming_soon" ? "waitlist" : "demo_request";
-  return `${localizePath(locale, routes.contact)}?kind=${kind}&product=${slug}`;
 }
 
 function CompareRow({

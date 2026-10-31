@@ -93,6 +93,30 @@ pub struct Theme {
     pub soft_section: Option<String>,
 }
 
+/// Motion on the website's home page (UI-MO2). Rotation is off unless an
+/// editor turns it on; the websites still pause it on hover, focus, any
+/// interaction and while it's off screen, and never run it for visitors who
+/// prefer reduced motion.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[serde(default, deny_unknown_fields)]
+pub struct Motion {
+    /// Slowly move the product showcase from one product to the next.
+    pub product_rotation: bool,
+    /// Seconds on each product while rotating.
+    pub rotation_seconds: u8,
+}
+
+impl Default for Motion {
+    fn default() -> Self {
+        Self {
+            product_rotation: false,
+            rotation_seconds: 9,
+        }
+    }
+}
+
+const ROTATION_SECONDS: std::ops::RangeInclusive<u8> = 6..=20;
+
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Default)]
 #[serde(default, deny_unknown_fields)]
 pub struct WebsiteSettings {
@@ -100,6 +124,7 @@ pub struct WebsiteSettings {
     pub footer: Footer,
     pub enquiries: Enquiries,
     pub theme: Theme,
+    pub motion: Motion,
 }
 
 /// Body and muted text colours of the light theme (packages/brand/src/tokens.css).
@@ -217,6 +242,13 @@ impl WebsiteSettings {
             &LIGHT_TEXT,
             "Too dark: the page's text on it must stay readable (at least 4.5:1).",
         );
+        if !ROTATION_SECONDS.contains(&self.motion.rotation_seconds) {
+            e.push(FieldError {
+                field: "motion.rotation_seconds",
+                code: "range",
+                message: "Between 6 and 20 seconds, so visitors have time to read.",
+            });
+        }
         if corporate && !self.enquiries.open {
             e.push(FieldError {
                 field: "enquiries.open",
@@ -234,6 +266,7 @@ impl WebsiteSettings {
             "footer": self.footer,
             "enquiries": self.enquiries,
             "theme": self.theme,
+            "motion": self.motion,
         })
     }
 }
@@ -456,5 +489,24 @@ mod tests {
         assert!(settings.clone().normalise(false).is_ok());
         let errors = settings.normalise(true).unwrap_err();
         assert_eq!(errors[0].field, "enquiries.open");
+    }
+
+    #[test]
+    fn product_rotation_is_off_by_default_and_never_too_fast() {
+        let settings = WebsiteSettings::from_stored(json!({}));
+        assert!(!settings.motion.product_rotation);
+        let on = WebsiteSettings::from_stored(
+            json!({ "motion": { "product_rotation": true, "rotation_seconds": 8 } }),
+        );
+        assert!(on.clone().normalise(true).unwrap().motion.product_rotation);
+        assert_eq!(on.public()["motion"]["rotation_seconds"], 8);
+        for seconds in [2, 30] {
+            let mut fast = on.clone();
+            fast.motion.rotation_seconds = seconds;
+            assert_eq!(
+                fast.normalise(true).unwrap_err()[0].field,
+                "motion.rotation_seconds"
+            );
+        }
     }
 }

@@ -124,6 +124,28 @@ const en = {
         ],
       },
     },
+    proof: {
+      trustedBy: {
+        eyebrow: "Trusted by",
+        title: "Trusted by teams building what comes next.",
+        lead: "Growing alongside ambitious businesses and technology partners.",
+        list: "Organisations that work with FigBud",
+        pause: "Pause logos",
+        play: "Play logos",
+      },
+      metrics: {
+        eyebrow: "Results",
+        title: "Measured, not estimated.",
+        lead: "Figures checked against their source, with the period they cover.",
+        source: "Source:",
+      },
+      testimonials: {
+        eyebrow: "Customers",
+        title: "In our customers' words.",
+        lead: "Published with the permission of the people quoted.",
+        list: "Customer testimonials",
+      },
+    },
     platforms: {
       eyebrow: "Our platforms",
       title: "Distinct platforms. One connected ecosystem.",
@@ -131,6 +153,12 @@ const en = {
       tabsLabel: "Choose a platform",
       previewLabel: "{product} preview",
       waitlistNote: "{product} is in development. Join the waitlist to hear first when it opens.",
+      previous: "Previous product",
+      upNext: "Next: {product}",
+      position: "{current} of {total}",
+      swipeHint: "Swipe to see more products",
+      pauseRotation: "Pause product rotation",
+      playRotation: "Resume product rotation",
       previews: {
         zirahr: {
           title: "Payroll · October run",
@@ -329,6 +357,8 @@ const en = {
       title: "Products",
       description: "Explore the FigBud ecosystem: ZiraHR, Jasiri LMS, Expense Now and Ziwa LMS.",
       lead: "Configurable enterprise platforms for people, lending and spend. Each product has its own dedicated website.",
+      jumpLabel: "Products on this page",
+      featured: "Featured platform",
       compare: {
         title: "The ecosystem at a glance",
         lead: "Distinct platforms, one design philosophy: configurable, reliable and ready to scale.",

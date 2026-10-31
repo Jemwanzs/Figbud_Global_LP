@@ -5,10 +5,11 @@ import {
   type BrandProfile,
   type ListedSite,
   type LiveCampaign,
+  type PublicProof,
   type SiteSeo,
   enquiriesOpen,
 } from "@figbud/site-kit";
-import { fetchBrandPng, fetchListedSites, fetchLiveCampaigns } from "@figbud/site-kit/server";
+import { fetchBrandPng, fetchListedSites, fetchLiveCampaigns, fetchProof } from "@figbud/site-kit/server";
 import { cacheLife, cacheTag } from "next/cache";
 
 import { apiOrigin } from "./site";
@@ -97,4 +98,26 @@ export async function getLiveCampaigns(slug: string): Promise<LiveCampaign[]> {
 export async function getCorporateSeo(): Promise<SiteSeo | null> {
   const sites = await getListedSites();
   return sites?.find((s) => s.slug === "figbud")?.seo ?? null;
+}
+
+/**
+ * Seconds per product when the home page's product showcase rotates on its
+ * own, or `null` when it doesn't (Studio → FigBud Global → Navigation,
+ * footer & forms → Home page motion; off by default).
+ */
+export async function getProductRotation(): Promise<number | null> {
+  const motion = (await getListedSites())?.find((s) => s.slug === "figbud")?.settings?.motion;
+  return motion?.product_rotation ? motion.rotation_seconds : null;
+}
+
+/**
+ * The corporate website's published Trusted By organisations, testimonials
+ * and verified metrics (Studio → Content & Marketing). Studio changes
+ * refresh the `proof` tag at once (admin proxy).
+ */
+export async function getProof(): Promise<PublicProof> {
+  "use cache";
+  cacheLife("minutes");
+  cacheTag("proof");
+  return fetchProof(apiBase, "figbud");
 }

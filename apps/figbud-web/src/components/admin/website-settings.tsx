@@ -28,6 +28,10 @@ const toForm = (s: Partial<WebsiteSettings>): WebsiteSettings => ({
   footer: { note: s.footer?.note ?? "", links: s.footer?.links ?? [] },
   enquiries: { open: s.enquiries?.open ?? true, closed_message: s.enquiries?.closed_message ?? "" },
   theme: { brand_section: s.theme?.brand_section ?? "", soft_section: s.theme?.soft_section ?? "" },
+  motion: {
+    product_rotation: s.motion?.product_rotation ?? false,
+    rotation_seconds: s.motion?.rotation_seconds ?? 9,
+  },
 });
 
 const HEX = /^#[0-9a-f]{6}$/i;
@@ -262,6 +266,80 @@ export function WebsiteSettingsForm({
           </div>
         )}
       </fieldset>
+
+      {data.corporate && (
+        <fieldset className="space-y-5">
+          <legend className="font-semibold text-text">Home page motion</legend>
+          <div className="flex flex-wrap items-start justify-between gap-4 rounded-2xl border border-line p-5">
+            <div className="max-w-xl">
+              <p id={`${uid}-rotate`} className="font-medium text-text">
+                {form.motion?.product_rotation
+                  ? "Products rotate slowly"
+                  : "Products change only when visitors choose"}
+              </p>
+              <p className="mt-1 text-sm text-muted">
+                Our Platforms moves to the next product on its own. It pauses on hover, keyboard focus, any
+                tap or swipe and while off screen, has a pause button, and never moves for visitors who prefer
+                reduced motion.
+              </p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={form.motion?.product_rotation ?? false}
+              aria-labelledby={`${uid}-rotate`}
+              disabled={disabled}
+              onClick={() =>
+                setForm((f) => ({
+                  ...f,
+                  motion: { rotation_seconds: 9, ...f.motion, product_rotation: !f.motion?.product_rotation },
+                }))
+              }
+              className={cn(
+                "relative inline-flex h-7 w-12 shrink-0 items-center rounded-full border transition-colors disabled:opacity-50",
+                form.motion?.product_rotation ? "border-accent bg-accent" : "border-line-strong bg-surface-3",
+              )}
+            >
+              <span
+                aria-hidden
+                className={cn(
+                  "size-5 rounded-full bg-white shadow-sm transition-transform motion-reduce:transition-none",
+                  form.motion?.product_rotation
+                    ? "translate-x-6 rtl:-translate-x-6"
+                    : "translate-x-1 rtl:-translate-x-1",
+                )}
+              />
+            </button>
+          </div>
+          {form.motion?.product_rotation && (
+            <div className="max-w-xs">
+              <label htmlFor={`${uid}-seconds`} className="block text-sm font-medium text-text">
+                Seconds on each product
+              </label>
+              <input
+                id={`${uid}-seconds`}
+                type="number"
+                inputMode="numeric"
+                min={6}
+                max={20}
+                value={form.motion.rotation_seconds}
+                disabled={disabled}
+                aria-invalid={Boolean(errorFor("motion.rotation_seconds"))}
+                onChange={(e) =>
+                  setForm((f) => ({
+                    ...f,
+                    motion: { product_rotation: true, rotation_seconds: Number(e.target.value) },
+                  }))
+                }
+                className={cn(inputClass, "mt-2")}
+              />
+              <p className="mt-1.5 text-sm text-subtle">
+                {errorFor("motion.rotation_seconds") ?? "6 to 20 seconds."}
+              </p>
+            </div>
+          )}
+        </fieldset>
+      )}
 
       <fieldset className="space-y-5">
         <legend className="font-semibold text-text">Navigation</legend>

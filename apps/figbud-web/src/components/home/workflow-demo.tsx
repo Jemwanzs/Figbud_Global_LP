@@ -7,8 +7,17 @@ import { useEffect, useRef, useState } from "react";
 
 import type { Dictionary } from "@/i18n/get-dictionary";
 
-/** An approval workflow that executes step by step when scrolled into view. */
-export function WorkflowDemo({ copy }: { copy: Dictionary["home"]["engineer"]["workflow"] }) {
+/**
+ * An approval workflow that executes step by step when scrolled into view.
+ * Illustrative only, and labelled so (`note`): never real customer activity.
+ */
+export function WorkflowDemo({
+  copy,
+  note,
+}: {
+  copy: Dictionary["home"]["engineer"]["workflow"];
+  note: string;
+}) {
   const ref = useRef<HTMLDivElement>(null);
   const inView = useInView(ref, { once: true, margin: "-20% 0px" });
   const reduceMotion = useReducedMotion();
@@ -94,6 +103,7 @@ export function WorkflowDemo({ copy }: { copy: Dictionary["home"]["engineer"]["w
           );
         })}
       </ol>
+      <p className="mt-4 border-t border-line pt-3 text-end text-[0.7rem] text-subtle">{note}</p>
     </div>
   );
 }

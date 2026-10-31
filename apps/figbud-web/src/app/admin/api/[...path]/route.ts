@@ -47,6 +47,8 @@ async function forward(request: NextRequest, { params }: RouteContext<"/admin/ap
   // Campaign changes (approval, pause, archive) show on this website at once;
   // product websites pick them up within their 30-second cache.
   if (hasBody && upstream.ok && path.startsWith("campaigns")) revalidateTag("campaigns", { expire: 0 });
+  // Published Trusted By, testimonials and metrics (Content & Marketing) likewise.
+  if (hasBody && upstream.ok && path.startsWith("proof")) revalidateTag("proof", { expire: 0 });
 
   // Admin images (brand files) may be cached privately; everything else is never cached.
   const image = upstream.headers.get("content-type")?.startsWith("image/");
