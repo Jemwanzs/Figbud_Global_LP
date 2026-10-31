@@ -439,7 +439,7 @@ export function HeroStudio({ data, isOwner }: { data: HeroAdmin; isOwner: boolea
                 disabled={!editable}
                 checked={editingVariant.config.motion}
                 onChange={(e) => setConfig(editingVariant.id, { motion: e.target.checked })}
-                className="size-4 accent-[var(--accent)]"
+                className="size-5 shrink-0 accent-[var(--accent)]"
               />
               Motion (visitors who prefer reduced motion always get a still hero)
             </label>

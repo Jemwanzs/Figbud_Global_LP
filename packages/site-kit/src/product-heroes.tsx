@@ -372,7 +372,7 @@ function PayrollHero(props: ProductHeroProps) {
                 role="tab"
                 aria-selected={i === index}
                 onClick={() => choose(i)}
-                className="group flex flex-col gap-2 text-start"
+                className="group flex min-h-11 flex-col justify-center gap-2 py-1 text-start"
               >
                 <span className="h-1 overflow-hidden rounded-full bg-surface-3">
                   <span
