@@ -6,10 +6,17 @@ import {
   type ListedSite,
   type LiveCampaign,
   type PublicProof,
+  type PublishedHero,
   type SiteSeo,
   enquiriesOpen,
 } from "@figbud/site-kit";
-import { fetchBrandPng, fetchListedSites, fetchLiveCampaigns, fetchProof } from "@figbud/site-kit/server";
+import {
+  fetchBrandPng,
+  fetchHero,
+  fetchListedSites,
+  fetchLiveCampaigns,
+  fetchProof,
+} from "@figbud/site-kit/server";
 import { cacheLife, cacheTag } from "next/cache";
 
 import { apiOrigin } from "./site";
@@ -120,4 +127,16 @@ export async function getProof(): Promise<PublicProof> {
   cacheLife("minutes");
   cacheTag("proof");
   return fetchProof(apiBase, "figbud");
+}
+
+/**
+ * The corporate home page's published hero (Studio → FigBud Global → Hero
+ * Design Studio), or `null` for Hero 01 as approved. Publishing refreshes the
+ * `hero` tag at once (admin proxy).
+ */
+export async function getHero(): Promise<PublishedHero | null> {
+  "use cache";
+  cacheLife("minutes");
+  cacheTag("hero");
+  return fetchHero(apiBase, "figbud");
 }

@@ -1,6 +1,6 @@
 import type { Product } from "@figbud/brand";
 import { type Locale, localizePath } from "@figbud/i18n";
-import type { BrandProfile } from "@figbud/site-kit";
+import type { BrandProfile, HeroConfig } from "@figbud/site-kit";
 import { Container, Eyebrow, buttonClasses } from "@figbud/ui";
 import { ArrowRight, Check } from "lucide-react";
 import Link from "next/link";
@@ -9,21 +9,34 @@ import type { Dictionary } from "@/i18n/get-dictionary";
 import { routes } from "@/lib/site";
 
 import { EcosystemVisual } from "./ecosystem-visual";
+import { heroText } from "./heroes/hero-text";
 
 export function Hero({
   locale,
   dict,
   products,
   brands,
+  config,
 }: {
   locale: Locale;
   dict: Dictionary;
+  /** Hero Design Studio settings (Hero 01 · Connected Ecosystem); none keeps the approved copy. */
+  config?: HeroConfig;
   /** Listed products with their registry status. */
   products: Product[];
   /** Published brand profiles by website slug. */
   brands: Record<string, BrandProfile | null>;
 }) {
   const hero = dict.home.hero;
+  // Without Studio settings this renders exactly as before (Variant 01 is preserved).
+  const text = config
+    ? heroText(locale, config, {
+        eyebrow: hero.eyebrow,
+        headline: hero.titleLead,
+        accent: hero.titleAccent,
+        lead: hero.lead,
+      })
+    : { eyebrow: hero.eyebrow, headline: hero.titleLead, accent: hero.titleAccent, lead: hero.lead };
   return (
     <section aria-labelledby="hero-title" className="relative isolate overflow-hidden">
       <HeroBackdrop />
@@ -32,28 +45,34 @@ export function Hero({
         className="grid items-center gap-12 pt-page-top pb-section-sm lg:grid-cols-12 lg:gap-8 xl:gap-12"
       >
         <div className="lg:col-span-6">
-          <Eyebrow className="fb-rise">{hero.eyebrow}</Eyebrow>
+          <Eyebrow className="fb-rise">{text.eyebrow}</Eyebrow>
           {/* The headline is the LCP element: rendered immediately, never animated in. */}
           <h1 id="hero-title" className="mt-5 font-display text-display font-semibold text-text">
-            <span className="block">{hero.titleLead}</span>
-            <span className="fb-text-gradient block pb-1">{hero.titleAccent}</span>
+            <span className="block">{text.headline}</span>
+            <span className="fb-text-gradient block pb-1">{text.accent}</span>
           </h1>
           <p className="fb-rise mt-5 max-w-xl text-lead text-muted" style={{ animationDelay: "120ms" }}>
-            {hero.lead}
+            {text.lead}
           </p>
           <div
             className="fb-rise mt-8 flex flex-col gap-3 sm:flex-row sm:items-center"
             style={{ animationDelay: "200ms" }}
           >
-            <Link href={`${localizePath(locale)}#platforms`} className={buttonClasses("primary", "lg")}>
-              {dict.common.cta.exploreProducts}
+            <Link
+              href={config?.primary_href || `${localizePath(locale)}#platforms`}
+              className={buttonClasses("primary", "lg")}
+            >
+              {config?.primary_label || dict.common.cta.exploreProducts}
               <ArrowRight
                 aria-hidden
                 className="size-4 transition-transform group-hover/btn:translate-x-0.5 rtl:rotate-180"
               />
             </Link>
-            <Link href={localizePath(locale, routes.contact)} className={buttonClasses("secondary", "lg")}>
-              {dict.common.cta.talkToTeam}
+            <Link
+              href={config?.secondary_href || localizePath(locale, routes.contact)}
+              className={buttonClasses("secondary", "lg")}
+            >
+              {config?.secondary_label || dict.common.cta.talkToTeam}
             </Link>
           </div>
           <ul
@@ -80,6 +99,7 @@ export function Hero({
             caption={dict.common.syntheticData}
             products={products}
             brands={brands}
+            motion={config?.motion ?? true}
           />
         </div>
       </Container>

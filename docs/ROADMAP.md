@@ -504,6 +504,19 @@ Scope: a reusable pricing engine and Pricing Studio per product website, startin
 - Stale messages cleared. | ✅ |
 | P11-PR7 | Server-generated PDF files and emailing quotations (needs Resend, Q4) | ⬜ |
 
+### Phase 12 — Hero Design Studio 🔄
+
+Scope: a reusable Hero Design Studio. Each website gets its own collection of hero designs, exact production previews (light and dark; desktop, tablet and phone), editing within each design's settings, approval, publishing of exactly one variant, versions and one-step rollback. Specification: [HEROES.md](HEROES.md).
+
+| ID     | Task | Status |
+| ------ | ---- | ------ |
+| P12-H1 | Audit and registration: the corporate production hero registered unchanged as FigBud Variant 01 (Connected Ecosystem); ZiraHR's Studio page hero preserved until a design is published | ✅ |
+| P12-H2 | Studio, storage and workflow (migration 25, `heroes.rs`): per-website collections; variants with design-specific, validated settings; duplicate, select, save draft; approval by a different reviewer; exactly one live variant; versions; one-step rollback; audit; corporate cache refreshed at once | ✅ |
+| P12-H3 | Exact previews: the production components with saved draft settings in a frame (`/admin/hero-preview`); theme from the address only (the visitor's preference untouched); desktop, tablet and phone; full screen | ✅ |
+| P12-H4 | FigBud Variants 02 (Beyond the Ordinary: CSS 3D dimensional stage, light sweep, pointer parallax) and 03 (The FigBud Universe: unfolding perspective panels, connections, interactive showcase; swipeable on phones) | ✅ |
+| P12-H5 | ZiraHR Variants 01 (Your Workforce, Connected), 02 (Payroll in Motion) and 03 (The Employee Journey), synthetic demonstrations labelled, rendered by the product renderer in place of the home page's leading hero once published | ✅ · live with the renderer deployment (approval needed) |
+| P12-H6 | Collections for Jasiri LMS, Ziwa LMS, Expense Now and future products (designed per product, never copied) | ⬜ |
+
 ## 7. Milestones
 
 | Milestone                          | Contents                                    | Exit criteria                                         | Status |
@@ -546,6 +559,14 @@ Scope: a reusable pricing engine and Pricing Studio per product website, startin
 
 | Date        | Change                                                                                                   |
 | ----------- | -------------------------------------------------------------------------------------------------------- |
+| 31 Oct 2026 | Hero Design Studio (P12-H1–H5). Studio → Websites → a website → Hero Design Studio:
+- **Collections:** each website has its own hero designs. FigBud Global: Connected Ecosystem (the production hero, unchanged), Beyond the Ordinary and The FigBud Universe. ZiraHR: Your Workforce Connected, Payroll in Motion and The Employee Journey.
+- **Previews:** the real hero components with the saved draft settings, in light or dark and at desktop, tablet or phone size. Switching the preview theme never touches the visitor's own theme.
+- **Settings:** each design exposes only the settings it uses, validated by the API (text limits, safe links, fixed choices).
+- **Publishing:** a different reviewer approves, exactly one variant is live, and every publication is versioned with one-step rollback and an audit record.
+- **Websites:** they read only the published variant. FigBud keeps Hero 01, and ZiraHR keeps its page hero, until something is published.
+- **Motion:** CSS 3D and keyframes only. Headlines are never animated, animations pause off screen, phones get their own compositions, and reduced motion gets still heroes.
+- **Demonstrations:** synthetic and labelled as such. |
 | 31 Oct 2026 | Pricing Studio fixes and the Studio header (P11-PR8, P7-UX2).
 - **Root cause:** a full ZiraHR price book is larger than the API's 16 KB limit for forms. Every save was refused (shown as "That file is too large"), so the calculator kept pricing the earlier draft with no rates ("Not set", KES 0.00) while the editor showed the typed rates.
 - **Fixes:**

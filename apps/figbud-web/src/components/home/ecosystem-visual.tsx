@@ -70,16 +70,27 @@ type Props = {
   common: Dictionary["common"];
   copy: Dictionary["products"];
   caption: string;
+  /** Off from the Hero Design Studio (Hero 01 · Motion); reduced motion always wins. */
+  motion?: boolean;
   /** Listed products with their registry status (lib/products). */
   products: Product[];
   /** Published brand profiles by website slug (Admin → Websites → Branding). */
   brands: Record<string, BrandProfile | null>;
 };
 
-export function EcosystemVisual({ locale, labels, common, copy, caption, products, brands }: Props) {
+export function EcosystemVisual({
+  locale,
+  labels,
+  common,
+  copy,
+  caption,
+  products,
+  brands,
+  motion = true,
+}: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const inView = useInView(ref, { margin: "-10% 0px" });
-  const reduceMotion = useReducedMotion();
+  const reduceMotion = useReducedMotion() || !motion;
   const [tick, setTick] = useState(0);
   const shown = products.filter((p) => p.slug in NODES);
   const figbudSymbol = brands.figbud?.logos.symbol;

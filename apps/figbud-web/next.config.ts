@@ -1,6 +1,6 @@
 import path from "node:path";
 
-import { brandAssetHeaderRule, securityHeaders } from "@figbud/site-kit/server";
+import { brandAssetHeaderRule, heroPreviewHeaderRule, securityHeaders } from "@figbud/site-kit/server";
 import type { NextConfig } from "next";
 
 // The monorepo root (apps/figbud-web → repo root), for tracing shared packages.
@@ -9,11 +9,12 @@ const monorepoRoot = path.join(process.cwd(), "..", "..");
 const isDev = process.env.NODE_ENV !== "production";
 
 /** CSP and the other security headers are shared by every FigBud site. */
-const headers = securityHeaders({
+const security = {
   apiOrigin: process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080",
   siteUrl: process.env.NEXT_PUBLIC_SITE_URL ?? "",
   isDev,
-});
+};
+const headers = securityHeaders(security);
 
 const nextConfig: NextConfig = {
   cacheComponents: true,
@@ -41,7 +42,8 @@ const nextConfig: NextConfig = {
     },
   },
   async headers() {
-    return [{ source: "/:path*", headers }, brandAssetHeaderRule];
+    // Later rules win: the Studio may frame its own hero previews (same origin only).
+    return [{ source: "/:path*", headers }, brandAssetHeaderRule, heroPreviewHeaderRule(security)];
   },
 };
 

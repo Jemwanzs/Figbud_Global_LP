@@ -8,6 +8,7 @@ import {
   type PriceBook,
   type PrivacySettings,
   type PublicProof,
+  type PublishedHero,
 } from "@figbud/site-kit";
 import {
   fetchBrandPng,
@@ -15,6 +16,7 @@ import {
   fetchLiveCampaigns,
   fetchPrivacySettings,
   fetchProof,
+  fetchHero,
   fetchPublicPricing,
 } from "@figbud/site-kit/server";
 import { cacheLife, cacheTag } from "next/cache";
@@ -141,4 +143,15 @@ export async function getPublicPricing(slug: string): Promise<PriceBook | null> 
   cacheLife("minutes");
   cacheTag("pricing", `pricing:${slug}`);
   return fetchPublicPricing(apiBase, slug);
+}
+
+/**
+ * The website's published hero (Studio → the website → Hero Design Studio),
+ * or `null`: the home page keeps its own leading hero section.
+ */
+export async function getHero(slug: string): Promise<PublishedHero | null> {
+  "use cache";
+  cacheLife("minutes");
+  cacheTag("hero", `hero:${slug}`);
+  return fetchHero(apiBase, slug);
 }

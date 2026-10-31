@@ -56,6 +56,24 @@ export function securityHeaders(options: SecurityOptions): { key: string; value:
 }
 
 /**
+ * The Hero Design Studio's exact previews (`/admin/hero-preview/*`): the same
+ * policy, except that the Studio on this origin may frame them. Every other
+ * page still refuses framing.
+ */
+export function heroPreviewHeaderRule(options: SecurityOptions) {
+  return {
+    source: "/admin/hero-preview/:path*",
+    headers: securityHeaders(options).map((h) =>
+      h.key === "Content-Security-Policy"
+        ? { ...h, value: h.value.replace("frame-ancestors 'none'", "frame-ancestors 'self'") }
+        : h.key === "X-Frame-Options"
+          ? { ...h, value: "SAMEORIGIN" }
+          : h,
+    ),
+  };
+}
+
+/**
  * Logo files (`/brand/assets/*`): an SVG opened on its own can never run
  * anything. Listed after the site-wide rule so it takes precedence.
  */

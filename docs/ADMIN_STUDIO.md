@@ -214,6 +214,19 @@ Studio → Marketing, then the tabs **Trusted By**, **Testimonials** and **Succe
   Studio actions refresh the corporate website at once (cache tag `proof`); product websites within minutes.
 - **Never invented:** the seeded records in the e2e mock API are synthetic test fixtures. Production starts empty, and Q22 lists what's needed before any organisation can be shown.
 
+## Hero Design Studio (P12, 31 Oct 2026)
+
+Websites → a website → **Hero Design Studio**. The rules are in [HEROES.md](HEROES.md).
+
+- **Variant cards:** live preview frames, "Live" and "Selected to publish" badges, and Preview, Edit, Duplicate, Select for publishing and Remove.
+- **Preview:** a Light / Dark switch for every frame, and a full-screen preview with desktop, tablet and phone sizes.
+- **Edit panel:** shows only the chosen design's settings.
+- **Publishing:** Save draft, Ask for approval, Approve and publish or Decline. Version history has "Roll back to this".
+- **API:**
+  - Studio: `GET /v1/admin/sites/{slug}/hero`; `POST …/hero/draft`; `POST …/hero/{submit|publish|reject|rollback}`.
+  - Public: `GET /v1/sites/{slug}/hero`.
+  - Tables (migration 25): `site_heroes` and `hero_versions`.
+
 ## Pricing Studio (P11, 31 Oct 2026)
 
 Websites → a product website → **Pricing**. The rules are in [PRICING.md](PRICING.md); this section covers the workspace.

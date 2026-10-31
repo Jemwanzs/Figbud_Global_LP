@@ -25,7 +25,7 @@ use crate::{
     email::{self, outbox, templates},
     enquiry::{EnquiryInput, new_reference},
     error::ApiError,
-    media, pricing, privacy, proof,
+    heroes, media, pricing, privacy, proof,
     rate_limit::{RateLimiter, client_ip, ip_hash},
     seo, shared, site_settings, sites,
 };
@@ -103,6 +103,7 @@ pub fn router(state: SharedState) -> Router {
         // A full price book (up to 120 items with tiers and cycle terms) is far
         // larger than a form: pricing gets its own limit.
         .merge(pricing::router().layer(RequestBodyLimitLayer::new(256 * 1024)))
+        .merge(heroes::router().layer(RequestBodyLimitLayer::new(64 * 1024)))
         .merge(brand::upload_router())
         .merge(media::upload_router())
         .merge(crate::pages::router())

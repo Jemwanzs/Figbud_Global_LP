@@ -2,6 +2,7 @@ import {
   CampaignSlot,
   JsonLd,
   PageBlocks,
+  ProductHero,
   ProofMetrics,
   PublicPricing,
   Testimonials,
@@ -23,6 +24,7 @@ import {
   figbudOrigin,
   getPage,
   getPages,
+  getHero,
   getProof,
   getPublicPricing,
   getSite,
@@ -189,7 +191,15 @@ export default async function SitePage({ params }: PageProps<"/[site]/[[...path]
     );
   }
 
-  const [pages, proof] = await Promise.all([getPages(site.slug), path === "" ? getProof(site.slug) : null]);
+  const [pages, proof, hero] = await Promise.all([
+    getPages(site.slug),
+    path === "" ? getProof(site.slug) : null,
+    path === "" ? getHero(site.slug) : null,
+  ]);
+  // A published hero design (Hero Design Studio) replaces the home page's
+  // leading hero section; without one, the page renders as built.
+  const designed = hero && page.sections[0]?.type === "hero" ? hero : null;
+  const blocks = designed ? { ...page, sections: page.sections.slice(1) } : page;
   // Structured data from what the page shows: the product on its home page,
   // breadcrumbs on inner pages, and its questions and answers.
   const home = canonicalUrl(site, ownDomain, "");
@@ -215,18 +225,35 @@ export default async function SitePage({ params }: PageProps<"/[site]/[[...path]
     faqLd(page),
   ].filter((d) => d !== null);
   return (
-    <div className="mx-auto max-w-[92rem] px-5 py-section-sm sm:px-8 md:px-10 lg:px-16">
-      <JsonLd data={structured} />
-      {path === "" && <CampaignSlot placement="home_hero" className="mb-block block" />}
-      <PageBlocks document={page} resolveHref={hrefResolver(site, ownDomain, pages)} />
-      {/* Approved customer proof for this website (home page); nothing renders without it. */}
-      {proof && proof.organizations.length + proof.metrics.length + proof.testimonials.length > 0 && (
-        <div className="space-y-section pt-section">
-          <TrustedBy organizations={proof.organizations} labels={PROOF_LABELS.trustedBy} />
-          <ProofMetrics metrics={proof.metrics} locale="en" labels={PROOF_LABELS.metrics} />
-          <Testimonials testimonials={proof.testimonials} labels={PROOF_LABELS.testimonials} />
-        </div>
+    <>
+      {designed && (
+        <ProductHero
+          design={designed.design}
+          slug={site.slug}
+          name={site.name}
+          brand={site.brand ?? null}
+          config={designed.config}
+          demoHref={enquiryHref(site)}
+          featuresHref={
+            pages.some((p) => p.path === "platform")
+              ? pageHref(site.slug, ownDomain, "platform")
+              : enquiryHref(site)
+          }
+        />
       )}
-    </div>
+      <div className="mx-auto max-w-[92rem] px-5 py-section-sm sm:px-8 md:px-10 lg:px-16">
+        <JsonLd data={structured} />
+        {path === "" && <CampaignSlot placement="home_hero" className="mb-block block" />}
+        <PageBlocks document={blocks} resolveHref={hrefResolver(site, ownDomain, pages)} />
+        {/* Approved customer proof for this website (home page); nothing renders without it. */}
+        {proof && proof.organizations.length + proof.metrics.length + proof.testimonials.length > 0 && (
+          <div className="space-y-section pt-section">
+            <TrustedBy organizations={proof.organizations} labels={PROOF_LABELS.trustedBy} />
+            <ProofMetrics metrics={proof.metrics} locale="en" labels={PROOF_LABELS.metrics} />
+            <Testimonials testimonials={proof.testimonials} labels={PROOF_LABELS.testimonials} />
+          </div>
+        )}
+      </div>
+    </>
   );
 }

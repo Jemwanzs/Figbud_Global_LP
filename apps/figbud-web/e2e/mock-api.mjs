@@ -3298,6 +3298,171 @@ function pricingRoutes(path, req, body, user, send) {
   return send(200, quoteView(q));
 }
 
+// ---------------------------------------------------------------- heroes
+// Mirrors services/api/src/heroes.rs: each website's own hero collection,
+// drafts, approval, exactly one published variant, versions and rollback.
+const HERO_DESIGNS = {
+  figbud: ["ecosystem", "cinematic", "universe"],
+  zirahr: ["workforce", "payroll", "journey"],
+};
+const HERO_NAMES = {
+  ecosystem: "Connected Ecosystem",
+  cinematic: "Beyond the Ordinary",
+  universe: "The FigBud Universe",
+  workforce: "Your Workforce, Connected",
+  payroll: "Payroll in Motion",
+  journey: "The Employee Journey",
+};
+const HERO_DEFAULT = {
+  motion: true,
+  speed: "normal",
+  intensity: "standard",
+  height: "auto",
+  align: "start",
+  accent: "brand",
+  mobile_layout: "stacked",
+};
+const heroStates = new Map();
+const heroState = (slug) => {
+  if (!heroStates.has(slug)) {
+    const variants = (HERO_DESIGNS[slug] ?? []).map((design, i) => ({
+      id: `v${i + 1}`,
+      design,
+      name: `${String(i + 1).padStart(2, "0")} · ${HERO_NAMES[design]}`,
+      config: { ...HERO_DEFAULT },
+    }));
+    heroStates.set(slug, {
+      draft: { variants, selected: variants[0]?.id ?? "" },
+      draft_version: 0,
+      published: null,
+      published_number: 0,
+      published_at: null,
+      review: null,
+      versions: [],
+    });
+  }
+  return heroStates.get(slug);
+};
+const heroSnapshot = (draft) => {
+  const v = draft.variants.find((x) => x.id === draft.selected);
+  return v ? { variant_id: v.id, design: v.design, name: v.name, config: clone(v.config) } : null;
+};
+function heroRoutes(slug, action, req, body, user, send) {
+  const site = sites.find((x) => x.slug === slug);
+  if (!site) return send(404, { error: { code: "not_found", message: "Not found." } });
+  const st = heroState(slug);
+  const rank = RANKS[user.role];
+  const nope = (status, code, message) => send(status, { error: { code, message } });
+  if (!action && req.method === "GET") {
+    const snap = heroSnapshot(st.draft);
+    const status = st.review
+      ? "in_review"
+      : !st.published
+        ? "draft"
+        : JSON.stringify(st.published) !== JSON.stringify(snap)
+          ? "changes_pending"
+          : "published";
+    return send(200, {
+      site: { slug, name: site.name },
+      designs: (HERO_DESIGNS[slug] ?? []).map((key) => ({ key, name: HERO_NAMES[key] })),
+      draft: st.draft,
+      draft_version: st.draft_version,
+      published: st.published,
+      published_number: st.published_number,
+      published_at: st.published_at,
+      review: st.review ? { ...st.review, own: st.review.by === user.id } : null,
+      versions: [...st.versions].reverse(),
+      status,
+      can_edit: rank >= RANKS.editor,
+      can_review: rank >= RANKS.reviewer,
+    });
+  }
+  if (action === "draft") {
+    if (rank < RANKS.editor) return nope(403, "forbidden", "You don't have permission to do that.");
+    if (body.version !== st.draft_version)
+      return nope(409, "conflict", "Someone else saved this hero meanwhile. Reload to see their changes.");
+    const doc = body.document ?? {};
+    const fields = [];
+    for (const v of doc.variants ?? []) {
+      if (!(HERO_DESIGNS[slug] ?? []).includes(v.design))
+        fields.push({
+          field: "variants",
+          code: "design",
+          message: "Choose a design from this website's collection.",
+        });
+      for (const href of [v.config?.primary_href, v.config?.secondary_href].filter(Boolean))
+        if (!/^(#[\w-]{1,59}|\/(?!\/)[A-Za-z0-9/_.#-]*|https:\/\/[^\s<>"']+)$/.test(href))
+          fields.push({
+            field: "primary_href",
+            code: "href",
+            message:
+              "Buttons go to a page path such as /contact, a section such as #platforms, or an https:// address.",
+          });
+      if ((v.config?.headline ?? "").length > 90)
+        fields.push({
+          field: "headline",
+          code: "length",
+          message: "Headlines up to 90 characters (second line 60, eyebrow 60).",
+        });
+    }
+    if (!(doc.variants ?? []).some((v) => v.id === doc.selected))
+      fields.push({ field: "selected", code: "missing", message: "Choose which variant to publish." });
+    if (fields.length)
+      return send(422, { error: { code: "validation", message: "Some fields need attention.", fields } });
+    if (JSON.stringify(doc) !== JSON.stringify(st.draft)) st.review = null;
+    st.draft = clone(doc);
+    st.draft_version += 1;
+    return send(200, { version: st.draft_version });
+  }
+  if (action === "submit") {
+    if (rank < RANKS.editor) return nope(403, "forbidden", "You don't have permission to do that.");
+    st.review = {
+      by: user.id,
+      requested_by: user.name,
+      requested_at: new Date().toISOString(),
+      note: body.note || null,
+    };
+    return send(200, { ok: true });
+  }
+  if (rank < RANKS.reviewer) return nope(403, "forbidden", "You don't have permission to do that.");
+  const publish = (hero, note, by) => {
+    st.published = clone(hero);
+    st.published_number += 1;
+    st.published_at = new Date().toISOString();
+    st.versions.push({
+      number: st.published_number,
+      note,
+      hero: clone(hero),
+      requested_by: by,
+      published_by: user.name,
+      created_at: st.published_at,
+    });
+    st.review = null;
+  };
+  if (action === "publish") {
+    if (!st.review) return nope(409, "conflict", "Ask for approval first.");
+    if (st.review.by === user.id && user.role !== "owner")
+      return nope(
+        403,
+        "not_permitted",
+        "A different reviewer must approve your own request (maker-checker).",
+      );
+    publish(heroSnapshot(st.draft), body.note || st.review.note || "Approved", st.review.requested_by);
+    return send(200, { ok: true });
+  }
+  if (action === "reject") {
+    st.review = null;
+    return send(200, { ok: true });
+  }
+  if (action === "rollback") {
+    const v = st.versions.find((x) => x.number === body.version);
+    if (!v) return nope(404, "not_found", "Not found.");
+    publish(v.hero, `Rolled back to version ${v.number}`, null);
+    return send(200, { ok: true });
+  }
+  return nope(404, "not_found", "Not found.");
+}
+
 function campaignRoutes(path, req, body, user, send) {
   const rank = RANKS[user.role];
   const err = (status, message, code = "conflict") => send(status, { error: { code, message } });
@@ -4286,6 +4451,8 @@ function admin(req, res, url, body, send, raw) {
   if (path === "campaigns" || path.startsWith("campaigns/"))
     return campaignRoutes(path, req, body, user, send);
   if (path === "proof" || path.startsWith("proof/")) return proofRoutes(path, req, body, user, send);
+  const heroPath = /^sites\/([a-z0-9_-]+)\/hero(?:\/([a-z_]+))?$/.exec(path);
+  if (heroPath) return heroRoutes(heroPath[1], heroPath[2], req, body, user, send);
   if (/^sites\/[a-z0-9_-]+\/pricing(\/|$)/.test(path) || path.startsWith("pricing/"))
     return pricingRoutes(path, req, body, user, send);
   if (path === "seo" || /^sites\/[a-z0-9_-]+\/seo$/.test(path)) return seoRoutes(path, req, body, user, send);
@@ -4323,6 +4490,8 @@ createServer(async (req, res) => {
   if (url.pathname === "/v1/articles") return send(200, list(url));
   if (url.pathname === "/v1/sites") return send(200, publicSites());
   if (url.pathname === "/v1/privacy") return send(200, publicPrivacy());
+  const publicHero = /^\/v1\/sites\/([a-z0-9_-]+)\/hero$/.exec(url.pathname);
+  if (publicHero) return send(200, { hero: heroStates.get(publicHero[1])?.published ?? null });
   const publicPricing = /^\/v1\/sites\/([a-z0-9_-]+)\/pricing(\/calculate)?$/.exec(url.pathname);
   if (publicPricing) {
     const st = pricingBooks.get(publicPricing[1]);

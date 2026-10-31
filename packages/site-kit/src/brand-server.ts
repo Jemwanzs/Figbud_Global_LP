@@ -1,5 +1,6 @@
 import type { ListedSite } from "./brand";
 import type { LiveCampaign } from "./campaigns";
+import type { PublishedHero } from "./hero-kit";
 import type { PriceBook } from "./pricing";
 import type { PublicProof } from "./proof";
 
@@ -157,6 +158,22 @@ export async function fetchPublicPricing(apiBase: string, slug: string): Promise
     if (!response.ok) return null;
     const data = (await response.json()) as { visible: boolean; book?: PriceBook };
     return data.visible && data.book ? data.book : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * A website's published hero (`GET /v1/sites/{slug}/hero`, Hero Design
+ * Studio), or `null`: the website keeps its existing hero.
+ */
+export async function fetchHero(apiBase: string, slug: string): Promise<PublishedHero | null> {
+  try {
+    const response = await fetch(`${apiBase.replace(/\/$/, "")}/v1/sites/${encodeURIComponent(slug)}/hero`, {
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!response.ok) return null;
+    return ((await response.json()) as { hero: PublishedHero | null }).hero;
   } catch {
     return null;
   }

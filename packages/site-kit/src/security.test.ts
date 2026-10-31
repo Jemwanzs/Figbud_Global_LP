@@ -1,8 +1,19 @@
 import { describe, expect, it } from "vitest";
 
-import { contentSecurityPolicy, securityHeaders } from "./security";
+import { contentSecurityPolicy, heroPreviewHeaderRule, securityHeaders } from "./security";
 
 describe("security headers", () => {
+  it("lets only this origin frame the Hero Design Studio previews; every other page refuses framing", () => {
+    const options = { apiOrigin: "https://api.example.com", siteUrl: "https://example.com", isDev: false };
+    const rule = heroPreviewHeaderRule(options);
+    expect(rule.source).toBe("/admin/hero-preview/:path*");
+    const value = (key: string) => rule.headers.find((h) => h.key === key)?.value;
+    expect(value("Content-Security-Policy")).toContain("frame-ancestors 'self'");
+    expect(value("Content-Security-Policy")).not.toContain("frame-ancestors 'none'");
+    expect(value("X-Frame-Options")).toBe("SAMEORIGIN");
+    expect(securityHeaders(options).find((h) => h.key === "X-Frame-Options")?.value).toBe("DENY");
+  });
+
   it("locks scripts and connections to first-party origins, the API and the supported integrations", () => {
     const csp = contentSecurityPolicy({
       apiOrigin: "https://api.example.com/",

@@ -1,5 +1,5 @@
 import { buttonClasses } from "@figbud/ui";
-import { Calculator, FileStack, Images, Palette, PanelsTopLeft, SearchCheck } from "lucide-react";
+import { Calculator, FileStack, Images, Palette, PanelsTopLeft, SearchCheck, Sparkles } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -74,6 +74,10 @@ async function Site({ params }: Pick<PageProps<"/admin/sites/[slug]">, "params">
         <Link href={`/admin/sites/${site.slug}/seo`} className={buttonClasses("secondary", "md")}>
           <SearchCheck aria-hidden className="size-4" />
           SEO
+        </Link>
+        <Link href={`/admin/sites/${site.slug}/hero`} className={buttonClasses("secondary", "md")}>
+          <Sparkles aria-hidden className="size-4" />
+          Hero Design Studio
         </Link>
         {site.kind === "product" && (
           <Link href={`/admin/sites/${site.slug}/pricing`} className={buttonClasses("secondary", "md")}>

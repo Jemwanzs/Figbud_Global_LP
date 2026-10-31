@@ -5,7 +5,7 @@ import { Suspense } from "react";
 
 import { CampaignSlot, JsonLd, websiteLd } from "@figbud/site-kit";
 
-import { Hero } from "@/components/home/hero";
+import { HeroSlot } from "@/components/home/heroes/hero-slot";
 import {
   AfricaSection,
   CompanySection,
@@ -17,7 +17,14 @@ import {
   TrustedBySection,
 } from "@/components/home/sections";
 import { getDictionary } from "@/i18n/get-dictionary";
-import { getBrands, getMapProducts, getProductRotation, getProof, getPublicProducts } from "@/lib/products";
+import {
+  getBrands,
+  getHero,
+  getMapProducts,
+  getProductRotation,
+  getProof,
+  getPublicProducts,
+} from "@/lib/products";
 import { pageMetadata, siteOrigin } from "@/lib/site";
 
 export async function generateMetadata({ params }: PageProps<"/[locale]">): Promise<Metadata> {
@@ -31,12 +38,13 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
   const { locale } = await params;
   if (!isLocale(locale)) notFound();
   const dict = await getDictionary(locale);
-  const [products, mapProducts, brands, rotation, proof] = await Promise.all([
+  const [products, mapProducts, brands, rotation, proof, hero] = await Promise.all([
     getPublicProducts(),
     getMapProducts(),
     getBrands(),
     getProductRotation(),
     getProof(),
+    getHero(),
   ]);
 
   return (
@@ -48,7 +56,7 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
         placement="home_hero"
         className="mx-auto block w-full max-w-[92rem] px-5 pt-page-top sm:px-8 md:px-10 lg:px-16"
       />
-      <Hero locale={locale} dict={dict} products={products} brands={brands} />
+      <HeroSlot hero={hero} locale={locale} dict={dict} products={products} brands={brands} />
       {/* Each boundary hydrates as its own task, keeping the main thread responsive. */}
       <Suspense>
         <PlatformsSection

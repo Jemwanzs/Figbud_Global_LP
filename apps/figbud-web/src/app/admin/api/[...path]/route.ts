@@ -49,6 +49,9 @@ async function forward(request: NextRequest, { params }: RouteContext<"/admin/ap
   if (hasBody && upstream.ok && path.startsWith("campaigns")) revalidateTag("campaigns", { expire: 0 });
   // Published Trusted By, testimonials and metrics (Content & Marketing) likewise.
   if (hasBody && upstream.ok && path.startsWith("proof")) revalidateTag("proof", { expire: 0 });
+  // A published or rolled-back hero (Hero Design Studio) shows on the home page at once.
+  if (hasBody && upstream.ok && /^sites\/[a-z0-9_-]+\/hero\//.test(path))
+    revalidateTag("hero", { expire: 0 });
 
   // Admin images (brand files) may be cached privately; everything else is never cached.
   const image = upstream.headers.get("content-type")?.startsWith("image/");
