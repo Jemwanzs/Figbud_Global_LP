@@ -43,10 +43,11 @@ function Steps({ steps, done }: { steps: string[]; done: number }) {
   return (
     <ol className="grid grid-cols-4 gap-2">
       {steps.map((step, i) => (
+        // Labels move in without fading, so text keeps its full contrast at every frame.
         <m.li
           key={step}
-          initial={{ opacity: 0, y: 6 }}
-          animate={{ opacity: 1, y: 0 }}
+          initial={{ y: 6 }}
+          animate={{ y: 0 }}
           transition={{ duration: 0.5, delay: 0.25 + i * 0.12, ease: EASE }}
           className="flex flex-col gap-2"
         >
@@ -298,8 +299,8 @@ export function ZiwaPreview({ copy }: { copy: Previews["ziwa"] }) {
             {copy.stages.map((stage, i) => (
               <m.li
                 key={stage}
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
+                initial={{ y: 6 }}
+                animate={{ y: 0 }}
                 transition={{ duration: 0.5, delay: 0.15 + i * 0.1, ease: EASE }}
                 className="flex flex-col items-center gap-1.5 text-center"
               >
