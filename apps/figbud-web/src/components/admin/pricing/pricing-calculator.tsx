@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  BILLING_LABELS,
   CYCLE_LABELS,
   type CalcInput,
   type CycleKey,
@@ -27,27 +28,38 @@ type Selection = Record<string, { on: boolean; quantity: number | null; mode: On
 const field =
   "min-h-11 w-full rounded-xl border border-line-strong bg-surface px-3 text-sm text-text disabled:opacity-60";
 
+export type PriceSource = "draft" | "published";
+
 /**
- * The pricing calculator (Studio tab and full-screen workspace). Every total
- * comes from the API's engine; this component only collects the choices.
+ * The pricing calculator: the same component in the Studio's Calculator tab
+ * and in the full-screen workspace. Every total comes from the API's engine,
+ * priced from the same saved version whose rates this table shows (the saved
+ * draft, or the published version for official quotations); a new revision
+ * recalculates at once.
  */
 export function PricingCalculator({
   slug,
-  book,
-  source,
+  sources,
+  revisions,
+  defaultSource,
   canQuote,
   initial,
 }: {
   slug: string;
-  book: PriceBook;
-  /** Which version to price: the draft (trying changes) or the published one. */
-  source: "draft" | "published";
-  /** Quotations come from the published book only. */
+  /** The saved draft and the published version (null when there's none). */
+  sources: { draft: PriceBook; published: PriceBook | null };
+  /** Their versions: a change recalculates even when the choices are the same. */
+  revisions: { draft: number; published: number };
+  defaultSource: PriceSource;
+  /** Whether this person may create quotations (published prices only). */
   canQuote: boolean;
   initial?: CalcInput;
 }) {
   const uid = useId();
   const router = useRouter();
+  const [chosen, setSource] = useState<PriceSource>(defaultSource);
+  const source: PriceSource = chosen === "published" && sources.published ? "published" : "draft";
+  const book = source === "published" ? sources.published! : sources.draft;
   const cycles = book.cycles.filter((c) => c.enabled);
   const usable = book.items.filter((i) => i.active);
   const [employees, setEmployees] = useState(initial?.employees ?? 250);
@@ -95,6 +107,7 @@ export function PricingCalculator({
   const { result, error, busy } = useCalculation(`/admin/api/sites/${slug}/pricing/calculate`, {
     input,
     source,
+    revision: revisions[source],
   });
 
   const applyModel = (id: string) => {
@@ -132,6 +145,7 @@ export function PricingCalculator({
 
   const recurring = usable.filter((i) => i.billing !== "one_off");
   const oneOff = usable.filter((i) => i.billing === "one_off");
+  const quoting_allowed = canQuote && source === "published";
   const cycleDiscount = (key: CycleKey) => {
     const d = book.cycles.find((c) => c.key === key)?.discount;
     if (!d || d.kind === "none" || Number(d.value) === 0) return null;
@@ -157,7 +171,7 @@ export function PricingCalculator({
               <span className={cn("block font-medium", s.on ? "text-text" : "text-muted")}>{item.name}</span>
               <span className="block text-xs text-subtle">
                 {METHOD_LABELS[item.method]}
-                {item.billing === "annual" ? " · per year" : item.billing === "monthly" ? " · per month" : ""}
+                {` · ${BILLING_LABELS[item.billing].per}`}
                 {planned && " · planned, not yet available"}
               </span>
             </span>
@@ -174,8 +188,9 @@ export function PricingCalculator({
                 type="number"
                 min={0}
                 inputMode="numeric"
-                placeholder={headcount ? String(input.employees) : "1"}
-                value={s.quantity ?? ""}
+                placeholder="1"
+                // Linked lines show the live employee count; typing sets this line's own quantity.
+                value={s.quantity ?? (headcount ? input.employees : "")}
                 disabled={!s.on}
                 onChange={(e) =>
                   set(item.id, {
@@ -185,7 +200,23 @@ export function PricingCalculator({
                 className={cn(field, "min-h-10 w-24 text-end font-mono")}
               />
               <span className="mt-1 block text-xs text-subtle">
-                {headcount && s.quantity === null ? "Uses the employee count" : item.unit_label}
+                {headcount && s.quantity === null ? (
+                  "Linked to employees / licences"
+                ) : headcount ? (
+                  <>
+                    {`Custom ${item.unit_label} · `}
+                    <button
+                      type="button"
+                      disabled={!s.on}
+                      onClick={() => set(item.id, { quantity: null })}
+                      className="text-accent underline-offset-2 hover:underline"
+                    >
+                      Use employee count
+                    </button>
+                  </>
+                ) : (
+                  item.unit_label
+                )}
               </span>
             </>
           )}
@@ -198,7 +229,7 @@ export function PricingCalculator({
           ) : item.rate ? (
             formatMoney(item.rate, book.currency)
           ) : (
-            <span className="text-amber-700 dark:text-amber-400">Not set</span>
+            <span className="text-amber-700 dark:text-amber-400">Rate not configured</span>
           )}
         </td>
         {item.billing === "one_off" ? (
@@ -232,6 +263,41 @@ export function PricingCalculator({
   return (
     <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_23rem]">
       <div className="min-w-0 space-y-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div
+            role="radiogroup"
+            aria-label="Prices"
+            className="inline-flex gap-1 rounded-xl border border-line bg-surface-2 p-1"
+          >
+            {(["draft", "published"] as const).map((key) => (
+              <button
+                key={key}
+                type="button"
+                role="radio"
+                aria-checked={source === key}
+                disabled={key === "published" && !sources.published}
+                onClick={() => setSource(key)}
+                className={cn(
+                  "min-h-10 rounded-lg px-3 text-sm transition-colors disabled:opacity-50",
+                  source === key
+                    ? "bg-surface font-medium text-text shadow-sm"
+                    : "text-muted hover:text-text",
+                )}
+              >
+                {key === "draft"
+                  ? "Saved draft prices"
+                  : sources.published
+                    ? `Published prices · v${revisions.published}`
+                    : "Not published yet"}
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-subtle">
+            {source === "draft"
+              ? "For internal preview and testing. Quotations use published prices."
+              : "The prices official quotations use."}
+          </p>
+        </div>
         <div className="grid gap-4 rounded-2xl border border-line bg-surface p-4 sm:grid-cols-2 sm:p-5 lg:grid-cols-4">
           <div>
             <label htmlFor={`${uid}-emp`} className="block text-xs font-medium text-muted">
@@ -372,8 +438,9 @@ export function PricingCalculator({
                     </th>
                   </tr>
                 </thead>
-                {Object.keys(GROUP_LABELS).map((g) => {
-                  const items = oneOff.filter((i) => (i.group ?? "setup") === g);
+                {[...Object.keys(GROUP_LABELS), "other"].map((g) => {
+                  // Modules charged once have no group: they're listed last.
+                  const items = oneOff.filter((i) => (i.group ?? "other") === g);
                   if (!items.length) return null;
                   return (
                     <tbody key={g}>
@@ -383,7 +450,7 @@ export function PricingCalculator({
                           colSpan={4}
                           className="pt-4 pb-1 text-start text-xs font-medium tracking-[0.12em] text-subtle uppercase"
                         >
-                          {GROUP_LABELS[g]}
+                          {GROUP_LABELS[g] ?? "Other one-off charges"}
                         </th>
                       </tr>
                       {items.map(row)}
@@ -417,7 +484,7 @@ export function PricingCalculator({
               <p className="text-sm text-subtle">Choose modules to see the calculation.</p>
             )}
           </div>
-          {canQuote && (
+          {quoting_allowed && (
             <div className="mt-5 border-t border-line pt-5">
               {!quoting ? (
                 <ActionButton
@@ -492,7 +559,7 @@ export function PricingCalculator({
               )}
             </div>
           )}
-          {!canQuote && source === "draft" && (
+          {source === "draft" && (
             <p className="mt-5 border-t border-line pt-4 text-xs text-subtle">
               Quotations use the published prices. Publish this pricing to issue them.
             </p>

@@ -129,3 +129,39 @@ test("sign-in and invite pages are accessible", async ({ page }) => {
     expect(results.violations.map((v) => v.id)).toEqual([]);
   }
 });
+
+test("the Studio header is one compact row that stays visible, with a menu on narrow screens", async ({
+  page,
+}) => {
+  await addPasskeyDevice(page);
+  await page.goto(`/admin/invite#token=${randomBytes(32).toString("hex")}`);
+  await page.getByLabel("Your name").fill("Nia Navigator");
+  await page.getByRole("button", { name: "Create passkey and sign in" }).click();
+  await expect(page.getByRole("heading", { level: 1, name: "Welcome, Nia" })).toBeVisible();
+  const header = page.getByRole("banner");
+  for (const width of [1440, 1024]) {
+    await page.setViewportSize({ width, height: 900 });
+    // Logo, every link and the account control on one row (no wrapped second row).
+    expect((await header.boundingBox())!.height).toBeLessThanOrEqual(72);
+    const nav = page.getByRole("navigation", { name: "Admin" });
+    await expect(nav.getByRole("link", { name: "Overview" })).toHaveAttribute("aria-current", "page");
+    await expect(page.getByRole("button", { name: /Nia/ })).toBeInViewport();
+  }
+  // Sticky: still at the top after scrolling.
+  await expect(header).toHaveCSS("position", "sticky");
+  await page.mouse.wheel(0, 2000);
+  await expect.poll(async () => (await header.boundingBox())!.y).toBe(0);
+  // Narrow: a menu button opens the same links; Escape closes it.
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect((await header.boundingBox())!.height).toBeLessThanOrEqual(72);
+  const menu = page.getByRole("button", { name: "Menu", exact: true });
+  await menu.click();
+  await expect(
+    page.getByRole("navigation", { name: "Admin" }).getByRole("link", { name: "Websites" }),
+  ).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(menu).toHaveAttribute("aria-expanded", "false");
+  expect(
+    await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth),
+  ).toBeLessThanOrEqual(0);
+});

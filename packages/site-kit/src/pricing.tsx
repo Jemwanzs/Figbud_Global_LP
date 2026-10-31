@@ -23,7 +23,7 @@ export type Method =
   | "per_session"
   | "per_day"
   | "custom_quote";
-export type Billing = "one_off" | "monthly" | "annual";
+export type Billing = "one_off" | "monthly" | "quarterly" | "semi_annual" | "annual";
 export type CycleKey = "monthly" | "quarterly" | "semi_annual" | "annual";
 export type OneOffMode = "charged" | "included" | "optional" | "scoped";
 export type DiscountKind = "none" | "percent" | "fixed";
@@ -172,10 +172,19 @@ export const METHOD_LABELS: Record<Method, string> = {
 };
 
 export const UNPRICED_LABELS: Record<Calculation["unpriced"][number]["reason"], string> = {
-  rate_not_set: "Rate not set",
+  rate_not_set: "Rate not configured",
   custom_quote: "Quoted separately",
   scoped: "Quoted on scope",
   planned: "Planned, not yet available",
+};
+
+/** What one rate covers, for labels ("per quarter"). */
+export const BILLING_LABELS: Record<Billing, { label: string; per: string }> = {
+  one_off: { label: "One-off", per: "once" },
+  monthly: { label: "Month", per: "per month" },
+  quarterly: { label: "Quarter", per: "per quarter" },
+  semi_annual: { label: "Six months", per: "per six months" },
+  annual: { label: "Year", per: "per year" },
 };
 
 export const usesHeadcount = (method: Method) =>
@@ -532,7 +541,7 @@ export function PublicPricing({
     picked.length > 0,
   );
   const per = (i: PricingItem) =>
-    `${i.billing === "annual" ? "per year" : "per month"}${usesHeadcount(i.method) ? ` per ${i.unit_label.replace(/s$/, "") || "employee"}` : ""}`;
+    `${BILLING_LABELS[i.billing].per}${usesHeadcount(i.method) ? ` per ${i.unit_label.replace(/s$/, "") || "employee"}` : ""}`;
   return (
     <div className="space-y-10">
       <div className="flex flex-wrap items-end gap-4">

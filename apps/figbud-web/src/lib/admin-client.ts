@@ -52,7 +52,9 @@ async function parseResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
     throw new AdminError(
       data?.error?.message ??
-        (response.status === 413 ? "That file is too large." : "Something went wrong. Please try again."),
+        (response.status === 413
+          ? "That is too large to send. Please try a smaller file or fewer changes."
+          : "Something went wrong. Please try again."),
       response.status,
       data?.error?.fields ?? [],
     );

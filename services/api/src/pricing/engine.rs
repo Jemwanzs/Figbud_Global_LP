@@ -3,8 +3,10 @@
 //! `rust_decimal::Decimal` throughout (never floating point) and serialised
 //! as strings. The rules are documented in docs/PRICING.md; keep both in step.
 //!
-//! - Recurring items carry a rate per month or per year. A billing period of
-//!   `m` months charges `m` monthly rates, or `m/12` of the yearly rate.
+//! - Recurring items carry a rate per month, quarter, six months or year. A
+//!   billing period of `m` months charges `m / k` rates, where one rate covers
+//!   `k` months (`m` monthly rates, `m/12` of a yearly rate). One-off charges
+//!   are charged once, never multiplied by the period.
 //! - A billing cycle's discount applies only when configured (none by
 //!   default), and only to discountable items. An item with its own rate for
 //!   that cycle uses it *instead of* any discount, so nothing is discounted
@@ -67,7 +69,22 @@ impl Method {
 pub enum Billing {
     OneOff,
     Monthly,
+    Quarterly,
+    SemiAnnual,
     Annual,
+}
+
+impl Billing {
+    /// Months one rate covers (none for one-off charges).
+    pub fn months(self) -> Option<u32> {
+        match self {
+            Self::OneOff => None,
+            Self::Monthly => Some(1),
+            Self::Quarterly => Some(3),
+            Self::SemiAnnual => Some(6),
+            Self::Annual => Some(12),
+        }
+    }
 }
 
 /// Commercial readiness, reconciled with the product's confirmed scope.
@@ -472,14 +489,6 @@ impl PriceBook {
                 item.rate = None;
             }
             let one_off = item.billing == Billing::OneOff;
-            let recurring_category = matches!(item.category, Category::Core | Category::AddOn);
-            if one_off && recurring_category {
-                e.push(err(
-                    "items",
-                    "billing",
-                    "Modules and add-ons are recurring; use implementation or custom for one-off charges.",
-                ));
-            }
             if item.tiers.len() > MAX_TIERS {
                 e.push(err("items", "tiers", "Up to 10 quantity tiers."));
             }
@@ -913,11 +922,9 @@ pub fn calculate(book: &PriceBook, input: &CalcInput, today: NaiveDate) -> Resul
             continue;
         }
         // Recurring: the item's amount for one billing period.
-        let per_period = match item.billing {
-            Billing::Monthly => amount * m,
-            Billing::Annual => amount * m / Decimal::from(12),
-            Billing::OneOff => unreachable!(),
-        };
+        // One rate covers `k` months; the billing period has `m`.
+        let k = Decimal::from(item.billing.months().unwrap_or(1));
+        let per_period = amount * m / k;
         let gross = round(convert(per_period), dp);
         let discount = round(
             if cycle_rate.is_some() {
@@ -1618,6 +1625,33 @@ mod tests {
                 dec!(810000.00),
                 "same yearly price whatever the cycle"
             );
+        }
+    }
+
+    #[test]
+    fn quarterly_and_six_monthly_rates_and_one_off_modules() {
+        let mut b = book();
+        let analytics = b.items.iter_mut().find(|i| i.id == "analytics").unwrap();
+        analytics.billing = Billing::Quarterly;
+        analytics.rate = Some(dec!(15000));
+        let core = b.items.iter_mut().find(|i| i.id == "core_hr").unwrap();
+        core.billing = Billing::SemiAnnual;
+        core.rate = Some(dec!(600));
+        // A module can also be a one-off charge, charged once whatever the cycle.
+        let leave = b.items.iter_mut().find(|i| i.id == "leave").unwrap();
+        leave.billing = Billing::OneOff;
+        leave.rate = Some(dec!(20));
+        let b = b.normalise().unwrap();
+        for (cycle, analytics, core) in [
+            (CycleKey::Monthly, dec!(5000.00), dec!(25000.00)),
+            (CycleKey::Quarterly, dec!(15000.00), dec!(75000.00)),
+            (CycleKey::Annual, dec!(60000.00), dec!(300000.00)),
+        ] {
+            let c = calculate(&b, &input(cycle, &["analytics", "core_hr", "leave"]), day()).unwrap();
+            assert_eq!(c.recurring[0].gross, analytics, "{cycle:?}");
+            assert_eq!(c.recurring[1].gross, core, "{cycle:?}");
+            assert_eq!(c.one_off[0].gross, dec!(5000.00), "250 × 20, once: {cycle:?}");
+            assert_eq!(c.annualized_subscription, dec!(360000.00));
         }
     }
 

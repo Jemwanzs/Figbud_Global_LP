@@ -3,6 +3,8 @@ import { randomBytes } from "node:crypto";
 
 import { type Page, expect, test } from "@playwright/test";
 
+import { studioLink } from "./studio-nav";
+
 // Website registry (Admin Studio, Phase B) against e2e/mock-api.mjs, signed in as an owner.
 
 test.describe.configure({ timeout: 60_000 });
@@ -35,7 +37,7 @@ const status = (page: Page, text: string) =>
 
 test("create a product website, launch it with approval and manage its settings", async ({ page }) => {
   await signInAsOwner(page);
-  await page.getByRole("navigation", { name: "Admin" }).getByRole("link", { name: "Websites" }).click();
+  await studioLink(page, "Websites");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Websites & products");
   const card = (name: string | RegExp) => page.getByRole("article", { name });
   await expect(card("FigBud Global")).toContainText("Corporate website");

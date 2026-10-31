@@ -36,7 +36,7 @@ One per product website, in its **base currency** (KES for ZiraHR). It has a wor
 | --- | --- |
 | Category | Core module, add-on, implementation, support, integration or custom |
 | Pricing method | Flat rate, per employee, per user licence, per payroll employee, per entity, per country, per usage unit, per participant, per session, per day, or custom quote |
-| Rate is per | Month or year (recurring), or once (one-off) |
+| Rate is per | One-off, month, quarter, six months or year. Any item can be charged once, modules included |
 | Rate | Per unit (or the flat amount); **unset means not priced** |
 | Minimum charge | The item never costs less than this, for its own frequency |
 | Quantity tiers | Optional; replace the rate (§5) |
@@ -72,11 +72,16 @@ One per product website, in its **base currency** (KES for ZiraHR). It has a wor
 
 ## 6. Billing cycles and discounts
 
-A recurring item's charge for a billing period of `m` months is:
-- monthly rate × quantity × `m`; or
-- yearly rate × quantity × `m` / 12.
+A recurring item's charge for a billing period of `m` months is **rate × quantity × `m` / `k`**, where one rate covers `k` months:
 
-So the yearly equivalent is the same whatever the cycle, before discounts.
+| Rate is per | `k` | Over a quarter (`m` = 3) |
+| --- | --- | --- |
+| Month | 1 | 3 × the rate |
+| Quarter | 3 | 1 × the rate |
+| Six months | 6 | ½ × the rate |
+| Year | 12 | ¼ × the rate |
+
+So the yearly equivalent is the same whatever the cycle, before discounts. A yearly rate is never treated as monthly. One-off items are charged once, never multiplied by the period.
 
 Discounts, in order:
 1. **An item's own cycle rate** replaces the base rate *and* any discount for that cycle (it is already the agreed price), so nothing is discounted twice.
@@ -150,7 +155,19 @@ AI features can be priced as a fixed subscription (flat), as usage (per usage un
   - Customers see the document only: never internal notes, inputs or the price book. Drafts and pending quotations can't be opened.
 - **PDF:** "Print or save as PDF" uses a print-ready layout, both in the Studio and on the customer page.
 
-## 13. Publishing and visibility
+## 13. One pricing source
+
+- **Same component, same source.** The Studio's Calculator tab and "Open calculator in a new tab" are the same calculator, with the same **Saved draft prices / Published prices** switch.
+  - The rates in the table come from the version being priced, and the API prices that same saved version.
+  - The draft is for internal preview and testing. Published prices are what official quotations use, and "Create quotation" appears only on published prices.
+- **Unsaved edits are never priced silently.** While the Studio has unsaved changes, the calculator says so, and keeps pricing the last saved draft until you save.
+- **Every save recalculates at once.** Each calculation sends the version number, so a saved rate, quantity, item or billing-cycle change updates the totals immediately, without a refresh.
+- **Restores and others' saves:** after a restore, or someone else's save, the editor takes the newer saved draft (unless you have unsaved edits).
+- **Quantities:** per-employee, per-user and per-payroll-employee lines are linked to the employees / licences number and show it. Typing a number makes the line's quantity custom. "Use employee count" links it again. Unselected items are left out.
+- **Missing rates:** an item without a rate shows **Rate not configured**, is listed by name under "Not included in the totals", and blocks official quotations. It's never treated as zero.
+- **Size:** a full price book is large (up to 120 items with tiers and cycle terms), so pricing requests have their own 256 KB limit. The API's general 16 KB form limit refused full books before 31 Oct 2026; that's now covered by a regression test.
+
+## 14. Publishing and visibility
 
 There are two separate controls:
 1. **Publish pricing configuration:** an editor asks for approval (with an optional effective date), and a different reviewer approves.
@@ -164,7 +181,7 @@ There are two separate controls:
 
 **Audit:** every save, request, approval, rejection, publication, rollback, visibility change and quotation action is recorded (`pricing.*` in the activity log).
 
-## 14. Permissions
+## 15. Permissions
 
 | Role (on the website) | Can |
 | --- | --- |
@@ -173,7 +190,7 @@ There are two separate controls:
 | Reviewer | All of the above, plus approve or decline pricing and quotations (not their own request), switch website visibility, record accepted or declined |
 | Owner | All of the above, and may approve their own requests |
 
-## 15. Reusing the engine for other products
+## 16. Reusing the engine for other products
 
 Every product website gets its own price book (an empty catalogue in KES to start). The site-kit components can be used on any product website:
 - `PricingSummary`;

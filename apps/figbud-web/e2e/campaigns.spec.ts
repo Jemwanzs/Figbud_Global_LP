@@ -3,6 +3,8 @@ import { randomBytes } from "node:crypto";
 
 import { type BrowserContext, type Page, expect, test } from "@playwright/test";
 
+import { studioLink } from "./studio-nav";
+
 // Campaigns & promotions (P8-M1) against e2e/mock-api.mjs. Campaigns target
 // /en/legal/terms only, so other tests never see them.
 
@@ -40,7 +42,7 @@ async function routeCampaignCalls(context: BrowserContext) {
 }
 
 async function create(page: Page, name: string, type: string) {
-  await page.getByRole("navigation", { name: "Admin" }).getByRole("link", { name: "Marketing" }).click();
+  await studioLink(page, "Marketing");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Campaigns & Promotions");
   await expect(async () => {
     await page.getByLabel("Campaign name").fill(name);

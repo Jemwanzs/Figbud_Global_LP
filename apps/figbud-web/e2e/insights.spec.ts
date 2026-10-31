@@ -2,6 +2,8 @@ import { randomBytes } from "node:crypto";
 
 import { type Page, expect, test } from "@playwright/test";
 
+import { studioLink } from "./studio-nav";
+
 // Editorial UI against e2e/mock-api.mjs (signed in as an owner via a passkey invite).
 
 // Long journeys (passkey sign-in plus many steps) get more than the default budget.
@@ -32,7 +34,7 @@ async function signInAsOwner(page: Page) {
 
 test("write a draft, see field errors, save, submit, publish, archive and restore", async ({ page }) => {
   await signInAsOwner(page);
-  await page.getByRole("navigation", { name: "Admin" }).getByRole("link", { name: "Insights" }).click();
+  await studioLink(page, "Insights");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Insights");
   await page.getByRole("link", { name: "New article" }).click();
 

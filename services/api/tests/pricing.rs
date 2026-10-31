@@ -360,6 +360,51 @@ async fn price_books_publish_with_approval_and_stay_off_the_website_until_shown(
     }
 }
 
+/// Regression (31 Oct 2026): a full price book is far larger than a form; it
+/// was refused by the API's 16 KB body limit, so saves failed and calculators
+/// kept pricing the old draft.
+#[tokio::test]
+async fn a_full_price_book_saves_and_calculates_with_its_new_rates() {
+    let Some(t) = T::new().await else { return };
+    let owner = t.admin("owner").await;
+    let editor = t.admin("editor").await;
+    let slug = t.site(&owner).await;
+    let base = format!("/v1/admin/sites/{slug}/pricing");
+    let mut doc = serde_json::to_value(figbud_api::pricing::engine::zirahr_starting_book()).unwrap();
+    for item in doc["items"].as_array_mut().unwrap() {
+        if item["method"] != "custom_quote" {
+            item["rate"] = json!("1250.75");
+            item["description"] =
+                json!("A long description so the book is the size of a real catalogue with detail.");
+            item["tiers"] = json!([{ "up_to": 100, "rate": "1300" }, { "up_to": 500, "rate": "1250.75" }, { "up_to": null, "rate": "1200" }]);
+        }
+    }
+    assert!(doc.to_string().len() > 16 * 1024, "bigger than the general limit");
+    let (status, body) = t
+        .call(
+            "POST",
+            &format!("{base}/draft"),
+            Some(&editor),
+            Some(json!({ "document": doc, "version": 0 })),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    let (status, calc) = t
+        .call(
+            "POST",
+            &format!("{base}/calculate"),
+            Some(&editor),
+            Some(json!({ "input": { "employees": 250, "cycle": "monthly", "lines": [{ "item_id": "core_hr" }] } })),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(
+        calc["subscription_subtotal"], "312687.50",
+        "250 × 1250.75 from the saved draft"
+    );
+    assert_eq!(calc["unpriced"], json!([]));
+}
+
 #[tokio::test]
 async fn quotations_keep_their_snapshot_need_approval_and_share_safely() {
     let Some(t) = T::new().await else { return };

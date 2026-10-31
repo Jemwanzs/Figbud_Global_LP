@@ -3,6 +3,8 @@ import { randomBytes } from "node:crypto";
 
 import { type Page, type Request, expect, test } from "@playwright/test";
 
+import { studioLink } from "./studio-nav";
+
 // Cookie consent (P7-PC1). These visitors arrive without a choice; the mock
 // API has one enabled analytics provider (Plausible) to show it loads only
 // after consent.
@@ -194,7 +196,7 @@ test("Studio: Settings → Privacy & Cookies edits the banner and integrations",
   test.skip(testInfo.project.name !== "desktop", "Studio settings are edited from the desktop project");
   test.setTimeout(60_000);
   await signInAsOwner(page);
-  await page.getByRole("navigation", { name: "Admin" }).getByRole("link", { name: "Settings" }).click();
+  await studioLink(page, "Settings");
   await page.getByRole("link", { name: /Privacy & Cookies/ }).click();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Privacy & Cookies");
   await expect(page.getByRole("heading", { name: /Consent in the last 30 days/ })).toBeVisible();

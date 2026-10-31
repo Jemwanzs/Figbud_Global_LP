@@ -1,6 +1,13 @@
 "use client";
 
-import { CYCLE_LABELS, type CycleKey, METHOD_LABELS, type Method, type PricingItem } from "@figbud/site-kit";
+import {
+  BILLING_LABELS,
+  CYCLE_LABELS,
+  type CycleKey,
+  METHOD_LABELS,
+  type Method,
+  type PricingItem,
+} from "@figbud/site-kit";
 import { cn } from "@figbud/ui";
 import { ArrowDown, ArrowUp, ChevronDown, Plus, Trash2 } from "lucide-react";
 import { useId, useState } from "react";
@@ -166,24 +173,47 @@ function ItemDetails({
             onChange={(e) => update({ category: e.target.value as PricingItem["category"] })}
             className={cn(input, "mt-1")}
           >
-            {(oneOff
-              ? (["implementation", "support", "integration", "custom"] as const)
-              : (["core", "add_on", "support", "custom"] as const)
-            ).map((c) => (
+            {(Object.keys(CATEGORY_LABELS) as PricingItem["category"][]).map((c) => (
               <option key={c} value={c}>
                 {CATEGORY_LABELS[c]}
               </option>
             ))}
           </select>
         </div>
-        {oneOff ? (
+        <div>
+          <label htmlFor={`${uid}-billing`} className="block text-xs font-medium text-muted">
+            Rate is per
+          </label>
+          <select
+            id={`${uid}-billing`}
+            value={item.billing}
+            disabled={disabled}
+            onChange={(e) => {
+              const billing = e.target.value as PricingItem["billing"];
+              // One-off charges are charged once: no cycle terms or cycle discounts.
+              update(
+                billing === "one_off"
+                  ? { billing, cycle_terms: [], discountable: false }
+                  : { billing, ...(item.billing === "one_off" ? { discountable: true } : {}) },
+              );
+            }}
+            className={cn(input, "mt-1")}
+          >
+            {(Object.keys(BILLING_LABELS) as PricingItem["billing"][]).map((b) => (
+              <option key={b} value={b}>
+                {BILLING_LABELS[b].label}
+              </option>
+            ))}
+          </select>
+        </div>
+        {item.group != null && (
           <div>
             <label htmlFor={`${uid}-group`} className="block text-xs font-medium text-muted">
               Group
             </label>
             <select
               id={`${uid}-group`}
-              value={item.group ?? "setup"}
+              value={item.group}
               disabled={disabled}
               onChange={(e) => update({ group: e.target.value })}
               className={cn(input, "mt-1")}
@@ -193,22 +223,6 @@ function ItemDetails({
                   {v}
                 </option>
               ))}
-            </select>
-          </div>
-        ) : (
-          <div>
-            <label htmlFor={`${uid}-billing`} className="block text-xs font-medium text-muted">
-              Rate is per
-            </label>
-            <select
-              id={`${uid}-billing`}
-              value={item.billing}
-              disabled={disabled}
-              onChange={(e) => update({ billing: e.target.value as PricingItem["billing"] })}
-              className={cn(input, "mt-1")}
-            >
-              <option value="monthly">Month</option>
-              <option value="annual">Year</option>
             </select>
           </div>
         )}
@@ -437,7 +451,7 @@ function ItemDetails({
               <div key={cycle} className="rounded-xl border border-line p-3">
                 <p className="text-sm font-medium text-text">{CYCLE_LABELS[cycle].label}</p>
                 <Money
-                  label={`Rate per ${item.billing === "annual" ? "year" : "month"}`}
+                  label={`Rate ${BILLING_LABELS[item.billing].per}`}
                   value={term(cycle)?.rate}
                   onChange={(v) => setTerm(cycle, { rate: v })}
                   disabled={disabled}
@@ -485,8 +499,9 @@ export function ItemsEditor({
   currency: string;
 }) {
   const [open, setOpen] = useState<string | null>(null);
-  const inSection = (i: PricingItem) =>
-    section === "one_off" ? i.billing === "one_off" : i.billing !== "one_off";
+  // Implementation items belong to a group (A–E); modules and add-ons don't,
+  // whatever their frequency (a module can also be charged once).
+  const inSection = (i: PricingItem) => (section === "one_off" ? i.group != null : i.group == null);
   const visible = items.filter(inSection);
   const update = (id: string, patch: Partial<PricingItem>) =>
     onChange(items.map((i) => (i.id === id ? { ...i, ...patch } : i)));
@@ -530,7 +545,9 @@ export function ItemsEditor({
             <ul className="divide-y divide-line">
               {group.items.map((item) => {
                 const expanded = open === item.id;
-                const methods = item.billing === "one_off" ? ONE_OFF_METHODS : RECURRING_METHODS;
+                const listed = item.billing === "one_off" ? ONE_OFF_METHODS : RECURRING_METHODS;
+                // Keep the current method listed after a frequency change.
+                const methods = listed.includes(item.method) ? listed : [...listed, item.method];
                 return (
                   <li key={item.id} data-item={item.id} className={cn(!item.active && "opacity-60")}>
                     <div className="grid items-center gap-3 p-3 sm:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_9rem_auto] sm:p-4">
@@ -582,7 +599,7 @@ export function ItemsEditor({
                         <p className="text-end text-sm text-subtle">Quoted on scope</p>
                       ) : (
                         <Money
-                          label={`Rate${item.billing === "one_off" ? "" : item.billing === "annual" ? " / year" : " / month"}`}
+                          label={`Rate ${BILLING_LABELS[item.billing].per}`}
                           value={item.rate}
                           onChange={(v) => update(item.id, { rate: v })}
                           disabled={disabled}

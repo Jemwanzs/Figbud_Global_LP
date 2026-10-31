@@ -3,6 +3,8 @@ import { randomBytes } from "node:crypto";
 
 import { type Page, expect, test } from "@playwright/test";
 
+import { studioLink } from "./studio-nav";
+
 // Content library (P7-D1) against e2e/mock-api.mjs: "Data promise" is
 // published and used on Ziwa's Security page.
 
@@ -33,7 +35,7 @@ async function signInAsOwner(page: Page) {
 test("create, publish and version shared content, and use it on pages", async ({ page }) => {
   test.setTimeout(90_000);
   await signInAsOwner(page);
-  await page.getByRole("navigation", { name: "Admin" }).getByRole("link", { name: "Content" }).click();
+  await studioLink(page, "Content");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Content library");
   const promise = page.getByRole("listitem").filter({ hasText: "Data promise" });
   await expect(promise).toContainText("Version 1");

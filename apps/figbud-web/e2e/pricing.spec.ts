@@ -57,6 +57,21 @@ test("ZiraHR pricing: rates, approval, calculator, quotation, customer link; hid
   await expect(
     page.locator('[data-item="ai_assistant"]').getByLabel("Show publicly when pricing is on the website"),
   ).toBeDisabled();
+  // Rates can be per one-off, month, quarter, six months or year.
+  const analytics = page.locator('[data-item="analytics"]');
+  await analytics.getByRole("button", { name: /details/ }).click();
+  await expect(analytics.getByLabel("Rate is per").locator("option")).toHaveText([
+    "One-off",
+    "Month",
+    "Quarter",
+    "Six months",
+    "Year",
+  ]);
+  await analytics.getByLabel("Rate is per").selectOption({ label: "Quarter" });
+  await analytics
+    .getByLabel(/Rate per quarter/)
+    .first()
+    .fill("15000");
   await core.getByLabel(/Rate/).fill("1o0");
   await expect(page.getByText("Use a number such as 1250 or 99.50.")).toBeVisible();
   await expect(page.getByRole("button", { name: "Save draft" })).toBeDisabled();
@@ -143,4 +158,34 @@ test("ZiraHR pricing: rates, approval, calculator, quotation, customer link; hid
   await expect(page.getByRole("heading", { level: 1, name: "ZiraHR pricing calculator" })).toBeAttached();
   await expect(page.getByText("Published prices · version 1")).toBeVisible();
   await expect(page.getByRole("link", { name: "Websites" })).toHaveCount(0);
+  // Same prices as the Studio: a quarterly rate is a third per month.
+  await page.getByRole("checkbox", { name: /Reporting & analytics/ }).check();
+  const row = page.getByRole("row", { name: /Reporting & analytics/ });
+  await expect(row.getByText("KES 5,000.00")).toBeVisible();
+  // Quantities follow the employee count until set; "Use employee count" links them again.
+  await page.getByRole("checkbox", { name: /Core HR/ }).check();
+  const coreQty = page.getByLabel("Core HR (Employee 360): quantity");
+  await page.getByLabel("Employees / licences").fill("300");
+  await expect(coreQty).toHaveValue("300");
+  await coreQty.fill("120");
+  await expect(page.getByRole("row", { name: /Core HR/ }).getByText("KES 12,000.00")).toBeVisible();
+  await page
+    .getByRole("row", { name: /Core HR/ })
+    .getByRole("button", { name: "Use employee count" })
+    .click();
+  await expect(coreQty).toHaveValue("300");
+  // Saved draft or published prices, from the same calculator.
+  await page.getByRole("radio", { name: "Saved draft prices" }).click();
+  await expect(page.getByText("Draft prices").first()).toBeVisible();
+  await expect(page.getByRole("button", { name: "Create quotation" })).toHaveCount(0);
+
+  // Unsaved Studio edits are flagged, never silently priced; no upload errors in pricing.
+  await page.goto("/admin/sites/zirahr/pricing?tab=items");
+  await page.locator('[data-item="leave"]').getByLabel(/Rate/).fill("75");
+  await page
+    .getByRole("navigation", { name: "Pricing sections" })
+    .getByRole("button", { name: "Calculator" })
+    .click();
+  await expect(page.getByRole("note").filter({ hasText: "You have unsaved changes" })).toBeVisible();
+  await expect(page.getByText("That file is too large")).toHaveCount(0);
 });

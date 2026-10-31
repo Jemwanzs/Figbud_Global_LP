@@ -55,11 +55,13 @@ async function Workspace({ params }: Pick<PageProps<"/admin/pricing-workspace/[s
       </header>
       <main className="mx-auto max-w-[96rem] px-5 py-8 sm:px-8">
         <h1 className="sr-only">{`${data.site.name} pricing calculator`}</h1>
+        {/* The same calculator and pricing source as the Studio's Calculator tab. */}
         <PricingCalculator
           slug={slug}
-          book={published ?? data.draft}
-          source={published ? "published" : "draft"}
-          canQuote={Boolean(published) && data.can_edit}
+          sources={{ draft: data.draft, published }}
+          revisions={{ draft: data.draft_version, published: data.published_number }}
+          defaultSource={published ? "published" : "draft"}
+          canQuote={data.can_edit}
         />
       </main>
     </div>

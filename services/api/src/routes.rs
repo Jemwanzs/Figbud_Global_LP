@@ -89,7 +89,6 @@ pub fn router(state: SharedState) -> Router {
         .merge(seo::router())
         .merge(campaigns::router())
         .merge(proof::router())
-        .merge(pricing::router())
         .merge(cms::router())
         .merge(admin::router())
         .merge(sites::router())
@@ -101,6 +100,9 @@ pub fn router(state: SharedState) -> Router {
         .layer(RequestBodyLimitLayer::new(16 * 1024))
         // Articles are larger than any form; the editorial API gets its own limit.
         .merge(cms::editorial::router().layer(RequestBodyLimitLayer::new(512 * 1024)))
+        // A full price book (up to 120 items with tiers and cycle terms) is far
+        // larger than a form: pricing gets its own limit.
+        .merge(pricing::router().layer(RequestBodyLimitLayer::new(256 * 1024)))
         .merge(brand::upload_router())
         .merge(media::upload_router())
         .merge(crate::pages::router())

@@ -2943,7 +2943,9 @@ function pricingCalculate(book, input) {
       });
       continue;
     }
-    const gross = item.billing === "annual" ? (amount * months) / 12 : amount * months;
+    // One rate covers 1, 3, 6 or 12 months.
+    const covers = { monthly: 1, quarterly: 3, semi_annual: 6, annual: 12 }[item.billing] ?? 1;
+    const gross = (amount * months) / covers;
     const discount =
       item.discountable && cycle.discount.kind === "percent"
         ? (gross * Number(cycle.discount.value)) / 100

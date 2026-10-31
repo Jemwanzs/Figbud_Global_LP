@@ -69,12 +69,26 @@ export function PricingStudio({
   const [tab, setTab] = useState<Tab>(initialTab);
   const [book, setBook] = useState<PriceBook>(data.draft);
   const [version, setVersion] = useState(data.draft_version);
+  // The last saved draft: what the API prices, so the calculator shows these rates.
+  const [saved, setSaved] = useState<PriceBook>(data.draft);
   const [fields, setFields] = useState<FieldError[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
   const [note, setNote] = useState("");
   const [effective, setEffective] = useState("");
   const { dirty, markSaved } = useSavedBaseline(book);
+  // A newer saved draft from the server (after a restore, or a refresh after
+  // someone else's save) replaces the editor's copy unless it has unsaved edits.
+  const [seen, setSeen] = useState(data.draft_version);
+  if (data.draft_version !== seen) {
+    setSeen(data.draft_version);
+    setSaved(data.draft);
+    setVersion(data.draft_version);
+    if (!dirty) {
+      setBook(data.draft);
+      markSaved(data.draft);
+    }
+  }
   useUnsavedChangesWarning(data.can_edit && dirty);
   const editable = data.can_edit;
   const c = book.currency;
@@ -84,6 +98,9 @@ export function PricingStudio({
 
   const choose = (t: Tab) => {
     setTab(t);
+    // Messages belong to the action that caused them, not to the next tab.
+    setMessage(null);
+    setFields([]);
     const url = new URL(window.location.href);
     url.searchParams.set("tab", t);
     window.history.replaceState(null, "", url);
@@ -111,11 +128,12 @@ export function PricingStudio({
 
   const save = () =>
     run("save", async () => {
-      const saved = await adminFetch<{ version: number }>(`sites/${data.site.slug}/pricing/draft`, {
+      const result = await adminFetch<{ version: number }>(`sites/${data.site.slug}/pricing/draft`, {
         document: book,
         version,
       });
-      setVersion(saved.version);
+      setVersion(result.version);
+      setSaved(book);
       markSaved();
       return "Draft saved. Published prices, calculators and quotations are unchanged until a reviewer approves.";
     });
@@ -794,22 +812,22 @@ export function PricingStudio({
 
         {tab === "calculator" && (
           <div className="space-y-4">
-            <p className="max-w-3xl text-sm text-muted">
-              {data.published
-                ? dirty || data.status === "changes_pending"
-                  ? "Trying the draft prices. Quotations use the published version; open the calculator in a new tab to quote."
-                  : "Using the current prices. Quotations are calculated from the published version."
-                : "Trying the draft prices. Publish this pricing to issue quotations."}
-            </p>
+            {dirty && (
+              <p
+                role="note"
+                className="rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-3 text-sm text-text"
+              >
+                You have unsaved changes. The calculator prices the saved draft (the rates shown below), the
+                same as the full-screen calculator. Save the draft to calculate with your changes.
+              </p>
+            )}
             <PricingCalculator
               slug={data.site.slug}
-              book={book}
-              source={dirty || data.status !== "published" ? "draft" : "published"}
-              canQuote={!dirty && data.status === "published" && data.can_edit}
+              sources={{ draft: saved, published: data.published }}
+              revisions={{ draft: version, published: data.published_number }}
+              defaultSource={data.published && data.status === "published" ? "published" : "draft"}
+              canQuote={data.can_edit}
             />
-            {dirty && (
-              <p className="text-xs text-subtle">Unsaved edits are not used until the draft is saved.</p>
-            )}
           </div>
         )}
 

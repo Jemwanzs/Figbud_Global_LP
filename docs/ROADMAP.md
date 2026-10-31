@@ -414,7 +414,7 @@ Items marked **Blocking** stop the listed tasks; everything else proceeds with t
 | P7-MAP1 | Africa expansion map: FigBud Global origin at Nairobi with the official symbol ("Where our vision begins."); product logos from the registry and published brands on an ocean-side arc with description cards (hover, focus, tap) linking to product sites or waitlists; compact grid on phones; per-product "Show on the Africa expansion map" setting in Admin → Websites | ✅ |
 | P7-UX1 | Smart action buttons: shared change detection and `ActionButton` across Studio forms (enabled only when ready, reasons when not, no double submits, saved baselines, unsaved-changes warning, autosave skips unchanged drafts, Discard draft) | ✅ |
 | P7-BR12 | Branded Studio: official symbol in the admin header and sign-in pages; website cards with published logos, temporary-icon notice, custom domain vs website destination, Manage / Branding / Open website actions; admin nav fits phones | ✅ |
-| P7-UX2 | Continuous Studio polish (standing priority, reviewed with every milestone): "FigBud Global · Studio" header lockup; account menu (initials, name, role; email and Sign out inside; Escape and click-outside close it); invite form with full-width email, role cards that explain each role and a 7-day expiry note; readable activity labels for every brand and page action plus a fallback for new ones, each naming its website; signed-in dashboard covered by the accessibility scan | 🔄 Ongoing |
+| P7-UX2 | Continuous Studio polish (standing priority, reviewed with every milestone): compact sticky Studio header on one row (logo, links, account) with a menu below 1024 px (31 Oct 2026); "FigBud Global · Studio" header lockup; account menu (initials, name, role; email and Sign out inside; Escape and click-outside close it); invite form with full-width email, role cards that explain each role and a 7-day expiry note; readable activity labels for every brand and page action plus a fallback for new ones, each naming its website; signed-in dashboard covered by the accessibility scan | 🔄 Ongoing |
 | UI-SP1 | Spacing and typography refinement across every website and the Studio: shared fluid spacing tokens (page-top, section, section-sm, stack, block) and a refined type scale with a page-title step (docs/UI_STANDARDS.md); home header-to-hero spacing about halved, hero-to-Our Platforms gap 240px to 128px (stacked padding, no empty elements), Our Philosophy titles smaller and aligned on a shared baseline with tighter rows; section spacing 56–96px instead of 80–128px on the home page, product sites and ZiraHR; page headers, products, contact, blog, footers and the Studio on the same tokens; checked at phone, tablet and desktop with no horizontal overflow | ✅ |
 | UI-F1  | Smart contact forms and Blog layout: work email (company preferred, personal accepted, trimmed, checked on leaving the field and by the API); searchable country selector (245 countries, libphonenumber metadata, localised names, flags, calling codes, ISO codes stored); international phone inputs validated per country and stored in E.164 (browser libphonenumber-js, API Rust `phonenumber`); dependent second number (added once the first is valid, inherits its country, no duplicates, removed when the first is cleared; `enquiries.phone_secondary`, migration 21); flag font for Windows; Blog empty state aligned with the page title (no dashed box or extra indentation) listing the planned topics; Blog shows articles automatically once published | ✅ |
 | UI-NAV1 | Inverse-theme navbar dropdowns: the Products menu and language selector (corporate site and product websites through the shared `ProductHeader`) use the opposite theme to the page via a shared `InverseTheme` wrapper (dark panel on light pages, light on dark; tokens, product accents and logo variants follow); solid elevated panel, viewport-aware width and height with internal scrolling; Jasiri row aligned with the others (empty logo slot for wordmark-only products); ZiraHR tagline "HR Simplified. Business Amplified."; hover then click keeps the menu open, and Escape returns focus to the trigger; e2e test in both themes (docs/UI_STANDARDS.md) | ✅ |
@@ -495,6 +495,13 @@ Scope: a reusable pricing engine and Pricing Studio per product website, startin
 | P11-PR4 | Calculator and full-screen workspace: employees/licences, per-module quantities, cycles, models, currencies, one-off modes; live totals labelled by period (first period, renewal, annual equivalent, one-off); open in a new tab without Studio navigation, print-ready | ✅ |
 | P11-PR5 | Quotations: from the published book; references; validity; frozen snapshots; draft → pending approval → approved → sent → accepted / declined, expired; refused while unpriced; customer links (hashed token in the URL fragment, shown once, replaceable, revocable) without internal notes; print or save as PDF | ✅ |
 | P11-PR6 | Public pricing on product websites (`/pricing`): cards and an estimate calculator from public, published, priced items only while switched on; request-a-quote (not indexed) while off | ✅ Built · off until Q23 |
+| P11-PR8 | Pricing fixes (31 Oct 2026):
+- Root cause of "Not set" / KES 0.00: full price books were refused by the API's 16 KB body limit ("That file is too large"), so saves failed and calculators priced the old draft. Pricing now has its own 256 KB limit, with a regression test.
+- One calculator component and pricing source (saved draft or published) for the Studio tab and the new-tab workspace; recalculation on every save.
+- Rates per one-off, month, quarter, six months or year.
+- Quantities linked to the employee count or custom.
+- "Rate not configured" for missing rates.
+- Stale messages cleared. | ✅ |
 | P11-PR7 | Server-generated PDF files and emailing quotations (needs Resend, Q4) | ⬜ |
 
 ## 7. Milestones
@@ -539,6 +546,18 @@ Scope: a reusable pricing engine and Pricing Studio per product website, startin
 
 | Date        | Change                                                                                                   |
 | ----------- | -------------------------------------------------------------------------------------------------------- |
+| 31 Oct 2026 | Pricing Studio fixes and the Studio header (P11-PR8, P7-UX2).
+- **Root cause:** a full ZiraHR price book is larger than the API's 16 KB limit for forms. Every save was refused (shown as "That file is too large"), so the calculator kept pricing the earlier draft with no rates ("Not set", KES 0.00) while the editor showed the typed rates.
+- **Fixes:**
+  - Pricing has its own 256 KB limit, with a regression test that saves a full book with tiers.
+  - The Calculator tab and "Open calculator in a new tab" are one component with one source (saved draft or published). The rates shown are the ones priced, and every save recalculates immediately.
+  - Unsaved edits are flagged and never priced silently.
+  - Restores and refreshes update the editor.
+  - "Rate is per" offers one-off, month, quarter, six months and year; one-offs are charged once, separately.
+  - Per-employee quantities are linked to the employee count, with custom quantities and "Use employee count".
+  - Missing rates read "Rate not configured" and still block quotations.
+  - Messages clear when you change tab.
+- **Studio header:** one compact row that stays visible while scrolling. Below 1024 px the links move into a menu. |
 | 31 Oct 2026 | Pricing Studio (P11-PR1–PR6). ZiraHR → Pricing in the Studio:
 - **Engine:** one exact-decimal engine in the API (docs/PRICING.md, with tests). It covers per-employee, licence, entity, country, usage, participant, session and day pricing; monthly and yearly rates over monthly, quarterly, semi-annual and annual billing; discounts only when configured, never twice; tiers; minimums; one-off charges kept separate; tax; rounding; manual exchange rates; proration.
 - **Catalogue:** ZiraHR's catalogue matches its confirmed scope. Recruitment, mobile app, salary advances, digital payments and the AI assistant are marked planned. All rates start unset, in KES, and the MeridianHR USD figures are reference only.

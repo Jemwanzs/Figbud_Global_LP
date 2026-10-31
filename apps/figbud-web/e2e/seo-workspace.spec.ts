@@ -3,6 +3,8 @@ import { randomBytes } from "node:crypto";
 
 import { expect, test } from "@playwright/test";
 
+import { studioLink } from "./studio-nav";
+
 // SEO & search visibility in the Studio (P9-S1) against e2e/mock-api.mjs.
 
 test.beforeEach(({ browserName }, testInfo) => {
@@ -28,7 +30,7 @@ test("overview across websites, then one website's search identity and page chec
   await page.getByRole("button", { name: "Create passkey and sign in" }).click();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Welcome, Olu");
 
-  await page.getByRole("navigation", { name: "Admin" }).getByRole("link", { name: "SEO" }).click();
+  await studioLink(page, "SEO");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("SEO & search visibility");
   const zirahr = page.getByRole("row", { name: /ZiraHR/ });
   await expect(zirahr).toContainText("Tag published");

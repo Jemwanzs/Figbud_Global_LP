@@ -109,6 +109,13 @@ Every Studio form uses the same pattern (`apps/figbud-web/src/lib/form-state.ts`
 
 ## Studio shell and continuous polish
 
+**Header (31 Oct 2026):**
+- One compact, sticky row: the FigBud Global logo and "Studio", the main links, and the account control. The name and role show from 1280 px; below that, the initials.
+- Below 1024 px the links open from a menu button. Escape, an outside press or choosing a link closes it.
+- The header sits above page content (z-index 40; the account menu 50), with a translucent background, and is hidden when printing.
+- Page tabs (for example the Pricing Studio's sections) stay in the page, not sticky, so only one layer sticks.
+
+
 Studio UI polish is a standing priority (P7-UX2): every milestone reviews the screens it touches for spacing, consistency, accessibility and needless steps.
 - **Header:** the official symbol and "FigBud Global", a divider and "Studio"; the section navigation (scrolls sideways on phones); the account menu on the right.
 - **Account menu:** a disclosure button (initials, name and role; initials only on phones) opening a panel with the admin's email, role and Sign out. Escape or a click outside closes it, and focus returns to the button.

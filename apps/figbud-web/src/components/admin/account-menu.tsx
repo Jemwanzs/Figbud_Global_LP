@@ -66,11 +66,11 @@ export function AccountMenu({ user }: { user: AdminUser }) {
         >
           {initials(user)}
         </span>
-        <span className="hidden leading-tight md:block">
+        <span className="hidden leading-tight xl:block">
           <span className="block max-w-40 truncate text-sm font-medium text-text">{user.name}</span>
           <span className="block text-xs text-subtle">{ROLE_LABELS[user.role]}</span>
         </span>
-        <span className="sr-only md:hidden">Account: {user.name}</span>
+        <span className="sr-only xl:hidden">Account: {user.name}</span>
         <ChevronDown
           aria-hidden
           className={cn("size-4 text-subtle transition-transform", open && "rotate-180")}
@@ -79,7 +79,7 @@ export function AccountMenu({ user }: { user: AdminUser }) {
       <div
         id={panelId}
         hidden={!open}
-        className="absolute end-0 top-full z-30 mt-2 w-72 max-w-[calc(100vw-2.5rem)] rounded-2xl border border-line bg-surface p-2 shadow-[0_18px_40px_-18px_rgb(0_0_0/0.35)]"
+        className="absolute end-0 top-full z-50 mt-2 w-72 max-w-[calc(100vw-2.5rem)] rounded-2xl border border-line bg-surface p-2 shadow-[0_18px_40px_-18px_rgb(0_0_0/0.35)]"
       >
         <div className="px-3 pt-2 pb-3">
           <p className="truncate font-medium text-text">{user.name}</p>

@@ -1,4 +1,3 @@
-import { cn } from "@figbud/ui";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
@@ -6,6 +5,7 @@ import { FigBudBrand } from "@/components/figbud-brand";
 import type { AdminUser } from "@/lib/admin-client";
 
 import { AccountMenu } from "./account-menu";
+import { AdminNav } from "./admin-nav";
 import { AuthCard } from "./auth-card";
 
 const NAV = [
@@ -31,37 +31,22 @@ export function AdminShell({
 }) {
   return (
     <div className="min-h-dvh">
-      <header className="border-b border-line">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-6 gap-y-3 px-5 py-3 sm:px-8">
+      {/* One compact row that stays visible while scrolling; below lg the links
+          move into a menu so nothing wraps onto a second row. */}
+      <header className="sticky top-0 z-40 border-b border-line bg-bg/90 backdrop-blur-md print:hidden">
+        <div className="relative mx-auto flex h-16 max-w-7xl items-center gap-3 px-5 sm:px-8 lg:gap-5">
           <Link href="/admin" className="flex shrink-0 items-center gap-3 rounded-lg py-1">
             <FigBudBrand />
             <span aria-hidden className="h-6 w-px bg-line-strong" />
             <span className="text-sm font-medium tracking-wide text-accent">Studio</span>
           </Link>
-          <nav aria-label="Admin" className="order-last w-full sm:order-none sm:w-auto">
-            <ul className="-mx-2 flex [scrollbar-width:none] gap-1 overflow-x-auto px-2">
-              {NAV.map((item) => (
-                <li key={item.href}>
-                  <Link
-                    href={item.href}
-                    aria-current={item.href === active ? "page" : undefined}
-                    className={cn(
-                      "inline-flex min-h-11 items-center rounded-full px-3 text-sm whitespace-nowrap transition-colors sm:px-4",
-                      item.href === active ? "bg-surface-2 text-text" : "text-muted hover:text-text",
-                    )}
-                  >
-                    {item.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </nav>
-          <div className="ms-auto">
+          <AdminNav items={NAV} active={active} />
+          <div className="shrink-0">
             <AccountMenu user={user} />
           </div>
         </div>
       </header>
-      <main className="mx-auto max-w-6xl px-5 py-8 sm:px-8 sm:py-10">{children}</main>
+      <main className="mx-auto max-w-7xl px-5 py-8 sm:px-8 sm:py-10">{children}</main>
     </div>
   );
 }

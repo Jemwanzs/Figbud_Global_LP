@@ -2,6 +2,8 @@ import { randomBytes } from "node:crypto";
 
 import { type Page, expect, test } from "@playwright/test";
 
+import { studioLink } from "./studio-nav";
+
 // Enquiries inbox against e2e/mock-api.mjs (synthetic enquiries; signed in as an owner).
 
 // Long journeys (passkey sign-in plus many steps) get more than the default budget.
@@ -34,7 +36,7 @@ test("review an enquiry, follow it up and export the inbox", async ({ page }) =>
   await signInAsOwner(page);
   await expect(page.getByRole("link", { name: /Enquiries.*new, waiting for a reply/ })).toBeVisible();
 
-  await page.getByRole("navigation", { name: "Admin" }).getByRole("link", { name: "Enquiries" }).click();
+  await studioLink(page, "Enquiries");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Enquiries");
   await page.getByLabel("Product").selectOption("zirahr");
   await page.getByRole("button", { name: "Apply" }).click();
