@@ -1,5 +1,13 @@
 import type { Product } from "@figbud/brand";
-import { type BrandProfile, ProofMetrics, type PublicProof, Testimonials, TrustedBy } from "@figbud/site-kit";
+import {
+  type BrandProfile,
+  ProofMetrics,
+  type PublicProof,
+  type ShowcaseSettings,
+  Testimonials,
+  TrustedBy,
+  orderBySlug,
+} from "@figbud/site-kit";
 import { type Locale, localeInfo, localizePath } from "@figbud/i18n";
 import { Container, Eyebrow, Reveal, RevealGroup, buttonClasses, revealOrder } from "@figbud/ui";
 import { ArrowRight, Calculator, Cable, ChartSpline, ShieldCheck, Workflow } from "lucide-react";
@@ -44,11 +52,14 @@ export function PlatformsSection({
   products,
   brands,
   rotation,
+  showcase,
 }: SectionProps & {
   products: Product[];
   brands: Record<string, BrandProfile | null>;
   /** Seconds per product when rotation is on (Studio), else null. */
   rotation: number | null;
+  /** Studio → FigBud Global → Our Platforms (UI-MO5). */
+  showcase: ShowcaseSettings;
 }) {
   const platforms = dict.home.platforms;
   return (
@@ -65,10 +76,11 @@ export function PlatformsSection({
             locale={locale}
             platforms={platforms}
             products={dict.products}
-            items={products}
+            items={orderBySlug(products, showcase.order)}
             brands={brands}
             common={dict.common}
             rotation={rotation}
+            showcase={showcase}
           />
         </Reveal>
       </Container>

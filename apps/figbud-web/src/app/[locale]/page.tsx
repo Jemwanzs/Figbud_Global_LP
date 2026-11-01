@@ -22,6 +22,7 @@ import {
   getHero,
   getMapProducts,
   getProductRotation,
+  getShowcase,
   getProof,
   getPublicProducts,
 } from "@/lib/products";
@@ -38,11 +39,12 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
   const { locale } = await params;
   if (!isLocale(locale)) notFound();
   const dict = await getDictionary(locale);
-  const [products, mapProducts, brands, rotation, proof, hero] = await Promise.all([
+  const [products, mapProducts, brands, rotation, showcase, proof, hero] = await Promise.all([
     getPublicProducts(),
     getMapProducts(),
     getBrands(),
     getProductRotation(),
+    getShowcase(),
     getProof(),
     getHero(),
   ]);
@@ -65,6 +67,7 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
           products={products}
           brands={brands}
           rotation={rotation}
+          showcase={showcase}
         />
       </Suspense>
       <Suspense>

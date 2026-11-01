@@ -233,6 +233,17 @@ const SITE_TEMPLATES = {
   finance_payments: "finance",
   custom_enterprise: "custom",
 };
+// Our Platforms defaults (site_settings.rs Showcase::default).
+const SHOWCASE_DEFAULT = {
+  scroll_driven: true,
+  sticky: true,
+  intensity: "standard",
+  smoothness: "smooth",
+  mobile: "swipe",
+  show_arrows: true,
+  show_progress: true,
+  order: [],
+};
 const seedSite = (n, slug, kind, name, tagline, category, template, status) => ({
   id: `01928d6c-0000-7000-8000-00000000000${n}`,
   slug,
@@ -257,6 +268,7 @@ const seedSite = (n, slug, kind, name, tagline, category, template, status) => (
     enquiries: { open: true, closed_message: null },
     theme: { brand_section: null, soft_section: null },
     motion: { product_rotation: false, rotation_seconds: 9 },
+    showcase: { ...SHOWCASE_DEFAULT },
   },
   settings_version: 1,
 });
@@ -3895,7 +3907,29 @@ function siteSettingsRoutes(slug, req, body, user, send) {
   next.enquiries ??= { open: true, closed_message: null };
   next.theme ??= { brand_section: null, soft_section: null };
   next.motion ??= { product_rotation: false, rotation_seconds: 9 };
+  next.showcase = { ...SHOWCASE_DEFAULT, ...next.showcase };
   const fields = [];
+  // Our Platforms (site_settings.rs Showcase): fixed choices, each product listed once.
+  const choices = {
+    intensity: ["subtle", "standard", "bold"],
+    smoothness: ["direct", "smooth", "gentle"],
+    mobile: ["swipe", "scroll_where_comfortable"],
+  };
+  for (const [key, allowed] of Object.entries(choices))
+    if (!allowed.includes(next.showcase[key]))
+      return send(422, { error: { code: "invalid", message: `Unknown ${key}.` } });
+  next.showcase.order = (next.showcase.order ?? []).map((slug) => String(slug).trim().toLowerCase());
+  const order = next.showcase.order;
+  if (
+    order.length > 12 ||
+    new Set(order).size !== order.length ||
+    !order.every((slug) => /^[a-z0-9_-]{1,40}$/.test(slug))
+  )
+    fields.push({
+      field: "showcase.order",
+      code: "format",
+      message: "List each product once, by its website address name.",
+    });
   const seconds = next.motion.rotation_seconds;
   if (!Number.isInteger(seconds) || seconds < 6 || seconds > 20)
     fields.push({

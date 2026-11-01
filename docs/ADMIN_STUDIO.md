@@ -146,7 +146,17 @@ Studio UI polish is a standing priority (P7-UX2): every milestone reviews the sc
 
 **Navigation, footer & forms** (P7-E2, 29 Oct 2026): Websites → a website → Navigation & forms. Settings live in `sites.settings` (validated by `services/api/src/site_settings.rs`; an empty document means the defaults), are read and saved at `GET/POST /v1/admin/sites/{slug}/settings` with a version check, and reach the websites through `GET /v1/sites` (`settings`). The editor suggests the website's published pages as destinations.
 
-**Home page motion** (UI-MO2, 31 Oct 2026): FigBud Global → Navigation & forms → Home page motion. One switch makes Our Platforms move slowly from product to product, at 6–20 seconds per product (the API refuses anything else). It's off by default, and reviewers change it like the other settings (audited, version-checked). The website still pauses rotation on hover, keyboard focus, any tap or swipe, while it's off screen or the tab is hidden; it stops for good once a visitor chooses a product, has a pause button, and never moves for visitors who prefer reduced motion.
+**Our Platforms** (UI-MO5, 1 Nov 2026): FigBud Global → **Our Platforms**. How the home page's product showcase moves, stored in the website's settings (same audit and version check; the home page updates at once):
+
+- **Scroll-driven animation** (on by default): scrolling moves through the products while the showcase stays in view, then the page carries on. It only pins where the whole showcase fits the screen, and never for reduced motion; elsewhere visitors get the carousel.
+- **Sticky showcase:** off, the products move as the section passes instead of pinning.
+- **Animation intensity** (subtle, standard, bold) and **transition smoothness** (direct, smooth, gentle).
+- **On phones:** the swipe carousel (recommended), or scroll-driven only where the whole showcase fits.
+- **Previous and next arrows; progress dots and position** (screen readers always hear the position).
+- **Product order:** the tabs and cards; products added later follow at the end.
+- **Automatic rotation** (moved here from Navigation & forms; described below). It runs only where the carousel shows.
+
+**Automatic rotation** (UI-MO2, 31 Oct 2026; now in Our Platforms). One switch makes Our Platforms move slowly from product to product, at 6–20 seconds per product (the API refuses anything else). It's off by default, and reviewers change it like the other settings (audited, version-checked). The website still pauses rotation on hover, keyboard focus, any tap or swipe, while it's off screen or the tab is hidden; it stops for good once a visitor chooses a product, has a pause button, and never moves for visitors who prefer reduced motion.
 
 **Website cards** show each workspace at a glance: live pages of total, sections, changes awaiting approval or scheduled (pages and brand), and when anything was last published (`workspace` in `GET /v1/admin/sites`). Actions appear only where the screen exists: Manage, Branding, Pages, Open website.
 

@@ -70,13 +70,18 @@ test.describe("motion and product discovery (UI-MO1, UI-MO2)", () => {
     await expect(panel).toHaveCount(1);
     await expect(panel.getByRole("heading", { name: "ZiraHR" })).toBeVisible();
     // The next product is named on the control, and products off screen are inert.
-    const next = page.getByRole("button", { name: "Next: Jasiri LMS" });
-    await expect(async () => {
-      await next.click();
-      await expect(page.getByRole("tab", { name: /Jasiri LMS/ })).toHaveAttribute("aria-selected", "true", {
-        timeout: 1_000,
-      });
-    }).toPass();
+    // One press only once hydrated: on desktop each press scrolls one product (UI-MO5), so a retried press would move two.
+    await expect(page.locator(".fb-showcase[data-mode]")).toHaveCount(1);
+    // Where the showcase pins (desktop), start at its first stop so the controls are in view without scrolling.
+    await page.evaluate(() => {
+      const root = document.querySelector<HTMLElement>(".fb-showcase")!;
+      if (root.dataset.mode !== "pinned") return;
+      const top = parseFloat(getComputedStyle(root).getPropertyValue("--pin-top")) || 88;
+      window.scrollTo({ top: window.scrollY + root.getBoundingClientRect().top - top, behavior: "instant" });
+    });
+    await expect(page.getByRole("tab", { name: /ZiraHR/ })).toHaveAttribute("aria-selected", "true");
+    await page.getByRole("button", { name: "Next: Jasiri LMS" }).click();
+    await expect(page.getByRole("tab", { name: /Jasiri LMS/ })).toHaveAttribute("aria-selected", "true");
     await expect(page.getByText("2 of 4")).toBeVisible();
     await expect(page.locator('[role="tabpanel"][inert]')).toHaveCount(3);
     await page.getByRole("button", { name: "Previous product" }).click();

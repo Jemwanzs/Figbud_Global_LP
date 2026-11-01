@@ -410,6 +410,44 @@
 .fb-slider-track[data-dragging] {
   transition: none;
 }
+/* Scroll-driven Our Platforms (UI-MO5): scroll progress sets --slide and
+   each panel's depth every frame, so nothing may ease behind it. */
+.fb-slider-track[data-scrub],
+.fb-slider-track[data-scrub] > * {
+  transition: none;
+}
+.fb-slider-track[data-scrub] > * {
+  transform-origin: 50% 40%;
+  will-change: transform, opacity;
+}
+/* The runway: while its spacer scrolls past, the stage stays in view and
+   the products move. In the server CSS for screens where it may run (match
+   PIN_QUERY in showcase-scroll.ts), so hydration doesn't shift the page;
+   the browser drops it (data-fit="no") where the showcase can't fit, and
+   enables it on phones only when the Studio asks and it fits. */
+.fb-showcase-runway {
+  display: none;
+}
+@media (min-width: 64rem) and (min-height: 45rem) and (prefers-reduced-motion: no-preference) {
+  .fb-showcase[data-pin]:not([data-fit="no"]) .fb-showcase-stage {
+    position: sticky;
+    top: var(--pin-top, 5.5rem);
+  }
+  .fb-showcase[data-pin]:not([data-fit="no"]) .fb-showcase-runway {
+    display: block;
+    height: calc((var(--products) - 1) * 70svh);
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .fb-showcase[data-pin][data-fit="narrow"] .fb-showcase-stage {
+    position: sticky;
+    top: var(--pin-top, 5.5rem);
+  }
+  .fb-showcase[data-pin][data-fit="narrow"] .fb-showcase-runway {
+    display: block;
+    height: calc((var(--products) - 1) * 55svh);
+  }
+}
 /* Rotation progress under the active product tab. */
 .fb-progress {
   transform-origin: left;

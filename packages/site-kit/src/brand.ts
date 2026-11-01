@@ -49,6 +49,56 @@ export interface WebsiteSettings {
   theme?: SiteTheme;
   /** Home page motion (UI-MO2): optional, slow product rotation. */
   motion?: { product_rotation: boolean; rotation_seconds: number };
+  /** Our Platforms on the corporate home page (UI-MO5). */
+  showcase?: Partial<ShowcaseSettings>;
+}
+
+/**
+ * Our Platforms (Studio → FigBud Global → Our Platforms). Scroll-driven:
+ * vertical scrolling moves through the products while the showcase stays in
+ * view, then the page scrolls on. It pins only where the whole showcase fits
+ * the screen, and never for reduced motion; otherwise it's the carousel.
+ */
+export interface ShowcaseSettings {
+  scroll_driven: boolean;
+  sticky: boolean;
+  intensity: "subtle" | "standard" | "bold";
+  smoothness: "direct" | "smooth" | "gentle";
+  mobile: "swipe" | "scroll_where_comfortable";
+  show_arrows: boolean;
+  show_progress: boolean;
+  /** Product slugs in display order; products not listed follow in their usual order. */
+  order: string[];
+}
+
+export const DEFAULT_SHOWCASE: ShowcaseSettings = {
+  scroll_driven: true,
+  sticky: true,
+  intensity: "standard",
+  smoothness: "smooth",
+  mobile: "swipe",
+  show_arrows: true,
+  show_progress: true,
+  order: [],
+};
+
+/** Stored settings with the defaults filled in. */
+export const showcaseSettings = (s?: Partial<ShowcaseSettings> | null): ShowcaseSettings => ({
+  ...DEFAULT_SHOWCASE,
+  ...s,
+  order: s?.order ?? [],
+});
+
+/** Items in the configured order; the rest follow in their usual order. */
+export function orderBySlug<T extends { slug: string }>(items: T[], order: string[]): T[] {
+  const rank = (slug: string) => {
+    const i = order.indexOf(slug);
+    return i === -1 ? order.length : i;
+  };
+  return items
+    .map((item, i) => ({ item, i }))
+    .sort((a, b) => rank(a.item.slug) - rank(b.item.slug) || a.i - b.i)
+    .map(({ item }) => item);
 }
 
 export interface SiteTheme {

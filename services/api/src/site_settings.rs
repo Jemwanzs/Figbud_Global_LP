@@ -117,6 +117,84 @@ impl Default for Motion {
 
 const ROTATION_SECONDS: std::ops::RangeInclusive<u8> = 6..=20;
 
+/// How strongly the scroll-driven showcase adds depth (scale and fade).
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum Intensity {
+    Subtle,
+    #[default]
+    Standard,
+    Bold,
+}
+
+/// How closely the products follow the scroll position.
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum Smoothness {
+    /// Exactly with the scroll.
+    Direct,
+    #[default]
+    Smooth,
+    /// A little more easing, for a slower glide.
+    Gentle,
+}
+
+/// Our Platforms on phones.
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum MobileShowcase {
+    /// The swipeable carousel with natural vertical scrolling.
+    #[default]
+    Swipe,
+    /// Scroll-driven too, but only where the whole showcase fits the screen.
+    ScrollWhereComfortable,
+}
+
+/// Our Platforms on the corporate home page (UI-MO5). With scroll-driven
+/// motion on, the showcase stays in view while vertical scrolling moves
+/// through the products, then the page scrolls on; it only pins where the
+/// whole showcase fits the screen, and never for reduced motion. Off, it's
+/// the carousel.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[serde(default, deny_unknown_fields)]
+pub struct Showcase {
+    pub scroll_driven: bool,
+    /// Keep the showcase in view while scrolling through the products.
+    pub sticky: bool,
+    pub intensity: Intensity,
+    pub smoothness: Smoothness,
+    pub mobile: MobileShowcase,
+    pub show_arrows: bool,
+    pub show_progress: bool,
+    /// Product slugs in display order; products not listed follow in their usual order.
+    pub order: Vec<String>,
+}
+
+impl Default for Showcase {
+    fn default() -> Self {
+        Self {
+            scroll_driven: true,
+            sticky: true,
+            intensity: Intensity::default(),
+            smoothness: Smoothness::default(),
+            mobile: MobileShowcase::default(),
+            show_arrows: true,
+            show_progress: true,
+            order: Vec::new(),
+        }
+    }
+}
+
+const MAX_ORDER: usize = 12;
+
+fn valid_slug(slug: &str) -> bool {
+    !slug.is_empty()
+        && slug.len() <= 40
+        && slug
+            .bytes()
+            .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-' || b == b'_')
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Default)]
 #[serde(default, deny_unknown_fields)]
 pub struct WebsiteSettings {
@@ -125,6 +203,7 @@ pub struct WebsiteSettings {
     pub enquiries: Enquiries,
     pub theme: Theme,
     pub motion: Motion,
+    pub showcase: Showcase,
 }
 
 /// Body and muted text colours of the light theme (packages/brand/src/tokens.css).
@@ -249,6 +328,18 @@ impl WebsiteSettings {
                 message: "Between 6 and 20 seconds, so visitors have time to read.",
             });
         }
+        let order = &mut self.showcase.order;
+        for slug in order.iter_mut() {
+            *slug = slug.trim().to_ascii_lowercase();
+        }
+        let mut seen = std::collections::HashSet::new();
+        if order.len() > MAX_ORDER || !order.iter().all(|s| valid_slug(s) && seen.insert(s.clone())) {
+            e.push(FieldError {
+                field: "showcase.order",
+                code: "format",
+                message: "List each product once, by its website address name.",
+            });
+        }
         if corporate && !self.enquiries.open {
             e.push(FieldError {
                 field: "enquiries.open",
@@ -267,6 +358,7 @@ impl WebsiteSettings {
             "enquiries": self.enquiries,
             "theme": self.theme,
             "motion": self.motion,
+            "showcase": self.showcase,
         })
     }
 }
@@ -489,6 +581,26 @@ mod tests {
         assert!(settings.clone().normalise(false).is_ok());
         let errors = settings.normalise(true).unwrap_err();
         assert_eq!(errors[0].field, "enquiries.open");
+    }
+
+    #[test]
+    fn the_showcase_is_scroll_driven_by_default_and_orders_each_product_once() {
+        let settings = WebsiteSettings::from_stored(json!({ "motion": { "product_rotation": false } }));
+        assert!(settings.showcase.scroll_driven && settings.showcase.sticky);
+        assert_eq!(settings.showcase.mobile, MobileShowcase::Swipe);
+        let ordered = WebsiteSettings::from_stored(json!({
+            "showcase": { "order": [" Jasiri ", "zirahr"], "intensity": "subtle", "mobile": "scroll_where_comfortable" }
+        }))
+        .normalise(true)
+        .unwrap();
+        assert_eq!(ordered.showcase.order, ["jasiri", "zirahr"]);
+        assert_eq!(ordered.public()["showcase"]["intensity"], "subtle");
+        for order in [json!(["zirahr", "zirahr"]), json!(["<script>"]), json!([""])] {
+            let bad = WebsiteSettings::from_stored(json!({ "showcase": { "order": order } }));
+            assert_eq!(bad.normalise(true).unwrap_err()[0].field, "showcase.order");
+        }
+        // Unknown choices are refused when saving, not silently reset.
+        assert!(serde_json::from_value::<Showcase>(json!({ "intensity": "extreme" })).is_err());
     }
 
     #[test]

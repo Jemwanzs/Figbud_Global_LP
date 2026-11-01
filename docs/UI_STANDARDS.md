@@ -38,6 +38,12 @@ Outfit throughout. Long titles use `text-balance` so lines break evenly. Body co
 ## Changes in UI-SP1 (30 Oct 2026)
 
 - **Home hero:** header-to-hero spacing about halved (80px → about 48px on desktop); bottom padding 112px → 64px.
+- **Scroll-driven sections (Our Platforms, UI-MO5):**
+  - Pin only what fits the screen whole (scale it to no less than 70%); otherwise fall back to the normal component.
+  - Drive motion from scroll progress with passive listeners and one write per frame; never intercept wheel, trackpad or touch.
+  - Put the scroll distance in the server CSS so hydration doesn't shift the page.
+  - Controls scroll to their item, so the visible item and the scroll position always agree.
+  - Reduced motion always gets the static component.
 - **Hero to Our Platforms:** about 240px of combined padding on desktop → 128px. Our Platforms uses the compact top because it follows the hero. The gap came from stacked padding, not empty elements (no spacers, fixed heights or hidden blocks were found).
 - **Sections:** 80/96/128px → 56–96px (fluid) across the home page, product sites and ZiraHR.
 - **Our Philosophy:**

@@ -3,6 +3,7 @@
 import type { SiteLink, WebsiteSettings } from "@figbud/site-kit";
 import { cn } from "@figbud/ui";
 import { ArrowDown, ArrowUp, Plus, Trash2 } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useId, useState } from "react";
 
@@ -32,6 +33,8 @@ const toForm = (s: Partial<WebsiteSettings>): WebsiteSettings => ({
     product_rotation: s.motion?.product_rotation ?? false,
     rotation_seconds: s.motion?.rotation_seconds ?? 9,
   },
+  // Edited in Our Platforms; sent back unchanged so saving here never resets it.
+  ...(s.showcase ? { showcase: s.showcase } : {}),
 });
 
 const HEX = /^#[0-9a-f]{6}$/i;
@@ -58,6 +61,13 @@ export function WebsiteSettingsForm({
   const uid = useId();
   const canEdit = data.can_edit;
   const [form, setForm] = useState<WebsiteSettings>(() => toForm(data.settings));
+  // The settings version to save against: from the last save, or a newer one from a refresh.
+  const [version, setVersion] = useState(data.version);
+  const [seenVersion, setSeenVersion] = useState(data.version);
+  if (data.version !== seenVersion) {
+    setSeenVersion(data.version);
+    setVersion((v) => Math.max(v, data.version));
+  }
   const [busy, setBusy] = useState(false);
   const [fields, setFields] = useState<FieldError[]>([]);
   const [message, setMessage] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
@@ -77,7 +87,11 @@ export function WebsiteSettingsForm({
     setFields([]);
     setMessage(null);
     try {
-      await adminFetch(`sites/${slug}/settings`, { settings: form, version: data.version });
+      const saved = await adminFetch<WebsiteSettingsAdmin>(`sites/${slug}/settings`, {
+        settings: form,
+        version,
+      });
+      setVersion(saved.version);
       markSaved();
       setMessage({ tone: "ok", text: "Saved. The website picks up the change within a few minutes." });
       router.refresh();
@@ -268,77 +282,14 @@ export function WebsiteSettingsForm({
       </fieldset>
 
       {data.corporate && (
-        <fieldset className="space-y-5">
-          <legend className="font-semibold text-text">Home page motion</legend>
-          <div className="flex flex-wrap items-start justify-between gap-4 rounded-2xl border border-line p-5">
-            <div className="max-w-xl">
-              <p id={`${uid}-rotate`} className="font-medium text-text">
-                {form.motion?.product_rotation
-                  ? "Products rotate slowly"
-                  : "Products change only when visitors choose"}
-              </p>
-              <p className="mt-1 text-sm text-muted">
-                Our Platforms moves to the next product on its own. It pauses on hover, keyboard focus, any
-                tap or swipe and while off screen, has a pause button, and never moves for visitors who prefer
-                reduced motion.
-              </p>
-            </div>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={form.motion?.product_rotation ?? false}
-              aria-labelledby={`${uid}-rotate`}
-              disabled={disabled}
-              onClick={() =>
-                setForm((f) => ({
-                  ...f,
-                  motion: { rotation_seconds: 9, ...f.motion, product_rotation: !f.motion?.product_rotation },
-                }))
-              }
-              className={cn(
-                "relative inline-flex h-7 w-12 shrink-0 items-center rounded-full border transition-colors disabled:opacity-50",
-                form.motion?.product_rotation ? "border-accent bg-accent" : "border-line-strong bg-surface-3",
-              )}
-            >
-              <span
-                aria-hidden
-                className={cn(
-                  "size-5 rounded-full bg-white shadow-sm transition-transform motion-reduce:transition-none",
-                  form.motion?.product_rotation
-                    ? "translate-x-6 rtl:-translate-x-6"
-                    : "translate-x-1 rtl:-translate-x-1",
-                )}
-              />
-            </button>
-          </div>
-          {form.motion?.product_rotation && (
-            <div className="max-w-xs">
-              <label htmlFor={`${uid}-seconds`} className="block text-sm font-medium text-text">
-                Seconds on each product
-              </label>
-              <input
-                id={`${uid}-seconds`}
-                type="number"
-                inputMode="numeric"
-                min={6}
-                max={20}
-                value={form.motion.rotation_seconds}
-                disabled={disabled}
-                aria-invalid={Boolean(errorFor("motion.rotation_seconds"))}
-                onChange={(e) =>
-                  setForm((f) => ({
-                    ...f,
-                    motion: { product_rotation: true, rotation_seconds: Number(e.target.value) },
-                  }))
-                }
-                className={cn(inputClass, "mt-2")}
-              />
-              <p className="mt-1.5 text-sm text-subtle">
-                {errorFor("motion.rotation_seconds") ?? "6 to 20 seconds."}
-              </p>
-            </div>
-          )}
-        </fieldset>
+        <p className="rounded-2xl border border-line p-4 text-sm text-muted">
+          How the home page&apos;s product showcase moves (scroll-driven motion, rotation, product order) is
+          set in{" "}
+          <Link href={`/admin/sites/${slug}/platforms`} className="font-medium text-accent-strong underline">
+            Our Platforms
+          </Link>
+          .
+        </p>
       )}
 
       <fieldset className="space-y-5">

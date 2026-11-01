@@ -52,6 +52,9 @@ async function forward(request: NextRequest, { params }: RouteContext<"/admin/ap
   // A published or rolled-back hero (Hero Design Studio) shows on the home page at once.
   if (hasBody && upstream.ok && /^sites\/[a-z0-9_-]+\/hero\//.test(path))
     revalidateTag("hero", { expire: 0 });
+  // Website settings (Our Platforms, navigation, footer) apply to this website at once.
+  if (hasBody && upstream.ok && /^sites\/[a-z0-9_-]+\/settings$/.test(path))
+    revalidateTag("sites", { expire: 0 });
 
   // Admin images (brand files) may be cached privately; everything else is never cached.
   const image = upstream.headers.get("content-type")?.startsWith("image/");

@@ -7,8 +7,10 @@ import {
   type LiveCampaign,
   type PublicProof,
   type PublishedHero,
+  type ShowcaseSettings,
   type SiteSeo,
   enquiriesOpen,
+  showcaseSettings,
 } from "@figbud/site-kit";
 import {
   fetchBrandPng,
@@ -109,12 +111,21 @@ export async function getCorporateSeo(): Promise<SiteSeo | null> {
 
 /**
  * Seconds per product when the home page's product showcase rotates on its
- * own, or `null` when it doesn't (Studio → FigBud Global → Navigation,
- * footer & forms → Home page motion; off by default).
+ * own, or `null` when it doesn't (Studio → FigBud Global → Our Platforms;
+ * off by default).
  */
 export async function getProductRotation(): Promise<number | null> {
   const motion = (await getListedSites())?.find((s) => s.slug === "figbud")?.settings?.motion;
   return motion?.product_rotation ? motion.rotation_seconds : null;
+}
+
+/**
+ * How Our Platforms behaves (Studio → FigBud Global → Our Platforms, UI-MO5):
+ * scroll-driven by default, with the Studio's product order.
+ */
+export async function getShowcase(): Promise<ShowcaseSettings> {
+  const settings = (await getListedSites())?.find((s) => s.slug === "figbud")?.settings;
+  return showcaseSettings(settings?.showcase);
 }
 
 /**
