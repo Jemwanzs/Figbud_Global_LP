@@ -1,6 +1,7 @@
 import type { ListedSite } from "./brand";
 import type { LiveCampaign } from "./campaigns";
 import type { PublishedHero } from "./hero-kit";
+import type { PublicPayrollCalculator } from "./payroll-calculator";
 import type { PriceBook } from "./pricing";
 import type { PublicProof } from "./proof";
 
@@ -167,6 +168,23 @@ export async function fetchPublicPricing(apiBase: string, slug: string): Promise
  * A website's published hero (`GET /v1/sites/{slug}/hero`, Hero Design
  * Studio), or `null`: the website keeps its existing hero.
  */
+/** A website's published payroll calculator; `null` while it's off or unavailable. */
+export async function fetchPayrollCalculator(
+  apiBase: string,
+  slug: string,
+): Promise<PublicPayrollCalculator | null> {
+  try {
+    const response = await fetch(
+      `${apiBase.replace(/\/$/, "")}/v1/sites/${encodeURIComponent(slug)}/payroll-calculator`,
+      { signal: AbortSignal.timeout(5000) },
+    );
+    if (!response.ok) return null;
+    return ((await response.json()) as { calculator: PublicPayrollCalculator | null }).calculator;
+  } catch {
+    return null;
+  }
+}
+
 export async function fetchHero(apiBase: string, slug: string): Promise<PublishedHero | null> {
   try {
     const response = await fetch(`${apiBase.replace(/\/$/, "")}/v1/sites/${encodeURIComponent(slug)}/hero`, {

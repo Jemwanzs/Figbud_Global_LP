@@ -31,6 +31,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     if let Err(err) = figbud_api::pages::import::run(&pool).await {
         tracing::warn!(error = %err, "ZiraHR page import failed");
     }
+    // Unpublished drafts from the content guide; nothing reaches visitors from this.
+    if let Err(err) = figbud_api::pages::zirahr_guide::run(&pool).await {
+        tracing::warn!(error = %err, "ZiraHR guide drafts failed");
+    }
 
     // `figbud-api admin invite --email <email> --role <role>`: bootstrap the
     // first owner (or any admin) without a running UI. Prints the link once.

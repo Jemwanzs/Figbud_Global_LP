@@ -838,39 +838,49 @@ async fn create_quote(
         .collect();
     let year = issue.format("%Y").to_string();
     let id = Uuid::now_v7();
-    // The next number for this website and year; the unique reference guards races.
-    let reference: String = sqlx::query_scalar(
-        "SELECT $1 || '-Q-' || $2 || '-' || lpad((count(*) + 1)::text, 4, '0')
-           FROM pricing_quotes WHERE site_id = $3 AND reference LIKE $1 || '-Q-' || $2 || '-%'",
-    )
-    .bind(&prefix)
-    .bind(&year)
-    .bind(site.id)
-    .fetch_one(&state.pool)
-    .await?;
-    sqlx::query(
-        "INSERT INTO pricing_quotes (id, site_id, reference, customer_name, customer_contact, input, snapshot, book_version,
-                currency, due_first_period, renewal_amount, issue_date, expiry_date, terms, internal_notes, created_by)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)",
-    )
-    .bind(id)
-    .bind(site.id)
-    .bind(&reference)
-    .bind(input.customer_name.trim())
-    .bind(input.customer_contact.trim())
-    .bind(serde_json::to_value(&input.input).map_err(|e| ApiError::Internal(e.to_string()))?)
-    .bind(&priced.snapshot)
-    .bind(priced.book_version)
-    .bind(&priced.calc.currency)
-    .bind(priced.calc.due_first_period)
-    .bind(priced.calc.renewal_amount)
-    .bind(issue)
-    .bind(expiry)
-    .bind(priced.terms.trim())
-    .bind(input.internal_notes.trim())
-    .bind(session.user.id)
-    .execute(&state.pool)
-    .await?;
+    // References are unique across websites, and two websites' addresses can
+    // share a prefix, so the number follows the prefix, not the website. Two
+    // quotations at the same moment can pick the same number: the unique
+    // reference catches that, and the next attempt takes the following one.
+    let mut attempts = 0;
+    let reference = loop {
+        let reference: String = sqlx::query_scalar(
+            "SELECT $1 || '-Q-' || $2 || '-' || lpad((COALESCE(max(substring(reference from '[0-9]+$')::int), 0) + 1)::text, 4, '0')
+               FROM pricing_quotes WHERE reference LIKE $1 || '-Q-' || $2 || '-%'",
+        )
+        .bind(&prefix)
+        .bind(&year)
+        .fetch_one(&state.pool)
+        .await?;
+        let inserted = sqlx::query(
+            "INSERT INTO pricing_quotes (id, site_id, reference, customer_name, customer_contact, input, snapshot, book_version,
+                    currency, due_first_period, renewal_amount, issue_date, expiry_date, terms, internal_notes, created_by)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)",
+        )
+        .bind(id)
+        .bind(site.id)
+        .bind(&reference)
+        .bind(input.customer_name.trim())
+        .bind(input.customer_contact.trim())
+        .bind(serde_json::to_value(&input.input).map_err(|e| ApiError::Internal(e.to_string()))?)
+        .bind(&priced.snapshot)
+        .bind(priced.book_version)
+        .bind(&priced.calc.currency)
+        .bind(priced.calc.due_first_period)
+        .bind(priced.calc.renewal_amount)
+        .bind(issue)
+        .bind(expiry)
+        .bind(priced.terms.trim())
+        .bind(input.internal_notes.trim())
+        .bind(session.user.id)
+        .execute(&state.pool)
+        .await;
+        match inserted {
+            Ok(_) => break reference,
+            Err(sqlx::Error::Database(err)) if err.is_unique_violation() && attempts < 5 => attempts += 1,
+            Err(err) => return Err(err.into()),
+        }
+    };
     audit_site(
         &state.pool,
         &session,

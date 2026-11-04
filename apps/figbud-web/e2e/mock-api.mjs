@@ -1861,6 +1861,43 @@ seedPublishedPage(
   { offline: true },
 );
 // ZiraHR's home page, as the API imports it from the ZiraHR website (pages/import.rs).
+seedPublishedPage("zirahr", "platform", "Platform", {
+  seo_title: "The ZiraHR platform",
+  sections: [
+    {
+      id: "zp-hero",
+      type: "hero",
+      eyebrow: "The platform",
+      heading: "Everything your people operations run on.",
+    },
+    {
+      id: "zp-modules",
+      type: "modules",
+      heading: "Choose a module",
+      items: [
+        {
+          title: "Payroll & Statutory Compliance",
+          headline: "Payroll day, minus the drama.",
+          body: "A controlled payroll workflow.",
+          bullets: ["Guided cycles with approvals", "Audit trails"],
+          availability: "available",
+        },
+        {
+          title: "Recruitment",
+          headline: "Great hires start with a smoother journey.",
+          body: "One connected hiring flow.",
+          bullets: ["Applicant pipeline"],
+          availability: "planned",
+        },
+      ],
+    },
+    { id: "zp-ring", type: "demo", demo: "connected_modules", heading: "Eight connected modules." },
+    { id: "zp-run", type: "demo", demo: "pay_run", heading: "Every run, in the open." },
+    { id: "zp-slip", type: "demo", demo: "payslip", heading: "Payroll day." },
+    { id: "zp-rules", type: "demo", demo: "rules", heading: "Payroll rules you can see." },
+    { id: "zp-ess", type: "demo", demo: "self_service", heading: "One browser tab away." },
+  ],
+});
 seedPublishedPage("zirahr", "", "Home", {
   seo_title: "ZiraHR · People. Payroll. Progress. Connected.",
   sections: [
@@ -3393,6 +3430,282 @@ const HERO_DEFAULT = {
   accent: "brand",
   mobile_layout: "stacked",
 };
+// Payroll Calculator (services/api/src/payroll): one engine, dated rules, the
+// verification gate, approval and the public switch. Rates are percentages.
+const payrollRules = (label, from, lower, upper) => ({
+  label,
+  effective_from: from,
+  nssf: { rate: "6", lower_limit: String(lower), upper_limit: String(upper) },
+  shif: { rate: "2.75", minimum: "300" },
+  housing_levy: { employee_rate: "1.5", employer_rate: "1.5" },
+  paye: {
+    bands: [
+      { up_to: "24000", rate: "10" },
+      { up_to: "32333", rate: "25" },
+      { up_to: "500000", rate: "30" },
+      { up_to: "800000", rate: "32.5" },
+      { up_to: null, rate: "35" },
+    ],
+    personal_relief: "2400",
+    insurance_relief_rate: "15",
+    insurance_relief_cap: "5000",
+  },
+  limits: { retirement: "30000", mortgage_interest: "30000" },
+  employer_levies: [{ name: "NITA levy", amount: "50" }],
+  sources: [{ label: "NSSF notice", url: "https://example.com/nssf" }],
+  verified_on: null,
+  notes: "Check before publishing.",
+});
+const payrollCalc = {
+  draft: {
+    rule_sets: [
+      payrollRules("NSSF Year 4 rates", "2026-02-01", 9000, 108000),
+      payrollRules("NSSF Year 3 rates", "2025-02-01", 8000, 72000),
+    ],
+    intro: "Explore a transparent Kenyan payroll estimate in either direction.",
+    disclaimer: "Estimate only. For a resident employee with one employer, paid monthly.",
+    example_gross: "100000",
+    example_net: "75000",
+  },
+  draft_version: 1,
+  published: null,
+  published_number: 0,
+  published_at: null,
+  public_visible: false,
+  review: null,
+  versions: [],
+};
+const round2 = (n) => Math.round((n + Number.EPSILON) * 100) / 100;
+function payrollForward(rules, input, gross) {
+  const n = (v) => Number(v ?? 0);
+  const rate = (of, r) => (of * n(r)) / 100;
+  const tier1 = round2(rate(Math.min(gross, n(rules.nssf.lower_limit)), rules.nssf.rate));
+  const tier2 = round2(
+    rate(
+      Math.max(Math.min(gross, n(rules.nssf.upper_limit)) - n(rules.nssf.lower_limit), 0),
+      rules.nssf.rate,
+    ),
+  );
+  const nssf = tier1 + tier2;
+  const shif = gross > 0 ? Math.max(round2(rate(gross, rules.shif.rate)), n(rules.shif.minimum)) : 0;
+  const levy = round2(rate(gross, rules.housing_levy.employee_rate));
+  const pension = n(input.pension);
+  const retirement = Math.max(Math.min(nssf + pension, n(rules.limits.retirement)) - nssf, 0);
+  const mortgage = Math.min(n(input.mortgage_interest), n(rules.limits.mortgage_interest));
+  const allowable = nssf + retirement + shif + levy + mortgage;
+  const benefits = n(input.taxable_benefits);
+  const taxable = Math.max(gross + benefits - allowable, 0);
+  let from = 0;
+  let exact = 0;
+  const bands = rules.paye.bands.map((b) => {
+    const top = b.up_to === null ? taxable : Math.min(n(b.up_to), taxable);
+    const taxed = Math.max(top - from, 0);
+    const tax = rate(taxed, b.rate);
+    exact += tax;
+    const line = {
+      from: String(from),
+      to: b.up_to,
+      rate: b.rate,
+      taxed: String(taxed),
+      tax: String(round2(tax)),
+    };
+    if (b.up_to !== null) from = n(b.up_to);
+    return line;
+  });
+  const before = round2(exact);
+  const personal = Math.min(n(rules.paye.personal_relief), before);
+  const insurance = Math.min(
+    round2(rate(n(input.insurance_premium), rules.paye.insurance_relief_rate)),
+    n(rules.paye.insurance_relief_cap),
+    before - personal,
+  );
+  const paye = round2(before - personal - insurance);
+  const other = n(input.other_deductions);
+  const total = round2(nssf + shif + levy + pension + paye + other);
+  const employerLevy = round2(rate(gross, rules.housing_levy.employer_rate));
+  const levies = gross > 0 ? rules.employer_levies : [];
+  const cost = round2(gross + nssf + employerLevy + levies.reduce((sum, l) => sum + n(l.amount), 0));
+  const s = String;
+  return {
+    gross: s(gross),
+    taxable_benefits: s(benefits),
+    nssf_tier1: s(tier1),
+    nssf_tier2: s(tier2),
+    nssf: s(nssf),
+    shif: s(shif),
+    housing_levy: s(levy),
+    pension: s(pension),
+    retirement_allowed: s(retirement),
+    mortgage_allowed: s(mortgage),
+    allowable_deductions: s(allowable),
+    taxable_pay: s(taxable),
+    bands,
+    tax_before_relief: s(before),
+    personal_relief: s(personal),
+    insurance_relief: s(insurance),
+    paye: s(paye),
+    other_deductions: s(other),
+    total_deductions: s(total),
+    net: s(round2(gross - total)),
+    employer: {
+      nssf_tier1: s(tier1),
+      nssf_tier2: s(tier2),
+      housing_levy: s(employerLevy),
+      levies,
+      total_cost: s(cost),
+    },
+  };
+}
+function payrollCalculate(config, input) {
+  const invalid = (field, message) => ({
+    status: 422,
+    error: { code: "validation", message: "Check this.", fields: [{ field, code: "invalid", message }] },
+  });
+  const amount = Number(input.amount);
+  if (!Number.isFinite(amount) || amount < 0 || amount > 1e9)
+    return invalid("amount", "Enter an amount between zero and one billion.");
+  if (input.mode === "net_to_gross" && amount <= 0)
+    return invalid("amount", "Enter the net pay you want, above zero.");
+  const month = (input.pay_month ?? new Date().toISOString().slice(0, 10)).slice(0, 7);
+  const rules = [...config.rule_sets]
+    .filter((set) => set.effective_from.slice(0, 7) <= month)
+    .sort((a, b) => b.effective_from.localeCompare(a.effective_from))[0];
+  if (!rules) return invalid("pay_month", "There are no rules for that month yet. Choose a later month.");
+  let breakdown;
+  let target = null;
+  let difference = null;
+  if (input.mode === "net_to_gross") {
+    target = round2(amount);
+    let low = 1;
+    let high = 1e11;
+    if (Number(payrollForward(rules, input, high / 100).net) < target)
+      return invalid(
+        "amount",
+        "That net pay is out of reach: the gross needed is above the calculator's limit.",
+      );
+    while (low < high) {
+      const middle = Math.floor((low + high) / 2);
+      if (Number(payrollForward(rules, input, middle / 100).net) >= target) high = middle;
+      else low = middle + 1;
+    }
+    breakdown = payrollForward(rules, input, low / 100);
+    difference = String(round2(Number(breakdown.net) - target));
+  } else breakdown = payrollForward(rules, input, round2(amount));
+  return {
+    result: {
+      mode: input.mode,
+      breakdown,
+      target_net: target === null ? null : String(target),
+      difference,
+      tolerance: "0.05",
+      rules: { label: rules.label, effective_from: rules.effective_from },
+      warnings:
+        Number(breakdown.net) < 0 ? ["Deductions are more than this pay, so net pay is below zero."] : [],
+    },
+  };
+}
+const payrollPublic = () =>
+  payrollCalc.public_visible && payrollCalc.published
+    ? {
+        intro: payrollCalc.published.intro,
+        disclaimer: payrollCalc.published.disclaimer,
+        example_gross: payrollCalc.published.example_gross,
+        example_net: payrollCalc.published.example_net,
+        version: payrollCalc.published_number,
+        rule_sets: payrollCalc.published.rule_sets.map(({ label, effective_from, sources, verified_on }) => ({
+          label,
+          effective_from,
+          sources,
+          verified_on,
+        })),
+      }
+    : null;
+function payrollRoutes(action, body, user, send) {
+  const rank = RANKS[user.role];
+  const state = () => ({
+    site: { slug: "zirahr", name: "ZiraHR" },
+    draft: payrollCalc.draft,
+    draft_version: payrollCalc.draft_version,
+    published: payrollCalc.published,
+    published_number: payrollCalc.published_number,
+    published_at: payrollCalc.published_at,
+    public_visible: payrollCalc.public_visible,
+    review: payrollCalc.review && { ...payrollCalc.review, mine: payrollCalc.review.by === user.email },
+    versions: [...payrollCalc.versions].reverse(),
+    can_edit: rank >= RANKS.editor,
+    can_review: rank >= RANKS.reviewer,
+    is_owner: rank === RANKS.owner,
+  });
+  const nope = (status, code, message) => send(status, { error: { code, message } });
+  const fieldError = (field, message) =>
+    send(422, { error: { code: "validation", message, fields: [{ field, code: "invalid", message }] } });
+  const unverified = () => payrollCalc.draft.rule_sets.some((set) => !set.verified_on);
+  const publish = (config, note) => {
+    payrollCalc.published = clone(config);
+    payrollCalc.published_number += 1;
+    payrollCalc.published_at = new Date().toISOString();
+    payrollCalc.review = null;
+    payrollCalc.versions.push({
+      number: payrollCalc.published_number,
+      note,
+      created_at: payrollCalc.published_at,
+      published_by: user.email,
+      config: clone(config),
+    });
+  };
+  if (!action) return send(200, state());
+  if (action === "calculate") {
+    const config = body.source === "published" ? payrollCalc.published : payrollCalc.draft;
+    if (!config) return nope(409, "conflict", "Nothing is published yet.");
+    const answer = payrollCalculate(config, body.input ?? {});
+    return answer.error ? send(answer.status, { error: answer.error }) : send(200, answer);
+  }
+  if (action === "draft") {
+    if (rank < RANKS.editor) return nope(403, "forbidden", "You don't have permission to do that.");
+    if (body.version !== payrollCalc.draft_version)
+      return nope(409, "conflict", "Someone changed this after you opened it. Reload to see the latest.");
+    const bad = (body.config?.rule_sets ?? []).some(
+      (set) => Number(set.nssf.rate) > 100 || Number(set.nssf.rate) < 0,
+    );
+    if (bad) return fieldError("rule_sets", "Rates are percentages from 0 to 100.");
+    payrollCalc.draft = clone(body.config);
+    payrollCalc.draft_version += 1;
+    payrollCalc.review = null;
+    return send(200, { draft_version: payrollCalc.draft_version });
+  }
+  if (action === "submit") {
+    if (unverified())
+      return fieldError(
+        "rule_sets",
+        "Record when each rule set was checked against the official sources before asking for approval.",
+      );
+    payrollCalc.review = { requested_at: new Date().toISOString(), note: body.note || null, by: user.email };
+    return send(200, { ok: true });
+  }
+  if (rank < RANKS.reviewer) return nope(403, "forbidden", "You don't have permission to do that.");
+  if (action === "publish") {
+    if (!payrollCalc.review) return nope(409, "conflict", "Ask for approval first.");
+    publish(payrollCalc.draft, body.note || "Published");
+    return send(200, { ok: true });
+  }
+  if (action === "reject") {
+    payrollCalc.review = null;
+    return send(200, { ok: true });
+  }
+  if (action === "rollback") {
+    const version = payrollCalc.versions.find((v) => v.number === body.version);
+    if (!version) return nope(404, "not_found", "Not found.");
+    publish(version.config, `Rolled back to version ${version.number}`);
+    return send(200, { ok: true });
+  }
+  if (action === "visibility") {
+    if (body.public && !payrollCalc.published) return nope(409, "conflict", "Publish a version first.");
+    payrollCalc.public_visible = Boolean(body.public);
+    return send(200, { public_visible: payrollCalc.public_visible });
+  }
+  return nope(404, "not_found", "Not found.");
+}
+
 const heroStates = new Map();
 const heroState = (slug) => {
   if (!heroStates.has(slug)) {
@@ -4901,6 +5214,12 @@ function admin(req, res, url, body, send, raw) {
   if (path === "campaigns" || path.startsWith("campaigns/"))
     return campaignRoutes(path, req, body, user, send);
   if (path === "proof" || path.startsWith("proof/")) return proofRoutes(path, req, body, user, send);
+  const payrollPath = /^sites\/([a-z0-9_-]+)\/payroll-calculator(?:\/([a-z_]+))?$/.exec(path);
+  if (payrollPath) {
+    if (payrollPath[1] !== "zirahr")
+      return send(404, { error: { code: "not_found", message: "Not found." } });
+    return payrollRoutes(payrollPath[2], body, user, send);
+  }
   const heroPath = /^sites\/([a-z0-9_-]+)\/hero(?:\/([a-z_]+))?$/.exec(path);
   if (heroPath) return heroRoutes(heroPath[1], heroPath[2], req, body, user, send);
   if (/^sites\/[a-z0-9_-]+\/pricing(\/|$)/.test(path) || path.startsWith("pricing/"))
@@ -4948,6 +5267,22 @@ createServer(async (req, res) => {
   }
   if (url.pathname === "/v1/sites") return send(200, publicSites());
   if (url.pathname === "/v1/privacy") return send(200, publicPrivacy());
+  // Test helper (mock only): a checked, published calculator switched on, for the renderer's tests.
+  if (url.pathname === "/v1/__test/payroll-on") {
+    for (const set of payrollCalc.draft.rule_sets) set.verified_on = "2026-11-05";
+    payrollCalc.published = clone(payrollCalc.draft);
+    payrollCalc.published_number = Math.max(payrollCalc.published_number, 1);
+    payrollCalc.public_visible = true;
+    return send(200, {});
+  }
+  const publicPayroll = /^\/v1\/sites\/([a-z0-9_-]+)\/payroll-calculator(\/calculate)?$/.exec(url.pathname);
+  if (publicPayroll) {
+    const calculator = publicPayroll[1] === "zirahr" ? payrollPublic() : null;
+    if (!publicPayroll[2]) return send(200, { calculator });
+    if (!calculator) return send(404, { error: { code: "not_found", message: "Not found." } });
+    const answer = payrollCalculate(payrollCalc.published, body ?? {});
+    return answer.error ? send(answer.status, { error: answer.error }) : send(200, answer);
+  }
   const publicHero = /^\/v1\/sites\/([a-z0-9_-]+)\/hero$/.exec(url.pathname);
   if (publicHero) return send(200, { hero: heroStates.get(publicHero[1])?.published ?? null });
   const publicPricing = /^\/v1\/sites\/([a-z0-9_-]+)\/pricing(\/calculate)?$/.exec(url.pathname);

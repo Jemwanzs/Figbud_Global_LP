@@ -700,6 +700,122 @@ export function BlockForm({
           />
         </div>
       );
+    case "modules":
+      return (
+        <div className="grid gap-3">
+          <TextField
+            label="Heading (optional)"
+            value={section.heading}
+            max={120}
+            {...p}
+            onChange={(v) => onChange({ ...section, heading: v })}
+          />
+          <TextField
+            label="Introduction (optional)"
+            value={section.intro}
+            max={400}
+            {...p}
+            onChange={(v) => onChange({ ...section, intro: v })}
+          />
+          <Items
+            items={section.items}
+            noun="Module"
+            blank={{
+              title: "Module",
+              headline: "",
+              body: "What it does.",
+              bullets: [],
+              availability: "available",
+            }}
+            {...p}
+            onChange={(items) => onChange({ ...section, items })}
+            render={(item, setItem) => (
+              <>
+                <TextField
+                  label="Name"
+                  value={item.title}
+                  max={80}
+                  {...p}
+                  onChange={(v) => setItem({ ...item, title: v })}
+                />
+                <TextField
+                  label="Headline (optional)"
+                  value={item.headline}
+                  max={120}
+                  {...p}
+                  onChange={(v) => setItem({ ...item, headline: v })}
+                />
+                <TextField
+                  label="Description"
+                  value={item.body}
+                  max={400}
+                  multiline
+                  {...p}
+                  onChange={(v) => setItem({ ...item, body: v })}
+                />
+                <TextField
+                  label="Key points, one per line"
+                  value={(item.bullets ?? []).join("\n")}
+                  max={1000}
+                  multiline
+                  {...p}
+                  onChange={(v) => setItem({ ...item, bullets: v.split("\n") })}
+                />
+                <label className="flex min-h-11 items-center gap-2.5 text-sm text-text">
+                  <input
+                    type="checkbox"
+                    checked={item.availability === "planned"}
+                    disabled={p.disabled}
+                    onChange={(e) =>
+                      setItem({ ...item, availability: e.target.checked ? "planned" : "available" })
+                    }
+                    className="size-5 accent-[var(--accent)]"
+                  />
+                  Planned: not available yet (shown with a label)
+                </label>
+              </>
+            )}
+          />
+        </div>
+      );
+    case "demo":
+      return (
+        <div className="grid gap-3">
+          <label className="block text-sm font-medium text-text">
+            Demonstration
+            <select
+              value={section.demo}
+              disabled={p.disabled}
+              onChange={(e) => onChange({ ...section, demo: e.target.value as typeof section.demo })}
+              className="mt-1.5 min-h-11 w-full rounded-xl border border-line-strong bg-surface px-3 text-sm text-text"
+            >
+              <option value="connected_modules">Connected modules</option>
+              <option value="pay_run">Pay run stages</option>
+              <option value="payslip">Payslip, line by line</option>
+              <option value="rules">Payroll rules as settings</option>
+              <option value="self_service">Employee self-service</option>
+            </select>
+          </label>
+          <TextField
+            label="Heading (optional)"
+            value={section.heading}
+            max={120}
+            {...p}
+            onChange={(v) => onChange({ ...section, heading: v })}
+          />
+          <TextField
+            label="Introduction (optional)"
+            value={section.intro}
+            max={400}
+            {...p}
+            onChange={(v) => onChange({ ...section, intro: v })}
+          />
+          <p className="text-sm text-subtle">
+            Demonstrations use fixed sample data, labelled on the page, so they can&apos;t present made-up
+            figures as real. Their figures are tested against the payroll calculator.
+          </p>
+        </div>
+      );
     case "steps":
       return (
         <div className="grid gap-3">

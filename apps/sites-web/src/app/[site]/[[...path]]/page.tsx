@@ -4,6 +4,7 @@ import {
   PageBlocks,
   ProductHero,
   ProofMetrics,
+  PayrollSources,
   PublicPricing,
   Testimonials,
   TrustedBy,
@@ -18,6 +19,7 @@ import { ArrowRight } from "lucide-react";
 import type { Metadata, ResolvingMetadata } from "next";
 import { notFound } from "next/navigation";
 
+import { WebsitePayrollCalculator } from "@/components/public-payroll-calculator";
 import {
   canonicalUrl,
   enquiryHref,
@@ -26,6 +28,7 @@ import {
   getPages,
   getHero,
   getProof,
+  getPayrollCalculator,
   getPublicPricing,
   getSite,
   hrefResolver,
@@ -75,6 +78,16 @@ export async function generateMetadata(
       description: `${site.name} pricing.`,
       alternates: { canonical: canonicalUrl(site, ownDomain, path) },
       ...(book ? {} : { robots: { index: false, follow: true } }),
+    };
+  }
+  if (!page && path === "payroll-calculator") {
+    // Built-in calculator page: only exists while it's switched on in the Studio.
+    const calculator = await getPayrollCalculator(site.slug);
+    if (!calculator) return {};
+    return {
+      title: "Kenya payroll calculator: gross to net and net to gross",
+      description: `Estimate Kenyan take-home pay in either direction with ${site.name}, with NSSF, SHIF, the Housing Levy and PAYE shown step by step.`,
+      alternates: { canonical: canonicalUrl(site, ownDomain, path) },
     };
   }
   if (!page) return path === "" ? { robots: { index: false, follow: true } } : {};
@@ -152,6 +165,46 @@ async function PricingPage({
   );
 }
 
+async function PayrollCalculatorPage({
+  site,
+  ownDomain,
+}: {
+  site: NonNullable<Awaited<ReturnType<typeof getSite>>>;
+  ownDomain: boolean;
+}) {
+  const calculator = await getPayrollCalculator(site.slug);
+  if (!calculator) notFound();
+  return (
+    <div className="mx-auto max-w-[92rem] px-5 pt-page-top pb-section sm:px-8 md:px-10 lg:px-16">
+      <JsonLd
+        data={breadcrumbLd([
+          { name: site.name, url: canonicalUrl(site, ownDomain, "") },
+          { name: "Payroll calculator", url: canonicalUrl(site, ownDomain, "payroll-calculator") },
+        ])}
+      />
+      <h1 className="max-w-3xl font-display text-page font-semibold tracking-tight text-text">
+        Know the numbers before payday.
+      </h1>
+      <p className="mt-4 max-w-2xl text-lead text-muted">{calculator.intro}</p>
+      <div className="mt-stack">
+        <WebsitePayrollCalculator
+          calculator={calculator}
+          endpoint={pageHref(site.slug, ownDomain, "payroll-calculate")}
+        />
+      </div>
+      <div className="mt-6 max-w-3xl">
+        <PayrollSources calculator={calculator} />
+      </div>
+      <div className="mt-stack flex flex-wrap items-center gap-4">
+        <a href={enquiryHref(site)} className={buttonClasses("product", "lg")}>
+          {CTA_LABELS[site.cta]}
+          <ArrowRight aria-hidden className="size-4 rtl:rotate-180" />
+        </a>
+      </div>
+    </div>
+  );
+}
+
 /** Section headings for customer proof on product websites (English, like their pages). */
 const PROOF_LABELS = {
   trustedBy: {
@@ -172,6 +225,7 @@ export default async function SitePage({ params }: PageProps<"/[site]/[[...path]
 
   if (!page) {
     if (path === "pricing") return <PricingPage site={site} ownDomain={ownDomain} />;
+    if (path === "payroll-calculator") return <PayrollCalculatorPage site={site} ownDomain={ownDomain} />;
     // Old addresses of moved pages are forwarded earlier, by the proxy.
     if (path !== "") notFound();
     // Listed but nothing published yet: an honest holding page from the registry.

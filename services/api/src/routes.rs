@@ -25,7 +25,7 @@ use crate::{
     email::{self, outbox, templates},
     enquiry::{EnquiryInput, new_reference},
     error::ApiError,
-    heroes, media, pricing, privacy, proof,
+    heroes, media, payroll, pricing, privacy, proof,
     rate_limit::{RateLimiter, client_ip, ip_hash},
     seo, shared, site_settings, sites,
 };
@@ -44,6 +44,8 @@ pub struct AppState {
     pub spin_limiter: RateLimiter,
     /// Public pricing calculations and shared quotation views per IP.
     pub pricing_limiter: RateLimiter,
+    /// Public payroll calculator estimates per IP (recalculates as people type).
+    pub calculator_limiter: RateLimiter,
     /// WebAuthn relying party; `None` when admin is disabled.
     pub webauthn: Option<webauthn_rs::Webauthn>,
 }
@@ -58,6 +60,7 @@ impl AppState {
             campaign_limiter: RateLimiter::new(300, Duration::from_secs(600)),
             spin_limiter: RateLimiter::new(10, Duration::from_secs(600)),
             pricing_limiter: RateLimiter::new(300, Duration::from_secs(600)),
+            calculator_limiter: RateLimiter::new(600, Duration::from_secs(600)),
             webauthn,
             config,
             pool,
@@ -104,6 +107,7 @@ pub fn router(state: SharedState) -> Router {
         // larger than a form: pricing gets its own limit.
         .merge(pricing::router().layer(RequestBodyLimitLayer::new(256 * 1024)))
         .merge(heroes::router().layer(RequestBodyLimitLayer::new(64 * 1024)))
+        .merge(payroll::router().layer(RequestBodyLimitLayer::new(64 * 1024)))
         .merge(brand::upload_router())
         .merge(media::upload_router())
         .merge(crate::pages::router())

@@ -7,6 +7,7 @@ import {
   type PageDocument,
   type PriceBook,
   type PrivacySettings,
+  type PublicPayrollCalculator,
   type PublicProof,
   type PublishedHero,
 } from "@figbud/site-kit";
@@ -17,6 +18,7 @@ import {
   fetchPrivacySettings,
   fetchProof,
   fetchHero,
+  fetchPayrollCalculator,
   fetchPublicPricing,
 } from "@figbud/site-kit/server";
 import { cacheLife, cacheTag } from "next/cache";
@@ -143,6 +145,14 @@ export async function getPublicPricing(slug: string): Promise<PriceBook | null> 
   cacheLife("minutes");
   cacheTag("pricing", `pricing:${slug}`);
   return fetchPublicPricing(apiBase, slug);
+}
+
+/** The website's published payroll calculator, or `null` while it's off (the default). */
+export async function getPayrollCalculator(slug: string): Promise<PublicPayrollCalculator | null> {
+  "use cache";
+  cacheLife("minutes");
+  cacheTag("payroll", `payroll:${slug}`);
+  return fetchPayrollCalculator(apiBase, slug);
 }
 
 /**

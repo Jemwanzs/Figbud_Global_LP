@@ -2,6 +2,8 @@
 // year) and `@figbud/site-kit/server` (next.config.ts, proxy.ts).
 export * from "./brand";
 export * from "./nav-preview";
+export * from "./payroll-calculator";
+export * from "./product-demos";
 export * from "./blocks";
 export * from "./brand-logo";
 export * from "./campaigns";

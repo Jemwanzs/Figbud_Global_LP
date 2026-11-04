@@ -627,6 +627,44 @@
   font-family: var(--font-flags, ""), "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
 }
 
+/* Product demonstrations (P14-W): one dark, softly lit stage, whatever the page's theme. */
+.fb-demo-stage {
+  background: radial-gradient(90% 70% at 15% 0%, var(--product-soft), transparent 70%), var(--bg-elevated);
+  border: 1px solid var(--line);
+}
+.fb-demo-unfold {
+  animation: fb-demo-unfold var(--motion-base) var(--motion-ease) both;
+}
+@keyframes fb-demo-unfold {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+/* The tax bands grow into place, one after another, the first time they're seen. */
+[data-reveal-state="waiting"] .fb-demo-band {
+  transform: scaleX(0);
+}
+[data-reveal-state="seen"] .fb-demo-band {
+  transform-origin: left;
+  animation: fb-demo-band var(--motion-slow) var(--motion-ease) both;
+  animation-delay: calc(var(--demo-order, 0) * 90ms);
+}
+[dir="rtl"] [data-reveal-state="seen"] .fb-demo-band {
+  transform-origin: right;
+}
+@keyframes fb-demo-band {
+  from {
+    transform: scaleX(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fb-demo-unfold,
+  [data-reveal-state="seen"] .fb-demo-band {
+    animation: none;
+  }
+}
+
 /* Hover previews on the menu (UI-NAV2): a short rise and fade each time one
    opens; none with reduced motion. --nav-shift keeps it on screen while the
    pointer stays under its link. */

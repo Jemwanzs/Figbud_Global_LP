@@ -6,6 +6,7 @@ import {
   Images,
   Palette,
   PanelsTopLeft,
+  Scale,
   SearchCheck,
   Sparkles,
 } from "lucide-react";
@@ -92,6 +93,15 @@ async function Site({ params }: Pick<PageProps<"/admin/sites/[slug]">, "params">
           <Link href={`/admin/sites/${site.slug}/platforms`} className={buttonClasses("secondary", "md")}>
             <GalleryHorizontal aria-hidden className="size-4" />
             Our Platforms
+          </Link>
+        )}
+        {site.slug === "zirahr" && (
+          <Link
+            href={`/admin/sites/${site.slug}/payroll-calculator`}
+            className={buttonClasses("secondary", "md")}
+          >
+            <Scale aria-hidden className="size-4" />
+            Payroll Calculator
           </Link>
         )}
         {site.kind === "product" && (

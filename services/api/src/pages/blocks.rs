@@ -106,9 +106,60 @@ pub enum Block {
         #[serde(default)]
         size: ImageSize,
     },
+    /// A list of modules with one open at a time (P14-W).
+    Modules {
+        #[serde(default)]
+        heading: Option<String>,
+        #[serde(default)]
+        intro: Option<String>,
+        items: Vec<Module>,
+    },
+    /// An interactive product demonstration from a fixed set, with synthetic
+    /// data in code, so nothing typed in the Studio can present as real figures.
+    Demo {
+        demo: DemoKind,
+        #[serde(default)]
+        heading: Option<String>,
+        #[serde(default)]
+        intro: Option<String>,
+    },
     /// An item from the content library, shown as its latest published
     /// version wherever it's used (resolved by `crate::shared::resolve`).
     Shared { shared_id: uuid::Uuid },
+}
+
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum DemoKind {
+    ConnectedModules,
+    PayRun,
+    Payslip,
+    Rules,
+    SelfService,
+}
+
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum Availability {
+    #[default]
+    Available,
+    /// Shown as planned, so a roadmap item can't read as live.
+    Planned,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct Module {
+    pub title: String,
+    #[serde(default)]
+    pub headline: Option<String>,
+    pub body: String,
+    #[serde(default)]
+    pub bullets: Vec<String>,
+    #[serde(default)]
+    pub availability: Availability,
+    #[serde(default)]
+    pub cta: Option<Cta>,
 }
 
 /// How wide an Image block is shown.
@@ -356,6 +407,59 @@ impl PageDoc {
                 }
                 Block::Image { caption, .. } => {
                     c.optional("sections", caption, 200, "Captions can be up to 200 characters.");
+                }
+                Block::Modules {
+                    heading,
+                    intro,
+                    items,
+                } => {
+                    c.optional("sections", heading, 120, "Headings can be up to 120 characters.");
+                    c.optional(
+                        "sections",
+                        intro,
+                        400,
+                        "Introductions can be up to 400 characters.",
+                    );
+                    c.count(items, 12);
+                    for item in items {
+                        c.text("sections", &item.title, 80, "Module names need 1–80 characters.");
+                        c.optional(
+                            "sections",
+                            &item.headline,
+                            120,
+                            "Module headlines can be up to 120 characters.",
+                        );
+                        c.text(
+                            "sections",
+                            &item.body,
+                            400,
+                            "Module descriptions need 1–400 characters.",
+                        );
+                        if item.bullets.len() > 12 {
+                            c.push("sections", "Modules can have up to 12 key points.");
+                        }
+                        // Blank lines (mid-typing in the Studio) simply aren't shown.
+                        for bullet in item.bullets.iter().filter(|b| !b.trim().is_empty()) {
+                            c.text(
+                                "sections",
+                                bullet,
+                                120,
+                                "Each key point can be up to 120 characters.",
+                            );
+                        }
+                        if let Some(cta) = &item.cta {
+                            c.cta(cta);
+                        }
+                    }
+                }
+                Block::Demo { heading, intro, .. } => {
+                    c.optional("sections", heading, 120, "Headings can be up to 120 characters.");
+                    c.optional(
+                        "sections",
+                        intro,
+                        400,
+                        "Introductions can be up to 400 characters.",
+                    );
                 }
                 // Checked against the library when the draft is saved.
                 Block::Shared { .. } => {}

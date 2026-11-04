@@ -14,6 +14,7 @@ pub mod blocks;
 pub mod budget;
 pub mod import;
 pub mod templates;
+pub mod zirahr_guide;
 
 use axum::{
     Json, Router,

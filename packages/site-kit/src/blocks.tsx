@@ -2,6 +2,8 @@ import { buttonClasses, cn } from "@figbud/ui";
 import { ArrowRight, Check } from "lucide-react";
 import type { ReactNode } from "react";
 
+import { type DemoKind, ModuleCatalogue, type ModuleItem, ProductDemo } from "./product-demos";
+
 /**
  * Renders page documents built in the Studio (D17): an approved library of
  * typed blocks, styled by the design system. Markdown fields arrive as HTML
@@ -51,6 +53,13 @@ export type PageSection = Base &
         items: { question: string; answer?: string; answer_html?: string }[];
       }
     | { type: "call_to_action"; heading: string; body?: string | null; cta: PageCta }
+    | {
+        type: "modules";
+        heading?: string | null;
+        intro?: string | null;
+        items: (Omit<ModuleItem, "cta"> & { cta?: PageCta | null })[];
+      }
+    | { type: "demo"; demo: DemoKind; heading?: string | null; intro?: string | null }
     | {
         type: "image";
         image_id: string;
@@ -302,6 +311,33 @@ function Block({
             <div className="mt-8">
               <Action cta={section.cta} mode={mode} resolve={resolve} primary />
             </div>
+          </div>
+        </div>
+      );
+    case "modules":
+      return (
+        <div>
+          {section.heading && <Heading>{section.heading}</Heading>}
+          {section.intro && <p className="mt-4 max-w-2xl text-muted">{section.intro}</p>}
+          <div className={cn((section.heading || section.intro) && "mt-8")}>
+            <ModuleCatalogue
+              items={section.items.map((item) => ({
+                ...item,
+                cta: item.cta && { ...item.cta, href: resolve ? resolve(item.cta.href) : item.cta.href },
+              }))}
+              plannedLabel="Planned"
+              preview={mode === "preview"}
+            />
+          </div>
+        </div>
+      );
+    case "demo":
+      return (
+        <div>
+          {section.heading && <Heading>{section.heading}</Heading>}
+          {section.intro && <p className="mt-4 max-w-2xl text-lead text-muted">{section.intro}</p>}
+          <div className={cn((section.heading || section.intro) && "mt-8")}>
+            <ProductDemo demo={section.demo} />
           </div>
         </div>
       );

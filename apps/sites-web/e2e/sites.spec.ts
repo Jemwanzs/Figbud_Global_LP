@@ -1,5 +1,5 @@
 import AxeBuilder from "@axe-core/playwright";
-import { expect, test } from "@playwright/test";
+import { type Page, expect, test } from "@playwright/test";
 
 // The product-site renderer (D16): websites, pages and brands from the
 // registry, through the mock API (synthetic Ziwa LMS pages).
@@ -336,4 +336,142 @@ test("a product website shows its own hover previews, never FigBud Global's word
   if (await others.count()) await expect(others.first()).not.toHaveAttribute("aria-describedby", /.+/);
   await platform.click();
   await expect(page).toHaveURL(/\/ziwa\/platform$/);
+});
+
+test.describe("ZiraHR: payroll calculator and demonstrations (P14)", () => {
+  test.describe.configure({ mode: "serial" });
+  const API = "http://localhost:3199";
+  const scan = async (page: Page) =>
+    (
+      await new AxeBuilder({ page })
+        .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
+        .analyze()
+    ).violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`);
+
+  test("the calculator doesn't exist until it's published and switched on", async ({ page, request }) => {
+    // Other tests in this run may have switched it on: the mock has no way back, so this only runs first.
+    const state = await (await request.get(`${API}/v1/sites/zirahr/payroll-calculator`)).json();
+    test.skip(state.calculator !== null, "already switched on by an earlier project");
+    expect((await page.goto("/zirahr/payroll-calculator"))?.status()).toBe(404);
+  });
+
+  test("both directions, from the API, reconciled; errors clear the figures", async ({ page, request }) => {
+    test.setTimeout(90_000);
+    await request.get(`${API}/v1/__test/payroll-on`);
+    await expect
+      .poll(async () => (await page.goto("/zirahr/payroll-calculator"))?.status(), {
+        timeout: 70_000,
+        intervals: [3000],
+      })
+      .toBe(200);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Know the numbers before payday.");
+    await expect(page.getByTestId("payroll-disclaimer")).toContainText("Estimate only");
+
+    const answer = page.getByTestId("payroll-answer");
+    const amount = page.getByLabel("Gross monthly pay (KES)");
+    await expect(amount).toHaveValue("100000");
+    await amount.fill("150000");
+    await expect(answer).toContainText("103,618.15", { timeout: 15_000 });
+    const calculator = page.getByTestId("payroll-calculator");
+    for (const text of [
+      "NSSF Tier I",
+      "NSSF Tier II",
+      "SHIF",
+      "Affordable Housing Levy",
+      "Taxable pay",
+      "Tax before relief",
+      "Personal relief",
+    ])
+      await expect(calculator.getByText(text, { exact: true }).first()).toBeVisible();
+    await expect(calculator).toContainText("137,145.00");
+    await expect(calculator).toContainText("33,526.85");
+    await expect(page.getByTestId("payroll-rules")).toContainText("2026-02-01");
+
+    // Employer cost is separate, and never in take-home pay.
+    await page.getByText("What the employer pays").click();
+    await expect(page.getByTestId("payroll-employer")).toContainText("NITA levy");
+
+    // A bad amount removes the figures rather than leaving stale ones.
+    await amount.fill("abc");
+    await expect(calculator).toContainText("Use digits only");
+    await expect(answer).toHaveCount(0);
+    await amount.fill("150000");
+    await expect(answer).toContainText("103,618.15");
+
+    // Net to gross, with the forward check shown.
+    await page.getByRole("radio", { name: "Net to gross" }).click();
+    await page.getByLabel("Net monthly pay you want (KES)").fill("103618.15");
+    await expect(answer).toContainText("150,000.00");
+    await expect(page.getByTestId("payroll-proof")).toContainText("Checked forward");
+
+    // The pay month changes the rules, and the answer.
+    await page.getByRole("radio", { name: "Gross to net" }).click();
+    await page.getByText("More options").click();
+    await page.getByLabel("Pay month").fill("2026-01");
+    await expect(page.getByTestId("payroll-rules")).toContainText("2025-02-01");
+    await expect(answer).toContainText("105,130.15");
+    await page.getByLabel("Pay month").fill("2020-01");
+    await expect(calculator).toContainText("There are no rules for that month");
+    await expect(answer).toHaveCount(0);
+    await page.getByLabel("Pay month").fill("");
+
+    await expect(answer).toBeVisible();
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    expect(await scan(page)).toEqual([]);
+    await page.getByRole("button", { name: /Switch to (light|dark) theme/ }).click();
+    expect(await scan(page)).toEqual([]);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(
+      0,
+    );
+  });
+
+  test("the platform page: modules and demonstrations work by mouse and keyboard, in both themes", async ({
+    page,
+  }) => {
+    test.setTimeout(90_000);
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.goto("/zirahr/platform");
+
+    // Modules: one open at a time, every module's words in the page, planned ones labelled.
+    const tabs = page.getByRole("tablist", { name: "Modules" }).getByRole("tab");
+    await expect(
+      page.getByRole("tabpanel").filter({ hasText: "Payroll day, minus the drama." }),
+    ).toBeVisible();
+    await tabs.nth(1).click();
+    await expect(tabs.nth(1)).toContainText("Planned");
+    await expect(page.getByRole("tabpanel").filter({ hasText: "This module is planned." })).toBeVisible();
+
+    // The module ring moves by keyboard.
+    const ring = page.getByRole("tablist", { name: "Platform modules" }).getByRole("tab");
+    await expect(ring).toHaveCount(8);
+    await ring.first().focus();
+    await page.keyboard.press("ArrowRight");
+    await expect(ring.nth(1)).toBeFocused();
+    await expect(page.locator("#demo-module-panel")).toContainText("Leave");
+
+    // Stages, payslip lines and self-service screens.
+    await page
+      .getByRole("tablist", { name: "Payroll stages" })
+      .getByRole("tab", { name: /Approve/ })
+      .click();
+    await expect(page.locator("#demo-run-panel")).toContainText("Your approvers sign off");
+    await page.getByRole("tab", { name: /NSSF/ }).click();
+    await expect(page.locator("#demo-slip-panel")).toContainText("Tier II: 99,000.00 at 6%");
+    await page
+      .getByRole("tablist", { name: "Employee self-service" })
+      .getByRole("tab", { name: "Leave" })
+      .click();
+    await expect(page.locator("#demo-ess-panel")).toContainText("Annual leave balance");
+
+    // Sample data is always labelled.
+    await expect(page.getByText("Illustrative product activity · synthetic data").first()).toBeVisible();
+    await expect(page.getByText(/Illustrative figures for a sample monthly pay/)).toBeVisible();
+
+    expect(await scan(page)).toEqual([]);
+    await page.getByRole("button", { name: /Switch to (light|dark) theme/ }).click();
+    expect(await scan(page)).toEqual([]);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(
+      0,
+    );
+  });
 });

@@ -17,6 +17,7 @@ pub mod error;
 pub mod heroes;
 pub mod media;
 pub mod pages;
+pub mod payroll;
 pub mod pricing;
 pub mod privacy;
 pub mod proof;

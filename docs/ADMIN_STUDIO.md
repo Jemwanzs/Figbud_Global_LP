@@ -224,6 +224,12 @@ Studio → Marketing, then the tabs **Trusted By**, **Testimonials** and **Succe
   Studio actions refresh the corporate website at once (cache tag `proof`); product websites within minutes.
 - **Never invented:** the seeded records in the e2e mock API are synthetic test fixtures. Production starts empty, and Q22 lists what's needed before any organisation can be shown.
 
+## Payroll Calculator and new page blocks (P14, 5 Nov 2026)
+
+- **Payroll Calculator** (Websites → ZiraHR): dated statutory rules, page text, draft, approval, versions, a public switch and a Try it panel. Rules: [PAYROLL_CALCULATOR.md](PAYROLL_CALCULATOR.md).
+- **Page builder** gains **Module catalogue** (name, headline, description, key points, a Planned label) and **Product demonstration** (one of five, with an editable heading and introduction; sample data is fixed and labelled).
+- ZiraHR's content plan and sign-offs: [ZIRAHR_WEBSITE.md](ZIRAHR_WEBSITE.md).
+
 ## Hover Previews (UI-NAV2, 5 Nov 2026)
 
 Websites → a website → Navigation & forms → **Hover Previews**.

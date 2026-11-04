@@ -460,6 +460,39 @@ async fn quotations_keep_their_snapshot_need_approval_and_share_safely() {
     let id = created["id"].as_str().unwrap().to_owned();
     assert!(created["reference"].as_str().unwrap().starts_with("PRICE"));
 
+    // Website addresses can share a prefix, and references are unique across
+    // websites: a website's first quotation mustn't take a number already used
+    // by another. (This used to refuse the quotation with a 503.)
+    let first_reference = created["reference"].as_str().unwrap().to_owned();
+    sqlx::query("UPDATE pricing_quotes SET site_id = (SELECT id FROM sites WHERE slug = 'figbud') WHERE id = $1::uuid")
+        .bind(&id)
+        .execute(&t.pool)
+        .await
+        .unwrap();
+    let (status, next) = t
+        .call(
+            "POST",
+            &format!("{base}/quotes"),
+            Some(&editor),
+            Some(quote.clone()),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "{next}");
+    assert_ne!(next["reference"], first_reference.as_str());
+    sqlx::query("DELETE FROM pricing_quotes WHERE id = $1::uuid")
+        .bind(next["id"].as_str().unwrap())
+        .execute(&t.pool)
+        .await
+        .unwrap();
+    sqlx::query(
+        "UPDATE pricing_quotes SET site_id = (SELECT id FROM sites WHERE slug = $2) WHERE id = $1::uuid",
+    )
+    .bind(&id)
+    .bind(&slug)
+    .execute(&t.pool)
+    .await
+    .unwrap();
+
     // Prices change and are republished: the quotation keeps what was offered.
     let (_, current) = t.call("GET", &base, Some(&editor), None).await;
     t.call(

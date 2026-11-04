@@ -1,6 +1,6 @@
 import { headers } from "next/headers";
 
-import { allowIndexing, canonicalUrl, getListedSites, getPages } from "@/lib/sites";
+import { allowIndexing, canonicalUrl, getListedSites, getPages, getPayrollCalculator } from "@/lib/sites";
 
 /**
  * Published pages of listed product websites. On a website's own domain,
@@ -17,6 +17,10 @@ export async function GET() {
       // Pages kept out of search engines in the Studio aren't listed.
       for (const page of (await getPages(site.slug)).filter((p) => !p.noindex)) {
         urls.push({ loc: canonicalUrl(site, Boolean(own), page.path), lastmod: page.published_at });
+      }
+      // The built-in calculator page, only while it's switched on.
+      if (await getPayrollCalculator(site.slug)) {
+        urls.push({ loc: canonicalUrl(site, Boolean(own), "payroll-calculator"), lastmod: null });
       }
     }
   }
