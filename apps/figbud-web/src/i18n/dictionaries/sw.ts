@@ -20,6 +20,28 @@ const sw: DeepPartial<Dictionary> = {
       blog: "Blogu",
       contact: "Wasiliana",
     },
+    navPreviews: {
+      home: {
+        icon: "sparkles",
+        headline: "Mahali mawazo yanapoleta matokeo.",
+        description: "Gundua teknolojia inayowezesha biashara bora zaidi.",
+      },
+      about: {
+        icon: "compass",
+        headline: "Imejengwa kwa kusudi. Imeundwa kwa maendeleo.",
+        description: "Fahamu fikra zilizo nyuma ya FigBud Global.",
+      },
+      blog: {
+        icon: "book-open",
+        headline: "Mawazo mapya. Hatua bora zaidi.",
+        description: "Mawazo, maarifa na hadithi kutoka ulimwengu wa teknolojia.",
+      },
+      contact: {
+        icon: "message-circle",
+        headline: "Mawazo makubwa huanza na mazungumzo.",
+        description: "Tuambie unachojenga. Tutaendelea kutoka hapo.",
+      },
+    },
     productsMenu: { title: "Mifumo yetu", viewAll: "Tazama bidhaa zote" },
     cta: {
       letsTalk: "Tuzungumze",

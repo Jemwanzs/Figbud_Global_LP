@@ -224,6 +224,16 @@ Studio → Marketing, then the tabs **Trusted By**, **Testimonials** and **Succe
   Studio actions refresh the corporate website at once (cache tag `proof`); product websites within minutes.
 - **Never invented:** the seeded records in the e2e mock API are synthetic test fixtures. Production starts empty, and Q22 lists what's needed before any organisation can be shown.
 
+## Hover Previews (UI-NAV2, 5 Nov 2026)
+
+Websites → a website → Navigation & forms → **Hover Previews**.
+
+- **Show hover previews:** the switch for the whole website. Off hides every card and keeps the wording.
+- **Each menu link:** its own switch, headline (60 characters), description (120 characters) and icon from a fixed set, with the card shown as visitors get it on the light and dark website.
+- **Save draft, then Publish:** drafts stay in the Studio and never reach the website (`nav_previews_draft` is left out of `GET /v1/sites`). Publishing is applied directly by reviewers, audited and version-checked, like the website's other settings.
+- **Defaults:** FigBud Global starts with its approved wording, and empty fields keep it. Product websites start with none, so a link shows nothing until its own headline is written. Studio edits apply to English pages; other languages keep their own wording.
+- **Where it runs:** `NavPreview` in `@figbud/site-kit`, used by the corporate header and the product renderer. Stored as `nav_previews` in the website's settings.
+
 ## Security & Authentication (P13, 5 Nov 2026)
 
 Settings → **Security & Authentication** (also in the account menu), for every role and only for one's own account. The rules are in [SECURITY.md](SECURITY.md).

@@ -12,6 +12,8 @@ import {
   BrandLogo,
   type BrandProfile,
   LanguageSwitcher,
+  NavPreview,
+  type NavPreviewContent,
   ProductIdentity,
   ProductLogo,
   productLogoKind,
@@ -27,6 +29,8 @@ type HeaderProps = {
   products: Dictionary["products"];
   /** Published brand profiles by website slug (Admin → Websites → Branding). */
   brands: Record<string, BrandProfile | null>;
+  /** Published hover previews by menu key (UI-NAV2); links without one have none. */
+  previews?: Record<string, NavPreviewContent>;
 };
 
 const navItems = [
@@ -37,7 +41,7 @@ const navItems = [
   { key: "contact", path: routes.contact },
 ] as const;
 
-export function SiteHeader({ locale, common, products, brands }: HeaderProps) {
+export function SiteHeader({ locale, common, products, brands, previews = {} }: HeaderProps) {
   const pathname = usePathname();
   const current = stripLocale(pathname);
   // Articles are separate in each language (their own addresses), so other
@@ -87,19 +91,21 @@ export function SiteHeader({ locale, common, products, brands }: HeaderProps) {
                 </li>
               ) : (
                 <li key={item.key}>
-                  <Link
-                    href={localizePath(locale, item.path)}
-                    aria-current={isActive(item.path) ? "page" : undefined}
-                    className={cn(
-                      "relative inline-flex min-h-11 items-center rounded-full px-4 text-[0.95rem] transition-colors",
-                      isActive(item.path) ? "text-text" : "text-muted hover:text-text",
-                    )}
-                  >
-                    {common.nav[item.key]}
-                    {isActive(item.path) && (
-                      <span aria-hidden className="absolute inset-x-4 -bottom-0.5 h-px bg-accent" />
-                    )}
-                  </Link>
+                  <NavPreview preview={previews[item.key]}>
+                    <Link
+                      href={localizePath(locale, item.path)}
+                      aria-current={isActive(item.path) ? "page" : undefined}
+                      className={cn(
+                        "relative inline-flex min-h-11 items-center rounded-full px-4 text-[0.95rem] transition-colors",
+                        isActive(item.path) ? "text-text" : "text-muted hover:text-text",
+                      )}
+                    >
+                      {common.nav[item.key]}
+                      {isActive(item.path) && (
+                        <span aria-hidden className="absolute inset-x-4 -bottom-0.5 h-px bg-accent" />
+                      )}
+                    </Link>
+                  </NavPreview>
                 </li>
               ),
             )}
@@ -131,6 +137,7 @@ export function SiteHeader({ locale, common, products, brands }: HeaderProps) {
             products={products}
             brands={brands}
             isActive={isActive}
+            previews={previews}
           />
         </div>
       </div>
@@ -269,6 +276,7 @@ function MobileMenu({
   products,
   brands,
   isActive,
+  previews = {},
 }: HeaderProps & { pathname: string; isActive: (path: string) => boolean }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const open = () => dialogRef.current?.showModal();
@@ -310,16 +318,20 @@ function MobileMenu({
           <nav aria-label={common.nav.label} className="px-5 pt-4 sm:px-8">
             <ul className="space-y-1">
               {navItems.map((item) => (
-                <li key={item.key}>
+                <li key={item.key} className="border-b border-line">
                   <Link
                     href={localizePath(locale, item.path)}
                     onClick={close}
                     aria-current={isActive(item.path) ? "page" : undefined}
-                    className="flex min-h-12 items-center justify-between border-b border-line py-3 text-2xl font-medium tracking-tight text-muted transition-colors hover:text-text aria-[current]:text-text"
+                    className="flex min-h-12 items-center justify-between py-3 text-2xl font-medium tracking-tight text-muted transition-colors hover:text-text aria-[current]:text-text"
                   >
                     {common.nav[item.key]}
                     {isActive(item.path) && <span aria-hidden className="size-1.5 rounded-full bg-accent" />}
                   </Link>
+                  {/* Phones have no hover: the supporting line sits under the link instead. */}
+                  {previews[item.key]?.description && (
+                    <p className="-mt-1 pb-3 text-sm text-subtle">{previews[item.key]!.description}</p>
+                  )}
                 </li>
               ))}
             </ul>

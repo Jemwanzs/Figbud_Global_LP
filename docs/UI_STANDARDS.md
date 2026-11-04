@@ -38,6 +38,10 @@ Outfit throughout. Long titles use `text-balance` so lines break evenly. Body co
 ## Changes in UI-SP1 (30 Oct 2026)
 
 - **Home hero:** header-to-hero spacing about halved (80px → about 48px on desktop); bottom padding 112px → 64px.
+- **Hover previews (menu, UI-NAV2):**
+  - Informational only, never a second dropdown: no links inside, no tab stop, no focus trap.
+  - Open on mouse hover after a short delay and on keyboard focus, never on touch. Escape dismisses, and the card stays open while the pointer is on it.
+  - Always the opposite theme (`InverseTheme`), kept inside the viewport, with no animation under reduced motion.
 - **Scroll-driven sections (Our Platforms, UI-MO5):**
   - Pin only what fits the screen whole (scale it to no less than 70%); otherwise fall back to the normal component.
   - Drive motion from scroll progress with passive listeners and one write per frame; never intercept wheel, trackpad or touch.

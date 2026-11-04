@@ -35,6 +35,9 @@ const toForm = (s: Partial<WebsiteSettings>): WebsiteSettings => ({
   },
   // Edited in Our Platforms; sent back unchanged so saving here never resets it.
   ...(s.showcase ? { showcase: s.showcase } : {}),
+  // Edited in Hover Previews; likewise.
+  ...(s.nav_previews ? { nav_previews: s.nav_previews } : {}),
+  ...(s.nav_previews_draft ? { nav_previews_draft: s.nav_previews_draft } : {}),
 });
 
 const HEX = /^#[0-9a-f]{6}$/i;
@@ -294,6 +297,16 @@ export function WebsiteSettingsForm({
 
       <fieldset className="space-y-5">
         <legend className="font-semibold text-text">Navigation</legend>
+        <p className="rounded-2xl border border-line p-4 text-sm text-muted">
+          The small cards that appear when someone hovers over a menu link are set in{" "}
+          <Link
+            href={`/admin/sites/${slug}/nav-previews`}
+            className="font-medium text-accent-strong underline"
+          >
+            Hover Previews
+          </Link>
+          .
+        </p>
         <div role="radiogroup" aria-label="Menu" className="grid gap-3 sm:grid-cols-2">
           {(
             [

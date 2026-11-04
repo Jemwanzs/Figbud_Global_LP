@@ -187,6 +187,107 @@ impl Default for Showcase {
 
 const MAX_ORDER: usize = 12;
 
+/// The small floating cards under ordinary menu links (UI-NAV2). Text only,
+/// from a fixed set of icons; they never contain links or markup.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[serde(default, deny_unknown_fields)]
+pub struct NavPreviews {
+    /// The website-wide switch. Off: no previews on any menu link.
+    pub enabled: bool,
+    pub items: Vec<NavPreviewItem>,
+}
+
+impl Default for NavPreviews {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            items: Vec::new(),
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[serde(default, deny_unknown_fields)]
+pub struct NavPreviewItem {
+    /// Which menu link: a corporate menu key ("about") or a page path ("/platform").
+    pub key: String,
+    pub enabled: bool,
+    pub icon: Option<String>,
+    pub headline: Option<String>,
+    pub description: Option<String>,
+}
+
+impl Default for NavPreviewItem {
+    fn default() -> Self {
+        Self {
+            key: String::new(),
+            enabled: true,
+            icon: None,
+            headline: None,
+            description: None,
+        }
+    }
+}
+
+/// Must match `NAV_PREVIEW_ICONS` in `packages/site-kit/src/brand.ts`.
+const NAV_PREVIEW_ICONS: &[&str] = &[
+    "sparkles",
+    "compass",
+    "book-open",
+    "message-circle",
+    "building",
+    "users",
+    "layers",
+    "rocket",
+    "shield",
+    "chart",
+    "globe",
+    "wallet",
+    "calendar",
+    "briefcase",
+    "phone",
+    "lightbulb",
+];
+const MAX_PREVIEW_ITEMS: usize = 16;
+
+fn check_nav_previews(errors: &mut Vec<FieldError>, previews: &mut NavPreviews, field: &'static str) {
+    if previews.items.len() > MAX_PREVIEW_ITEMS {
+        errors.push(FieldError {
+            field,
+            code: "too_many",
+            message: "Up to 16 menu links can have previews.",
+        });
+    }
+    let mut seen = std::collections::HashSet::new();
+    for item in &mut previews.items {
+        item.key = item.key.trim().to_owned();
+        let valid_key = !item.key.is_empty()
+            && item.key.len() <= 200
+            && !item.key.contains(['<', '>', '"'])
+            && seen.insert(item.key.clone());
+        if !valid_key {
+            errors.push(FieldError {
+                field,
+                code: "key",
+                message: "Each menu link can have one preview.",
+            });
+        }
+        optional_text(errors, &mut item.headline, field, 60);
+        optional_text(errors, &mut item.description, field, 120);
+        if item
+            .icon
+            .as_deref()
+            .is_some_and(|icon| !NAV_PREVIEW_ICONS.contains(&icon))
+        {
+            errors.push(FieldError {
+                field,
+                code: "icon",
+                message: "Choose one of the offered icons.",
+            });
+        }
+    }
+}
+
 fn valid_slug(slug: &str) -> bool {
     !slug.is_empty()
         && slug.len() <= 40
@@ -204,6 +305,10 @@ pub struct WebsiteSettings {
     pub theme: Theme,
     pub motion: Motion,
     pub showcase: Showcase,
+    /// What the website shows.
+    pub nav_previews: NavPreviews,
+    /// Saved in the Studio but not published: never sent to the websites.
+    pub nav_previews_draft: Option<NavPreviews>,
 }
 
 /// Body and muted text colours of the light theme (packages/brand/src/tokens.css).
@@ -328,6 +433,10 @@ impl WebsiteSettings {
                 message: "Between 6 and 20 seconds, so visitors have time to read.",
             });
         }
+        check_nav_previews(&mut e, &mut self.nav_previews, "nav_previews");
+        if let Some(draft) = &mut self.nav_previews_draft {
+            check_nav_previews(&mut e, draft, "nav_previews");
+        }
         let order = &mut self.showcase.order;
         for slug in order.iter_mut() {
             *slug = slug.trim().to_ascii_lowercase();
@@ -359,6 +468,7 @@ impl WebsiteSettings {
             "theme": self.theme,
             "motion": self.motion,
             "showcase": self.showcase,
+            "nav_previews": self.nav_previews,
         })
     }
 }
@@ -581,6 +691,41 @@ mod tests {
         assert!(settings.clone().normalise(false).is_ok());
         let errors = settings.normalise(true).unwrap_err();
         assert_eq!(errors[0].field, "enquiries.open");
+    }
+
+    #[test]
+    fn nav_previews_are_checked_and_drafts_never_reach_the_websites() {
+        let settings = WebsiteSettings::from_stored(json!({
+            "nav_previews": { "items": [{ "key": "about", "headline": " Built with purpose. ", "icon": "compass" }] },
+            "nav_previews_draft": { "enabled": false, "items": [{ "key": "about", "headline": "Unpublished" }] },
+        }))
+        .normalise(true)
+        .unwrap();
+        assert!(settings.nav_previews.enabled, "on unless switched off");
+        assert_eq!(
+            settings.nav_previews.items[0].headline.as_deref(),
+            Some("Built with purpose.")
+        );
+        let public = settings.public();
+        assert_eq!(public["nav_previews"]["items"][0]["key"], "about");
+        assert!(public.get("nav_previews_draft").is_none());
+        assert!(!public.to_string().contains("Unpublished"));
+
+        for bad in [
+            json!({ "items": [{ "key": "a", "icon": "skull" }] }),
+            json!({ "items": [{ "key": "a", "headline": "x".repeat(61) }] }),
+            json!({ "items": [{ "key": "a", "description": "x".repeat(121) }] }),
+            json!({ "items": [{ "key": "a" }, { "key": "a" }] }),
+            json!({ "items": [{ "key": "<b>" }] }),
+            json!({ "items": [{ "key": "" }] }),
+        ] {
+            let draft = WebsiteSettings::from_stored(json!({ "nav_previews_draft": bad.clone() }));
+            assert_eq!(
+                draft.normalise(false).unwrap_err()[0].field,
+                "nav_previews",
+                "{bad}"
+            );
+        }
     }
 
     #[test]

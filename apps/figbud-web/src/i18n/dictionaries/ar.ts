@@ -20,6 +20,28 @@ const ar: DeepPartial<Dictionary> = {
       blog: "المدونة",
       contact: "تواصل معنا",
     },
+    navPreviews: {
+      home: {
+        icon: "sparkles",
+        headline: "حيث تتحول الأفكار إلى أثر.",
+        description: "اكتشف التقنية التي تدعم أعمالًا أكثر ذكاءً.",
+      },
+      about: {
+        icon: "compass",
+        headline: "بُني بهدف. وصُمم للتقدم.",
+        description: "تعرّف على الفكر الذي يقف وراء FigBud Global.",
+      },
+      blog: {
+        icon: "book-open",
+        headline: "أفكار جديدة. خطوات أذكى.",
+        description: "أفكار ورؤى وقصص من عالم التقنية.",
+      },
+      contact: {
+        icon: "message-circle",
+        headline: "الأفكار الكبيرة تبدأ بحوار.",
+        description: "أخبرنا بما تبنيه، وسنتولى الأمر من هناك.",
+      },
+    },
     productsMenu: { title: "منصاتنا", viewAll: "عرض جميع المنتجات" },
     cta: {
       letsTalk: "لنتحدث",

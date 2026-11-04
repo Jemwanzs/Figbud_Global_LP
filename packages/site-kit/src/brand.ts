@@ -51,6 +51,85 @@ export interface WebsiteSettings {
   motion?: { product_rotation: boolean; rotation_seconds: number };
   /** Our Platforms on the corporate home page (UI-MO5). */
   showcase?: Partial<ShowcaseSettings>;
+  /** Hover previews on the menu (UI-NAV2), as published. */
+  nav_previews?: NavPreviewSettings;
+  /** Saved in the Studio, not published; only the Studio ever receives it. */
+  nav_previews_draft?: NavPreviewSettings | null;
+}
+
+/** Must match `NAV_PREVIEW_ICONS` in `services/api/src/site_settings.rs`. */
+export const NAV_PREVIEW_ICONS = [
+  "sparkles",
+  "compass",
+  "book-open",
+  "message-circle",
+  "building",
+  "users",
+  "layers",
+  "rocket",
+  "shield",
+  "chart",
+  "globe",
+  "wallet",
+  "calendar",
+  "briefcase",
+  "phone",
+  "lightbulb",
+] as const;
+export type NavPreviewIcon = (typeof NAV_PREVIEW_ICONS)[number];
+
+export interface NavPreviewItem {
+  /** A corporate menu key ("about") or a page path ("/platform"). */
+  key: string;
+  enabled?: boolean;
+  icon?: string | null;
+  headline?: string | null;
+  description?: string | null;
+}
+
+export interface NavPreviewSettings {
+  /** The website-wide switch; on unless switched off. */
+  enabled?: boolean;
+  items?: NavPreviewItem[];
+}
+
+/** What one preview shows. */
+export interface NavPreviewContent {
+  icon: string;
+  headline: string;
+  description: string;
+}
+
+const hasIcon = (icon?: string | null): icon is NavPreviewIcon =>
+  (NAV_PREVIEW_ICONS as readonly string[]).includes(icon ?? "");
+
+/**
+ * The previews a website's menu shows, by menu key. `defaults` is the
+ * website's own approved wording (FigBud Global has some; product websites
+ * start with none, so nothing is copied between them). The Studio's wording
+ * replaces it where `useEdits` allows; a link with no headline shows nothing.
+ */
+export function resolveNavPreviews(
+  settings: NavPreviewSettings | null | undefined,
+  defaults: Record<string, NavPreviewContent> = {},
+  useEdits = true,
+): Record<string, NavPreviewContent> {
+  if (settings?.enabled === false) return {};
+  const items = new Map((settings?.items ?? []).map((item) => [item.key, item]));
+  const out: Record<string, NavPreviewContent> = {};
+  for (const key of new Set([...Object.keys(defaults), ...items.keys()])) {
+    const item = items.get(key);
+    if (item?.enabled === false) continue;
+    const base = defaults[key];
+    const headline = (useEdits ? item?.headline : null) || base?.headline;
+    if (!headline) continue;
+    out[key] = {
+      icon: hasIcon(item?.icon) ? item.icon : (base?.icon ?? "sparkles"),
+      headline,
+      description: (useEdits ? item?.description : null) || base?.description || "",
+    };
+  }
+  return out;
 }
 
 /**

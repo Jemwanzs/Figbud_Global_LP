@@ -312,3 +312,28 @@ test("pricing stays off the website until switched on: a request-a-quote page in
   await expect(page.getByText(/KES/)).toHaveCount(0);
   await expect(page.getByRole("radiogroup", { name: "Billing cycle" })).toHaveCount(0);
 });
+
+test("a product website shows its own hover previews, never FigBud Global's wording", async ({
+  page,
+  isMobile,
+}) => {
+  test.skip(isMobile, "hover needs a mouse");
+  await page.goto("/ziwa");
+  const nav = page.getByRole("navigation", { name: "Ziwa LMS navigation" });
+  const platform = nav.getByRole("link", { name: "Platform" });
+  await expect(platform).toHaveAttribute("aria-describedby", /.+/, { timeout: 20_000 });
+  await platform.hover();
+  const card = page.locator('[role="tooltip"]:visible');
+  await expect(card).toContainText("One platform for lending operations.");
+  const theme = await page.locator("html").getAttribute("data-theme");
+  await expect(card.locator("[data-inverse]")).toHaveAttribute(
+    "data-theme",
+    theme === "dark" ? "light" : "dark",
+  );
+  await expect(page.locator("body")).not.toContainText("Where ideas become impact.");
+  // Links it hasn't written a preview for simply have none.
+  const others = nav.getByRole("link").filter({ hasNotText: "Platform" });
+  if (await others.count()) await expect(others.first()).not.toHaveAttribute("aria-describedby", /.+/);
+  await platform.click();
+  await expect(page).toHaveURL(/\/ziwa\/platform$/);
+});

@@ -20,6 +20,28 @@ const zh: DeepPartial<Dictionary> = {
       blog: "博客",
       contact: "联系我们",
     },
+    navPreviews: {
+      home: {
+        icon: "sparkles",
+        headline: "让想法成为影响力。",
+        description: "探索助力企业更智慧运营的技术。",
+      },
+      about: {
+        icon: "compass",
+        headline: "因使命而生，为进步而造。",
+        description: "了解 FigBud Global 背后的理念。",
+      },
+      blog: {
+        icon: "book-open",
+        headline: "新思路，更明智的行动。",
+        description: "来自科技世界的观点、洞察与故事。",
+      },
+      contact: {
+        icon: "message-circle",
+        headline: "伟大的想法始于一次对话。",
+        description: "告诉我们您在构建什么，接下来交给我们。",
+      },
+    },
     productsMenu: { title: "我们的平台", viewAll: "查看全部产品" },
     cta: {
       letsTalk: "联系我们",

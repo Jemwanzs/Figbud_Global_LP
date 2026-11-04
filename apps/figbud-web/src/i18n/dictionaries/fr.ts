@@ -20,6 +20,28 @@ const fr: DeepPartial<Dictionary> = {
       blog: "Blog",
       contact: "Contact",
     },
+    navPreviews: {
+      home: {
+        icon: "sparkles",
+        headline: "Là où les idées deviennent impact.",
+        description: "Découvrez la technologie au service d'entreprises plus intelligentes.",
+      },
+      about: {
+        icon: "compass",
+        headline: "Pensé avec sens. Conçu pour le progrès.",
+        description: "Découvrez la réflexion derrière FigBud Global.",
+      },
+      blog: {
+        icon: "book-open",
+        headline: "Idées neuves. Choix plus avisés.",
+        description: "Idées, analyses et récits du monde de la technologie.",
+      },
+      contact: {
+        icon: "message-circle",
+        headline: "Les grandes idées naissent d'une conversation.",
+        description: "Dites-nous ce que vous construisez. Nous prendrons le relais.",
+      },
+    },
     productsMenu: { title: "Nos plateformes", viewAll: "Voir tous les produits" },
     cta: {
       letsTalk: "Parlons-en",

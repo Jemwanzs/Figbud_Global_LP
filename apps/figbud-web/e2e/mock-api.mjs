@@ -311,6 +311,8 @@ const seedSite = (n, slug, kind, name, tagline, category, template, status) => (
     theme: { brand_section: null, soft_section: null },
     motion: { product_rotation: false, rotation_seconds: 9 },
     showcase: { ...SHOWCASE_DEFAULT },
+    nav_previews: { enabled: true, items: [] },
+    nav_previews_draft: null,
   },
   settings_version: 1,
 });
@@ -385,6 +387,19 @@ Object.assign(sites[2].settings, {
 // The admin row has no settings: they have their own endpoint (sites/{slug}/settings).
 // Ziwa LMS's brown and ivory section bands (migration 14).
 sites[4].settings.theme = { brand_section: "#4e2d17", soft_section: "#fdf9f4" };
+// A product website's own hover preview (UI-NAV2), for the renderer's tests.
+sites[4].settings.nav_previews = {
+  enabled: true,
+  items: [
+    {
+      key: "/platform",
+      enabled: true,
+      icon: "layers",
+      headline: "One platform for lending operations.",
+      description: "See how Ziwa LMS fits together.",
+    },
+  ],
+};
 const siteRow = ({ requests, ...s }) => ({
   ...Object.fromEntries(Object.entries(s).filter(([k]) => !["settings", "settings_version"].includes(k))),
   pending_to_status: requests.find((r) => r.decision === "pending")?.to_status ?? null,
@@ -400,6 +415,8 @@ const publicSites = () =>
           ([k]) => !["requests", "archived_at", "version", "settings_version"].includes(k),
         ),
       ),
+      // Drafts never reach the websites.
+      settings: Object.fromEntries(Object.entries(s.settings).filter(([k]) => k !== "nav_previews_draft")),
       cta: SITE_CTA[s.status],
       brand: publishedBrand(s.slug),
       seo: seoPublic(siteSeo(s.slug)),
@@ -3950,7 +3967,18 @@ function siteSettingsRoutes(slug, req, body, user, send) {
   next.theme ??= { brand_section: null, soft_section: null };
   next.motion ??= { product_rotation: false, rotation_seconds: 9 };
   next.showcase = { ...SHOWCASE_DEFAULT, ...next.showcase };
+  next.nav_previews = { enabled: true, items: [], ...next.nav_previews };
+  next.nav_previews_draft ??= null;
   const fields = [];
+  // Hover previews (site_settings.rs check_nav_previews).
+  for (const previews of [next.nav_previews, next.nav_previews_draft]) {
+    for (const item of previews?.items ?? []) {
+      if ((item.headline ?? "").trim().length > 60)
+        fields.push({ field: "nav_previews", code: "length", message: "That text is too long." });
+      if ((item.description ?? "").trim().length > 120)
+        fields.push({ field: "nav_previews", code: "length", message: "That text is too long." });
+    }
+  }
   // Our Platforms (site_settings.rs Showcase): fixed choices, each product listed once.
   const choices = {
     intensity: ["subtle", "standard", "bold"],

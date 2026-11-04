@@ -1,6 +1,6 @@
 "use client";
 
-import { BrandLogo, type BrandPair } from "@figbud/site-kit";
+import { BrandLogo, type BrandPair, NavPreview, type NavPreviewContent } from "@figbud/site-kit";
 import { ThemeToggle, buttonClasses, cn } from "@figbud/ui";
 import { ArrowRight } from "lucide-react";
 import { usePathname } from "next/navigation";
@@ -8,6 +8,8 @@ import { usePathname } from "next/navigation";
 export interface NavLink {
   href: string;
   label: string;
+  /** This website's own hover preview, if it has one (UI-NAV2). */
+  preview?: NavPreviewContent;
 }
 
 /**
@@ -58,21 +60,23 @@ export function SiteHeader({
         {links.length > 0 && (
           <nav
             aria-label={`${name} navigation`}
-            className="order-last -mx-2 w-full overflow-x-auto px-2 md:order-none md:mx-0 md:w-auto md:px-0"
+            className="order-last -mx-2 w-full overflow-x-auto px-2 md:order-none md:mx-0 md:w-auto md:overflow-visible md:px-0"
           >
             <ul className="flex gap-1">
               {links.map((link) => (
                 <li key={link.href}>
-                  <a
-                    href={link.href}
-                    aria-current={isActive(link.href) ? "page" : undefined}
-                    className={cn(
-                      "inline-flex min-h-11 items-center rounded-full px-3.5 text-sm whitespace-nowrap transition-colors",
-                      isActive(link.href) ? "bg-surface-2 text-text" : "text-muted hover:text-text",
-                    )}
-                  >
-                    {link.label}
-                  </a>
+                  <NavPreview preview={link.preview}>
+                    <a
+                      href={link.href}
+                      aria-current={isActive(link.href) ? "page" : undefined}
+                      className={cn(
+                        "inline-flex min-h-11 items-center rounded-full px-3.5 text-sm whitespace-nowrap transition-colors",
+                        isActive(link.href) ? "bg-surface-2 text-text" : "text-muted hover:text-text",
+                      )}
+                    >
+                      {link.label}
+                    </a>
+                  </NavPreview>
                 </li>
               ))}
             </ul>

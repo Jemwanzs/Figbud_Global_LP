@@ -438,7 +438,7 @@ export function EnquiryForm({
       </div>
 
       {/* Honeypot: hidden from people and assistive technology, tempting to bots. */}
-      <div aria-hidden className="absolute -left-[9999px] h-px w-px overflow-hidden">
+      <div aria-hidden className="sr-only">
         <label>
           Website
           <input

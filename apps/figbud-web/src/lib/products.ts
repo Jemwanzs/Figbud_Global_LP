@@ -5,11 +5,13 @@ import {
   type BrandProfile,
   type ListedSite,
   type LiveCampaign,
+  type NavPreviewContent,
   type PublicProof,
   type PublishedHero,
   type ShowcaseSettings,
   type SiteSeo,
   enquiriesOpen,
+  resolveNavPreviews,
   showcaseSettings,
 } from "@figbud/site-kit";
 import {
@@ -117,6 +119,19 @@ export async function getCorporateSeo(): Promise<SiteSeo | null> {
 export async function getProductRotation(): Promise<number | null> {
   const motion = (await getListedSites())?.find((s) => s.slug === "figbud")?.settings?.motion;
   return motion?.product_rotation ? motion.rotation_seconds : null;
+}
+
+/**
+ * The corporate menu's hover previews for a language (UI-NAV2): the reviewed
+ * wording for that language, with the Studio's published edits on English
+ * pages (other languages keep their own wording until they're translated).
+ */
+export async function getNavPreviews(
+  locale: string,
+  defaults: Record<string, NavPreviewContent>,
+): Promise<Record<string, NavPreviewContent>> {
+  const settings = (await getListedSites())?.find((s) => s.slug === "figbud")?.settings;
+  return resolveNavPreviews(settings?.nav_previews, defaults, locale === "en");
 }
 
 /**

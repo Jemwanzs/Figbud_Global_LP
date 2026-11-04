@@ -23,6 +23,28 @@ const en = {
       blog: "Blog",
       contact: "Contact",
     },
+    navPreviews: {
+      home: {
+        icon: "sparkles",
+        headline: "Where ideas become impact.",
+        description: "Explore the technology powering smarter businesses.",
+      },
+      about: {
+        icon: "compass",
+        headline: "Built with purpose. Engineered for progress.",
+        description: "Meet the thinking behind FigBud Global.",
+      },
+      blog: {
+        icon: "book-open",
+        headline: "Fresh thinking. Smarter moves.",
+        description: "Ideas, insights and stories from the world of technology.",
+      },
+      contact: {
+        icon: "message-circle",
+        headline: "Big ideas start with a conversation.",
+        description: "Tell us what you're building. We'll take it from there.",
+      },
+    },
     productsMenu: {
       title: "Our platforms",
       viewAll: "View all products",

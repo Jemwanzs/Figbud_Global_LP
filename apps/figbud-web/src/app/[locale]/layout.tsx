@@ -18,7 +18,7 @@ import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { getDictionary } from "@/i18n/get-dictionary";
 import { getPrivacySettings } from "@/lib/privacy";
-import { getBrands, getCorporateSeo, getLiveCampaigns } from "@/lib/products";
+import { getBrands, getCorporateSeo, getLiveCampaigns, getNavPreviews } from "@/lib/products";
 import { allowIndexing, apiOrigin, siteOrigin } from "@/lib/site";
 
 import "../globals.css";
@@ -137,7 +137,13 @@ export default async function LocaleLayout({ children, params }: LayoutProps<"/[
             product="figbud"
           >
             <CampaignSlot placement="announcement_bar" />
-            <SiteHeader locale={locale} common={dict.common} products={dict.products} brands={brands} />
+            <SiteHeader
+              locale={locale}
+              common={dict.common}
+              products={dict.products}
+              brands={brands}
+              previews={await getNavPreviews(locale, dict.common.navPreviews)}
+            />
             <CampaignSlot
               placement="below_nav"
               className="mx-auto block w-full max-w-[92rem] px-5 pt-4 sm:px-8 md:px-10 lg:px-16"

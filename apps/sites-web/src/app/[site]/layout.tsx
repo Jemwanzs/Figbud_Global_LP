@@ -7,6 +7,7 @@ import {
   ENGLISH_CONSENT_LABELS,
   brandIcons,
   enquiriesOpen,
+  resolveNavPreviews,
   siteThemeStyle,
   verificationMeta,
 } from "@figbud/site-kit";
@@ -95,12 +96,22 @@ export default async function SiteLayout({ children, params }: LayoutProps<"/[si
   const campaigns = await getLiveCampaigns(slug);
   // The menu: the Studio's own links, or the published pages marked for navigation.
   const navigation = site.settings?.navigation;
+  // Each website's own hover previews (UI-NAV2); none until it writes some.
+  const previews = resolveNavPreviews(site.settings?.nav_previews);
   const links =
     navigation?.mode === "custom"
-      ? navigation.items.map((l) => ({ href: siteLinkHref(slug, ownDomain, l.href), label: l.label }))
+      ? navigation.items.map((l) => ({
+          href: siteLinkHref(slug, ownDomain, l.href),
+          label: l.label,
+          preview: previews[l.href],
+        }))
       : pages
           .filter((p) => p.path !== "" && p.show_in_nav !== false)
-          .map((p) => ({ href: pageHref(slug, ownDomain, p.path), label: p.title }));
+          .map((p) => ({
+            href: pageHref(slug, ownDomain, p.path),
+            label: p.title,
+            preview: previews[`/${p.path}`],
+          }));
   const footer = site.settings?.footer;
   const footerLinks = (footer?.links ?? []).map((l) => ({
     href: siteLinkHref(slug, ownDomain, l.href),

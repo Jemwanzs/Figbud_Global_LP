@@ -627,6 +627,38 @@
   font-family: var(--font-flags, ""), "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
 }
 
+/* Hover previews on the menu (UI-NAV2): a short rise and fade each time one
+   opens; none with reduced motion. --nav-shift keeps it on screen while the
+   pointer stays under its link. */
+.fb-nav-preview {
+  translate: calc(-50% + var(--nav-shift, 0px)) 0;
+  animation: fb-nav-preview var(--motion-base) var(--motion-ease) both;
+}
+.fb-nav-preview-arrow {
+  translate: calc(-50% - var(--nav-shift, 0px)) 0;
+}
+.fb-nav-preview-go {
+  animation: fb-nav-preview-go calc(var(--motion-base) * 2) var(--motion-ease) both;
+}
+@keyframes fb-nav-preview {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+  }
+}
+@keyframes fb-nav-preview-go {
+  from {
+    opacity: 0;
+    transform: translateX(-6px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fb-nav-preview,
+  .fb-nav-preview-go {
+    animation: none;
+  }
+}
+
 /* Dropdowns in the opposite theme (InverseTheme) are opaque, so no page
    colour bleeds through: deep navy on light pages, white on dark pages. */
 .fb-panel[data-inverse] {
