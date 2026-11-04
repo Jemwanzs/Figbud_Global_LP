@@ -518,6 +518,20 @@ Scope: a reusable Hero Design Studio. Each website gets its own collection of he
 | P12-H5 | ZiraHR Variants 01 (Your Workforce, Connected), 02 (Payroll in Motion) and 03 (The Employee Journey), synthetic demonstrations labelled, rendered by the product renderer in place of the home page's leading hero once published | ✅ · live with the renderer deployment (approval needed) |
 | P12-H6 | Collections for Jasiri LMS, Ziwa LMS, Expense Now and future products (designed per product, never copied) | ⬜ |
 
+### Phase 13 — Admin sign-in and account security 🔄
+
+Scope: password sign-in with mandatory two-factor alongside passkeys, recovery, and each administrator's Security & Authentication settings, without changing passkeys, roles or website access. Specification: [SECURITY.md](SECURITY.md).
+
+| ID     | Task | Status |
+| ------ | ---- | ------ |
+| P13-A1 | Password sign-in on any authorised device: Argon2id hashing, show/hide, per-IP rate limit, 15-minute pause after 5 failures (passkeys never affected) | ✅ |
+| P13-A2 | Mandatory two-factor with passwords: authenticator-app codes (TOTP, encrypted at rest, no code reuse), QR setup, 10 single-use recovery codes; enforced by the API and a database constraint | ✅ · live once `ADMIN_SECRETS_KEY` is set on `figbud-api` (owner action) |
+| P13-A3 | Enrolment for existing passkey administrators, after an identity check (passkey, or password plus code; 10 minutes). No default passwords | ✅ |
+| P13-A4 | Recovery: single-use links (1 hour by email, 24 hours from an owner) that never skip two-factor; accounts without two-factor can't be recovered by email alone | ✅ · email route live with Q4 (Resend); owner route works today |
+| P13-A5 | Studio → Settings → Security & Authentication: password, two-factor, recovery codes, passkeys (register, remove), active sessions and devices (sign out one or all others), security activity | ✅ |
+| P13-A6 | Login card (mobile first, light and dark, both methods in view) and no account enumeration, including the existing passkey message that revealed accounts | ✅ |
+| P13-A7 | Trusted devices (optional) | ⏸ Deliberately not built; see SECURITY.md §5 |
+
 ## 7. Milestones
 
 | Milestone                          | Contents                                    | Exit criteria                                         | Status |
@@ -560,6 +574,13 @@ Scope: a reusable Hero Design Studio. Each website gets its own collection of he
 
 | Date        | Change                                                                                                   |
 | ----------- | -------------------------------------------------------------------------------------------------------- |
+| 5 Nov 2026 | Admin sign-in and account security (P13-A1–A6):
+- **Sign-in:** administrators choose a password or a passkey. A password always needs an authenticator code or a recovery code, so it works on any authorised device without weakening access. Passkeys work as before.
+- **Enrolment:** Settings → Security & Authentication, after confirming identity. Two-factor comes first; there are no default passwords.
+- **Recovery:** single-use links that never skip two-factor. Email links go live with Resend (Q4); until then, owners create a link in Team & access.
+- **Settings:** passkeys, recovery codes, active sessions and devices with sign-out, and security activity.
+- **Fixed:** the passkey sign-in message revealed whether an account existed; it no longer does. Sign-out now discards everything held in the browser.
+- **New production variable:** `ADMIN_SECRETS_KEY` on `figbud-api`. Until it's set, the Studio stays passkey-only and says so. |
 | 1 Nov 2026 | Scroll-driven Our Platforms (UI-MO5):
 - **Desktop:** the product showcase stays in view while scrolling down moves through the products, then the page carries on. Scrolling back up retraces them.
 - **Motion:** continuous and driven by scroll progress, not one animation per wheel turn. Products rest in place around each stop, with subtle depth and fade. Nothing intercepts the wheel, trackpad or touch.

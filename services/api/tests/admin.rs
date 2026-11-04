@@ -230,13 +230,47 @@ async fn ceremonies_cannot_be_replayed_or_forged() {
         assert_eq!(status, StatusCode::UNAUTHORIZED);
     }
 
-    let (status, _, _) = a
+    // An unknown email gets the same kind of answer as a real one, and it can't sign in.
+    let nobody = unique_email("nobody");
+    let (status, _, decoy) = a.post("/v1/admin/login/start", json!({ "email": nobody })).await;
+    assert_eq!(status, StatusCode::OK);
+    let (_, _, real) = a.post("/v1/admin/login/start", json!({ "email": email })).await;
+    let keys = |v: &Value| {
+        let mut k: Vec<String> = v["options"]["publicKey"]
+            .as_object()
+            .unwrap()
+            .keys()
+            .cloned()
+            .collect();
+        k.sort();
+        k
+    };
+    assert_eq!(
+        keys(&decoy),
+        keys(&real),
+        "indistinguishable shape: {decoy} vs {real}"
+    );
+    assert_eq!(
+        decoy["options"]["publicKey"]["userVerification"],
+        real["options"]["publicKey"]["userVerification"]
+    );
+    let (_, _, again) = a.post("/v1/admin/login/start", json!({ "email": nobody })).await;
+    assert_eq!(
+        decoy["options"]["publicKey"]["allowCredentials"], again["options"]["publicKey"]["allowCredentials"],
+        "stable, like a real account's credentials"
+    );
+    let (status, cookie, _) = a
         .post(
-            "/v1/admin/login/start",
-            json!({ "email": unique_email("nobody") }),
+            "/v1/admin/login/finish",
+            json!({ "challenge_id": decoy["challenge_id"], "credential": {
+                "id": "AA", "rawId": "AA", "type": "public-key",
+                "response": { "authenticatorData": "AA", "clientDataJSON": "AA", "signature": "AA" },
+                "extensions": {},
+            } }),
         )
         .await;
     assert_eq!(status, StatusCode::UNAUTHORIZED);
+    assert_eq!(cookie, None);
     let (status, _, _) = a
         .send(
             "POST",

@@ -170,7 +170,7 @@ export function describePasskeyError(error: unknown): string {
   if (error instanceof AdminError) return error.message;
   if (error instanceof DOMException) {
     if (error.name === "NotAllowedError")
-      return "The passkey prompt was dismissed or timed out. Please try again.";
+      return "No passkey was used. The prompt may have been dismissed, or this device may not have a passkey for that email. Try again, or continue with your password.";
     if (error.name === "InvalidStateError")
       return "This device already has a passkey for your account. Sign in instead.";
     if (error.name === "SecurityError") return "Passkeys need a secure (https) connection on this address.";

@@ -1,7 +1,8 @@
 "use client";
 
 import { ThemeToggle, cn } from "@figbud/ui";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, ShieldCheck } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useId, useRef, useState } from "react";
 
 import { type AdminUser, ROLE_LABELS } from "@/lib/admin-client";
@@ -93,6 +94,13 @@ export function AccountMenu({ user }: { user: AdminUser }) {
           <ThemeToggle labels={{ toLight: "Switch to light theme", toDark: "Switch to dark theme" }} />
         </div>
         <div className="border-t border-line pt-2">
+          <Link
+            href="/admin/settings/security"
+            className="flex min-h-11 items-center gap-2.5 rounded-xl px-3 text-sm text-text hover:bg-surface-2"
+          >
+            <ShieldCheck aria-hidden className="size-4 text-muted" />
+            Security & sign-in
+          </Link>
           <SignOutButton />
         </div>
       </div>

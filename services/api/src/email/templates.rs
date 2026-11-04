@@ -11,6 +11,84 @@ pub struct RenderedEmail {
     pub text: String,
 }
 
+/// A short message about someone's own account, with an optional button.
+fn account_email(
+    template: &'static str,
+    subject: &str,
+    name: &str,
+    paragraphs: &[&str],
+    action: Option<(&str, &str)>,
+) -> RenderedEmail {
+    let first_name = name.split_whitespace().next().unwrap_or(name);
+    let mut text = format!("Hello {first_name},\n\n");
+    let mut html = format!(
+        "<div style=\"font-family:Arial,sans-serif;font-size:16px;line-height:1.6;color:#0f172a\"><p>Hello {},</p>",
+        escape_html(first_name)
+    );
+    for paragraph in paragraphs {
+        text.push_str(paragraph);
+        text.push_str("\n\n");
+        html.push_str(&format!("<p>{}</p>", escape_html(paragraph)));
+    }
+    if let Some((label, url)) = action {
+        text.push_str(&format!("{label}: {url}\n\n"));
+        html.push_str(&format!(
+            "<p><a href=\"{}\" style=\"color:#15803d;font-weight:600\">{}</a></p>",
+            escape_html(url),
+            escape_html(label)
+        ));
+    }
+    text.push_str("FigBud Global");
+    html.push_str("<p>FigBud Global</p></div>");
+    RenderedEmail {
+        template,
+        subject: subject.to_owned(),
+        html,
+        text,
+    }
+}
+
+pub fn password_recovery(name: &str, url: &str, minutes: u32) -> RenderedEmail {
+    let expires = format!("This link works once and expires in {minutes} minutes.");
+    account_email(
+        "admin_password_recovery",
+        "Reset your FigBud Studio password",
+        name,
+        &[
+            "Someone asked to reset your FigBud Studio password. Use the link below to choose a new one.",
+            &expires,
+            "You'll still need your authenticator app to sign in. If this wasn't you, you can ignore this email: your password hasn't changed.",
+        ],
+        Some(("Choose a new password", url)),
+    )
+}
+
+pub fn password_needs_passkey(name: &str, url: &str) -> RenderedEmail {
+    account_email(
+        "admin_password_needs_passkey",
+        "Signing in to FigBud Studio",
+        name,
+        &[
+            "Someone asked to reset your FigBud Studio password, but your account doesn't have a password with two-factor yet.",
+            "Sign in with your passkey, then add both under Settings, Security & Authentication. If you no longer have your passkey, ask an owner for a new invite. If this wasn't you, you can ignore this email.",
+        ],
+        Some(("Sign in", url)),
+    )
+}
+
+pub fn password_changed(name: &str) -> RenderedEmail {
+    account_email(
+        "admin_password_changed",
+        "Your FigBud Studio password was changed",
+        name,
+        &[
+            "Your FigBud Studio password was just changed, and your other sessions were signed out.",
+            "If this wasn't you, contact a FigBud owner straight away.",
+        ],
+        None,
+    )
+}
+
 pub fn team_notification(enquiry: &Enquiry, reference: &str) -> RenderedEmail {
     let product = enquiry.product.display_name();
     let who = match &enquiry.company {

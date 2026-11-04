@@ -36,6 +36,9 @@ struct Member {
     last_login_at: Option<DateTime<Utc>>,
     disabled_at: Option<DateTime<Utc>>,
     created_at: DateTime<Utc>,
+    /// Whether they can sign in with a password; never the password itself.
+    has_password: bool,
+    has_two_factor: bool,
 }
 
 async fn list(
@@ -44,7 +47,9 @@ async fn list(
 ) -> Result<impl IntoResponse, ApiError> {
     session.require(Role::Owner)?;
     let members: Vec<Member> = sqlx::query_as(
-        "SELECT id, email, name, role, all_sites, last_login_at, disabled_at, created_at FROM admin_users
+        "SELECT id, email, name, role, all_sites, last_login_at, disabled_at, created_at,
+                password_hash IS NOT NULL AS has_password, totp_confirmed_at IS NOT NULL AS has_two_factor
+           FROM admin_users
           ORDER BY disabled_at IS NOT NULL, CASE role WHEN 'owner' THEN 0 WHEN 'reviewer' THEN 1
                    WHEN 'editor' THEN 2 ELSE 3 END, name",
     )

@@ -8,8 +8,8 @@ export const metadata: Metadata = { title: "Sign in" };
 export default function AdminLoginPage() {
   return (
     <AuthCard
-      title="Sign in to FigBud Admin"
-      lead="Use the passkey on this device: your fingerprint, face or screen lock."
+      title="Welcome back to FigBud Studio"
+      lead="Your workspace, your way. Choose how you'd like to sign in."
     >
       <LoginForm />
     </AuthCard>

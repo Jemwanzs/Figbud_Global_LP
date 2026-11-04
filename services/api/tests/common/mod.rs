@@ -28,6 +28,7 @@ pub fn config(database_url: &str) -> Config {
             origin: "http://localhost:3000".parse().unwrap(),
             rp_id: "localhost".into(),
             session_ttl: Duration::from_secs(3600),
+            secrets_key: Some(figbud_api::config::SecretKey([7u8; 32])),
         }),
         email: EmailConfig {
             mode: EmailMode::Log,

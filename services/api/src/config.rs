@@ -66,6 +66,27 @@ pub struct AdminConfig {
     /// WebAuthn relying-party id: the origin's host unless overridden.
     pub rp_id: String,
     pub session_ttl: Duration,
+    /// Encrypts two-factor secrets (`ADMIN_SECRETS_KEY`). Without it passkeys
+    /// work as usual, but two-factor and passwords can't be set up or used.
+    pub secrets_key: Option<SecretKey>,
+}
+
+/// A 32-byte key that never appears in logs or debug output.
+#[derive(Clone)]
+pub struct SecretKey(pub [u8; 32]);
+
+impl std::fmt::Debug for SecretKey {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("SecretKey(redacted)")
+    }
+}
+
+impl SecretKey {
+    /// 64 hex characters (`openssl rand -hex 32`).
+    pub fn parse(raw: &str) -> Option<Self> {
+        let bytes = hex::decode(raw.trim()).ok()?;
+        Some(Self(bytes.try_into().ok()?))
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -232,10 +253,18 @@ fn parse_admin(
             reason: "expected 1..=720".into(),
         });
     }
+    let secrets_key = match optional("ADMIN_SECRETS_KEY") {
+        None => None,
+        Some(raw) => Some(SecretKey::parse(&raw).ok_or_else(|| ConfigError::Invalid {
+            name: "ADMIN_SECRETS_KEY",
+            reason: "expected 64 hex characters (openssl rand -hex 32)".into(),
+        })?),
+    };
     Ok(Some(AdminConfig {
         origin: url,
         rp_id: rp_id.unwrap_or(host),
         session_ttl: Duration::from_secs(session_hours * 3600),
+        secrets_key,
     }))
 }
 

@@ -5,7 +5,7 @@
 //   cryptography is verified by the Rust tests; here the browser's virtual
 //   authenticator runs real ceremonies and the mock checks each response's
 //   client data (type, challenge, origin) and the Origin header (CSRF).
-import { createHash, randomBytes, randomUUID } from "node:crypto";
+import { createHash, createHmac, randomBytes, randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { createServer } from "node:http";
 
@@ -85,6 +85,48 @@ const ADMIN_ORIGIN = process.env.ADMIN_ORIGIN ?? "http://localhost:3100";
 const b64url = (buf) => Buffer.from(buf).toString("base64url");
 const users = new Map(); // email -> { id, email, name, role, credentialId }
 const sessions = new Map(); // token -> email
+const sessionInfo = new Map(); // token -> { id, method, user_agent, created_at, verified }
+const resets = new Map(); // token -> { email, expires }
+const lastRecovery = new Map(); // email -> token (read by e2e through /v1/__test/recovery)
+const totpStep = () => Math.floor(Date.now() / 30000);
+const BASE32 = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+function totpCode(secret, step) {
+  let bits = 0;
+  let value = 0;
+  const bytes = [];
+  for (const c of secret) {
+    value = (value << 5) | BASE32.indexOf(c);
+    bits += 5;
+    if (bits >= 8) {
+      bits -= 8;
+      bytes.push((value >> bits) & 255);
+      value &= (1 << bits) - 1;
+    }
+  }
+  const counter = Buffer.alloc(8);
+  counter.writeBigUInt64BE(BigInt(step));
+  const digest = createHmac("sha1", Buffer.from(bytes)).update(counter).digest();
+  const offset = digest[19] & 15;
+  return String((digest.readUInt32BE(offset) & 0x7fffffff) % 1000000).padStart(6, "0");
+}
+const totpOk = (user, code) => {
+  const now = totpStep();
+  for (const step of [now - 1, now, now + 1])
+    if (user.totp && totpCode(user.totp, step) === String(code).trim() && step > (user.totpLast ?? 0)) {
+      user.totpLast = step;
+      return true;
+    }
+  return false;
+};
+const passwordProblem = (password, email) => {
+  if ((password ?? "").length < 12)
+    return "Use at least 12 characters. A short phrase is easiest to remember.";
+  if (password.toLowerCase() === "password1234")
+    return "That password is too easy to guess. Try a longer phrase.";
+  if (password.toLowerCase().includes(email.split("@")[0]))
+    return "Don't use your email address in your password.";
+  return null;
+};
 const challenges = new Map(); // id -> { kind, challenge, email, name }
 const usedInvites = new Set();
 const audit = [];
@@ -4099,16 +4141,25 @@ function admin(req, res, url, body, send, raw) {
   if (req.method === "POST" && req.headers.origin !== ADMIN_ORIGIN) {
     return send(403, { error: { code: "forbidden", message: "You don't have permission to do that." } });
   }
-  const signIn = (user, action) => {
-    const token = randomBytes(32).toString("hex");
-    sessions.set(token, user.email);
+  const record = (user, action, detail = {}) =>
     audit.unshift({
       id: randomBytes(8).toString("hex"),
       action,
       actor_email: user.email,
-      detail: {},
+      detail,
       created_at: new Date().toISOString(),
     });
+  const signIn = (user, action, method = "passkey") => {
+    const token = randomBytes(32).toString("hex");
+    sessions.set(token, user.email);
+    sessionInfo.set(token, {
+      id: randomBytes(8).toString("hex"),
+      method,
+      user_agent: req.headers["user-agent"] ?? null,
+      created_at: new Date().toISOString(),
+      verified: true,
+    });
+    record(user, action, action === "admin.login" ? { method } : {});
     res.setHeader("set-cookie", `figbud_admin=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=3600`);
     return send(200, { user: publicUser(user) });
   };
@@ -4172,46 +4223,369 @@ function admin(req, res, url, body, send, raw) {
       role: invite?.role ?? "owner",
       grants: invite?.grants ?? null,
       credentialId: body.credential.rawId,
+      passkeys: [
+        {
+          id: randomBytes(8).toString("hex"),
+          label: "Passkey",
+          credentialId: body.credential.rawId,
+          created_at: new Date().toISOString(),
+          last_used_at: null,
+        },
+      ],
     };
     users.set(user.email, user);
     return signIn(user, "admin.user_created");
   }
   if (path === "login/start") {
-    const user = users.get((body.email ?? "").trim().toLowerCase());
-    if (!user) {
-      return send(401, {
-        error: {
-          code: "unauthorized",
-          message: "No passkey is registered for this email. Ask an owner for an invite.",
-        },
-      });
-    }
-    const { id, challenge } = ceremony("login", { email: user.email });
+    // An unknown email gets the same kind of answer, with a credential no device has.
+    const email = (body.email ?? "").trim().toLowerCase();
+    const user = users.get(email);
+    const { id, challenge } = ceremony("login", { email: user?.email ?? "" });
+    const allow = user
+      ? (user.passkeys ?? []).map((k) => ({ type: "public-key", id: k.credentialId }))
+      : [{ type: "public-key", id: b64url(createHash("sha256").update(`decoy:${email}`).digest()) }];
     return send(200, {
       challenge_id: id,
       options: {
         publicKey: {
           challenge,
           rpId: "localhost",
-          timeout: 60000,
+          timeout: user ? 60000 : 3000,
           userVerification: "required",
-          allowCredentials: [{ type: "public-key", id: user.credentialId }],
+          allowCredentials: allow,
         },
       },
     });
   }
+  if (path === "password/login") {
+    const BAD =
+      "That email and password didn't work. After several attempts, password sign-in pauses for 15 minutes. You can also use a passkey or reset your password.";
+    const account = users.get((body.email ?? "").trim().toLowerCase());
+    if (!account?.password || !account.totp || (account.lockedUntil ?? 0) > Date.now())
+      return send(401, { error: { code: "unauthorized", message: BAD } });
+    if (account.password !== body.password) {
+      account.failures = (account.failures ?? 0) + 1;
+      record(account, "admin.login_failed", { method: "password" });
+      if (account.failures >= 5) {
+        account.failures = 0;
+        account.lockedUntil = Date.now() + 15 * 60000;
+        record(account, "admin.password_locked");
+      }
+      return send(401, { error: { code: "unauthorized", message: BAD } });
+    }
+    const { id } = ceremony("password_2fa", { email: account.email });
+    return send(200, { two_factor: { pending: `${id}.${randomBytes(16).toString("hex")}` } });
+  }
+  if (path === "password/verify") {
+    const expired = {
+      error: { code: "unauthorized", message: "This sign-in attempt expired. Please start again." },
+    };
+    const id = String(body.pending ?? "").split(".")[0];
+    const c = challenges.get(id);
+    const account = c?.kind === "password_2fa" ? users.get(c.email) : null;
+    if (!account) return send(401, expired);
+    let ok = false;
+    if (body.recovery_code) {
+      const norm = (v) => v.toUpperCase().replace(/[^A-Z0-9]/g, "");
+      const hit = (account.recovery ?? []).find((r) => !r.used && norm(r.code) === norm(body.recovery_code));
+      if (hit) {
+        hit.used = true;
+        ok = true;
+      }
+    } else ok = totpOk(account, body.code);
+    if (!ok) {
+      record(account, "admin.login_failed", { method: "two_factor" });
+      return send(401, {
+        error: {
+          code: "unauthorized",
+          message: "That code didn't work. Check your authenticator app and try again.",
+        },
+      });
+    }
+    challenges.delete(id);
+    return signIn(account, "admin.login", "password");
+  }
+  if (path === "password/forgot") {
+    const account = users.get((body.email ?? "").trim().toLowerCase());
+    if (account?.totp) {
+      const token = randomBytes(32).toString("hex");
+      resets.set(token, { email: account.email, expires: Date.now() + 3600000 });
+      lastRecovery.set(account.email, token);
+    }
+    res.writeHead(202);
+    return res.end();
+  }
+  if (path === "password/reset") {
+    const reset = resets.get(body.token);
+    const account = reset && reset.expires > Date.now() ? users.get(reset.email) : null;
+    if (!account)
+      return send(401, {
+        error: {
+          code: "unauthorized",
+          message: "This recovery link is invalid, used or expired. Please ask for a new one.",
+        },
+      });
+    const problem = passwordProblem(body.password, account.email);
+    if (problem)
+      return send(422, {
+        error: {
+          code: "validation",
+          message: problem,
+          fields: [{ field: "password", code: "weak", message: problem }],
+        },
+      });
+    resets.delete(body.token);
+    account.password = body.password;
+    account.lockedUntil = 0;
+    for (const [token, email] of sessions) if (email === account.email) sessions.delete(token);
+    record(account, "admin.password_reset");
+    res.writeHead(204);
+    return res.end();
+  }
   if (path === "login/finish") {
     const c = consume("login", body.credential, "webauthn.get");
     const user = c && users.get(c.email);
-    if (!user || body.credential.rawId !== user.credentialId) {
+    const key = user?.passkeys?.find((k) => k.credentialId === body.credential.rawId);
+    if (!key) {
       return send(401, {
         error: { code: "unauthorized", message: "The passkey could not be verified. Please try again." },
       });
     }
+    key.last_used_at = new Date().toISOString();
     return signIn(user, "admin.login");
   }
   const user = userOf();
   if (!user) return send(401, { error: { code: "unauthorized", message: "Please sign in." } });
+  if (path === "security" || path.startsWith("security/")) {
+    const token = readCookie(req);
+    const info = sessionInfo.get(token);
+    const noContent = () => {
+      res.writeHead(204);
+      return res.end();
+    };
+    const conflict = (message) => send(409, { error: { code: "conflict", message } });
+    const needsCheck = () =>
+      send(403, { error: { code: "forbidden", message: "Please confirm it's you first." } });
+    const newCodes = () => {
+      const alphabet = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
+      const codes = Array.from({ length: 10 }, () => {
+        const c = Array.from(randomBytes(10), (b) => alphabet[b % alphabet.length]).join("");
+        return `${c.slice(0, 5)}-${c.slice(5)}`;
+      });
+      user.recovery = codes.map((code) => ({ code, used: false }));
+      return codes;
+    };
+    if (path === "security") {
+      const mine = [...sessions].filter(([, email]) => email === user.email);
+      return send(200, {
+        available: true,
+        verified: Boolean(info?.verified),
+        password: { set: Boolean(user.password), set_at: user.passwordAt ?? null },
+        two_factor: {
+          enabled: Boolean(user.totp),
+          confirmed_at: user.totpAt ?? null,
+          recovery_codes_left: (user.recovery ?? []).filter((r) => !r.used).length,
+        },
+        passkeys: (user.passkeys ?? []).map(({ id, label, created_at, last_used_at }) => ({
+          id,
+          label,
+          created_at,
+          last_used_at,
+        })),
+        sessions: mine.map(([t]) => {
+          const s = sessionInfo.get(t);
+          return {
+            id: s.id,
+            current: t === token,
+            user_agent: s.user_agent,
+            method: s.method,
+            created_at: s.created_at,
+            last_seen_at: s.created_at,
+          };
+        }),
+        activity: audit
+          .filter((a) => a.actor_email === user.email && a.action.startsWith("admin."))
+          .slice(0, 30)
+          .map(({ id, action, detail, created_at }) => ({ id, action, detail, created_at })),
+      });
+    }
+    if (path === "security/verify/password") {
+      if (user.password !== body.password || !totpOk(user, body.code))
+        return send(401, {
+          error: { code: "unauthorized", message: "That password or code didn't work. Please try again." },
+        });
+      info.verified = true;
+      return noContent();
+    }
+    if (path === "security/verify/passkey/start") {
+      const { id, challenge } = ceremony("step_up", { email: user.email });
+      return send(200, {
+        challenge_id: id,
+        options: {
+          publicKey: {
+            challenge,
+            rpId: "localhost",
+            timeout: 60000,
+            userVerification: "required",
+            allowCredentials: (user.passkeys ?? []).map((k) => ({ type: "public-key", id: k.credentialId })),
+          },
+        },
+      });
+    }
+    if (path === "security/verify/passkey/finish") {
+      const c = consume("step_up", body.credential, "webauthn.get");
+      if (!c || c.email !== user.email)
+        return send(401, {
+          error: { code: "unauthorized", message: "The passkey could not be verified. Please try again." },
+        });
+      info.verified = true;
+      return noContent();
+    }
+    if (path === "security/sessions/revoke-others") {
+      let revoked = 0;
+      for (const [t, email] of sessions)
+        if (email === user.email && t !== token) {
+          sessions.delete(t);
+          revoked += 1;
+        }
+      record(user, "admin.sessions_revoked", { count: revoked });
+      return send(200, { revoked });
+    }
+    const revokeOne = /^security\/sessions\/([0-9a-f]+)\/revoke$/.exec(path);
+    if (revokeOne) {
+      const entry = [...sessions].find(
+        ([t, email]) => email === user.email && sessionInfo.get(t)?.id === revokeOne[1],
+      );
+      if (!entry) return send(404, { error: { code: "not_found", message: "Not found." } });
+      if (entry[0] === token) return conflict("To end this session, sign out.");
+      sessions.delete(entry[0]);
+      record(user, "admin.session_revoked");
+      return noContent();
+    }
+    // Everything below changes how someone signs in.
+    if (!info?.verified) return needsCheck();
+    if (path === "security/two-factor/start") {
+      const secret = Array.from(randomBytes(32), (b) => BASE32[b % 32]).join("");
+      user.totpPending = secret;
+      const url = `otpauth://totp/FigBud%20Studio:${encodeURIComponent(user.email)}?secret=${secret}&issuer=FigBud%20Studio`;
+      // A stand-in pattern: the real API sends real QR modules.
+      const size = 21;
+      return send(200, {
+        secret,
+        url,
+        qr: { size, modules: Array.from({ length: size * size }, (_, i) => (i % 3 ? "0" : "1")).join("") },
+      });
+    }
+    if (path === "security/two-factor/confirm") {
+      if (!user.totpPending) return conflict("Start two-factor setup first.");
+      const now = totpStep();
+      if (![now - 1, now, now + 1].some((step) => totpCode(user.totpPending, step) === body.code))
+        return send(422, {
+          error: {
+            code: "validation",
+            message: "Some fields need attention.",
+            fields: [
+              {
+                field: "code",
+                code: "invalid",
+                message: "That code didn't work. Check your authenticator app and try the newest code.",
+              },
+            ],
+          },
+        });
+      const replacing = Boolean(user.totp);
+      user.totp = user.totpPending;
+      user.totpLast = now;
+      user.totpPending = null;
+      user.totpAt = new Date().toISOString();
+      record(user, replacing ? "admin.two_factor_replaced" : "admin.two_factor_enabled");
+      return send(200, { recovery_codes: newCodes() });
+    }
+    if (path === "security/two-factor/remove") {
+      if (user.password)
+        return conflict(
+          "A password always needs two-factor. Remove the password first, or set up a new authenticator.",
+        );
+      user.totp = null;
+      user.recovery = [];
+      record(user, "admin.two_factor_removed");
+      return noContent();
+    }
+    if (path === "security/recovery-codes") {
+      record(user, "admin.recovery_codes_replaced");
+      return send(200, { recovery_codes: newCodes() });
+    }
+    if (path === "security/password") {
+      if (!user.totp) return conflict("Set up two-factor first: a password alone can't open the Studio.");
+      const problem = passwordProblem(body.password, user.email);
+      if (problem)
+        return send(422, {
+          error: {
+            code: "validation",
+            message: problem,
+            fields: [{ field: "password", code: "weak", message: problem }],
+          },
+        });
+      record(user, user.password ? "admin.password_changed" : "admin.password_created");
+      user.password = body.password;
+      user.passwordAt = new Date().toISOString();
+      for (const [t, email] of sessions) if (email === user.email && t !== token) sessions.delete(t);
+      return noContent();
+    }
+    if (path === "security/password/remove") {
+      if (!(user.passkeys ?? []).length)
+        return conflict("Add a passkey first: your password is your only way to sign in.");
+      user.password = null;
+      record(user, "admin.password_removed");
+      return noContent();
+    }
+    if (path === "security/passkeys/start") {
+      const { id, challenge } = ceremony("add_passkey", { email: user.email });
+      return send(200, {
+        challenge_id: id,
+        options: {
+          publicKey: {
+            rp: { id: "localhost", name: "FigBud Global Admin" },
+            user: { id: b64url(user.email), name: user.email, displayName: user.name },
+            challenge,
+            pubKeyCredParams: [{ type: "public-key", alg: -7 }],
+            timeout: 60000,
+            authenticatorSelection: { residentKey: "discouraged", userVerification: "required" },
+            attestation: "none",
+          },
+        },
+      });
+    }
+    if (path === "security/passkeys/finish") {
+      const c = consume("add_passkey", body.credential, "webauthn.create");
+      if (!c || c.email !== user.email)
+        return send(401, {
+          error: { code: "unauthorized", message: "The passkey could not be verified. Please try again." },
+        });
+      const label = (body.label ?? "").trim() || "Passkey";
+      user.passkeys.push({
+        id: randomBytes(8).toString("hex"),
+        label,
+        credentialId: body.credential.rawId,
+        created_at: new Date().toISOString(),
+        last_used_at: null,
+      });
+      record(user, "admin.passkey_added", { label });
+      res.writeHead(201);
+      return res.end("{}");
+    }
+    const removeKey = /^security\/passkeys\/([0-9a-f]+)\/remove$/.exec(path);
+    if (removeKey) {
+      if (!user.password && user.passkeys.length <= 1)
+        return conflict("This is your only way to sign in. Add another passkey or a password first.");
+      const index = user.passkeys.findIndex((k) => k.id === removeKey[1]);
+      if (index < 0) return send(404, { error: { code: "not_found", message: "Not found." } });
+      const [removed] = user.passkeys.splice(index, 1);
+      record(user, "admin.passkey_removed", { label: removed.label });
+      return noContent();
+    }
+    return send(404, { error: { code: "not_found", message: "Not found." } });
+  }
   if (path === "me") return send(200, { user: publicUser(user), access: accessOf(user) });
   // Websites someone can't access don't exist for them.
   const sitePath = /^sites\/([a-z0-9_-]+)/.exec(path);
@@ -4227,9 +4601,22 @@ function admin(req, res, url, body, send, raw) {
           sites: allSites(u) ? [] : grantsOf(u),
           last_login_at: null,
           disabled_at: null,
+          has_password: Boolean(u.password),
+          has_two_factor: Boolean(u.totp),
         })),
         sites: sites.map((s) => ({ site: s.slug, name: s.name, archived: Boolean(s.archived_at) })),
       });
+    const recoveryFor = /^team\/([0-9a-f]+)\/recovery-link$/.exec(path);
+    if (recoveryFor) {
+      const person = [...users.values()].find((u) => u.id === recoveryFor[1]);
+      if (!person) return send(404, { error: { code: "not_found", message: "Not found." } });
+      if (!sessionInfo.get(readCookie(req))?.verified)
+        return send(403, { error: { code: "forbidden", message: "Please confirm it's you first." } });
+      const token = randomBytes(32).toString("hex");
+      resets.set(token, { email: person.email, expires: Date.now() + 24 * 3600000 });
+      record(user, "admin.recovery_link_created", { email: person.email });
+      return send(201, { recovery_url: `${ADMIN_ORIGIN}/admin/reset-password#token=${token}`, hours: 24 });
+    }
     const m = /^team\/([0-9a-f]+)\/access$/.exec(path);
     const target = m && [...users.values()].find((u) => u.id === m[1]);
     if (!target) return send(404, { error: { code: "not_found", message: "Not found." } });
@@ -4259,6 +4646,7 @@ function admin(req, res, url, body, send, raw) {
   }
   if (path === "logout") {
     sessions.delete(readCookie(req));
+    sessionInfo.delete(readCookie(req));
     res.setHeader("set-cookie", "figbud_admin=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0");
     res.writeHead(204);
     return res.end();
@@ -4522,6 +4910,14 @@ createServer(async (req, res) => {
   };
   if (url.pathname.startsWith("/v1/admin/")) return admin(req, res, url, body, send, raw);
   if (url.pathname === "/v1/articles") return send(200, list(url));
+  // Test helpers (mock only): the emailed link, and time passing for the identity check.
+  if (url.pathname === "/v1/__test/recovery")
+    return send(200, { token: lastRecovery.get(url.searchParams.get("email")) ?? null });
+  if (url.pathname === "/v1/__test/expire-check") {
+    for (const [token, email] of sessions)
+      if (email === url.searchParams.get("email")) sessionInfo.get(token).verified = false;
+    return send(200, {});
+  }
   if (url.pathname === "/v1/sites") return send(200, publicSites());
   if (url.pathname === "/v1/privacy") return send(200, publicPrivacy());
   const publicHero = /^\/v1\/sites\/([a-z0-9_-]+)\/hero$/.exec(url.pathname);

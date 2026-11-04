@@ -63,6 +63,7 @@ Websites are served under `/{site}` on the shared domain. When a website's *Doma
 | `RUST_LOG`                       | `figbud_api=info,tower_http=info,sqlx=warn`                        | no     |
 | `ADMIN_ORIGIN`                   | the web origin serving `/admin` (now `https://figbud-web-production.up.railway.app`; later `https://figbudglobal.com`). Unset = admin disabled | no |
 | `ADMIN_SESSION_HOURS`            | optional, default `12`                                             | no     |
+| `ADMIN_SECRETS_KEY`              | encrypts two-factor secrets (`openssl rand -hex 32`, 64 hex characters). Unset = passkeys only. See [SECURITY.md](SECURITY.md) §6 before changing it | yes |
 
 `PORT` is injected by Railway; the API binds to it.
 
@@ -123,9 +124,9 @@ What each enquiry sends:
 
 Undelivered emails retry automatically (30 s doubling to 1 h, six attempts) and never send twice. Submissions flagged as automated are stored but never emailed.
 
-## Admin access (passkeys)
+## Admin access
 
-Admins sign in with passkeys; there are no passwords. The first owner is invited from the command line, once:
+Admins sign in with a passkey, or with a password plus two-factor once they've set those up ([SECURITY.md](SECURITY.md)). The first owner is invited from the command line, once:
 
 ```bash
 railway ssh --service figbud-api -- figbud-api admin invite --email you@example.com --role owner

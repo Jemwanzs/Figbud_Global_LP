@@ -1,5 +1,6 @@
-//! Admin access: invited users sign in with passkeys (WebAuthn) and receive a
-//! server-side session. No passwords exist anywhere.
+//! Admin access: invited users sign in with passkeys (WebAuthn), or with a
+//! password plus two-factor once they've set those up (`security`), and receive
+//! a server-side session.
 //!
 //! - Invites carry a single-use token (stored hashed); the first owner is
 //!   invited from the command line (`figbud-api admin invite`).
@@ -8,8 +9,10 @@
 //!   origin in `Origin` (CSRF defence in depth).
 //! - Every security-relevant action is written to `audit_log`.
 
+pub mod credentials;
 mod enquiries;
 mod handlers;
+mod security;
 mod team;
 
 use std::{net::IpAddr, time::Duration};
@@ -31,6 +34,7 @@ pub fn router() -> axum::Router<SharedState> {
     handlers::router()
         .merge(enquiries::router())
         .merge(team::router())
+        .merge(security::router())
 }
 
 use crate::{config::AdminConfig, error::ApiError, routes::SharedState};
@@ -96,6 +100,9 @@ pub struct AdminSession {
     pub user: AdminUser,
     pub session_id: Uuid,
     pub access: SiteAccess,
+    /// Identity checked recently (a fresh sign-in, a passkey or password plus
+    /// two-factor), which sensitive security changes need.
+    pub verified: bool,
 }
 
 /// A website someone was given, with their role on it (P7-F1).
@@ -127,6 +134,14 @@ pub enum SiteAccess {
 }
 
 impl AdminSession {
+    pub fn require_verified(&self) -> Result<(), ApiError> {
+        if self.verified {
+            Ok(())
+        } else {
+            Err(ApiError::NotPermitted("Please confirm it's you first."))
+        }
+    }
+
     /// Roles are ordered: owner > reviewer > editor > viewer.
     pub fn require(&self, role: Role) -> Result<(), ApiError> {
         if self.user.role >= role {
@@ -330,10 +345,23 @@ pub async fn create_session(
     ip_hash: &str,
     user_agent: Option<&str>,
 ) -> Result<String, sqlx::Error> {
+    create_session_via(pool, admin, user_id, ip_hash, user_agent, "passkey").await
+}
+
+/// A new session. Signing in has just proved who this is, so the identity
+/// check for sensitive changes starts out satisfied for a few minutes.
+pub async fn create_session_via(
+    pool: &PgPool,
+    admin: &AdminConfig,
+    user_id: Uuid,
+    ip_hash: &str,
+    user_agent: Option<&str>,
+    method: &str,
+) -> Result<String, sqlx::Error> {
     let token = new_token();
     sqlx::query(
-        "INSERT INTO admin_sessions (id, token_hash, user_id, ip_hash, user_agent, expires_at)
-         VALUES ($1, $2, $3, $4, $5, now() + make_interval(secs => $6))",
+        "INSERT INTO admin_sessions (id, token_hash, user_id, ip_hash, user_agent, expires_at, auth_method, verified_until)
+         VALUES ($1, $2, $3, $4, $5, now() + make_interval(secs => $6), $7, now() + interval '10 minutes')",
     )
     .bind(Uuid::now_v7())
     .bind(token_hash(&token))
@@ -341,6 +369,7 @@ pub async fn create_session(
     .bind(ip_hash)
     .bind(user_agent.map(|ua| ua.chars().take(300).collect::<String>()))
     .bind(admin.session_ttl.as_secs_f64())
+    .bind(method)
     .execute(pool)
     .await?;
     sqlx::query("UPDATE admin_users SET last_login_at = now() WHERE id = $1")
@@ -359,6 +388,15 @@ struct SessionRow {
     role: String,
     all_sites: bool,
     last_login_at: Option<DateTime<Utc>>,
+    verified: bool,
+}
+
+/// How many passkeys someone has.
+pub(crate) async fn passkeys_of(pool: &PgPool, user_id: Uuid) -> Result<i64, sqlx::Error> {
+    sqlx::query_scalar("SELECT count(*) FROM admin_passkeys WHERE user_id = $1")
+        .bind(user_id)
+        .fetch_one(pool)
+        .await
 }
 
 /// The live session for a token: not revoked, not expired, user enabled.
@@ -368,7 +406,8 @@ pub async fn authenticate(pool: &PgPool, token: &str) -> Result<Option<AdminSess
            FROM admin_users u
           WHERE s.token_hash = $1 AND u.id = s.user_id
             AND s.revoked_at IS NULL AND s.expires_at > now() AND u.disabled_at IS NULL
-      RETURNING s.id AS session_id, u.id, u.email, u.name, u.role, u.all_sites, u.last_login_at",
+      RETURNING s.id AS session_id, u.id, u.email, u.name, u.role, u.all_sites, u.last_login_at,
+                COALESCE(s.verified_until > now(), false) AS verified",
     )
     .bind(token_hash(token))
     .fetch_optional(pool)
@@ -393,6 +432,7 @@ pub async fn authenticate(pool: &PgPool, token: &str) -> Result<Option<AdminSess
             last_login_at: r.last_login_at,
         },
         access,
+        verified: r.verified,
     }))
 }
 
@@ -501,6 +541,7 @@ mod tests {
             origin: origin.parse().unwrap(),
             rp_id: "localhost".into(),
             session_ttl: Duration::from_secs(3600),
+            secrets_key: None,
         }
     }
 

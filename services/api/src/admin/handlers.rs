@@ -15,12 +15,13 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use uuid::Uuid;
 use webauthn_rs::prelude::{
-    Passkey, PasskeyAuthentication, PasskeyRegistration, PublicKeyCredential, RegisterPublicKeyCredential,
+    AuthenticationResult, Passkey, PasskeyAuthentication, PasskeyRegistration, PublicKeyCredential,
+    RegisterPublicKeyCredential,
 };
 
 use super::{
     AdminSession, Role, audit, challenge_ttl_secs, check_origin, client_meta, create_invite_for,
-    create_session, set_cookie, token_hash,
+    create_session_via, set_cookie, token_hash,
 };
 use crate::{config::AdminConfig, error::ApiError, rate_limit::client_ip, routes::SharedState};
 
@@ -38,14 +39,18 @@ pub fn router() -> Router<SharedState> {
 
 /// Context every unauthenticated admin endpoint needs: admin enabled, the
 /// request from the admin origin, and within the per-IP attempt budget.
-struct Public<'a> {
+pub(super) struct Public<'a> {
     admin: &'a AdminConfig,
     webauthn: &'a webauthn_rs::Webauthn,
-    ip_hash: String,
+    pub(super) ip_hash: String,
     user_agent: Option<String>,
 }
 
-fn public<'a>(state: &'a SharedState, headers: &HeaderMap, peer: SocketAddr) -> Result<Public<'a>, ApiError> {
+pub(super) fn public<'a>(
+    state: &'a SharedState,
+    headers: &HeaderMap,
+    peer: SocketAddr,
+) -> Result<Public<'a>, ApiError> {
     let (Some(admin), Some(webauthn)) = (state.config.admin.as_ref(), state.webauthn.as_ref()) else {
         return Err(ApiError::NotFound);
     };
@@ -240,7 +245,7 @@ async fn accept_finish(
         Some(&ctx.ip_hash),
     )
     .await?;
-    signed_in(&state, ctx, reg.user_id).await
+    signed_in(&state, ctx, reg.user_id, "passkey").await
 }
 
 #[derive(Deserialize)]
@@ -261,21 +266,50 @@ async fn login_start(
     .bind(body.email.trim())
     .fetch_optional(&state.pool)
     .await?;
-    const NO_PASSKEY: &str = "No passkey is registered for this email. Ask an owner for an invite.";
-    let user_id = user.ok_or(ApiError::Unauthorized(NO_PASSKEY))?;
-    let keys = passkeys(&state, user_id).await?;
-    if keys.is_empty() {
-        return Err(ApiError::Unauthorized(NO_PASSKEY));
-    }
+    let keys = match user {
+        Some(user_id) => passkeys(&state, user_id).await?,
+        None => Vec::new(),
+    };
+    let Some(user_id) = user.filter(|_| !keys.is_empty()) else {
+        // Same answer as a real account, so this can't be used to find out
+        // who has one: the browser just finds no passkey for it on the device.
+        let challenge_id = store_challenge(&state, "login", None, None, None, json!({})).await?;
+        return Ok(Json(json!({
+            "challenge_id": challenge_id,
+            "options": decoy_options(&state.config.ip_hash_salt, ctx.admin, &body.email),
+        })));
+    };
     let (options, auth) = ctx
         .webauthn
         .start_passkey_authentication(&keys)
         .map_err(|e| ApiError::Internal(format!("passkey authentication start: {e}")))?;
     let challenge_id = store_challenge(&state, "login", None, Some(user_id), None, json!(auth)).await?;
-    Ok(Json(Ceremony {
+    Ok(Json(json!(Ceremony {
         challenge_id,
         options,
-    }))
+    })))
+}
+
+/// Request options for an email with no passkeys, shaped like the real ones.
+/// The credential id is derived from the email, so asking twice gives the
+/// same answer, as it would for a real account.
+fn decoy_options(salt: &str, admin: &AdminConfig, email: &str) -> Value {
+    use base64::Engine as _;
+    use rand::RngCore as _;
+    use sha2::{Digest, Sha256};
+    let b64 = base64::engine::general_purpose::URL_SAFE_NO_PAD;
+    let mut challenge = [0u8; 32];
+    rand::rng().fill_bytes(&mut challenge);
+    let id = Sha256::digest(format!("{salt}:decoy:{}", email.trim().to_lowercase()));
+    json!({
+        "publicKey": {
+            "challenge": b64.encode(challenge),
+            "timeout": 60000,
+            "rpId": admin.rp_id,
+            "allowCredentials": [{ "type": "public-key", "id": b64.encode(id) }],
+            "userVerification": "required",
+        },
+    })
 }
 
 #[derive(Deserialize)]
@@ -294,7 +328,9 @@ async fn login_finish(
     let Challenge {
         user_id, state: raw, ..
     } = consume_challenge(&state, body.challenge_id, "login").await?;
-    let user_id = user_id.ok_or(ApiError::Unauthorized("Please start signing in again."))?;
+    let user_id = user_id.ok_or(ApiError::Unauthorized(
+        "The passkey could not be verified. Please try again.",
+    ))?;
     let auth: PasskeyAuthentication =
         serde_json::from_value(raw).map_err(|e| ApiError::Internal(format!("challenge state: {e}")))?;
 
@@ -319,7 +355,26 @@ async fn login_finish(
         }
     };
 
-    // Keep the stored credential's signature counter and backup state current.
+    update_passkey(&state, user_id, &result).await?;
+
+    audit(
+        &state.pool,
+        Some(user_id),
+        "admin.login",
+        None,
+        json!({ "method": "passkey" }),
+        Some(&ctx.ip_hash),
+    )
+    .await?;
+    signed_in(&state, ctx, user_id, "passkey").await
+}
+
+/// Keeps the stored credential's signature counter and backup state current.
+pub(super) async fn update_passkey(
+    state: &SharedState,
+    user_id: Uuid,
+    result: &AuthenticationResult,
+) -> Result<(), ApiError> {
     let mut tx = state.pool.begin().await?;
     let stored: Option<(Uuid, Value)> = sqlx::query_as(
         "SELECT id, passkey FROM admin_passkeys WHERE user_id = $1 AND credential_id = $2 FOR UPDATE",
@@ -331,33 +386,29 @@ async fn login_finish(
     let (passkey_id, raw) = stored.ok_or(ApiError::Unauthorized("This passkey is no longer registered."))?;
     let mut passkey: Passkey =
         serde_json::from_value(raw).map_err(|e| ApiError::Internal(format!("stored passkey: {e}")))?;
-    passkey.update_credential(&result);
+    passkey.update_credential(result);
     sqlx::query("UPDATE admin_passkeys SET passkey = $2, last_used_at = now() WHERE id = $1")
         .bind(passkey_id)
         .bind(json!(passkey))
         .execute(&mut *tx)
         .await?;
     tx.commit().await?;
-
-    audit(
-        &state.pool,
-        Some(user_id),
-        "admin.login",
-        None,
-        json!({}),
-        Some(&ctx.ip_hash),
-    )
-    .await?;
-    signed_in(&state, ctx, user_id).await
+    Ok(())
 }
 
-async fn signed_in(state: &SharedState, ctx: Public<'_>, user_id: Uuid) -> Result<Response, ApiError> {
-    let token = create_session(
+pub(super) async fn signed_in(
+    state: &SharedState,
+    ctx: Public<'_>,
+    user_id: Uuid,
+    method: &str,
+) -> Result<Response, ApiError> {
+    let token = create_session_via(
         &state.pool,
         ctx.admin,
         user_id,
         &ctx.ip_hash,
         ctx.user_agent.as_deref(),
+        method,
     )
     .await?;
     let session = super::authenticate(&state.pool, &token)
@@ -472,7 +523,7 @@ async fn audit_log(
     Ok(Json(entries))
 }
 
-async fn passkeys(state: &SharedState, user_id: Uuid) -> Result<Vec<Passkey>, ApiError> {
+pub(super) async fn passkeys(state: &SharedState, user_id: Uuid) -> Result<Vec<Passkey>, ApiError> {
     let rows: Vec<Value> = sqlx::query_scalar("SELECT passkey FROM admin_passkeys WHERE user_id = $1")
         .bind(user_id)
         .fetch_all(&state.pool)
@@ -484,7 +535,7 @@ async fn passkeys(state: &SharedState, user_id: Uuid) -> Result<Vec<Passkey>, Ap
         .collect()
 }
 
-async fn store_challenge(
+pub(super) async fn store_challenge(
     state: &SharedState,
     kind: &str,
     invite_id: Option<Uuid>,
@@ -514,15 +565,19 @@ async fn store_challenge(
 }
 
 #[derive(sqlx::FromRow)]
-struct Challenge {
+pub(super) struct Challenge {
     invite_id: Option<Uuid>,
-    user_id: Option<Uuid>,
+    pub(super) user_id: Option<Uuid>,
     name: Option<String>,
-    state: Value,
+    pub(super) state: Value,
 }
 
 /// Removes and returns a live ceremony: each challenge can be finished once.
-async fn consume_challenge(state: &SharedState, id: Uuid, kind: &str) -> Result<Challenge, ApiError> {
+pub(super) async fn consume_challenge(
+    state: &SharedState,
+    id: Uuid,
+    kind: &str,
+) -> Result<Challenge, ApiError> {
     sqlx::query_as(
         "DELETE FROM admin_challenges WHERE id = $1 AND kind = $2 AND expires_at > now()
       RETURNING invite_id, user_id, name, state",

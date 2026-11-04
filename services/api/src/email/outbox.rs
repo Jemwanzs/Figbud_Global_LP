@@ -44,10 +44,32 @@ pub async fn enqueue(
     Ok(id)
 }
 
+/// An email about someone's account rather than an enquiry.
+pub async fn enqueue_account(
+    tx: &mut Transaction<'_, Postgres>,
+    to: &[String],
+    email: &RenderedEmail,
+) -> Result<Uuid, sqlx::Error> {
+    let id = Uuid::now_v7();
+    sqlx::query(
+        "INSERT INTO email_outbox (id, template, to_addresses, subject, html_body, text_body)
+         VALUES ($1, $2, $3, $4, $5, $6)",
+    )
+    .bind(id)
+    .bind(email.template)
+    .bind(to)
+    .bind(&email.subject)
+    .bind(&email.html)
+    .bind(&email.text)
+    .execute(&mut **tx)
+    .await?;
+    Ok(id)
+}
+
 #[derive(Debug, FromRow)]
 struct ClaimedEmail {
     id: Uuid,
-    enquiry_id: Uuid,
+    enquiry_id: Option<Uuid>,
     to_addresses: Vec<String>,
     reply_to: Option<String>,
     subject: String,
@@ -105,8 +127,10 @@ pub async fn deliver_due(
     let count = claimed.len();
     for row in claimed {
         let mut to = row.to_addresses;
-        if to.is_empty() {
-            to = resolve_team(pool, config, row.enquiry_id).await?;
+        if to.is_empty()
+            && let Some(enquiry_id) = row.enquiry_id
+        {
+            to = resolve_team(pool, config, enquiry_id).await?;
         }
         let email = OutgoingEmail {
             id: row.id,

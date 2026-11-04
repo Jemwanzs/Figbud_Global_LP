@@ -29,7 +29,7 @@ async function addPasskeyDevice(page: Page) {
 test("signed-out visitors are sent to sign in, and admin is never indexed", async ({ page }) => {
   await page.goto("/admin");
   await expect(page).toHaveURL(/\/admin\/login$/);
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Sign in to FigBud Admin");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Welcome back to FigBud Studio");
   await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", /noindex, nofollow/);
 });
 
@@ -81,12 +81,12 @@ test("invite → passkey → dashboard → invite a colleague → sign out → s
   await expect(page).toHaveURL(/\/admin\/login$/, { timeout: 10_000 });
 
   await page.getByLabel("Work email").fill(email);
-  await page.getByRole("button", { name: "Sign in with passkey" }).click();
+  await page.getByRole("button", { name: "Use passkey instead" }).click();
   await expect(page).toHaveURL(/\/admin$/);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Welcome, Ada");
 });
 
-test("invites work once, and unknown emails get a clear message", async ({ page }) => {
+test("invites work once, and unknown emails aren't revealed", async ({ page }) => {
   await addPasskeyDevice(page);
   const token = randomBytes(32).toString("hex");
   await page.goto(`/admin/invite#token=${token}`);
@@ -101,8 +101,10 @@ test("invites work once, and unknown emails get a clear message", async ({ page 
 
   await page.goto("/admin/login");
   await page.getByLabel("Work email").fill("nobody@figbud.test");
-  await page.getByRole("button", { name: "Sign in with passkey" }).click();
-  await expect(page.locator("p[role=alert]")).toContainText("No passkey is registered for this email");
+  // Whether the account exists isn't revealed: the device just has no passkey for it.
+  await page.getByRole("button", { name: "Use passkey instead" }).click();
+  await expect(page.locator("p[role=alert]")).toContainText("No passkey was used", { timeout: 15_000 });
+  await expect(page.locator("p[role=alert]")).not.toContainText("registered");
 });
 
 test("an invite link without its token explains what to do", async ({ page }) => {

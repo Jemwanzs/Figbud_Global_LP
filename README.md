@@ -7,6 +7,7 @@ Monorepo for the FigBud Global corporate website and its product websites — **
 - **How to deploy:** [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)
 - **Spacing and typography:** [docs/UI_STANDARDS.md](docs/UI_STANDARDS.md) — shared tokens for every website and the Studio
 - **SEO:** [docs/SEO.md](docs/SEO.md) — release rules, Studio settings, CI quality gate
+- **Admin security:** [docs/SECURITY.md](docs/SECURITY.md) — passkeys, passwords with two-factor, recovery and operating the secrets key
 - **Hero Design Studio:** [docs/HEROES.md](docs/HEROES.md) — hero collections, exact previews, publishing and motion
 - **Pricing guide:** [docs/PRICING.md](docs/PRICING.md) — pricing models, calculation rules, quotations, publishing and visibility
 - **Campaigns:** [docs/CAMPAIGNS.md](docs/CAMPAIGNS.md) — campaigns and promotions engine

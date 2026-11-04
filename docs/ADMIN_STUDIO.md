@@ -224,6 +224,18 @@ Studio → Marketing, then the tabs **Trusted By**, **Testimonials** and **Succe
   Studio actions refresh the corporate website at once (cache tag `proof`); product websites within minutes.
 - **Never invented:** the seeded records in the e2e mock API are synthetic test fixtures. Production starts empty, and Q22 lists what's needed before any organisation can be shown.
 
+## Security & Authentication (P13, 5 Nov 2026)
+
+Settings → **Security & Authentication** (also in the account menu), for every role and only for one's own account. The rules are in [SECURITY.md](SECURITY.md).
+
+- **Two-factor:** QR setup, recovery codes (copy, download, replace), replace authenticator.
+- **Password:** create, change, remove. Needs two-factor first.
+- **Passkeys:** register this device, name it, remove it. The last way in can't be removed.
+- **Active sessions and devices:** sign out one, or all others.
+- **Security activity:** the person's own sign-ins and changes.
+- **Team & access** shows who has two-factor and a password (never the password), and owners can create a recovery link.
+- **API:** public `POST /v1/admin/password/{login|verify|forgot|reset}`; `GET /v1/admin/security`; `POST …/security/verify/{password|passkey/start|passkey/finish}`, `…/two-factor/{start|confirm|remove}`, `…/recovery-codes`, `…/password`, `…/password/remove`, `…/passkeys/{start|finish}`, `…/passkeys/{id}/remove`, `…/sessions/{id}/revoke`, `…/sessions/revoke-others`; `POST /v1/admin/team/{id}/recovery-link`. Migration 26.
+
 ## Hero Design Studio (P12, 31 Oct 2026)
 
 Websites → a website → **Hero Design Studio**. The rules are in [HEROES.md](HEROES.md).

@@ -25,6 +25,8 @@ export interface TeamMember {
   sites: { site: string; name: string; role: AdminUser["role"] }[];
   last_login_at: string | null;
   disabled_at: string | null;
+  has_password?: boolean;
+  has_two_factor?: boolean;
 }
 
 const toValue = (m: TeamMember): AccessValue => ({
@@ -64,6 +66,7 @@ function Member({ member, sites, self }: { member: TeamMember; sites: SiteOption
   const [value, setValue] = useState<AccessValue>(toValue(member));
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [recovery, setRecovery] = useState<{ recovery_url: string; hours: number } | null>(null);
   const [message, setMessage] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
   const changed = !sameValue(value, toValue(saved));
   const problem = accessProblem(value);
@@ -85,6 +88,28 @@ function Member({ member, sites, self }: { member: TeamMember; sites: SiteOption
       setMessage({
         tone: "error",
         text: err instanceof AdminError ? (err.fields[0]?.message ?? err.message) : "Something went wrong.",
+      });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function createRecoveryLink() {
+    setBusy(true);
+    setMessage(null);
+    try {
+      setRecovery(
+        await adminFetch<{ recovery_url: string; hours: number }>(`team/${saved.id}/recovery-link`, {}),
+      );
+    } catch (err) {
+      setMessage({
+        tone: "error",
+        text:
+          err instanceof AdminError && err.status === 403
+            ? "Please confirm it's you first, in Settings → Security & Authentication."
+            : err instanceof AdminError
+              ? err.message
+              : "Something went wrong.",
       });
     } finally {
       setBusy(false);
@@ -128,6 +153,12 @@ function Member({ member, sites, self }: { member: TeamMember; sites: SiteOption
                 </span>
               ))
             )}
+            {saved.has_two_factor && (
+              <span className="rounded-full bg-surface-2 px-2.5 py-0.5 text-muted">Two-factor on</span>
+            )}
+            {saved.has_password && (
+              <span className="rounded-full bg-surface-2 px-2.5 py-0.5 text-muted">Password</span>
+            )}
           </div>
         </div>
         {editable && (
@@ -142,6 +173,30 @@ function Member({ member, sites, self }: { member: TeamMember; sites: SiteOption
           </button>
         )}
       </div>
+      {!self && !saved.disabled_at && saved.has_two_factor && (
+        <div className="mt-4 border-t border-line pt-4">
+          <button
+            type="button"
+            onClick={createRecoveryLink}
+            disabled={busy}
+            className="min-h-11 rounded-xl px-3 text-sm font-medium text-accent hover:bg-accent-soft/60"
+          >
+            Create password recovery link
+            <span className="sr-only"> for {saved.name}</span>
+          </button>
+          {recovery && (
+            <div className="mt-2 rounded-xl bg-surface-2 p-3 text-sm">
+              <p className="text-muted">
+                Share this with {saved.name} directly. It works once and expires in {recovery.hours} hours.
+                They&apos;ll still need their authenticator app.
+              </p>
+              <p data-testid="recovery-url" className="mt-2 font-mono text-xs break-all text-text select-all">
+                {recovery.recovery_url}
+              </p>
+            </div>
+          )}
+        </div>
+      )}
       {open && editable && (
         <div className="mt-5 space-y-4 border-t border-line pt-5">
           <SiteAccessPicker role={saved.role} sites={sites} value={value} onChange={setValue} />
