@@ -1025,7 +1025,16 @@ function TeamCalendar() {
   );
 }
 
-export function ProductDemo({ demo, motion }: { demo: DemoKind; motion?: StoryMotion }) {
+export function ProductDemo({
+  demo,
+  motion,
+  mark,
+}: {
+  demo: DemoKind;
+  motion?: StoryMotion;
+  /** The website's own mark, where a demonstration shows it. */
+  mark?: React.ReactNode;
+}) {
   switch (demo) {
     case "connected_modules":
       return <ConnectedModules />;
@@ -1044,7 +1053,7 @@ export function ProductDemo({ demo, motion }: { demo: DemoKind; motion?: StoryMo
     case "team_calendar":
       return <TeamCalendar />;
     case "scattered_to_connected":
-      return <ScatteredToConnectedStory motion={motion} />;
+      return <ScatteredToConnectedStory motion={motion} mark={mark} />;
     case "employee_journey":
       return <EmployeeJourneyStory motion={motion} />;
   }

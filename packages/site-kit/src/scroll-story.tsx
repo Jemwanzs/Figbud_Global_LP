@@ -191,7 +191,7 @@ function toolStyle(index: number, step: number): CSSProperties {
   };
 }
 
-function ScatteredStage({ step, onScreen }: { step: number; onScreen: boolean }) {
+function ScatteredStage({ step, onScreen, mark }: { step: number; onScreen: boolean; mark?: ReactNode }) {
   const [stage, setStage] = useState(0);
   const running = step === 3 && onScreen;
   // The pay run moves on by itself once it's reached, and stops at Locked.
@@ -217,9 +217,9 @@ function ScatteredStage({ step, onScreen }: { step: number; onScreen: boolean })
 
       <div
         data-open={step === 1}
-        className="fb-story-rise absolute top-1/2 left-1/2 -mt-5 -ml-5 grid size-10 place-items-center rounded-full bg-product font-semibold text-product-ink shadow-lg"
+        className="fb-story-rise absolute top-1/2 left-1/2 -mt-6 -ml-6 grid size-12 place-items-center rounded-2xl border border-line bg-surface p-1.5 shadow-lg"
       >
-        Z
+        {mark ?? <span className="size-3 rounded-full bg-product" />}
       </div>
 
       {TOOLS.map((tool, i) => {
@@ -312,7 +312,13 @@ function ScatteredStage({ step, onScreen }: { step: number; onScreen: boolean })
   );
 }
 
-export function ScatteredToConnectedStory({ motion = "standard" }: { motion?: StoryMotion }) {
+export function ScatteredToConnectedStory({
+  motion = "standard",
+  mark,
+}: {
+  motion?: StoryMotion;
+  mark?: ReactNode;
+}) {
   return (
     <ScrollStory
       label="scattered-to-connected"
@@ -336,7 +342,7 @@ export function ScatteredToConnectedStory({ motion = "standard" }: { motion?: St
         },
       ]}
     >
-      {(state) => <ScatteredStage {...state} />}
+      {(state) => <ScatteredStage {...state} mark={mark} />}
     </ScrollStory>
   );
 }

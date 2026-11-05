@@ -173,3 +173,8 @@ Each website's brand profile also stores primary, secondary and accent colours. 
 3. **Jasiri LMS:** an SVG, and a light-background version, or approval of the proposed recolour.
 4. **Expense Now:** ~~approve, adjust or replace the proposed concept~~ Resolved 30 Oct 2026: the owner approved the brand sheet (section 3).
 5. **Favicons and app icons:** the current ones are made from the supplied symbols; vector or larger artwork would make the home-screen icons sharper.
+
+## Product websites (6 Nov 2026)
+
+- The header and footer use `ProductIdentity`: the full horizontal logo when one is published, otherwise the official symbol beside the product's name. They never draw a letter tile for a product the registry knows.
+- Demonstrations that show the product's mark (the scroll story's hub) take it from the brand profile too.

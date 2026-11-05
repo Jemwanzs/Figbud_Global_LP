@@ -605,6 +605,10 @@ Scope: a four-page, SaaS-only ZiraHR website from the Enhanced Content & Develop
 
 | Date        | Change                                                                                                   |
 | ----------- | -------------------------------------------------------------------------------------------------------- |
+| 6 Nov 2026 | ZiraHR's official mark everywhere (P7-BR):
+- **Header and footer** show the official ZiraHR symbol beside its name, from the brand profile, instead of a generic "Z" tile. A full horizontal logo, once one is published, takes over automatically.
+- **The scroll story's hub** shows the same official symbol instead of a typed letter. Other websites without a mark show a plain dot, never an invented letter.
+- No logo file was changed or redrawn. |
 | 6 Nov 2026 | Enquiries stay on ZiraHR (UI-F2) and the owner's decisions:
 - **Book a demo and Contact us** on ZiraHR open the same enquiry form as FigBud Global's, on ZiraHR's own Contact & Demo page, so visitors never leave ZiraHR. The product is fixed to ZiraHR.
 - **In the Studio:** a new "Enquiry form" section. A website's buttons stay local wherever its Contact page has one.

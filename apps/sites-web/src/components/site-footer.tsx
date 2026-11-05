@@ -4,6 +4,8 @@ import { cacheLife } from "next/cache";
 import { figbudOrigin } from "@/lib/sites";
 
 import type { NavLink } from "./site-header";
+import type { ProductSlug } from "@figbud/brand";
+import { type BrandProfile, ProductIdentity } from "@figbud/site-kit";
 
 /** The current year, cached so the footer stays part of the static shell. */
 async function currentYear() {
@@ -17,17 +19,32 @@ export async function SiteFooter({
   name,
   tagline,
   links,
+  slug,
+  brand,
 }: {
   name: string;
   tagline?: string | null;
   links: NavLink[];
+  /** The product, when the brand registry knows it: its official symbol shows beside its name. */
+  slug?: ProductSlug;
+  brand?: BrandProfile | null;
 }) {
   const year = await currentYear();
   return (
     <footer className="mt-24 border-t border-line">
       <div className="mx-auto grid max-w-[92rem] gap-10 px-5 py-14 sm:px-8 md:grid-cols-[1.4fr_1fr_1fr] md:px-10 lg:px-16">
         <div>
-          <p className="text-lg font-semibold text-text">{name}</p>
+          {slug ? (
+            <ProductIdentity
+              slug={slug}
+              brand={brand}
+              name={name}
+              size="sm"
+              nameClassName="text-lg font-semibold text-text"
+            />
+          ) : (
+            <p className="text-lg font-semibold text-text">{name}</p>
+          )}
           {tagline && <p className="mt-2 max-w-sm text-muted">{tagline}</p>}
           <p className="mt-6 text-sm text-subtle">
             {name} is a{" "}

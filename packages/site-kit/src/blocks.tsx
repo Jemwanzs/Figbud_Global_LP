@@ -7,6 +7,9 @@ import { enquiryFormCopy, type EnquiryProduct } from "./enquiry";
 import { EnquiryForm } from "./enquiry-form";
 import { ReferralForm } from "./referral-form";
 
+/** The website's own mark, for demonstrations that show it (the scroll story's hub). */
+export type BrandMark = ReactNode;
+
 /** What a website's enquiry form needs; absent in Studio previews. */
 export interface EnquiryContext {
   apiOrigin: string;
@@ -200,6 +203,7 @@ function Block({
   resolve,
   mediaBase,
   enquiry,
+  mark,
 }: {
   section: PageSection;
   mode: Mode;
@@ -209,6 +213,7 @@ function Block({
   resolve?: HrefResolver;
   mediaBase?: string;
   enquiry?: EnquiryContext;
+  mark?: BrandMark;
 }) {
   switch (section.type) {
     case "hero":
@@ -408,7 +413,7 @@ function Block({
             {section.intro && <p className="mt-4 text-lead text-muted">{section.intro}</p>}
           </div>
           <div className="min-w-0 @5xl:col-span-8">
-            <ProductDemo demo={section.demo} motion={section.motion} />
+            <ProductDemo demo={section.demo} motion={section.motion} mark={mark} />
           </div>
         </div>
       ) : (
@@ -416,7 +421,7 @@ function Block({
           {section.heading && <Heading>{section.heading}</Heading>}
           {section.intro && <p className="mt-4 max-w-2xl text-lead text-muted">{section.intro}</p>}
           <div className={cn((section.heading || section.intro) && "mt-8")}>
-            <ProductDemo demo={section.demo} motion={section.motion} />
+            <ProductDemo demo={section.demo} motion={section.motion} mark={mark} />
           </div>
         </div>
       );
@@ -467,6 +472,7 @@ export function PageBlocks({
   resolveHref,
   mediaBase,
   enquiry,
+  mark,
 }: {
   document: PageDocument;
   mode?: Mode;
@@ -479,6 +485,8 @@ export function PageBlocks({
   mediaBase?: string;
   /** Live websites: where the enquiry form sends enquiries. */
   enquiry?: EnquiryContext;
+  /** The website's official mark, drawn from its brand. */
+  mark?: BrandMark;
 }) {
   return (
     // Blocks respond to the space they are given (container queries), so the
@@ -511,6 +519,7 @@ export function PageBlocks({
               resolve={resolveHref}
               mediaBase={mediaBase}
               enquiry={enquiry}
+              mark={mark}
             />
           </section>
         ))}

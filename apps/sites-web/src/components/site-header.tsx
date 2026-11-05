@@ -1,6 +1,14 @@
 "use client";
 
-import { BrandLogo, type BrandPair, NavPreview, type NavPreviewContent } from "@figbud/site-kit";
+import type { ProductSlug } from "@figbud/brand";
+import {
+  BrandLogo,
+  type BrandProfile,
+  NavPreview,
+  type NavPreviewContent,
+  ProductIdentity,
+  hasLogo,
+} from "@figbud/site-kit";
 import { ThemeToggle, buttonClasses, cn } from "@figbud/ui";
 import { ArrowRight } from "lucide-react";
 import { usePathname } from "next/navigation";
@@ -13,19 +21,23 @@ export interface NavLink {
 }
 
 /**
- * A product website's header: its published logo (or name), its published
- * pages as navigation, and the call to action its status allows.
+ * A product website's header: its official logo (the full logo when one is
+ * published, otherwise its symbol beside its name), its published pages as
+ * navigation, and the call to action its status allows.
  */
 export function SiteHeader({
   name,
   homeHref,
-  logo,
+  slug,
+  brand,
   links,
   cta,
 }: {
   name: string;
   homeHref: string;
-  logo?: BrandPair | null;
+  /** The product, when it's one the brand registry knows. */
+  slug?: ProductSlug;
+  brand?: BrandProfile | null;
   links: NavLink[];
   /** Absent while the website isn't taking enquiries. */
   cta?: NavLink | null;
@@ -39,23 +51,27 @@ export function SiteHeader({
     <header className="sticky top-0 z-40 border-b border-line bg-bg/95 backdrop-blur-xl">
       <div className="mx-auto flex max-w-[92rem] flex-wrap items-center gap-x-6 gap-y-2 px-5 py-3 sm:px-8 md:px-10 lg:px-16">
         <a href={homeHref} className="flex min-h-11 items-center gap-3 rounded-lg">
-          <BrandLogo
-            pair={logo}
-            height={28}
-            maxWidth={180}
-            alt={name}
-            fallback={
-              <span className="flex items-center gap-2.5">
-                <span
-                  aria-hidden
-                  className="inline-flex size-8 items-center justify-center rounded-[10px] bg-gradient-to-br from-product to-product-2 text-sm font-semibold text-product-ink"
-                >
-                  {name.charAt(0)}
-                </span>
-                <span className="text-[1.1rem] font-semibold tracking-tight text-text">{name}</span>
+          {hasLogo(brand?.logos.horizontal) ? (
+            <BrandLogo pair={brand.logos.horizontal} height={28} maxWidth={180} alt={name} />
+          ) : slug ? (
+            <ProductIdentity
+              slug={slug}
+              brand={brand}
+              name={name}
+              size="sm"
+              nameClassName="text-[1.1rem] font-semibold tracking-tight text-text"
+            />
+          ) : (
+            <span className="flex items-center gap-2.5">
+              <span
+                aria-hidden
+                className="inline-flex size-8 items-center justify-center rounded-[10px] bg-gradient-to-br from-product to-product-2 text-sm font-semibold text-product-ink"
+              >
+                {name.charAt(0)}
               </span>
-            }
-          />
+              <span className="text-[1.1rem] font-semibold tracking-tight text-text">{name}</span>
+            </span>
+          )}
         </a>
         {links.length > 0 && (
           <nav

@@ -1,9 +1,11 @@
+import type { ProductSlug } from "@figbud/brand";
 import {
   BrandLogo,
   CampaignSlot,
   ComingSoon,
   JsonLd,
   PageBlocks,
+  ProductLogo,
   ProductHero,
   ProofMetrics,
   PayrollSources,
@@ -18,6 +20,9 @@ import {
   websiteLd,
 } from "@figbud/site-kit";
 import { isEnquiryProduct } from "@figbud/site-kit/enquiry";
+
+/** Products the brand registry knows, whose official marks the pages can show. */
+const KNOWN_PRODUCTS: string[] = ["zirahr", "jasiri", "expense_now", "ziwa"];
 import { buttonClasses } from "@figbud/ui";
 import { ArrowRight } from "lucide-react";
 import type { Metadata, ResolvingMetadata } from "next";
@@ -338,6 +343,11 @@ export default async function SitePage({ params }: PageProps<"/[site]/[[...path]
         <PageBlocks
           document={blocks}
           resolveHref={hrefResolver(site, ownDomain, pages)}
+          mark={
+            KNOWN_PRODUCTS.includes(site.slug) ? (
+              <ProductLogo slug={site.slug as ProductSlug} brand={site.brand} name={site.name} size="sm" />
+            ) : undefined
+          }
           enquiry={{
             apiOrigin: publicApiOrigin,
             product: isEnquiryProduct(site.slug) ? site.slug : undefined,

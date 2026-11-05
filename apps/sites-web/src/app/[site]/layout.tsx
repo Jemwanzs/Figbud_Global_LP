@@ -1,4 +1,4 @@
-import { themeColorViewport } from "@figbud/brand";
+import { type ProductSlug, themeColorViewport } from "@figbud/brand";
 import {
   CampaignOverlays,
   CampaignProvider,
@@ -154,7 +154,8 @@ export default async function SiteLayout({ children, params }: LayoutProps<"/[si
             <SiteHeader
               name={site.name}
               homeHref={pageHref(slug, ownDomain, "")}
-              logo={site.brand?.logos.horizontal}
+              slug={KNOWN.includes(slug) ? (slug as ProductSlug) : undefined}
+              brand={site.brand}
               links={links.slice(0, 6)}
               cta={
                 enquiriesOpen(site)
@@ -177,6 +178,8 @@ export default async function SiteLayout({ children, params }: LayoutProps<"/[si
               name={site.name}
               tagline={footer?.note ?? site.tagline}
               links={footerLinks.length ? footerLinks : links}
+              slug={KNOWN.includes(slug) ? (slug as ProductSlug) : undefined}
+              brand={site.brand}
             />
             {/* The policies are FigBud Global's, on the corporate site. */}
             <CookieConsent
