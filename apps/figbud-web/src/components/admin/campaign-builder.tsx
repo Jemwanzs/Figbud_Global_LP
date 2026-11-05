@@ -254,7 +254,7 @@ export function CampaignBuilder({
           }
         : null,
     };
-  }, [doc, id, image, initial.kind, initial.reference]);
+  }, [doc, id, image, initial.kind, initial.reference, initial.organizations]);
 
   const submitBlocker = dirty
     ? "Save the draft first"

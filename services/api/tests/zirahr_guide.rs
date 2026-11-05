@@ -13,9 +13,13 @@ use serde_json::{Value, json};
 use tower::ServiceExt;
 use uuid::Uuid;
 
+/// These tests change the same seeded website, so they take turns.
+static ZIRAHR: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+
 #[tokio::test]
 async fn the_website_goes_live_once_and_leaves_edited_pages_alone() {
     let Some(pool) = database().await else { return };
+    let _turn = ZIRAHR.lock().await;
     let url = std::env::var("TEST_DATABASE_URL").unwrap();
     import::run(&pool).await.unwrap();
 
@@ -148,4 +152,112 @@ async fn the_website_goes_live_once_and_leaves_edited_pages_alone() {
     assert!(!sites.contains("nav_previews_draft"));
     assert!(sites.contains("Good conversations start here"));
     assert!(sites.contains("Refer & earn") || sites.contains("Refer \\u0026 earn"));
+}
+
+#[tokio::test]
+async fn the_scroll_stories_join_the_platform_page_once_and_never_over_an_edit() {
+    let Some(pool) = database().await else { return };
+    let _turn = ZIRAHR.lock().await;
+    let url = std::env::var("TEST_DATABASE_URL").unwrap();
+    import::run(&pool).await.unwrap();
+    zirahr_guide::run(&pool).await.unwrap();
+    zirahr_guide::launch(&pool).await.unwrap();
+    let site: Uuid = sqlx::query_scalar("SELECT id FROM sites WHERE slug = 'zirahr'")
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    let reset = |document: Value, edited: bool| {
+        let pool = pool.clone();
+        async move {
+            sqlx::query(
+                "DELETE FROM audit_log WHERE site_id = $1 AND action = 'page.zirahr_stories_published'",
+            )
+            .bind(site)
+            .execute(&pool)
+            .await
+            .unwrap();
+            let editor: Option<Uuid> = if edited {
+                sqlx::query_scalar("SELECT id FROM admin_users LIMIT 1")
+                    .fetch_optional(&pool)
+                    .await
+                    .unwrap()
+            } else {
+                None
+            };
+            sqlx::query(
+                "UPDATE pages SET draft = $2, published = $2, draft_updated_by = $3
+                  WHERE site_id = $1 AND path = 'platform'",
+            )
+            .bind(site)
+            .bind(&document)
+            .bind(editor)
+            .execute(&pool)
+            .await
+            .unwrap();
+        }
+    };
+    let simple = json!({ "sections": [
+        { "id": "a", "type": "hero", "heading": "Platform" },
+        { "id": "b", "type": "text", "heading": "Middle", "body": "Words." },
+        { "id": "c", "type": "text", "heading": "Close", "body": "Words." },
+    ] });
+    let stored = |pool: sqlx::PgPool| async move {
+        sqlx::query_as::<_, (Value, i32)>(
+            "SELECT p.published, (SELECT count(*)::int FROM page_revisions r WHERE r.page_id = p.id)
+               FROM pages p WHERE p.site_id = $1 AND p.path = 'platform'",
+        )
+        .bind(site)
+        .fetch_one(&pool)
+        .await
+        .unwrap()
+    };
+
+    reset(simple.clone(), false).await;
+    let (_, versions) = stored(pool.clone()).await;
+    zirahr_guide::publish_stories(&pool).await.unwrap();
+    let (document, after) = stored(pool.clone()).await;
+    assert_eq!(after, versions + 1, "a new version, so it can be undone");
+    let order: Vec<_> = document["sections"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|s| s["demo"].as_str().or(s["heading"].as_str()).unwrap().to_owned())
+        .collect();
+    assert_eq!(
+        order,
+        [
+            "Platform",
+            "scattered_to_connected",
+            "Middle",
+            "employee_journey",
+            "Close"
+        ]
+    );
+
+    // Every restart runs this; nothing changes again.
+    zirahr_guide::publish_stories(&pool).await.unwrap();
+    assert_eq!(stored(pool.clone()).await.1, after);
+
+    // Visitors get the stories from the public page.
+    let app = app_with(pool.clone(), config(&url));
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/v1/sites/zirahr/page?path=platform")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+
+    // A page someone edited stays exactly as it is.
+    reset(simple.clone(), true).await;
+    zirahr_guide::publish_stories(&pool).await.unwrap();
+    assert_eq!(stored(pool.clone()).await.0, simple);
+    sqlx::query("UPDATE pages SET draft_updated_by = NULL WHERE site_id = $1 AND path = 'platform'")
+        .bind(site)
+        .execute(&pool)
+        .await
+        .unwrap();
 }

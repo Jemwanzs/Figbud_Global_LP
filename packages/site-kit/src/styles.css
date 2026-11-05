@@ -641,6 +641,76 @@
     transform: translateY(6px);
   }
 }
+/* Scroll stories (UI-MO6): position comes from the stage's own size, and only
+   transforms, opacity and stroke offsets change, so nothing lays out on scroll. */
+.fb-story-stage {
+  container-type: size;
+}
+.fb-story-move {
+  transition: transform var(--motion-slow) var(--motion-ease);
+}
+.fb-story-path {
+  fill: none;
+  stroke: var(--product);
+  stroke-width: 0.35;
+  stroke-dasharray: 1;
+  stroke-dashoffset: calc(1 - clamp(0, (var(--story-progress, 0) - var(--path-start, 0.12)) * 5, 1));
+}
+[data-step="2"] .fb-story-path,
+[data-step="3"] .fb-story-path {
+  opacity: 0;
+  transition: opacity var(--motion-base) var(--motion-ease-standard);
+}
+.fb-story-unfold {
+  transform-origin: 50% 0;
+  transition:
+    transform var(--motion-slow) var(--motion-ease),
+    opacity var(--motion-base) var(--motion-ease-standard);
+}
+.fb-story-unfold[data-open="false"] {
+  opacity: 0;
+  transform: perspective(70rem) rotateX(-18deg) translateY(10%) scale(0.96);
+}
+.fb-story-rise {
+  transition:
+    transform var(--motion-slow) var(--motion-ease),
+    opacity var(--motion-slow) var(--motion-ease-standard);
+}
+.fb-story-rise[data-open="false"] {
+  opacity: 0;
+  transform: translateY(14px);
+}
+.fb-story-rail {
+  transform-origin: 50% 0;
+  transform: scaleY(var(--story-progress, 0));
+}
+.fb-story-card {
+  transform-origin: 50% 100%;
+  transition:
+    transform var(--motion-slow) var(--motion-ease),
+    opacity var(--motion-base) var(--motion-ease-standard);
+}
+.fb-story-card[data-place="past"] {
+  opacity: 0;
+  transform: translateY(-8%) rotateX(10deg) scale(0.98);
+}
+.fb-story-card[data-place="next"] {
+  opacity: 0;
+  transform: translateY(9%) rotateX(-8deg) scale(0.94);
+}
+/* Subtle: states still change, with no depth. Off, or reduced motion: they just change. */
+[data-motion="subtle"] .fb-story-card,
+[data-motion="subtle"] .fb-story-unfold {
+  transform: none !important;
+}
+[data-motion="off"] :is(.fb-story-move, .fb-story-unfold, .fb-story-rise, .fb-story-card, .fb-story-path) {
+  transition: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .fb-story :is(.fb-story-move, .fb-story-unfold, .fb-story-rise, .fb-story-card, .fb-story-path) {
+    transition: none;
+  }
+}
 /* Output cards arrive one after another, the first time they're seen. */
 [data-reveal-state="waiting"] .fb-demo-card {
   opacity: 0;

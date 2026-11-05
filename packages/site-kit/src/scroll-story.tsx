@@ -1,0 +1,557 @@
+"use client";
+
+import { cn } from "@figbud/ui";
+import {
+  Check,
+  CalendarDays,
+  FileSpreadsheet,
+  FileText,
+  Mail,
+  MessageCircle,
+  type LucideIcon,
+  UserRound,
+} from "lucide-react";
+import { type CSSProperties, type ReactNode, useEffect, useRef, useState } from "react";
+
+/*
+ * Signature scroll stories (UI-MO6): the page scrolls normally while a sticky
+ * product visual follows the step being read. Nothing intercepts the wheel or
+ * touch. The steps are ordinary text in the server's HTML, so the story reads
+ * without JavaScript, and the visual only ever adds to it.
+ *
+ * Two signals drive the visual: the step being read (`data-step`, for state
+ * changes with CSS transitions) and progress through the story
+ * (`--story-progress`, for lines that follow the scroll). Both are transforms,
+ * opacity or stroke offsets, so nothing lays out again while scrolling.
+ */
+
+export type StoryMotion = "standard" | "subtle" | "off";
+
+const clamp = (value: number) => Math.min(1, Math.max(0, value));
+
+/** Follows the page's scroll with passive listeners and one write per frame. */
+function useScrollStory() {
+  const root = useRef<HTMLDivElement>(null);
+  const [step, setStep] = useState(0);
+  const [onScreen, setOnScreen] = useState(false);
+
+  useEffect(() => {
+    const el = root.current;
+    if (!el) return;
+    // The line being read: mid-screen beside the visual, lower down beneath it on phones.
+    const wide = window.matchMedia("(min-width: 64rem)");
+    let steps: IntersectionObserver | null = null;
+    const watchSteps = () => {
+      steps?.disconnect();
+      steps = new IntersectionObserver(
+        (entries) => {
+          for (const entry of entries) {
+            if (entry.isIntersecting) setStep(Number((entry.target as HTMLElement).dataset.storyStep));
+          }
+        },
+        { rootMargin: wide.matches ? "-45% 0px -45% 0px" : "-70% 0px -25% 0px" },
+      );
+      el.querySelectorAll("[data-story-step]").forEach((item) => steps?.observe(item));
+    };
+    watchSteps();
+    wide.addEventListener("change", watchSteps);
+
+    let frame = 0;
+    const measure = () => {
+      frame = 0;
+      // Clear of the website's header, which takes two rows on phones.
+      const header = document.querySelector("header")?.offsetHeight ?? 64;
+      el.style.setProperty("--story-top", `${header}px`);
+      const box = el.getBoundingClientRect();
+      const reading = window.innerHeight * (wide.matches ? 0.5 : 0.72);
+      el.style.setProperty("--story-progress", clamp((reading - box.top) / box.height).toFixed(3));
+    };
+    const schedule = () => {
+      if (!frame) frame = window.requestAnimationFrame(measure);
+    };
+    // Only listens while the story is on screen.
+    const visibility = new IntersectionObserver(([entry]) => {
+      const visible = Boolean(entry?.isIntersecting);
+      setOnScreen(visible);
+      if (visible) {
+        measure();
+        window.addEventListener("scroll", schedule, { passive: true });
+        window.addEventListener("resize", schedule, { passive: true });
+      } else {
+        window.removeEventListener("scroll", schedule);
+        window.removeEventListener("resize", schedule);
+      }
+    });
+    visibility.observe(el);
+    return () => {
+      steps?.disconnect();
+      visibility.disconnect();
+      wide.removeEventListener("change", watchSteps);
+      window.removeEventListener("scroll", schedule);
+      window.removeEventListener("resize", schedule);
+      if (frame) window.cancelAnimationFrame(frame);
+    };
+  }, []);
+
+  return { root, step, onScreen };
+}
+
+/** Text beside (or beneath, on phones) a sticky stage. */
+function ScrollStory({
+  steps,
+  motion,
+  label,
+  children,
+}: {
+  steps: { title: string; body: string }[];
+  motion: StoryMotion;
+  label: string;
+  children: (state: { step: number; onScreen: boolean }) => ReactNode;
+}) {
+  const { root, step, onScreen } = useScrollStory();
+  return (
+    <div
+      ref={root}
+      data-story={label}
+      data-motion={motion}
+      data-step={step}
+      style={{ "--story-progress": 0 } as CSSProperties}
+      className="fb-story grid gap-y-6 lg:grid-cols-12 lg:gap-x-12"
+    >
+      <div className="sticky top-[var(--story-top,4.5rem)] z-10 -mx-4 self-start bg-bg px-4 py-2 sm:-mx-6 sm:px-6 lg:order-2 lg:col-span-7 lg:mx-0 lg:bg-transparent lg:px-0 lg:pt-4 lg:pb-0">
+        {/* The steps say all of this in words, so the picture isn't read out. */}
+        <div
+          aria-hidden
+          data-theme="dark"
+          className="fb-demo-stage fb-story-stage relative h-[40svh] min-h-64 overflow-hidden rounded-[var(--radius-panel)] text-text lg:h-[min(36rem,calc(100svh-8rem))]"
+        >
+          {children({ step, onScreen })}
+        </div>
+        <p className="mt-2 text-xs text-subtle">Illustrative product activity · synthetic data</p>
+      </div>
+      <ol className="lg:order-1 lg:col-span-5">
+        {steps.map((item, i) => (
+          <li
+            key={item.title}
+            data-story-step={i}
+            aria-current={i === step ? "step" : undefined}
+            className="flex min-h-[46svh] flex-col justify-center py-6 lg:min-h-[78svh]"
+          >
+            <span
+              className={cn(
+                "mb-3 block h-0.5 w-10 origin-left bg-product transition-transform duration-[var(--motion-base)] rtl:origin-right",
+                i === step ? "scale-x-100" : "scale-x-50",
+              )}
+            />
+            <h3
+              className={cn(
+                "font-display text-title font-semibold transition-colors duration-[var(--motion-base)]",
+                i === step ? "text-text" : "text-muted",
+              )}
+            >
+              {item.title}
+            </h3>
+            <p className="mt-3 max-w-prose text-muted">{item.body}</p>
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
+
+/* ------------------------------------------- scattered tools to one platform */
+
+const TOOLS: { name: string; note: string; icon: LucideIcon; scattered: [number, number, number] }[] = [
+  { name: "payroll_final_v7.xlsx", note: "Which version?", icon: FileSpreadsheet, scattered: [24, 18, -7] },
+  { name: "Re: leave request", note: "Still waiting", icon: Mail, scattered: [74, 15, 5] },
+  { name: "Contract, scanned", note: "In whose folder?", icon: FileText, scattered: [17, 56, 4] },
+  { name: "Who approved this?", note: "Team chat", icon: MessageCircle, scattered: [80, 54, -5] },
+  { name: "Who's out on Friday?", note: "Wall calendar", icon: CalendarDays, scattered: [47, 84, 3] },
+];
+const MODULES = ["Core HR", "Payroll", "Leave", "Attendance", "Performance"];
+const PAY_STAGES = ["Draft", "Validated", "Approved", "Locked"];
+const TRAIL = [
+  ["Inputs validated", "HR"],
+  ["Run approved", "Finance"],
+  ["Payroll locked", "Finance"],
+];
+
+function toolStyle(index: number, step: number): CSSProperties {
+  const [x, y, turn] = TOOLS[index]!.scattered;
+  // Scattered, then drawn in, then settled as the platform's modules along the top.
+  const at =
+    step === 0
+      ? { x, y, turn, scale: 1 }
+      : step === 1
+        ? { x: 50 + (x - 50) * 0.72, y: 50 + (y - 50) * 0.8, turn: 0, scale: 0.92 }
+        : { x: 12 + index * 19, y: 9, turn: 0, scale: 0.9 };
+  return {
+    transform: `translate(calc(${at.x} * 1cqw - 50%), calc(${at.y} * 1cqh - 50%)) rotate(${at.turn}deg) scale(${at.scale})`,
+    transitionDelay: `${index * 45}ms`,
+  };
+}
+
+function ScatteredStage({ step, onScreen }: { step: number; onScreen: boolean }) {
+  const [stage, setStage] = useState(0);
+  const running = step === 3 && onScreen;
+  // The pay run moves on by itself once it's reached, and stops at Locked.
+  useEffect(() => {
+    if (!running || stage >= PAY_STAGES.length - 1) return;
+    const id = window.setTimeout(() => setStage((s) => s + 1), 1300);
+    return () => window.clearTimeout(id);
+  }, [running, stage]);
+
+  return (
+    <>
+      <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 size-full">
+        {TOOLS.map((tool, i) => (
+          <path
+            key={tool.name}
+            d={`M${50 + (tool.scattered[0] - 50) * 0.72} ${50 + (tool.scattered[1] - 50) * 0.8} L 50 50`}
+            pathLength={1}
+            className="fb-story-path"
+            style={{ "--path-start": 0.12 + i * 0.03 } as CSSProperties}
+          />
+        ))}
+      </svg>
+
+      <div
+        data-open={step === 1}
+        className="fb-story-rise absolute top-1/2 left-1/2 -mt-5 -ml-5 grid size-10 place-items-center rounded-full bg-product font-semibold text-product-ink shadow-lg"
+      >
+        Z
+      </div>
+
+      {TOOLS.map((tool, i) => {
+        const Icon = tool.icon;
+        const settled = step >= 2;
+        return (
+          <div key={tool.name} style={toolStyle(i, step)} className="fb-story-move absolute top-0 left-0">
+            <div
+              className={cn(
+                "flex items-center gap-2 rounded-xl border px-2 py-1.5 text-[0.68rem] whitespace-nowrap shadow-lg @lg:px-3 @lg:py-2 @lg:text-xs",
+                settled ? "border-product/50 bg-product-soft" : "border-line bg-surface",
+              )}
+            >
+              <Icon aria-hidden className={cn("size-4 shrink-0", settled ? "text-product" : "text-muted")} />
+              {settled ? (
+                // Icons alone on phones: five labels don't fit, and the text beside this names them.
+                <span className="hidden font-medium @lg:inline">{MODULES[i]}</span>
+              ) : (
+                <span>
+                  <span className="block font-medium">{tool.name}</span>
+                  <span className="block text-subtle">{tool.note}</span>
+                </span>
+              )}
+            </div>
+          </div>
+        );
+      })}
+
+      {/* One record unfolds where the lines meet. */}
+      <div
+        data-open={step >= 2}
+        className="fb-story-unfold absolute inset-x-[5%] top-[20%] bottom-[5%] overflow-hidden rounded-2xl border border-line bg-surface p-3 shadow-2xl @lg:p-5"
+      >
+        <div className="flex items-center gap-3">
+          <span className="grid size-8 shrink-0 place-items-center rounded-full bg-product text-product-ink @lg:size-10">
+            <UserRound className="size-4 @lg:size-5" />
+          </span>
+          <div className="min-w-0">
+            <p className="truncate font-semibold">Amani W.</p>
+            <p className="truncate text-xs text-muted">Finance · one employee record</p>
+          </div>
+        </div>
+        <div className="mt-2 grid grid-cols-3 gap-1.5 text-[0.68rem] @lg:mt-4 @lg:gap-2 @lg:text-xs">
+          {[
+            ["Leave balance", step >= 3 ? "11 days" : "14 days"],
+            ["Today", "In 08:02"],
+            ["Payslip", stage === PAY_STAGES.length - 1 ? "Ready" : "Soon"],
+          ].map(([label, value]) => (
+            <div key={label} className="min-w-0 rounded-xl bg-surface-2 p-2 @lg:p-2.5">
+              <p className="truncate text-subtle">{label}</p>
+              <p className="mt-0.5 truncate font-medium">{value}</p>
+            </div>
+          ))}
+        </div>
+        <div data-open={step >= 3} className="fb-story-rise mt-2 @lg:mt-4">
+          <p className="text-xs text-subtle">November pay run</p>
+          <ol className="mt-2 flex items-center gap-1.5">
+            {PAY_STAGES.map((name, i) => (
+              <li
+                key={name}
+                className={cn(
+                  "flex min-w-0 flex-1 items-center justify-center gap-1 rounded-lg px-1 py-1.5 text-[0.7rem] transition-colors duration-[var(--motion-base)]",
+                  i <= stage ? "bg-product text-product-ink" : "bg-surface-2 text-muted",
+                )}
+              >
+                {i < stage && <Check className="hidden size-3 shrink-0 @lg:block" />}
+                <span className="truncate">{name}</span>
+              </li>
+            ))}
+          </ol>
+          {/* Each step leaves its mark; there's only room for the trail on wider stages. */}
+          <ul className="mt-4 hidden gap-2 text-xs @lg:grid">
+            {TRAIL.map(([what, who], i) => (
+              <li
+                key={what}
+                data-open={i < stage}
+                className="fb-story-rise flex justify-between gap-3 rounded-lg bg-surface-2 px-3 py-2"
+              >
+                <span>{what}</span>
+                <span className="text-subtle">{who}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    </>
+  );
+}
+
+export function ScatteredToConnectedStory({ motion = "standard" }: { motion?: StoryMotion }) {
+  return (
+    <ScrollStory
+      label="scattered-to-connected"
+      motion={motion}
+      steps={[
+        {
+          title: "HR usually lives in too many places.",
+          body: "A payroll spreadsheet here, a leave request in someone's inbox, contracts in a folder, and the answer to who approved what lost in a chat.",
+        },
+        {
+          title: "ZiraHR draws it together.",
+          body: "Employee information, pay, time and approvals connect in one cloud platform, so a change made once reaches everything that depends on it.",
+        },
+        {
+          title: "One record for every employee.",
+          body: "Core HR, payroll, leave, attendance and performance all work from the same employee record, not from copies of it.",
+        },
+        {
+          title: "So the work moves by itself.",
+          body: "An approved request updates the balance. A pay run moves through validation and approval to locked, with a clear trail of who did what.",
+        },
+      ]}
+    >
+      {(state) => <ScatteredStage {...state} />}
+    </ScrollStory>
+  );
+}
+
+/* ------------------------------------------------- one employee's whole journey */
+
+function Rows({ rows, wide = [] }: { rows: [string, string, boolean?][]; wide?: string[] }) {
+  return (
+    <dl className="mt-2 divide-y divide-line text-xs @lg:mt-3 @lg:text-sm">
+      {rows.map(([term, value, strong]) => (
+        <div
+          key={term}
+          className={cn(
+            "justify-between gap-3 py-1.5 @lg:py-2.5",
+            wide.includes(term) ? "hidden @lg:flex" : "flex",
+          )}
+        >
+          <dt className="text-muted">{term}</dt>
+          <dd className={cn("text-end tabular-nums", strong ? "font-semibold text-text" : "text-text")}>
+            {value}
+          </dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+function Ticks({ items }: { items: [string, boolean][] }) {
+  return (
+    <ul className="mt-2 grid gap-1.5 text-xs @lg:mt-3 @lg:gap-2.5 @lg:text-sm">
+      {items.map(([item, done]) => (
+        <li key={item} className="flex items-center gap-2">
+          <span
+            className={cn(
+              "grid size-5 shrink-0 place-items-center rounded-full",
+              done ? "bg-product text-product-ink" : "border border-line-strong",
+            )}
+          >
+            {done && <Check className="size-3" />}
+          </span>
+          <span className={done ? "text-text" : "text-muted"}>{item}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function Meter({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="mt-2 text-xs @lg:mt-3 @lg:text-sm">
+      <p className="flex justify-between">
+        <span className="text-muted">{label}</span>
+        <span className="tabular-nums">{value}%</span>
+      </p>
+      <span className="mt-1.5 block h-2 overflow-hidden rounded-full bg-surface-2">
+        <span
+          className="block h-full origin-left rounded-full bg-product rtl:origin-right"
+          style={{ transform: `scaleX(${value / 100})` }}
+        />
+      </span>
+    </div>
+  );
+}
+
+const JOURNEY: { stage: string; title: string; card: ReactNode }[] = [
+  {
+    stage: "Recruit",
+    title: "Applicant pipeline",
+    card: (
+      <div className="mt-2 grid grid-cols-3 gap-1.5 text-[0.68rem] @lg:mt-4 @lg:gap-2 @lg:text-xs">
+        {["Applied", "Interview", "Offer"].map((column, i) => (
+          <div key={column} className="rounded-xl bg-surface-2 p-2">
+            <p className="text-subtle">{column}</p>
+            <p
+              className={cn(
+                "mt-2 truncate rounded-lg px-2 py-2",
+                i === 2 ? "bg-product font-medium text-product-ink" : "bg-surface text-muted",
+              )}
+            >
+              {i === 2 ? "Amani W." : "Candidate"}
+            </p>
+          </div>
+        ))}
+      </div>
+    ),
+  },
+  {
+    stage: "Onboard",
+    title: "First-week checklist",
+    card: (
+      <Ticks
+        items={[
+          ["Record created from the offer", true],
+          ["Contract and IDs on file", true],
+          ["Probation dates set", true],
+          ["Self-service invitation", false],
+        ]}
+      />
+    ),
+  },
+  {
+    stage: "Day to day",
+    title: "Time and leave",
+    card: (
+      <Rows
+        rows={[
+          ["Today", "In 08:02"],
+          ["Shift", "08:00 to 17:00"],
+          ["Annual leave balance", "14 days", true],
+          ["Next approved leave", "24 Dec"],
+        ]}
+      />
+    ),
+  },
+  {
+    stage: "Pay",
+    title: "November payslip",
+    card: (
+      <Rows
+        rows={[
+          ["Gross pay", "150,000.00"],
+          ["NSSF", "−6,480.00"],
+          ["SHIF", "−4,125.00"],
+          ["Housing Levy", "−2,250.00"],
+          ["Statutory deductions", "−12,855.00"],
+          ["PAYE", "−33,526.85"],
+          ["Net pay", "103,618.15", true],
+        ]}
+        wide={["NSSF", "SHIF", "Housing Levy"]}
+      />
+    ),
+  },
+  {
+    stage: "Grow",
+    title: "Goals and learning",
+    card: (
+      <>
+        <Meter label="Quarterly goal" value={70} />
+        <Meter label="Statutory payroll course" value={45} />
+        <div className="hidden @lg:block">
+          <Ticks items={[["Mid-year review shared", true]]} />
+        </div>
+      </>
+    ),
+  },
+];
+
+function JourneyStage({ step }: { step: number }) {
+  return (
+    <div className="absolute inset-0 grid grid-cols-[auto_1fr] gap-3 p-3 @lg:gap-6 @lg:p-6">
+      {/* The rail follows the scroll; each stop lights up as it's reached. */}
+      <ol className="relative flex flex-col justify-between py-1 text-[0.7rem] text-muted">
+        <span className="absolute start-[0.6875rem] top-3 bottom-3 w-0.5 bg-line" />
+        <span className="fb-story-rail absolute start-[0.6875rem] top-3 bottom-3 w-0.5 bg-product" />
+        {JOURNEY.map((item, i) => (
+          <li key={item.stage} className="relative flex items-center gap-2">
+            <span
+              className={cn(
+                "size-6 shrink-0 rounded-full border-2 transition-colors duration-[var(--motion-base)]",
+                i <= step ? "border-product bg-product" : "border-line-strong bg-surface",
+              )}
+            />
+            <span className={cn("hidden @lg:inline", i === step && "font-medium text-text")}>
+              {item.stage}
+            </span>
+          </li>
+        ))}
+      </ol>
+      {/* One card, turning into each stage: earlier ones lift away, later ones wait behind it. */}
+      <div className="relative min-w-0 [perspective:70rem]">
+        {JOURNEY.map((item, i) => (
+          <div
+            key={item.stage}
+            data-place={i < step ? "past" : i === step ? "now" : "next"}
+            className="fb-story-card absolute inset-0 overflow-hidden rounded-2xl border border-line bg-surface p-3 shadow-2xl @lg:p-6"
+          >
+            <p className="text-xs font-medium tracking-wide text-product uppercase">{item.stage}</p>
+            <p className="mt-1 font-semibold">{item.title}</p>
+            <p className="mt-0.5 hidden text-xs text-muted @lg:block">
+              Amani W. · the same record throughout
+            </p>
+            {item.card}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function EmployeeJourneyStory({ motion = "standard" }: { motion?: StoryMotion }) {
+  return (
+    <ScrollStory
+      label="employee-journey"
+      motion={motion}
+      steps={[
+        {
+          title: "It starts with a hire.",
+          body: "Move applicants through one connected hiring flow, from application to offer.",
+        },
+        {
+          title: "Onboarding picks up from the offer.",
+          body: "The new starter's record is already there, so contracts, documents and probation dates attach to it, with nothing typed twice.",
+        },
+        {
+          title: "Every day runs on the same record.",
+          body: "Time and attendance, shifts and leave balances stay with the employee, and they can see their own in any web browser.",
+        },
+        {
+          title: "Payroll already knows.",
+          body: "Pay draws on that same record, and each statutory deduction is shown line by line on a payslip the employee can open themselves.",
+        },
+        {
+          title: "And growth stays connected.",
+          body: "Goals, reviews and learning sit alongside everything else, so progress is part of the same story.",
+        },
+      ]}
+    >
+      {({ step }) => <JourneyStage step={step} />}
+    </ScrollStory>
+  );
+}

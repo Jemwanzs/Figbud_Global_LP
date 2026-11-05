@@ -122,6 +122,9 @@ pub enum Block {
         heading: Option<String>,
         #[serde(default)]
         intro: Option<String>,
+        /// How much a scroll story moves.
+        #[serde(default, skip_serializing_if = "DemoMotion::is_standard")]
+        motion: DemoMotion,
     },
     /// Refer & earn: a form that reaches the enquiry inbox (P14-R). The phone
     /// number people call to follow a deal is set here, never invented.
@@ -149,6 +152,25 @@ pub enum DemoKind {
     Outputs,
     LeaveFlow,
     TeamCalendar,
+    ScatteredToConnected,
+    EmployeeJourney,
+}
+
+/// The Studio's animation choice for a demonstration; visitors who prefer
+/// reduced motion always get the still version.
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum DemoMotion {
+    #[default]
+    Standard,
+    Subtle,
+    Off,
+}
+
+impl DemoMotion {
+    fn is_standard(&self) -> bool {
+        *self == Self::Standard
+    }
 }
 
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq, Default)]

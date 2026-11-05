@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 
 import { type DemoKind, ModuleCatalogue, type ModuleItem, ProductDemo } from "./product-demos";
 import { ReferralForm } from "./referral-form";
+import type { StoryMotion } from "./scroll-story";
 
 /**
  * Renders page documents built in the Studio (D17): an approved library of
@@ -60,7 +61,13 @@ export type PageSection = Base &
         intro?: string | null;
         items: (Omit<ModuleItem, "cta"> & { cta?: PageCta | null })[];
       }
-    | { type: "demo"; demo: DemoKind; heading?: string | null; intro?: string | null }
+    | {
+        type: "demo";
+        demo: DemoKind;
+        heading?: string | null;
+        intro?: string | null;
+        motion?: StoryMotion;
+      }
     | { type: "referral_form"; heading?: string | null; intro?: string | null; contact_phone?: string | null }
     | {
         type: "image";
@@ -353,7 +360,7 @@ function Block({
           {section.heading && <Heading>{section.heading}</Heading>}
           {section.intro && <p className="mt-4 max-w-2xl text-lead text-muted">{section.intro}</p>}
           <div className={cn((section.heading || section.intro) && "mt-8")}>
-            <ProductDemo demo={section.demo} />
+            <ProductDemo demo={section.demo} motion={section.motion} />
           </div>
         </div>
       );

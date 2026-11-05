@@ -1932,6 +1932,8 @@ seedPublishedPage("zirahr", "platform", "Platform", {
     { id: "zp-slip", type: "demo", demo: "payslip", heading: "Payroll day." },
     { id: "zp-rules", type: "demo", demo: "rules", heading: "Payroll rules you can see." },
     { id: "zp-ess", type: "demo", demo: "self_service", heading: "One browser tab away." },
+    { id: "zp-story", type: "demo", demo: "scattered_to_connected", heading: "From scattered to connected." },
+    { id: "zp-path", type: "demo", demo: "employee_journey", heading: "One employee, start to finish." },
     { id: "zp-cal", type: "demo", demo: "team_calendar", heading: "See who's out." },
     { id: "zp-leave", type: "demo", demo: "leave_flow", heading: "Time off, without the back-and-forth." },
     { id: "zp-out", type: "demo", demo: "outputs", heading: "What a finished run gives you." },

@@ -20,6 +20,8 @@ import {
 } from "lucide-react";
 import { type KeyboardEvent, useEffect, useRef, useState } from "react";
 
+import { EmployeeJourneyStory, ScatteredToConnectedStory, type StoryMotion } from "./scroll-story";
+
 /*
  * Interactive product demonstrations for product website pages (P14-W), chosen
  * in the page builder like any block. Original ZiraHR art direction: a single
@@ -38,7 +40,9 @@ export type DemoKind =
   | "self_service"
   | "outputs"
   | "leave_flow"
-  | "team_calendar";
+  | "team_calendar"
+  | "scattered_to_connected"
+  | "employee_journey";
 
 const SYNTHETIC = "Illustrative product activity · synthetic data";
 
@@ -1021,7 +1025,7 @@ function TeamCalendar() {
   );
 }
 
-export function ProductDemo({ demo }: { demo: DemoKind }) {
+export function ProductDemo({ demo, motion }: { demo: DemoKind; motion?: StoryMotion }) {
   switch (demo) {
     case "connected_modules":
       return <ConnectedModules />;
@@ -1039,6 +1043,10 @@ export function ProductDemo({ demo }: { demo: DemoKind }) {
       return <LeaveFlow />;
     case "team_calendar":
       return <TeamCalendar />;
+    case "scattered_to_connected":
+      return <ScatteredToConnectedStory motion={motion} />;
+    case "employee_journey":
+      return <EmployeeJourneyStory motion={motion} />;
   }
 }
 

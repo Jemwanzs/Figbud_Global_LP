@@ -122,6 +122,7 @@ Motion explains and guides. It never decorates for its own sake, and content nev
   - `CountUp`: figures count up once. The final, formatted value (currency such as KES, percent, compact, decimals) is in the server HTML and is what screen readers get, and an invisible copy reserves the width so nothing shifts.
   - `Marquee`: a slow, seamless right-to-left row with faded edges. Repeats are hidden from assistive technology and keyboard focus, and hover, focus and its pause button stop it (WCAG 2.2.2). With reduced motion it's a still row that scrolls sideways; with fewer than three items it's a still, centred row.
   - Sliders follow the home showcase (`platform-showcase.tsx`): transform-based track, inert off-screen panels, `touch-action: pan-y` so vertical scrolling is never captured, swipe threshold 48px, a sideways trackpad threshold, visible previous and next controls, and a position indicator.
+  - Scroll stories (`ScrollStory` in `scroll-story.tsx`, UI-MO6): a sticky visual beside steps of ordinary text. `data-step` carries state for CSS transitions and `--story-progress` carries position for lines. Use `@lg:` container variants inside the stage, because its width differs from the screen's. New stories join `DemoKind` in `blocks.rs` and `product-demos.tsx`.
 - **Rules:**
   - Animate `transform` and `opacity` only.
   - No layout shift: reserve space, and don't change heights on load.

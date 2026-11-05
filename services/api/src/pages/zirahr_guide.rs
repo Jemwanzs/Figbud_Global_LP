@@ -297,6 +297,98 @@ pub async fn run(pool: &PgPool) -> Result<(), Box<dyn std::error::Error + Send +
 }
 
 const LAUNCH: &str = "site.zirahr_launched";
+const STORIES: &str = "page.zirahr_stories_published";
+
+fn story_sections() -> [Value; 2] {
+    [
+        json!({ "id": id(), "type": "demo", "demo": "scattered_to_connected",
+                "heading": "From scattered to connected.",
+                "intro": "Keep scrolling to see what changes when HR stops living in separate places." }),
+        json!({ "id": id(), "type": "demo", "demo": "employee_journey",
+                "heading": "One employee, one record, start to finish.",
+                "intro": "Follow someone from their application to their next goal." }),
+    ]
+}
+
+/// Adds the scroll stories to the Platform page once (UI-MO6), as a new numbered
+/// version that can be restored from in the Studio. A page someone has edited is
+/// left alone: they can add the stories themselves from the page builder.
+pub async fn publish_stories(pool: &PgPool) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let mut tx = pool.begin().await?;
+    let site: Option<Uuid> = sqlx::query_scalar(
+        "SELECT s.id FROM sites s WHERE s.slug = 'zirahr' AND NOT EXISTS (
+                SELECT 1 FROM audit_log a WHERE a.site_id = s.id AND a.action = $1)
+            FOR UPDATE",
+    )
+    .bind(STORIES)
+    .fetch_optional(&mut *tx)
+    .await?;
+    let Some(site_id) = site else { return Ok(()) };
+    let page: Option<(Uuid, Value, Option<Value>, bool)> = sqlx::query_as(
+        "SELECT id, draft, published, draft_updated_by IS NOT NULL FROM pages
+          WHERE site_id = $1 AND path = 'platform' AND archived_at IS NULL FOR UPDATE",
+    )
+    .bind(site_id)
+    .fetch_optional(&mut *tx)
+    .await?;
+    let mut added = false;
+    if let Some((page_id, draft, Some(published), false)) = page
+        && draft == published
+    {
+        let mut document = published;
+        let sections = document["sections"]
+            .as_array_mut()
+            .ok_or("Platform page has no sections")?;
+        let has_story = sections.iter().any(|s| s["demo"] == "scattered_to_connected");
+        if !has_story {
+            let [connected, journey] = story_sections();
+            let after_hero = usize::from(!sections.is_empty());
+            sections.insert(after_hero, connected);
+            let before_close = sections.len().saturating_sub(1).max(after_hero + 1);
+            sections.insert(before_close, journey);
+            let doc: PageDoc = serde_json::from_value(document.clone())?;
+            doc.validate()
+                .map_err(|e| format!("ZiraHR platform page: {e:?}"))?;
+            let revision = Uuid::now_v7();
+            sqlx::query(
+                "INSERT INTO page_revisions (id, page_id, number, document, note, state, decided_at)
+                 SELECT $1, $2, COALESCE(max(number), 0) + 1, $3, $4, 'published', now()
+                   FROM page_revisions WHERE page_id = $2",
+            )
+            .bind(revision)
+            .bind(page_id)
+            .bind(&document)
+            .bind("Scroll stories added on the owner's brief, 5 Nov 2026")
+            .execute(&mut *tx)
+            .await?;
+            sqlx::query(
+                "UPDATE pages SET draft = $2, published = $2, published_revision = $3, published_at = now(),
+                        draft_version = draft_version + 1, draft_updated_at = now()
+                  WHERE id = $1",
+            )
+            .bind(page_id)
+            .bind(&document)
+            .bind(revision)
+            .execute(&mut *tx)
+            .await?;
+            added = true;
+        }
+    }
+    sqlx::query(
+        "INSERT INTO audit_log (id, action, target_type, target_id, detail, site_id)
+         VALUES ($1, $2, 'site', $3, $4, $5)",
+    )
+    .bind(Uuid::now_v7())
+    .bind(STORIES)
+    .bind(site_id.to_string())
+    .bind(json!({ "added": added, "authorised_by": "owner's brief, 5 Nov 2026" }))
+    .bind(site_id)
+    .execute(&mut *tx)
+    .await?;
+    tx.commit().await?;
+    tracing::info!(added, "ZiraHR scroll stories");
+    Ok(())
+}
 const CHECKED: &str = "2026-11-05";
 
 /// Publishes one page, unless a person has edited it since it was drafted.

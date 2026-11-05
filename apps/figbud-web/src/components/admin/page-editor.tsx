@@ -824,8 +824,27 @@ export function BlockForm({
               <option value="outputs">What comes out of a run</option>
               <option value="leave_flow">Leave request and approval</option>
               <option value="team_calendar">Team calendar</option>
+              <option value="scattered_to_connected">Scroll story: scattered tools to one platform</option>
+              <option value="employee_journey">Scroll story: one employee&apos;s journey</option>
             </select>
           </label>
+          {(section.demo === "scattered_to_connected" || section.demo === "employee_journey") && (
+            <label className="block text-sm font-medium text-text">
+              Animation
+              <select
+                value={section.motion ?? "standard"}
+                disabled={p.disabled}
+                onChange={(e) =>
+                  onChange({ ...section, motion: e.target.value as "standard" | "subtle" | "off" })
+                }
+                className="mt-1.5 min-h-11 w-full rounded-xl border border-line-strong bg-surface px-3 text-text"
+              >
+                <option value="standard">Standard</option>
+                <option value="subtle">Subtle: no depth</option>
+                <option value="off">Off: states change without moving</option>
+              </select>
+            </label>
+          )}
           <TextField
             label="Heading (optional)"
             value={section.heading}

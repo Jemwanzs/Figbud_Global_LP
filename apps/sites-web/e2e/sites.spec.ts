@@ -425,6 +425,68 @@ test.describe("ZiraHR: payroll calculator and demonstrations (P14)", () => {
     );
   });
 
+  test("scroll stories follow normal scrolling, read without the visual and don't overflow", async ({
+    page,
+  }) => {
+    test.setTimeout(90_000);
+    await page.goto("/zirahr/platform");
+    const story = page.locator('[data-story="scattered-to-connected"]');
+    const steps = story.locator("[data-story-step]");
+    await expect(steps).toHaveCount(4);
+    // All the words are there at once, in order, whatever the visual is doing.
+    await expect(steps.nth(3)).toContainText("So the work moves by itself.");
+    await expect(story.locator('[aria-hidden="true"]').first()).toBeAttached();
+
+    // Scrolling each step to where it's read moves the story on, and the page stays where it was put.
+    for (let i = 0; i < 4; i++) {
+      await steps.nth(i).evaluate((el) => el.scrollIntoView({ block: "center", behavior: "instant" }));
+      const y = await page.evaluate(() => window.scrollY);
+      await expect(story).toHaveAttribute("data-step", String(i));
+      expect(Math.abs((await page.evaluate(() => window.scrollY)) - y)).toBeLessThanOrEqual(1);
+    }
+    expect(
+      Number(await story.evaluate((el) => el.style.getPropertyValue("--story-progress"))),
+    ).toBeGreaterThan(0.5);
+    // The visual stays in view while the steps go past.
+    const stage = story.locator(".fb-story-stage");
+    await expect(stage).toBeInViewport();
+    // Clear of the website's header, which is taller on phones.
+    const headerBottom = (await page.getByRole("banner").boundingBox())!;
+    expect((await stage.boundingBox())!.y).toBeGreaterThanOrEqual(headerBottom.y + headerBottom.height);
+    // The pay run moves on by itself once it's reached, and stops at Locked.
+    await expect(stage.getByText("Locked", { exact: true })).toBeVisible();
+    await expect(stage.locator("li.bg-product")).toHaveCount(4, { timeout: 10_000 });
+
+    const journey = page.locator('[data-story="employee-journey"]');
+    await journey
+      .locator('[data-story-step="3"]')
+      .evaluate((el) => el.scrollIntoView({ block: "center", behavior: "instant" }));
+    await expect(journey).toHaveAttribute("data-step", "3");
+    await expect(journey.locator('[data-place="now"]')).toContainText("103,618.15");
+
+    expect(await scan(page)).toEqual([]);
+    await page.getByRole("button", { name: /Switch to (light|dark) theme/ }).click();
+    expect(await scan(page)).toEqual([]);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(
+      0,
+    );
+  });
+
+  test("with reduced motion, a story's states change without any transition", async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.goto("/zirahr/platform");
+    const story = page.locator('[data-story="scattered-to-connected"]');
+    await story
+      .locator('[data-story-step="2"]')
+      .evaluate((el) => el.scrollIntoView({ block: "center", behavior: "instant" }));
+    await expect(story).toHaveAttribute("data-step", "2");
+    const duration = await story
+      .locator(".fb-story-unfold")
+      .evaluate((el) => getComputedStyle(el).transitionProperty);
+    expect(duration).toBe("none");
+    await expect(story.locator('.fb-story-unfold[data-open="true"]')).toBeVisible();
+  });
+
   test("the leave, calendar and outputs demonstrations work, by keyboard too", async ({ page }) => {
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page.goto("/zirahr/platform");
