@@ -119,6 +119,16 @@ impl CalculatorConfig {
     }
 }
 
+/// The starting rules recorded as checked on `date`, for the owner's go-live.
+pub fn launch_config(date: &str) -> Result<Value, String> {
+    let date: chrono::NaiveDate = date.parse().map_err(|e: chrono::ParseError| e.to_string())?;
+    let mut config = starting::config();
+    for set in &mut config.rule_sets {
+        set.verified_on = Some(date);
+    }
+    serde_json::to_value(config).map_err(|e| e.to_string())
+}
+
 pub fn router() -> Router<SharedState> {
     Router::new()
         .route("/v1/sites/{slug}/payroll-calculator", get(public_read))

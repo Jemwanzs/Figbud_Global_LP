@@ -41,6 +41,72 @@ fn valid_demo_request() -> Value {
 }
 
 #[tokio::test]
+async fn referrals_check_who_is_introduced_and_reach_the_inbox() {
+    let Some(pool) = database().await else {
+        eprintln!("skipping: TEST_DATABASE_URL not set");
+        return;
+    };
+    let _outbox = OUTBOX.lock().await;
+    let url = std::env::var("TEST_DATABASE_URL").unwrap();
+    let app = app_with(pool.clone(), config(&url));
+    let mut body = json!({
+        "kind": "referral",
+        "product": "zirahr",
+        "name": "Amina Wanjiru",
+        "email": "amina@example.co.ke",
+        "consent": true,
+        "locale": "en",
+        "source_path": "/zirahr/refer",
+        "elapsed_ms": 12000,
+        "referral": { "company": "Mfano Ltd", "contact_name": "", "contact_email": "not-an-email" }
+    });
+
+    let refused = app
+        .clone()
+        .oneshot(post_enquiry(&body, Some(Uuid::new_v4())))
+        .await
+        .unwrap();
+    assert_eq!(refused.status(), StatusCode::UNPROCESSABLE_ENTITY);
+    let fields = json_body(refused).await["error"]["fields"].to_string();
+    assert!(fields.contains("referred_name") && fields.contains("referred_email"));
+    assert!(!fields.contains("referred_company"));
+
+    body["referral"] = json!({
+        "company": "Mfano Ltd",
+        "contact_name": "Baraka Otieno",
+        "contact_email": "baraka@example.co.ke",
+        "contact_phone": "0712 345 678",
+        "company_size": "45",
+        "notes": "Runs payroll on spreadsheets."
+    });
+    let key = Uuid::new_v4();
+    let accepted = app.oneshot(post_enquiry(&body, Some(key))).await.unwrap();
+    assert_eq!(accepted.status(), StatusCode::CREATED);
+
+    let (kind, message, company): (String, String, Option<String>) =
+        sqlx::query_as("SELECT kind, message, company FROM enquiries WHERE idempotency_key = $1")
+            .bind(key)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+    assert_eq!(kind, "referral");
+    assert_eq!(
+        company, None,
+        "the referrer's own organisation, which they left empty"
+    );
+    for expected in [
+        "Referred business: Mfano Ltd",
+        "Contact: Baraka Otieno",
+        "baraka@example.co.ke",
+        "+254712345678",
+        "Employees: 45",
+        "Runs payroll on spreadsheets.",
+    ] {
+        assert!(message.contains(expected), "{expected} in {message}");
+    }
+}
+
+#[tokio::test]
 async fn liveness_does_not_need_the_database() {
     let response = lazy_app()
         .oneshot(Request::get("/health").body(Body::empty()).unwrap())

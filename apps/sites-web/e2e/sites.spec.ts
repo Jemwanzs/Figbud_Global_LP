@@ -425,6 +425,60 @@ test.describe("ZiraHR: payroll calculator and demonstrations (P14)", () => {
     );
   });
 
+  test("the leave, calendar and outputs demonstrations work, by keyboard too", async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.goto("/zirahr/platform");
+
+    // Approving each step updates the balance, only at the end.
+    const balance = page.getByTestId("leave-balance");
+    await expect(balance).toHaveText("14");
+    await page.getByRole("button", { name: "Approve as Line manager" }).click();
+    await expect(balance).toHaveText("14");
+    await page.getByRole("button", { name: "Approve as HR" }).click();
+    await expect(balance).toContainText("11");
+    await expect(page.getByText("Approved. Balance updated.")).toBeVisible();
+    await page.getByRole("button", { name: "Single stage" }).click();
+    await expect(balance).toHaveText("14");
+    await page.getByRole("button", { name: "Approve as Line manager" }).click();
+    await expect(balance).toContainText("11");
+
+    // The calendar: weekends and public holidays aren't counted (December 2026).
+    const people = page.getByRole("tablist", { name: "Team members" }).getByRole("tab");
+    await expect(page.getByTestId("calendar-summary")).toContainText("Wanjiru K.: 8 days counted");
+    await people.first().focus();
+    await page.keyboard.press("ArrowDown");
+    await expect(people.nth(1)).toBeFocused();
+    await expect(page.getByTestId("calendar-summary")).toContainText("Otieno P.: 5 days counted");
+    await expect(page.getByTestId("calendar-summary")).toContainText("Overlaps with Mutua J.");
+
+    await expect(page.getByRole("heading", { name: "Annual P9 forms" })).toBeVisible();
+    expect(await scan(page)).toEqual([]);
+  });
+
+  test("refer and earn: mistakes are shown, and success only after the server accepts", async ({ page }) => {
+    await page.goto("/zirahr/refer");
+    const form = page.getByRole("main").locator("form");
+    await expect(page.getByRole("main").locator('a[href^="tel:"]')).toHaveCount(0);
+    expect(await scan(page)).toEqual([]);
+    await expect(async () => {
+      await form.getByRole("button", { name: "Submit referral" }).click();
+      await expect(form.getByRole("alert")).toContainText("highlighted", { timeout: 2_000 });
+    }).toPass();
+    await expect(form.getByText("Enter the business's name.")).toBeVisible();
+    await expect(page.getByText("Thanks for the introduction")).toHaveCount(0);
+
+    await form.getByLabel("Business name").fill("Mfano Ltd");
+    await form.getByLabel("Contact person").fill("Baraka Otieno");
+    await form.getByLabel("Their email").fill("baraka@example.co.ke");
+    await form.getByLabel("Your name").fill("Amina Wanjiru");
+    await form.getByLabel("Your email").fill("amina@example.co.ke");
+    await form.getByRole("checkbox").check();
+    await form.getByRole("button", { name: "Submit referral" }).click();
+    await expect(page.getByText("Thanks for the introduction")).toBeVisible();
+    await expect(page.getByText("ZR-TEST-0001")).toBeVisible();
+    await expect(page.getByText("You earn once the deal has closed.")).toBeVisible();
+  });
+
   test("the platform page: modules and demonstrations work by mouse and keyboard, in both themes", async ({
     page,
   }) => {

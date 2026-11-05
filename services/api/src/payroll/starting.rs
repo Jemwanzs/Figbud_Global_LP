@@ -1,7 +1,5 @@
-//! What a website's calculator starts with. These are draft figures to be
-//! checked by a person, never published as they stand: `verified_on` starts
-//! empty, and publishing refuses until it's filled in. From here on the Studio
-//! owns the values.
+//! What a website's calculator starts with. `verified_on` starts empty, and
+//! publishing refuses until it's filled in. From here on the Studio owns the values.
 
 use chrono::NaiveDate;
 use rust_decimal::dec;
@@ -28,6 +26,22 @@ fn sources() -> Vec<Source> {
         source(
             "PwC Worldwide Tax Summaries: Kenya, other taxes",
             "https://taxsummaries.pwc.com/kenya/individual/other-taxes",
+        ),
+        source(
+            "PwC: updated NSSF rates, February 2025",
+            "https://pwc.com/ke/en/assets/pdf/tax-alert-updated-nssf-rates-feb-2025.pdf",
+        ),
+        source(
+            "PwC: NSSF Year 4 rates, 2026",
+            "https://www.pwc.com/ke/en/assets/pdf/tax-alert-year-4nssf-rates-2026.pdf",
+        ),
+        source(
+            "Sage: Kenya PAYE changes, December 2024 (pension, mortgage and insurance limits)",
+            "https://communityhub.sage.com/za/sage-vip-payroll-hr/f/announcements/239226/kenya-paye-tax-changes---december-2024",
+        ),
+        source(
+            "NITA: Levy Inspectorate (industrial training levy)",
+            "https://nita.go.ke/our-services/levy-inspectorate.html",
         ),
     ]
 }
@@ -104,14 +118,14 @@ pub fn config() -> CalculatorConfig {
                 (2026, 2, 1),
                 dec!(9000),
                 dec!(108000),
-                "Check against KRA, NSSF, SHA and Housing Levy guidance before publishing. Legal review needed: a High Court judgment has been reported on the SHIF deduction, and the Ministry of Health says it remains in force.",
+                "SHIF is deducted as a current statutory contribution, as the owner confirmed on 5 Nov 2026. Review when a new Finance Act, NSSF year or SHIF ruling takes effect.",
             ),
             rule_set(
                 "NSSF Year 3 rates",
                 (2025, 2, 1),
                 dec!(8000),
                 dec!(72000),
-                "For pay months before February 2026. Sources disagree on this year's lower limit: confirm it before publishing.",
+                "For pay months before February 2026. Limits per PwC's February 2025 alert.",
             ),
         ],
         intro: "Explore a transparent Kenyan payroll estimate in either direction: start with gross pay to see net pay, or start with the net pay you want to see the gross needed. Every step is visible.".into(),

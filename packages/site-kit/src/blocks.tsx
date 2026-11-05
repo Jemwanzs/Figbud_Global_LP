@@ -3,6 +3,7 @@ import { ArrowRight, Check } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { type DemoKind, ModuleCatalogue, type ModuleItem, ProductDemo } from "./product-demos";
+import { ReferralForm } from "./referral-form";
 
 /**
  * Renders page documents built in the Studio (D17): an approved library of
@@ -60,6 +61,7 @@ export type PageSection = Base &
         items: (Omit<ModuleItem, "cta"> & { cta?: PageCta | null })[];
       }
     | { type: "demo"; demo: DemoKind; heading?: string | null; intro?: string | null }
+    | { type: "referral_form"; heading?: string | null; intro?: string | null; contact_phone?: string | null }
     | {
         type: "image";
         image_id: string;
@@ -326,6 +328,20 @@ function Block({
                 cta: item.cta && { ...item.cta, href: resolve ? resolve(item.cta.href) : item.cta.href },
               }))}
               plannedLabel="Planned"
+              preview={mode === "preview"}
+            />
+          </div>
+        </div>
+      );
+    case "referral_form":
+      return (
+        <div className="max-w-4xl">
+          {section.heading && <Heading>{section.heading}</Heading>}
+          {section.intro && <p className="mt-4 max-w-2xl text-muted">{section.intro}</p>}
+          <div className={cn((section.heading || section.intro) && "mt-8")}>
+            <ReferralForm
+              endpoint={resolve?.("/referral-submit")}
+              contactPhone={section.contact_phone}
               preview={mode === "preview"}
             />
           </div>

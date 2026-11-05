@@ -152,6 +152,13 @@ pub fn visitor_acknowledgement(enquiry: &Enquiry, reference: &str) -> RenderedEm
     let first_name = enquiry.name.split_whitespace().next().unwrap_or(&enquiry.name);
 
     let (subject, headline, next_steps) = match (enquiry.kind, enquiry.product) {
+        (EnquiryKind::Referral, _) => (
+            format!("Thanks for your {product} referral"),
+            "Thanks for the introduction".to_owned(),
+            format!(
+                "Our team will review it and reach out to the business you introduced. You earn once the deal has closed. Quote your reference to follow it with the {product} team."
+            ),
+        ),
         (EnquiryKind::Waitlist, _) => (
             format!("You're on the {product} waitlist"),
             format!("You're on the {product} waitlist"),

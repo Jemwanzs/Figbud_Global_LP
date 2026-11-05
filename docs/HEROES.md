@@ -30,7 +30,7 @@ The ZiraHR journey describes confirmed scope only:
 - **Recruit:** a new starter's record created from the offer.
 - **Onboard, Manage, Grow, Exit:** Employee 360, payroll, leave, attendance and performance.
 
-There's no applicant-tracking claim, because recruitment is planned (PRICING.md §3).
+Recruitment was confirmed by the owner on 5 Nov 2026, so a hero may mention it; the three starting designs were written before that and don't.
 
 Jasiri LMS, Ziwa LMS, Expense Now and future products get their own collections when designed. Until then they keep their Studio page heroes.
 

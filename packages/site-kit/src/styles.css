@@ -641,6 +641,14 @@
     transform: translateY(6px);
   }
 }
+/* Output cards arrive one after another, the first time they're seen. */
+[data-reveal-state="waiting"] .fb-demo-card {
+  opacity: 0;
+}
+[data-reveal-state="seen"] .fb-demo-card {
+  animation: fb-demo-unfold var(--motion-slow) var(--motion-ease) both;
+  animation-delay: calc(var(--demo-order, 0) * 110ms);
+}
 /* The tax bands grow into place, one after another, the first time they're seen. */
 [data-reveal-state="waiting"] .fb-demo-band {
   transform: scaleX(0);
@@ -660,6 +668,7 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .fb-demo-unfold,
+  [data-reveal-state="seen"] .fb-demo-card,
   [data-reveal-state="seen"] .fb-demo-band {
     animation: none;
   }

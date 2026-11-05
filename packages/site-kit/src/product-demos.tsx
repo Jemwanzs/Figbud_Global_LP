@@ -30,7 +30,15 @@ import { type KeyboardEvent, useEffect, useRef, useState } from "react";
  * silently from the calculator.
  */
 
-export type DemoKind = "connected_modules" | "pay_run" | "payslip" | "rules" | "self_service";
+export type DemoKind =
+  | "connected_modules"
+  | "pay_run"
+  | "payslip"
+  | "rules"
+  | "self_service"
+  | "outputs"
+  | "leave_flow"
+  | "team_calendar";
 
 const SYNTHETIC = "Illustrative product activity · synthetic data";
 
@@ -92,7 +100,7 @@ function arrows(event: KeyboardEvent, index: number, count: number, choose: (i: 
   if (next === null) return;
   event.preventDefault();
   choose(next);
-  const list = (event.currentTarget as HTMLElement).parentElement;
+  const list = (event.currentTarget as HTMLElement).closest('[role="tablist"]');
   list?.querySelectorAll<HTMLElement>('[role="tab"]')[next]?.focus();
 }
 
@@ -674,6 +682,345 @@ function SelfService() {
   );
 }
 
+const OUTPUTS: { name: string; when: string; line: string; tags: string[]; icon: LucideIcon }[] = [
+  {
+    name: "Payslips",
+    when: "In self-service",
+    line: "Employees view and download every payslip and their pay history in the browser.",
+    tags: ["View", "Download", "History"],
+    icon: FileText,
+  },
+  {
+    name: "Annual P9 forms",
+    when: "Each year",
+    line: "Available to each employee alongside their payslips, without asking HR.",
+    tags: ["P9", "Self-service"],
+    icon: Receipt,
+  },
+  {
+    name: "Payroll reports",
+    when: "Once locked",
+    line: "Earnings, deductions and approvals from a completed run, for HR and finance.",
+    tags: ["Earnings", "Deductions", "Approvals"],
+    icon: BarChart3,
+  },
+  {
+    name: "Cost reviews",
+    when: "Any time",
+    line: "See payroll costs across branches, departments and projects.",
+    tags: ["Branches", "Departments", "Projects"],
+    icon: Wallet,
+  },
+];
+
+/** A completed run feeding four outputs: the signal line branches into each card. */
+function Outputs() {
+  const { ref, state } = useReveal<HTMLDivElement>();
+  return (
+    <div
+      ref={ref}
+      data-reveal-state={state}
+      data-theme="dark"
+      className="fb-demo-stage rounded-[var(--radius-panel)] p-5 text-text sm:p-8"
+    >
+      <p className="flex items-center gap-2 text-sm font-medium text-text">
+        <span aria-hidden className="grid size-7 place-items-center rounded-full bg-product text-product-ink">
+          <Check className="size-4" />
+        </span>
+        November pay run, locked
+      </p>
+      <span aria-hidden className="ms-3.5 block h-5 w-0.5 bg-product" />
+      <ul className="grid gap-3 border-t-2 border-product pt-4 @2xl:grid-cols-2">
+        {OUTPUTS.map((output, i) => {
+          const Icon = output.icon;
+          return (
+            <li
+              key={output.name}
+              style={{ "--demo-order": i } as React.CSSProperties}
+              className="fb-demo-card rounded-2xl border border-line bg-surface p-5 transition-colors hover:border-product/60"
+            >
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h3 className="flex items-center gap-2.5 font-semibold text-text">
+                  <Icon aria-hidden className="size-5 text-product" />
+                  {output.name}
+                </h3>
+                <span className="rounded-full border border-product/40 px-2.5 py-0.5 text-xs text-text">
+                  {output.when}
+                </span>
+              </div>
+              <p className="mt-2 text-sm text-muted">{output.line}</p>
+              <ul className="mt-3 flex flex-wrap gap-1.5">
+                {output.tags.map((tag) => (
+                  <li key={tag} className="rounded-lg bg-surface-2 px-2.5 py-1 text-xs text-text">
+                    {tag}
+                  </li>
+                ))}
+              </ul>
+            </li>
+          );
+        })}
+      </ul>
+      <Caption className="mt-4" />
+    </div>
+  );
+}
+
+const ROUTES = {
+  single: { label: "Single stage", steps: ["Line manager"] },
+  multi: { label: "Multi-stage", steps: ["Line manager", "HR"] },
+} as const;
+
+/** Try the approval yourself: choose a route, approve each step, watch the balance update. */
+function LeaveFlow() {
+  const [route, setRoute] = useState<keyof typeof ROUTES>("multi");
+  const [approved, setApproved] = useState(0);
+  const steps = ROUTES[route].steps;
+  const done = approved >= steps.length;
+  const balance = done ? 11 : 14;
+  return (
+    <div className="grid gap-5 @3xl:grid-cols-12">
+      <div className="fb-panel rounded-[var(--radius-panel)] p-5 sm:p-6 @3xl:col-span-5">
+        <p className="truncate rounded-full bg-surface-2 px-3 py-1.5 text-center text-xs text-muted">
+          Your company&apos;s ZiraHR, in your browser
+        </p>
+        <h3 className="mt-4 font-semibold text-text">Annual leave request</h3>
+        <dl className="mt-2 divide-y divide-line text-sm">
+          {[
+            ["From", "Thu 24 Dec"],
+            ["To", "Tue 29 Dec"],
+            ["Days counted", "3"],
+          ].map(([term, value]) => (
+            <div key={term} className="flex justify-between py-2">
+              <dt className="text-muted">{term}</dt>
+              <dd className="font-medium text-text">{value}</dd>
+            </div>
+          ))}
+        </dl>
+        <p className="mt-2 text-xs text-subtle">The weekend and public holidays aren&apos;t counted.</p>
+        <div
+          className="mt-4 flex items-center justify-between rounded-2xl bg-product-soft p-4"
+          aria-live="polite"
+        >
+          <span className="text-sm font-medium text-text">Annual leave balance</span>
+          <span
+            className="font-display text-2xl font-semibold text-text tabular-nums"
+            data-testid="leave-balance"
+          >
+            {done && <span className="me-2 text-base font-normal text-muted line-through">14</span>}
+            {balance}
+          </span>
+        </div>
+      </div>
+      <div
+        data-theme="dark"
+        className="fb-demo-stage rounded-[var(--radius-panel)] p-5 text-text sm:p-6 @3xl:col-span-7"
+      >
+        <div
+          role="group"
+          aria-label="Approval route"
+          className="inline-flex gap-1 rounded-full border border-line bg-surface p-1"
+        >
+          {(Object.keys(ROUTES) as (keyof typeof ROUTES)[]).map((key) => (
+            <button
+              key={key}
+              type="button"
+              aria-pressed={route === key}
+              onClick={() => {
+                setRoute(key);
+                setApproved(0);
+              }}
+              className={cn(
+                "min-h-11 rounded-full px-4 text-sm transition-colors",
+                route === key ? "bg-product font-medium text-product-ink" : "text-muted hover:text-text",
+              )}
+            >
+              {ROUTES[key].label}
+            </button>
+          ))}
+        </div>
+        <ol className="mt-5 space-y-0">
+          <li className="flex items-center gap-3 py-2 text-sm text-text">
+            <CircleCheck aria-hidden className="size-6 text-product" />
+            Request submitted
+          </li>
+          {steps.map((step, i) => {
+            const isDone = i < approved;
+            return (
+              <li key={step} className="flex items-center gap-3 py-2 text-sm">
+                {isDone ? (
+                  <CircleCheck aria-hidden className="size-6 text-product" />
+                ) : (
+                  <CircleDashed
+                    aria-hidden
+                    className={cn("size-6", i === approved ? "text-text" : "text-subtle")}
+                  />
+                )}
+                <span className={cn(isDone || i === approved ? "text-text" : "text-muted")}>{step}</span>
+                <span className="ms-auto text-xs text-muted">
+                  {isDone ? "Approved" : i === approved ? "Waiting" : "Next"}
+                </span>
+              </li>
+            );
+          })}
+          <li className="flex items-center gap-3 py-2 text-sm">
+            {done ? (
+              <CircleCheck aria-hidden className="size-6 text-product" />
+            ) : (
+              <CircleDashed aria-hidden className="size-6 text-subtle" />
+            )}
+            <span className={done ? "font-medium text-text" : "text-muted"}>
+              {done ? "Approved. Balance updated." : "Balance updates when approved"}
+            </span>
+          </li>
+        </ol>
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          {done ? (
+            <button type="button" onClick={() => setApproved(0)} className={buttonClasses("secondary", "md")}>
+              Try it again
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setApproved((a) => a + 1)}
+              className={buttonClasses("product", "md")}
+            >
+              {`Approve as ${steps[approved]}`}
+            </button>
+          )}
+        </div>
+        <Caption className="mt-4" />
+      </div>
+    </div>
+  );
+}
+
+const DECEMBER_START = 2; // 1 December 2026 is a Tuesday (Sunday = 0).
+const HOLIDAYS: Record<number, string> = { 12: "Jamhuri Day", 25: "Christmas Day", 26: "Boxing Day" };
+const isWeekend = (day: number) => {
+  const weekday = (DECEMBER_START + day - 1) % 7;
+  return weekday === 0 || weekday === 6;
+};
+const TEAM = [
+  { name: "Wanjiru K.", type: "Annual", from: 21, to: 31 },
+  { name: "Otieno P.", type: "Annual", from: 14, to: 18 },
+  { name: "Achieng L.", type: "Sick", from: 2, to: 4 },
+  { name: "Mutua J.", type: "Annual", from: 16, to: 22 },
+  { name: "Njeri M.", type: "Study", from: 7, to: 8 },
+];
+const countedDays = (from: number, to: number) => {
+  let count = 0;
+  for (let day = from; day <= to; day++) if (!isWeekend(day) && !HOLIDAYS[day]) count++;
+  return count;
+};
+const WEEKDAY = ["S", "M", "T", "W", "T", "F", "S"];
+
+/** Who's out, at a glance. Choose someone to see what's counted and who overlaps. */
+function TeamCalendar() {
+  const { ref, state } = useReveal<HTMLDivElement>();
+  const [index, setIndex] = useState(0);
+  const person = TEAM[index]!;
+  const days = Array.from({ length: 31 }, (_, i) => i + 1);
+  const left = person.to - person.from + 1 - countedDays(person.from, person.to);
+  const overlap = TEAM.filter(
+    (other) => other !== person && other.from <= person.to && other.to >= person.from,
+  ).map((other) => other.name);
+  const columns = { gridTemplateColumns: "6.5rem repeat(31, minmax(1.45rem, 1fr))" };
+  return (
+    <div
+      ref={ref}
+      data-reveal-state={state}
+      className="fb-panel overflow-hidden rounded-[var(--radius-panel)]"
+    >
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line px-5 py-4">
+        <p className="font-semibold text-text">
+          Finance team <span className="ms-1 text-sm font-normal text-muted">December · Kenya holidays</span>
+        </p>
+      </div>
+      {/* Scrolls sideways on small screens, inside its own frame. */}
+      <div className="overflow-x-auto" tabIndex={0} role="region" aria-label="Team calendar, December">
+        <div className="min-w-[52rem] px-3 py-3">
+          <div
+            aria-hidden
+            className="grid items-end pb-2 text-center text-[0.7rem] text-subtle"
+            style={columns}
+          >
+            <span />
+            {days.map((day) => (
+              <span key={day} className={cn(HOLIDAYS[day] && "font-semibold text-product-text")}>
+                <span className="block">{WEEKDAY[(DECEMBER_START + day - 1) % 7]}</span>
+                {day}
+              </span>
+            ))}
+          </div>
+          <div role="tablist" aria-label="Team members" aria-orientation="vertical">
+            {TEAM.map((member, i) => (
+              <div key={member.name} className="grid items-center border-t border-line" style={columns}>
+                <button
+                  type="button"
+                  role="tab"
+                  id={`demo-cal-${i}`}
+                  aria-selected={i === index}
+                  aria-controls="demo-cal-panel"
+                  tabIndex={i === index ? 0 : -1}
+                  onClick={() => setIndex(i)}
+                  onKeyDown={(e) => arrows(e, i, TEAM.length, setIndex)}
+                  className={cn(
+                    "min-h-11 truncate rounded-lg px-2 text-start text-sm",
+                    i === index ? "bg-product-soft font-medium text-text" : "text-muted hover:text-text",
+                  )}
+                >
+                  {member.name}
+                </button>
+                {days.map((day) => {
+                  const on = day >= member.from && day <= member.to;
+                  const off = isWeekend(day) || HOLIDAYS[day];
+                  return (
+                    <span
+                      aria-hidden
+                      key={day}
+                      className={cn(
+                        "h-11 border-s border-line/50",
+                        off && !on && "bg-surface-2",
+                        on && !off && (i === index ? "bg-product" : "bg-product/45"),
+                        on && off && "bg-product/15",
+                      )}
+                    />
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+      <div
+        id="demo-cal-panel"
+        role="tabpanel"
+        aria-labelledby={`demo-cal-${index}`}
+        aria-live="polite"
+        className="grid gap-4 border-t border-line p-5 @3xl:grid-cols-2"
+      >
+        <p className="text-sm text-text" data-testid="calendar-summary">
+          <strong>{`${person.name}: ${countedDays(person.from, person.to)} days counted`}</strong>
+          <span className="text-muted">{` (${person.type.toLowerCase()} leave, ${person.from} to ${person.to} December${
+            left ? `; ${left} weekend or holiday days aren't counted` : ""
+          }).`}</span>
+          {overlap.length > 0 && (
+            <span className="mt-1.5 block text-muted">{`Overlaps with ${overlap.join(" and ")}: flagged before approval.`}</span>
+          )}
+        </p>
+        <div className="text-xs text-subtle">
+          <ul className="flex flex-wrap gap-x-4 gap-y-1">
+            {Object.entries(HOLIDAYS).map(([day, name]) => (
+              <li key={day}>{`${day} Dec: ${name}`}</li>
+            ))}
+          </ul>
+          <Caption className="mt-2" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function ProductDemo({ demo }: { demo: DemoKind }) {
   switch (demo) {
     case "connected_modules":
@@ -686,6 +1033,12 @@ export function ProductDemo({ demo }: { demo: DemoKind }) {
       return <Rules />;
     case "self_service":
       return <SelfService />;
+    case "outputs":
+      return <Outputs />;
+    case "leave_flow":
+      return <LeaveFlow />;
+    case "team_calendar":
+      return <TeamCalendar />;
   }
 }
 

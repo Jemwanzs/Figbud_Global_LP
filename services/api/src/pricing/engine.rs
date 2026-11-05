@@ -1187,10 +1187,10 @@ pub fn zirahr_starting_book() -> PriceBook {
         module(
             "recruitment",
             "Recruitment / ATS",
-            "Not in the confirmed ZiraHR scope yet.",
+            "One connected hiring flow, from applicant to new employee.",
             Flat,
             "organisation",
-            Planned,
+            Available,
         ),
         module(
             "mobile_app",
@@ -1203,10 +1203,10 @@ pub fn zirahr_starting_book() -> PriceBook {
         module(
             "salary_advances",
             "Salary advances",
-            "Not in the confirmed ZiraHR scope yet.",
+            "Employees request advances in self-service, where enabled.",
             PerEmployee,
             "employees",
-            Planned,
+            Available,
         ),
         module(
             "salary_payments",
@@ -1591,7 +1591,7 @@ mod tests {
             .filter(|i| i.availability == Availability::Planned)
             .map(|i| i.id.as_str())
             .collect();
-        assert!(planned.contains(&"ai_assistant") && planned.contains(&"recruitment"));
+        assert!(planned.contains(&"ai_assistant") && !planned.contains(&"recruitment"));
         let calc = calculate(&b, &input(CycleKey::Monthly, &["core_hr", "ai_assistant"]), day()).unwrap();
         assert_eq!(calc.subscription_net, Decimal::ZERO);
         let reasons: Vec<_> = calc.unpriced.iter().map(|u| u.reason).collect();

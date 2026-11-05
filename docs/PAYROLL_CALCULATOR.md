@@ -44,18 +44,18 @@ Each pay month uses the latest rule set that has started by the end of that mont
 | Value | Starting value | Basis |
 | --- | --- | --- |
 | NSSF from Feb 2026 | 6%, limits 9,000 and 108,000 | NSSF Year 4 notice to employers |
-| NSSF from Feb 2025 | 6%, limits 8,000 and 72,000 | Secondary sources; **they disagree on the lower limit**, so confirm it |
+| NSSF from Feb 2025 | 6%, limits 8,000 and 72,000 | PwC alert, February 2025 |
 | SHIF | 2.75%, minimum 300, no cap | Secondary sources |
 | Housing Levy | 1.5% employee, 1.5% employer | Secondary sources |
 | Deductible before PAYE | NSSF, SHIF, Housing Levy | Tax Laws (Amendment) Act 2024, per Cliffe Dekker Hofmeyr |
 | PAYE bands | 10% to 24,000; 25% to 32,333; 30% to 500,000; 32.5% to 800,000; 35% above | Secondary sources |
 | Personal relief | 2,400 a month | Secondary sources |
-| Insurance relief, retirement and mortgage limits | 15% up to 5,000; 30,000; 30,000 | **From general knowledge; check all three** |
-| NITA levy | 50 a month, employer | **From general knowledge; check it** |
+| Insurance relief, retirement and mortgage limits | 15% up to 5,000; 30,000; 30,000 | Tax Laws (Amendment) Act 2024, per Sage's December 2024 note and other firms' alerts |
+| NITA levy | 50 a month, employer | NITA's Levy Inspectorate page. Employer-only, so it never affects net pay |
 
-**Before publishing, someone must check every value against KRA, NSSF, SHA and Housing Levy guidance** and record the date in the Studio. The API refuses approval until that date is set.
+**Checked on 5 Nov 2026** against the sources listed with the rules, at the owner's request, and recorded as the check date. This wasn't a legal opinion. Check again when a new Finance Act, NSSF year or SHIF ruling takes effect; the API refuses approval without a date.
 
-**Legal view needed (Q24):** a High Court judgment has been reported as calling the SHIF deduction illegal, while the Ministry of Health says it remains in force. I couldn't confirm the current status.
+**SHIF:** a High Court judgment has been reported as calling the deduction illegal, and the Ministry of Health says it remains in force. The owner confirmed on 5 Nov 2026 that it's being deducted now, so the calculator deducts it. It's a value in the rules, so a change is a Studio edit, not a code change.
 
 ## 5. Publishing
 

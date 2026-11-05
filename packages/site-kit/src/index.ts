@@ -4,6 +4,7 @@ export * from "./brand";
 export * from "./nav-preview";
 export * from "./payroll-calculator";
 export * from "./product-demos";
+export * from "./referral-form";
 export * from "./blocks";
 export * from "./brand-logo";
 export * from "./campaigns";

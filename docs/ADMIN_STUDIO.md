@@ -227,7 +227,8 @@ Studio → Marketing, then the tabs **Trusted By**, **Testimonials** and **Succe
 ## Payroll Calculator and new page blocks (P14, 5 Nov 2026)
 
 - **Payroll Calculator** (Websites → ZiraHR): dated statutory rules, page text, draft, approval, versions, a public switch and a Try it panel. Rules: [PAYROLL_CALCULATOR.md](PAYROLL_CALCULATOR.md).
-- **Page builder** gains **Module catalogue** (name, headline, description, key points, a Planned label) and **Product demonstration** (one of five, with an editable heading and introduction; sample data is fixed and labelled).
+- **Page builder** gains **Module catalogue** (name, headline, description, key points, a Planned label) and **Product demonstration** (one of eight, with an editable heading and introduction; sample data is fixed and labelled).
+- **Page builder** also gains **Referral form** (heading, introduction and the number people call to follow their referral; nothing is shown until a number is entered). Submissions appear in the enquiry inbox as Referral.
 - ZiraHR's content plan and sign-offs: [ZIRAHR_WEBSITE.md](ZIRAHR_WEBSITE.md).
 
 ## Hover Previews (UI-NAV2, 5 Nov 2026)

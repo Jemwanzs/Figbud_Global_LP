@@ -1,5 +1,5 @@
-//! The guide's content loads at start-up, so it must never touch what visitors
-//! see, and must only ever run once (`TEST_DATABASE_URL`).
+//! ZiraHR's content loads and goes live at start-up, so it must run only once
+//! and never overwrite what a person has edited (`TEST_DATABASE_URL`).
 
 mod common;
 
@@ -9,25 +9,69 @@ use axum::{
 };
 use common::{app_with, config, database};
 use figbud_api::pages::{import, zirahr_guide};
-use serde_json::Value;
+use serde_json::{Value, json};
 use tower::ServiceExt;
+use uuid::Uuid;
 
 #[tokio::test]
-async fn the_guide_loads_as_unpublished_drafts_once_and_visitors_see_no_change() {
+async fn the_website_goes_live_once_and_leaves_edited_pages_alone() {
     let Some(pool) = database().await else { return };
     let url = std::env::var("TEST_DATABASE_URL").unwrap();
     import::run(&pool).await.unwrap();
-    let published_before: Option<Value> = sqlx::query_scalar(
-        "SELECT p.published FROM pages p JOIN sites s ON s.id = p.site_id
-          WHERE s.slug = 'zirahr' AND p.path = '' AND p.archived_at IS NULL",
-    )
-    .fetch_optional(&pool)
-    .await
-    .unwrap()
-    .flatten();
 
+    // A page someone edited in the Studio before the go-live.
+    let site: Uuid = sqlx::query_scalar("SELECT id FROM sites WHERE slug = 'zirahr'")
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    let editor = Uuid::now_v7();
+    sqlx::query("INSERT INTO admin_users (id, email, name, role) VALUES ($1, $2, 'Editor', 'editor')")
+        .bind(editor)
+        .bind(format!("guide-{editor}@figbud.test"))
+        .execute(&pool)
+        .await
+        .unwrap();
+    for action in ["site.zirahr_launched", "page.zirahr_guide_drafted"] {
+        sqlx::query("DELETE FROM audit_log WHERE site_id = $1 AND action = $2")
+            .bind(site)
+            .bind(action)
+            .execute(&pool)
+            .await
+            .unwrap();
+    }
+    sqlx::query("DELETE FROM pages WHERE site_id = $1 AND path IN ('platform', 'about', 'contact', 'refer')")
+        .bind(site)
+        .execute(&pool)
+        .await
+        .unwrap();
+    sqlx::query("DELETE FROM site_payroll_calculators WHERE site_id = $1")
+        .bind(site)
+        .execute(&pool)
+        .await
+        .unwrap();
+    sqlx::query("DELETE FROM payroll_calculator_versions WHERE site_id = $1")
+        .bind(site)
+        .execute(&pool)
+        .await
+        .unwrap();
+    sqlx::query("UPDATE sites SET settings = settings - 'nav_previews_draft' - 'nav_previews' WHERE id = $1")
+        .bind(site)
+        .execute(&pool)
+        .await
+        .unwrap();
     zirahr_guide::run(&pool).await.unwrap();
-    let versions = |pool: sqlx::PgPool| async move {
+    let mine =
+        json!({ "sections": [{ "id": "a", "type": "hero", "heading": "An editor's own About page." }] });
+    sqlx::query("UPDATE pages SET draft = $2, draft_updated_by = $3 WHERE site_id = $1 AND path = 'about'")
+        .bind(site)
+        .bind(&mine)
+        .bind(editor)
+        .execute(&pool)
+        .await
+        .unwrap();
+
+    zirahr_guide::launch(&pool).await.unwrap();
+    let state = |pool: sqlx::PgPool| async move {
         let rows: Vec<(String, i32)> = sqlx::query_as(
             "SELECT p.path, p.draft_version FROM pages p JOIN sites s ON s.id = p.site_id
               WHERE s.slug = 'zirahr' AND p.archived_at IS NULL ORDER BY p.path",
@@ -41,38 +85,14 @@ async fn the_guide_loads_as_unpublished_drafts_once_and_visitors_see_no_change()
             .unwrap();
         (rows, settings)
     };
-    let first = versions(pool.clone()).await;
-    // Running again (every restart) changes nothing, even after someone edits.
+    let first = state(pool.clone()).await;
+    // Every restart runs these; nothing changes again.
     zirahr_guide::run(&pool).await.unwrap();
-    assert_eq!(versions(pool.clone()).await, first);
+    zirahr_guide::launch(&pool).await.unwrap();
+    assert_eq!(state(pool.clone()).await, first);
 
-    // The new pages exist only as drafts.
-    let drafts: Vec<(String, Option<Value>)> = sqlx::query_as(
-        "SELECT p.path, p.published FROM pages p JOIN sites s ON s.id = p.site_id
-          WHERE s.slug = 'zirahr' AND p.path IN ('platform', 'about', 'contact') AND p.archived_at IS NULL",
-    )
-    .fetch_all(&pool)
-    .await
-    .unwrap();
-    assert!(
-        drafts.iter().all(|(_, published)| published.is_none()),
-        "{drafts:?}"
-    );
-
-    // What's published is exactly as it was.
-    let published_after: Option<Value> = sqlx::query_scalar(
-        "SELECT p.published FROM pages p JOIN sites s ON s.id = p.site_id
-          WHERE s.slug = 'zirahr' AND p.path = '' AND p.archived_at IS NULL",
-    )
-    .fetch_optional(&pool)
-    .await
-    .unwrap()
-    .flatten();
-    assert_eq!(published_after, published_before);
-
-    // Visitors get neither the pages nor the draft hover previews.
     let app = app_with(pool.clone(), config(&url));
-    let get = |uri: &'static str| {
+    let get = |uri: String| {
         let app = app.clone();
         async move {
             let response = app
@@ -84,15 +104,48 @@ async fn the_guide_loads_as_unpublished_drafts_once_and_visitors_see_no_change()
             (status, String::from_utf8_lossy(&bytes).into_owned())
         }
     };
-    let (status, pages) = get("/v1/sites/zirahr/pages").await;
+
+    // Live for visitors, in the navigation the brief asks for.
+    let (status, pages) = get("/v1/sites/zirahr/pages".into()).await;
     assert_eq!(status, StatusCode::OK);
-    assert!(
-        !pages.contains("\"platform\"") && !pages.contains("Contact & Demo"),
-        "{pages}"
+    let pages: Value = serde_json::from_str(&pages).unwrap();
+    let listed = |path: &str| {
+        pages
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|p| p["path"] == path)
+            .cloned()
+    };
+    assert!(listed("platform").is_some() && listed("contact").is_some());
+    assert_eq!(listed("refer").unwrap()["show_in_nav"], false, "a utility page");
+    let (status, platform) = get("/v1/sites/zirahr/page?path=platform".into()).await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(platform.contains("Recruitment") && !platform.contains("\"planned\""));
+
+    // The edited page stayed as its editor left it, unpublished.
+    assert!(listed("about").is_none());
+    let (draft, published): (Value, Option<Value>) =
+        sqlx::query_as("SELECT draft, published FROM pages WHERE site_id = $1 AND path = 'about'")
+            .bind(site)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+    assert_eq!(draft["sections"][0]["heading"], "An editor's own About page.");
+    assert_eq!(published, None);
+
+    // The calculator is on, with its rules recorded as checked.
+    let (_, calculator) = get("/v1/sites/zirahr/payroll-calculator".into()).await;
+    let calculator: Value = serde_json::from_str(&calculator).unwrap();
+    assert_eq!(calculator["calculator"]["version"], 1);
+    assert_eq!(
+        calculator["calculator"]["rule_sets"][0]["verified_on"],
+        "2026-11-05"
     );
-    let (_, sites) = get("/v1/sites").await;
+
+    // Hover previews are published, drafts aren't sent, and the footer has the utility pages.
+    let (_, sites) = get("/v1/sites".into()).await;
     assert!(!sites.contains("nav_previews_draft"));
-    assert!(!sites.contains("Good conversations start here"));
-    let (status, _) = get("/v1/sites/zirahr/pages/platform").await;
-    assert_eq!(status, StatusCode::NOT_FOUND);
+    assert!(sites.contains("Good conversations start here"));
+    assert!(sites.contains("Refer & earn") || sites.contains("Refer \\u0026 earn"));
 }

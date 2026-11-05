@@ -17,6 +17,7 @@ export const KIND_LABELS: Record<string, string> = {
   waitlist: "Waitlist",
   partnership: "Partnership",
   sales: "Sales",
+  referral: "Referral",
 };
 
 export const PRODUCT_LABELS: Record<string, string> = {

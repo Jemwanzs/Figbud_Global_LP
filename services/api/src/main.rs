@@ -35,6 +35,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     if let Err(err) = figbud_api::pages::zirahr_guide::run(&pool).await {
         tracing::warn!(error = %err, "ZiraHR guide drafts failed");
     }
+    // The owner's go-live (once); leaves anything edited in the Studio alone.
+    if let Err(err) = figbud_api::pages::zirahr_guide::launch(&pool).await {
+        tracing::warn!(error = %err, "ZiraHR launch failed");
+    }
 
     // `figbud-api admin invite --email <email> --role <role>`: bootstrap the
     // first owner (or any admin) without a running UI. Prints the link once.

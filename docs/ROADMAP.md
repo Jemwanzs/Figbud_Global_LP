@@ -205,9 +205,9 @@ Items marked **Blocking** stop the listed tasks; everything else proceeds with t
 | Q21 | Search Console and Bing Webmaster API access (and GA4 reporting) with least-privilege credentials, after production domains are live | P9-S4 | No | Verification tags can be added in the Studio; data shown as not connected |
 | Q22 | Trusted By: approved logo files and written permission to show Mular Credit, Mali Cash Investment and DidLogic, with each relationship (customer, partner, technology provider). Only one unnamed logo (gold coins and leaf) arrived with the brief, so it can't be attributed; DidLogic's logo is still to be supplied | P10-T1 | Yes, per organisation | Nothing is shown publicly: the section stays hidden until a reviewer publishes an organisation with recorded permission |
 | Q23 | ZiraHR selling prices: approved KES rates per module, implementation and support items, billing-cycle discounts (if any), VAT treatment and default commercial terms. Also which planned modules (recruitment, mobile app, salary advances, digital payments, AI assistant) are commercially available | P11-PR1 | Yes, before quoting | Every rate is unset and nothing is quoted or public; the MeridianHR USD figures are reference only and never converted |
-| Q24 | Payroll Calculator: check every statutory value against current KRA, NSSF, SHA and Housing Levy guidance, confirm the 2025 NSSF lower limit, and get a legal view on the reported High Court judgment on the SHIF deduction | P14-C | Yes, for publishing | Off; the Studio refuses approval until a check date is recorded |
-| Q25 | ZiraHR referral terms: the guide's source conflicts (up to KSh 100,000 or 20% of ACV; up to KSh 250,000 or 10% of ACV), plus timing, eligibility and tax | P14-R | Yes, for this feature | Not built; no amounts anywhere |
-| Q26 | ZiraHR module availability: which of Teams & Collaboration, Recruitment, and Learning & Development are live; and attendance, biometric, overtime, P9 and document-alert claims | P14-W | Yes, for publishing pages | Those three marked Planned; the rest in draft |
+| Q24 | ~~Payroll Calculator statutory check~~ **Decided 5 Nov 2026:** we checked the values ourselves against the listed sources and the owner confirmed SHIF is a current deduction. Re-check when a new Finance Act, NSSF year or SHIF ruling takes effect | P14-C | Closed | Published, with the check date and sources on the page |
+| Q25 | ~~ZiraHR referral terms~~ **Decided 5 Nov 2026:** refer and earn; click to refer, enter the potential customer's details, start with your contacts, earn only after the deal has closed, follow the deal by calling our number. **Still needed: the contact number**, and reward amounts if they're ever to be shown | P14-R | The number, to show it | Built without amounts; no number shown until it's entered in the Studio |
+| Q26 | ~~ZiraHR module availability~~ **Decided 5 Nov 2026:** the owner confirmed the modules in the guide are true, so all eight show as available | P14-W | Closed | Published |
 | Q19 | Ziwa LMS: commercial launch readiness, confirmed live capabilities, website destination, logo approval | P4-W1 | Partly | Logo approved 28 Oct 2026 and published; launch readiness, live capabilities and destination still to confirm (listed as coming soon with a waitlist) |
 | Q18 | Logo files: complete ZiraHR logo (supplied file is missing "HR"), SVG or larger versions, light-background versions, the FigBud "GLOBAL" lockup; ~~approve or replace the Expense Now concept~~ (approved 30 Oct 2026) | P7-BR9 | Partly | Official files published for dark backgrounds; light theme shows them on a dark plate; Expense Now and Ziwa LMS identities approved and published |
 | Q17 | Railway project ID, and whether staging and production environments already exist                    | P6 deployment           | Partly    | **ID provided** (`5c4df4db…`); environments confirmed on inspection |
@@ -544,13 +544,13 @@ Scope: a four-page, SaaS-only ZiraHR website from the Enhanced Content & Develop
 | ------ | ---- | ------ |
 | P14-C1 | Payroll engine: gross to net and net to gross on one calculation, with exact decimals, NSSF tiers, SHIF, Housing Levy, band-by-band PAYE, reliefs, employer cost; a bisection solver reconciled within KES 0.05 | ✅ |
 | P14-C2 | Dated rule sets in the Studio with draft, verification date required before approval, maker-checker, versions, rollback, audit, and a public switch that's off by default | ✅ |
-| P14-C3 | Public page and shared calculator: recalculates on change, ignores stale answers, errors clear figures, both themes, phones, sources and assumptions, copy summary; sitemap only while on | ✅ · live with the renderer deployment and Q24 |
-| P14-W1 | Module catalogue and five product demonstrations as page-builder blocks, in original ZiraHR art direction, synthetic and labelled | ✅ |
-| P14-W2 | Guide content as unpublished drafts: Home, Platform, About, Contact & Demo, and hover previews. Published Home untouched | ✅ · publishing needs Q26 and approval |
+| P14-C3 | Public page and shared calculator: recalculates on change, ignores stale answers, errors clear figures, both themes, phones, sources and assumptions, copy summary; sitemap only while on | ✅ |
+| P14-W1 | Module catalogue and eight product demonstrations as page-builder blocks, in original ZiraHR art direction, synthetic and labelled. Added from the second set of samples: what a finished run gives you, leave request and approval, team calendar | ✅ |
+| P14-W2 | Guide content published once on the owner's instruction: Home, Platform, About, Contact & Demo, Refer & earn, hover previews, footer links. Pages edited in the Studio are left alone | ✅ |
 | P14-W3 | Reconciliation of guide, brief and build; sign-off register; Pricing Studio reviewed against the brief (one quotation-number defect found and fixed) | ✅ |
-| P14-R  | Referral Programme: reward rules, form and terms | ⛔ Q25 |
+| P14-R  | Refer & earn: form, enquiry kind, inbox label, acknowledgement email, server validation, no amounts | ✅ · number outstanding (Q25) |
 | P14-I  | ZiraHR Insights: decide per-product or shared, then verified articles | ⬜ |
-| P14-D  | Renderer deployment, so the ZiraHR website is public | ⛔ Your approval |
+| P14-D  | Renderer deployment, so the ZiraHR website is public | See the change log and DEPLOYMENT.md |
 
 ## 7. Milestones
 
@@ -594,6 +594,12 @@ Scope: a four-page, SaaS-only ZiraHR website from the Enhanced Content & Develop
 
 | Date        | Change                                                                                                   |
 | ----------- | -------------------------------------------------------------------------------------------------------- |
+| 5 Nov 2026 | ZiraHR go-live work, on the owner's decisions (Q24 to Q26, P14-D):
+- **Refer & earn:** a page and form that reach the enquiry inbox as a new Referral kind. You earn only after the deal closes. No amounts, and no phone number until one is entered.
+- **New demonstrations:** what a finished run gives you, leave request and approval, and a team calendar that leaves out weekends and public holidays.
+- **Published once at start-up:** the pages, hover previews, footer links and the calculator, with its rules recorded as checked on 5 Nov 2026. Anything edited in the Studio is left alone, and the audit log records the owner's instruction.
+- **Modules:** all eight show as available. New price books list Recruitment and Salary advances as available too.
+- **Left out on purpose:** bank files, tax-authority file formats, payslip designer, and proration or carry-forward leave rules. They're in the samples but not in the guide. |
 | 5 Nov 2026 | ZiraHR website and Payroll Calculator (P14-C, P14-W). Nothing here is public yet.
 - **Payroll Calculator:** gross to net and net to gross from one engine, with every step shown. Statutory values are dated rule sets in the Studio; approval is refused until someone records checking them, and the public page has its own switch, off by default. An independent payslip reproduces to the cent.
 - **Pages:** the guide's Home, Platform, About and Contact & Demo are unpublished drafts. The published Home is untouched.

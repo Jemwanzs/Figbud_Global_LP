@@ -264,7 +264,8 @@ async fn a_passkey_admin_enrols_then_signs_in_from_a_new_device_with_password_an
     let (status, cookie2, _) = t.verify(pending, json!({ "code": "000000" })).await;
     assert_eq!(status, StatusCode::UNAUTHORIZED);
     assert_eq!(cookie2, None);
-    let (status, cookie2, body) = t.verify(pending, json!({ "code": code(&secret, 0) })).await;
+    let used = code(&secret, 0);
+    let (status, cookie2, body) = t.verify(pending, json!({ "code": used })).await;
     assert_eq!(status, StatusCode::OK, "{body}");
     let cookie2 = cookie2.expect("session cookie");
     assert_eq!(body["user"]["email"], email);
@@ -272,10 +273,7 @@ async fn a_passkey_admin_enrols_then_signs_in_from_a_new_device_with_password_an
     // The same code can't be used twice.
     let (_, _, again) = t.login_password(&email, PASSWORD).await;
     let (status, _, _) = t
-        .verify(
-            &again["two_factor"]["pending"],
-            json!({ "code": code(&secret, 0) }),
-        )
+        .verify(&again["two_factor"]["pending"], json!({ "code": used }))
         .await;
     assert_eq!(status, StatusCode::UNAUTHORIZED, "replay refused");
 

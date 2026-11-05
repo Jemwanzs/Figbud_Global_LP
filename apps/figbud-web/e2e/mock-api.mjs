@@ -1896,8 +1896,28 @@ seedPublishedPage("zirahr", "platform", "Platform", {
     { id: "zp-slip", type: "demo", demo: "payslip", heading: "Payroll day." },
     { id: "zp-rules", type: "demo", demo: "rules", heading: "Payroll rules you can see." },
     { id: "zp-ess", type: "demo", demo: "self_service", heading: "One browser tab away." },
+    { id: "zp-cal", type: "demo", demo: "team_calendar", heading: "See who's out." },
+    { id: "zp-leave", type: "demo", demo: "leave_flow", heading: "Time off, without the back-and-forth." },
+    { id: "zp-out", type: "demo", demo: "outputs", heading: "What a finished run gives you." },
   ],
 });
+seedPublishedPage(
+  "zirahr",
+  "refer",
+  "Refer & earn",
+  {
+    sections: [
+      {
+        id: "zr-hero",
+        type: "hero",
+        eyebrow: "Refer & earn",
+        heading: "Know a business that could work smarter?",
+      },
+      { id: "zr-form", type: "referral_form", heading: "Submit a referral", contact_phone: null },
+    ],
+  },
+  { show_in_nav: false },
+);
 seedPublishedPage("zirahr", "", "Home", {
   seo_title: "ZiraHR · People. Payroll. Progress. Connected.",
   sections: [
@@ -5274,6 +5294,27 @@ createServer(async (req, res) => {
     payrollCalc.published_number = Math.max(payrollCalc.published_number, 1);
     payrollCalc.public_visible = true;
     return send(200, {});
+  }
+  // Refer & earn reaches the enquiry endpoint (services/api/src/enquiry.rs).
+  if (url.pathname === "/v1/enquiries" && req.method === "POST") {
+    const referred = body?.referral ?? {};
+    const fields = [];
+    if (!body?.name?.trim()) fields.push({ field: "name", message: "Enter your name." });
+    if (!/.+@.+\..+/.test(body?.email ?? ""))
+      fields.push({ field: "email", message: "Enter your email address." });
+    if (body?.consent !== true)
+      fields.push({ field: "consent", message: "Please agree so we can contact you." });
+    if (!referred.company?.trim())
+      fields.push({ field: "referred_company", message: "Enter the business's name." });
+    if (!referred.contact_name?.trim())
+      fields.push({ field: "referred_name", message: "Enter who we should speak to." });
+    if (!/.+@.+\..+/.test(referred.contact_email ?? ""))
+      fields.push({ field: "referred_email", message: "Enter their email address." });
+    if (fields.length)
+      return send(422, {
+        error: { code: "validation_failed", message: "Some fields need attention.", fields },
+      });
+    return send(201, { reference: "ZR-TEST-0001", status: "received" });
   }
   const publicPayroll = /^\/v1\/sites\/([a-z0-9_-]+)\/payroll-calculator(\/calculate)?$/.exec(url.pathname);
   if (publicPayroll) {

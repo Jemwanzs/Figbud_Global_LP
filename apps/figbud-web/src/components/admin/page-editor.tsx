@@ -778,6 +778,33 @@ export function BlockForm({
           />
         </div>
       );
+    case "referral_form":
+      return (
+        <div className="grid gap-3">
+          <TextField
+            label="Heading (optional)"
+            value={section.heading}
+            max={120}
+            {...p}
+            onChange={(v) => onChange({ ...section, heading: v })}
+          />
+          <TextField
+            label="Introduction (optional)"
+            value={section.intro}
+            max={400}
+            {...p}
+            onChange={(v) => onChange({ ...section, intro: v })}
+          />
+          <TextField
+            label="Number people call to follow their referral"
+            value={section.contact_phone}
+            max={24}
+            hint="Shown after someone submits. Leave empty until you have one."
+            {...p}
+            onChange={(v) => onChange({ ...section, contact_phone: v })}
+          />
+        </div>
+      );
     case "demo":
       return (
         <div className="grid gap-3">
@@ -794,6 +821,9 @@ export function BlockForm({
               <option value="payslip">Payslip, line by line</option>
               <option value="rules">Payroll rules as settings</option>
               <option value="self_service">Employee self-service</option>
+              <option value="outputs">What comes out of a run</option>
+              <option value="leave_flow">Leave request and approval</option>
+              <option value="team_calendar">Team calendar</option>
             </select>
           </label>
           <TextField

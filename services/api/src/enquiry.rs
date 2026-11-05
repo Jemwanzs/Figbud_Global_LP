@@ -15,6 +15,7 @@ pub enum EnquiryKind {
     Waitlist,
     Partnership,
     Sales,
+    Referral,
 }
 
 impl EnquiryKind {
@@ -26,6 +27,7 @@ impl EnquiryKind {
             "waitlist" => Self::Waitlist,
             "partnership" => Self::Partnership,
             "sales" => Self::Sales,
+            "referral" => Self::Referral,
             _ => return None,
         })
     }
@@ -38,6 +40,7 @@ impl EnquiryKind {
             Self::Waitlist => "waitlist",
             Self::Partnership => "partnership",
             Self::Sales => "sales",
+            Self::Referral => "referral",
         }
     }
 
@@ -49,6 +52,7 @@ impl EnquiryKind {
             Self::Waitlist => "Waitlist registration",
             Self::Partnership => "Partnership enquiry",
             Self::Sales => "Sales enquiry",
+            Self::Referral => "Referral",
         }
     }
 
@@ -138,6 +142,18 @@ pub struct EnquiryInput {
     /// A second number (needs a first one; never the same number).
     pub phone_secondary: Option<String>,
     pub phone_secondary_country: Option<String>,
+    /// Refer & earn: the business being introduced. `name` and the rest are the referrer.
+    pub referral: Option<ReferralInput>,
+}
+
+#[derive(Debug, Clone, Default, serde::Deserialize)]
+pub struct ReferralInput {
+    pub company: Option<String>,
+    pub contact_name: Option<String>,
+    pub contact_email: Option<String>,
+    pub contact_phone: Option<String>,
+    pub company_size: Option<String>,
+    pub notes: Option<String>,
 }
 
 /// Phone numbers an enquiry can carry.
@@ -299,8 +315,62 @@ impl EnquiryInput {
             fail("company_size", "invalid", "Choose a company size from the list.");
         }
 
-        let message = self
-            .message
+        // A referral's details are checked here and kept as readable text, so
+        // they appear in the inbox and team email like any other enquiry's message.
+        let referral_message = if kind == Some(EnquiryKind::Referral) {
+            let referred = self.referral.clone().unwrap_or_default();
+            let text = |value: &Option<String>| {
+                value
+                    .as_deref()
+                    .map(str::trim)
+                    .filter(|v| !v.is_empty())
+                    .map(str::to_owned)
+            };
+            let company = text(&referred.company);
+            let contact = text(&referred.contact_name);
+            let email = text(&referred.contact_email);
+            if company.as_ref().is_none_or(|c| c.chars().count() > 200) {
+                fail("referred_company", "required", "Enter the business's name.");
+            }
+            if contact.as_ref().is_none_or(|c| c.chars().count() > 120) {
+                fail("referred_name", "required", "Enter who we should speak to.");
+            }
+            if !email.as_deref().is_some_and(is_valid_email) {
+                fail("referred_email", "invalid", "Enter their email address.");
+            }
+            let phone = text(&referred.contact_phone);
+            let normal_phone = phone.as_deref().and_then(|p| normalize_phone(p, Some("KE")));
+            if phone.is_some() && normal_phone.is_none() {
+                fail(
+                    "referred_phone",
+                    "invalid",
+                    "Enter a valid phone number, or leave it empty.",
+                );
+            }
+            let notes = text(&referred.notes).filter(|n| n.chars().count() <= 1000);
+            let mut lines = vec![
+                format!("Referred business: {}", company.unwrap_or_default()),
+                format!("Contact: {}", contact.unwrap_or_default()),
+                format!("Their email: {}", email.unwrap_or_default()),
+            ];
+            if let Some(phone) = normal_phone {
+                lines.push(format!("Their phone: {phone}"));
+            }
+            if let Some(size) = text(&referred.company_size) {
+                lines.push(format!(
+                    "Employees: {}",
+                    size.chars().take(40).collect::<String>()
+                ));
+            }
+            if let Some(notes) = notes {
+                lines.push(format!("Notes: {notes}"));
+            }
+            Some(lines.join("\n"))
+        } else {
+            None
+        };
+        let message = referral_message
+            .or(self.message.clone())
             .as_deref()
             .map(clean_multiline)
             .filter(|m| !m.is_empty());

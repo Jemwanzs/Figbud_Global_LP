@@ -1,21 +1,18 @@
 //! ZiraHR's website content from the Website Content & Developer Guide (5 Nov
-//! 2026), loaded once as **unpublished drafts** (P14-W). Nothing here reaches
-//! visitors until a person checks the claims and a reviewer approves each page:
-//! the guide itself says its capabilities need verifying before publishing
-//! (docs/ZIRAHR_WEBSITE.md has the sign-off register).
+//! 2026), loaded once at start-up (P14-W) and, on the owner's instruction of the
+//! same date, published once (`launch`). Anything a person has since edited in
+//! the Studio is left alone.
 //!
-//! - The published home page isn't touched. Its draft is replaced only if no
-//!   one has started editing it.
-//! - Modules the guide says to confirm are marked planned, so roadmap items
-//!   aren't presented as live even if published unchanged.
-//! - Left out until signed off: reward amounts, testimonials, client logos,
-//!   salary advances, outsourcing or consultancy, and mobile-app claims.
+//! - The owner confirmed the guide's modules, so they're listed as available.
+//! - Left out: reward amounts (none are approved), testimonials and client logos
+//!   without permission, outsourcing or consultancy, and mobile-app claims.
 
 use serde_json::{Value, json};
 use sqlx::PgPool;
 use uuid::Uuid;
 
 use super::blocks::PageDoc;
+use crate::site_settings::{Link, WebsiteSettings};
 
 const ACTION: &str = "page.zirahr_guide_drafted";
 
@@ -55,6 +52,9 @@ fn home() -> Value {
             { "id": id(), "type": "demo", "demo": "pay_run",
               "heading": "Every run, in the open.",
               "intro": "Guided payroll cycles with role-based approvals, comments, flags and audit trails." },
+            { "id": id(), "type": "call_to_action", "heading": "Know the numbers before payday.",
+              "body": "Explore a transparent Kenyan payroll estimate in either direction, with every step visible.",
+              "cta": { "label": "Calculate my pay", "href": "/payroll-calculator" } },
             { "id": id(), "type": "call_to_action", "heading": "Ready to give HR its time back?",
               "body": "Tell us what is slowing your team down. We'll show you a clearer, more connected way forward.",
               "cta": demo_cta() },
@@ -112,24 +112,33 @@ fn platform() -> Value {
                       "Keep conversations, tasks and approvals moving together, without losing the thread.",
                       &["Team and department workspaces",
                         "Task ownership, status and due dates",
-                        "Comments, mentions and activity notifications"], "planned"),
+                        "Comments, mentions and activity notifications"], "available"),
                   module("Recruitment", "Great hires start with a smoother journey.",
                       "Move from vacancy to shortlist to onboarding in one connected hiring flow.",
                       &["Vacancy and requisition tracking",
                         "Applicant pipeline, screening and interview stages",
-                        "Turn successful candidates into employee records"], "planned"),
+                        "Turn successful candidates into employee records"], "available"),
                   module("Learning & Development", "Skills grow. So does your team.",
                       "Give learning, training and development plans a clear place in the employee journey.",
                       &["Learning plans linked to employee profiles",
                         "Skills, competency and development goals",
-                        "Completion evidence and learning history"], "planned"),
+                        "Completion evidence and learning history"], "available"),
               ] },
+            { "id": id(), "type": "demo", "demo": "team_calendar",
+              "heading": "See who's out, before you approve.",
+              "intro": "Holiday-aware calendars leave weekends and public holidays out of the count, and overlapping requests are flagged." },
+            { "id": id(), "type": "demo", "demo": "leave_flow",
+              "heading": "Time off, without the back-and-forth.",
+              "intro": "Requests follow single- or multi-stage approval routes, and balances update when they're approved. Try it." },
+            { "id": id(), "type": "demo", "demo": "outputs",
+              "heading": "What a finished run gives you.",
+              "intro": "Lock completed payroll, generate reports and review costs. Employees get what's theirs in self-service." },
             { "id": id(), "type": "demo", "demo": "rules",
               "heading": "Payroll rules you can see.",
               "intro": "Statutory rules change during the year. ZiraHR keeps them as dated settings, so each run uses the rules that applied at the time." },
             { "id": id(), "type": "demo", "demo": "self_service",
               "heading": "Your workday, one browser tab away.",
-              "intro": "Payslips, leave requests, documents and updates, securely in your web browser, at your desk or on your phone. No app download needed." },
+              "intro": "Payslips, P9 forms, leave requests, documents and updates, securely in your web browser, at your desk or on your phone. Salary advances too, where enabled. No app download needed." },
             { "id": id(), "type": "call_to_action", "heading": "See ZiraHR in action",
               "body": "Tell us how your organisation runs payroll, leave and approvals, and we'll show you ZiraHR with your own workflows in mind.",
               "cta": demo_cta() },
@@ -172,6 +181,26 @@ fn contact() -> Value {
                   { "title": "See it with your workflows", "body": "A demo shaped around how your organisation works." },
               ] },
             { "id": id(), "type": "call_to_action", "heading": "Ready when you are", "cta": demo_cta() },
+        ],
+    })
+}
+
+fn refer() -> Value {
+    json!({
+        "seo_title": "Refer & earn with ZiraHR",
+        "seo_description": "Know a business that could work smarter? Introduce them to ZiraHR and earn once the deal has closed.",
+        "sections": [
+            { "id": id(), "type": "hero", "eyebrow": "Refer & earn",
+              "heading": "Know a business that could work smarter?",
+              "lead": "Start with the people you know. Introduce a team that needs better HR or payroll, and you earn once we've closed the deal." },
+            { "id": id(), "type": "steps", "heading": "How it works",
+              "items": [
+                  { "title": "Tell us who to talk to", "body": "Enter the business's details below." },
+                  { "title": "We take it from there", "body": "Our team reviews the introduction and arranges a conversation or a demo." },
+                  { "title": "Follow the deal", "body": "Keep your reference, and call us any time for an update." },
+                  { "title": "Earn when it closes", "body": "You earn only after the deal has closed." },
+              ] },
+            { "id": id(), "type": "referral_form", "heading": "Submit a referral", "contact_phone": null },
         ],
     })
 }
@@ -267,13 +296,189 @@ pub async fn run(pool: &PgPool) -> Result<(), Box<dyn std::error::Error + Send +
     Ok(())
 }
 
+const LAUNCH: &str = "site.zirahr_launched";
+const CHECKED: &str = "2026-11-05";
+
+/// Publishes one page, unless a person has edited it since it was drafted.
+/// Returns whether it was published.
+async fn publish_page(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    site_id: Uuid,
+    (position, path, title, document, in_nav): (i32, &str, &str, Value, bool),
+) -> Result<bool, Box<dyn std::error::Error + Send + Sync>> {
+    let doc: PageDoc = serde_json::from_value(document.clone())?;
+    doc.validate().map_err(|e| format!("ZiraHR {path} page: {e:?}"))?;
+    let existing: Option<(Uuid, bool)> = sqlx::query_as(
+        "SELECT id, draft_updated_by IS NOT NULL FROM pages
+          WHERE site_id = $1 AND path = $2 AND archived_at IS NULL FOR UPDATE",
+    )
+    .bind(site_id)
+    .bind(path)
+    .fetch_optional(&mut **tx)
+    .await?;
+    let page = match existing {
+        Some((_, true)) => return Ok(false),
+        Some((id, false)) => id,
+        None => {
+            let id = Uuid::now_v7();
+            sqlx::query(
+                "INSERT INTO pages (id, site_id, path, title, position, draft, show_in_nav)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7)",
+            )
+            .bind(id)
+            .bind(site_id)
+            .bind(path)
+            .bind(title)
+            .bind(position)
+            .bind(&document)
+            .bind(in_nav)
+            .execute(&mut **tx)
+            .await?;
+            id
+        }
+    };
+    let revision = Uuid::now_v7();
+    sqlx::query(
+        "INSERT INTO page_revisions (id, page_id, number, document, note, state, decided_at)
+         SELECT $1, $2, COALESCE(max(number), 0) + 1, $3, $4, 'published', now()
+           FROM page_revisions WHERE page_id = $2",
+    )
+    .bind(revision)
+    .bind(page)
+    .bind(&document)
+    .bind("Published on the owner's instruction, 5 Nov 2026")
+    .execute(&mut **tx)
+    .await?;
+    sqlx::query(
+        "UPDATE pages SET draft = $2, published = $2, published_revision = $3, published_at = now(),
+                draft_version = draft_version + 1, draft_updated_at = now(), show_in_nav = $4
+          WHERE id = $1",
+    )
+    .bind(page)
+    .bind(&document)
+    .bind(revision)
+    .bind(in_nav)
+    .execute(&mut **tx)
+    .await?;
+    Ok(true)
+}
+
+/// The owner's go-live of 5 Nov 2026, once: the pages, the hover previews and
+/// footer links, and the payroll calculator with its rules recorded as checked.
+pub async fn launch(pool: &PgPool) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let mut tx = pool.begin().await?;
+    let site: Option<(Uuid, Value)> = sqlx::query_as(
+        "SELECT s.id, s.settings FROM sites s WHERE s.slug = 'zirahr' AND NOT EXISTS (
+                SELECT 1 FROM audit_log a WHERE a.site_id = s.id AND a.action = $1)
+            FOR UPDATE",
+    )
+    .bind(LAUNCH)
+    .fetch_optional(&mut *tx)
+    .await?;
+    let Some((site_id, settings)) = site else {
+        return Ok(());
+    };
+
+    let mut published = Vec::new();
+    let mut skipped = Vec::new();
+    for page in [
+        (0, "", "Home", home(), true),
+        (1, "platform", "Platform", platform(), true),
+        (2, "about", "About", about(), true),
+        (3, "contact", "Contact & Demo", contact(), true),
+        (4, "refer", "Refer & earn", refer(), false),
+    ] {
+        let path = page.1;
+        if publish_page(&mut tx, site_id, page).await? {
+            published.push(path);
+        } else {
+            skipped.push(path);
+        }
+    }
+
+    let mut next = WebsiteSettings::from_stored(settings);
+    if let Some(draft) = next.nav_previews_draft.take() {
+        next.nav_previews = draft;
+    }
+    if next.footer.links.is_empty() {
+        next.footer.links = vec![
+            Link {
+                label: "Payroll calculator".into(),
+                href: "/payroll-calculator".into(),
+            },
+            Link {
+                label: "Refer & earn".into(),
+                href: "/refer".into(),
+            },
+        ];
+    }
+    let next = next
+        .normalise(false)
+        .map_err(|e| format!("ZiraHR settings: {e:?}"))?;
+    sqlx::query("UPDATE sites SET settings = $2, settings_version = settings_version + 1 WHERE id = $1")
+        .bind(site_id)
+        .bind(serde_json::to_value(&next)?)
+        .execute(&mut *tx)
+        .await?;
+
+    let calculator = crate::payroll::launch_config(CHECKED)?;
+    sqlx::query(
+        "INSERT INTO site_payroll_calculators (site_id, draft) VALUES ($1, $2) ON CONFLICT DO NOTHING",
+    )
+    .bind(site_id)
+    .bind(&calculator)
+    .execute(&mut *tx)
+    .await?;
+    let switched = sqlx::query(
+        "UPDATE site_payroll_calculators
+            SET draft = $2, published = $2, published_number = 1, published_at = now(), public_visible = true,
+                review_requested_by = NULL, review_requested_at = NULL, review_note = NULL
+          WHERE site_id = $1 AND published IS NULL AND draft_updated_by IS NULL",
+    )
+    .bind(site_id)
+    .bind(&calculator)
+    .execute(&mut *tx)
+    .await?;
+    if switched.rows_affected() == 1 {
+        sqlx::query(
+            "INSERT INTO payroll_calculator_versions (id, site_id, number, config, note)
+             VALUES ($1, $2, 1, $3, $4)",
+        )
+        .bind(Uuid::now_v7())
+        .bind(site_id)
+        .bind(&calculator)
+        .bind("Published on the owner's instruction; rules checked 5 Nov 2026")
+        .execute(&mut *tx)
+        .await?;
+    }
+
+    sqlx::query(
+        "INSERT INTO audit_log (id, action, target_type, target_id, detail, site_id)
+         VALUES ($1, $2, 'site', $3, $4, $5)",
+    )
+    .bind(Uuid::now_v7())
+    .bind(LAUNCH)
+    .bind(site_id.to_string())
+    .bind(json!({
+        "pages": published, "left_as_edited": skipped,
+        "calculator_published": switched.rows_affected() == 1,
+        "authorised_by": "owner, 5 Nov 2026",
+    }))
+    .bind(site_id)
+    .execute(&mut *tx)
+    .await?;
+    tx.commit().await?;
+    tracing::info!(pages = ?published, left_as_edited = ?skipped, "ZiraHR website published");
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn every_draft_passes_the_same_checks_as_a_page_in_the_studio() {
-        for document in [home(), platform(), about(), contact()] {
+        for document in [home(), platform(), about(), contact(), refer()] {
             let doc: PageDoc = serde_json::from_value(document).unwrap();
             assert_eq!(doc.validate(), Ok(()));
         }
@@ -281,7 +486,7 @@ mod tests {
 
     #[test]
     fn the_guides_sign_off_rules_hold_in_the_drafts() {
-        let text = [home(), platform(), about(), contact()]
+        let text = [home(), platform(), about(), contact(), refer()]
             .iter()
             .map(Value::to_string)
             .collect::<String>()
@@ -296,18 +501,14 @@ mod tests {
             "100%",
             "ksh 100,000",
             "ksh 250,000",
-            "salary advance",
             "guarantee",
         ] {
             assert!(!text.contains(banned), "{banned}");
         }
-        // Modules the guide says to confirm can't read as live.
+        // All eight modules, as the owner confirmed.
         let platform = platform();
         let modules = platform["sections"][1]["items"].as_array().unwrap();
         assert_eq!(modules.len(), 8);
-        for title in ["Teams & Collaboration", "Recruitment", "Learning & Development"] {
-            let module = modules.iter().find(|m| m["title"] == title).unwrap();
-            assert_eq!(module["availability"], "planned", "{title}");
-        }
+        assert!(modules.iter().all(|m| m["availability"] == "available"));
     }
 }

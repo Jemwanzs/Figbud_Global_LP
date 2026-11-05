@@ -858,13 +858,22 @@ async fn page_visibility_hidden_sections_and_the_zirahr_import() {
     .await
     .unwrap();
     assert_eq!(markers, 1, "the import runs once");
-    let (status, zirahr) = s.call("GET", "/v1/sites/zirahr/page?path=", None, None).await;
+    let (status, _) = s.call("GET", "/v1/sites/zirahr/page?path=", None, None).await;
     assert_eq!(status, StatusCode::OK);
+    // The go-live (tests/zirahr_guide.rs) publishes later versions, so check the first.
+    let imported: serde_json::Value = sqlx::query_scalar(
+        "SELECT r.document FROM page_revisions r
+           JOIN pages p ON p.id = r.page_id JOIN sites s ON s.id = p.site_id
+          WHERE s.slug = 'zirahr' AND p.path = '' ORDER BY r.number LIMIT 1",
+    )
+    .fetch_one(&s.pool)
+    .await
+    .unwrap();
     assert_eq!(
-        zirahr["sections"][0]["heading"],
+        imported["sections"][0]["heading"],
         "People. Payroll. Progress. Connected."
     );
-    assert_eq!(zirahr["sections"][1]["items"].as_array().unwrap().len(), 10);
+    assert_eq!(imported["sections"][1]["items"].as_array().unwrap().len(), 10);
 }
 
 #[tokio::test]

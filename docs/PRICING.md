@@ -50,7 +50,7 @@ One per product website, in its **base currency** (KES for ZiraHR). It has a wor
 
 **ZiraHR's catalogue.** It's reconciled with the confirmed product scope (BRAND_ASSETS / ZiraHR site).
 - **Available:** Core HR (Employee 360), Payroll & compliance, Leave, Time & attendance, Performance, Employee self-service, and Reporting & analytics.
-- **Planned (not confirmed for ZiraHR yet):** Recruitment / ATS, Mobile app, Salary advances, Digital salary payments, and the AI assistant.
+- **Planned (not confirmed for ZiraHR yet):** Mobile app, Digital salary payments, and the AI assistant. Recruitment and Salary advances moved to available for new price books after the owner confirmed the modules on 5 Nov 2026; a price book that already exists keeps its own setting, changed in the Pricing Studio.
 - **One-off groups:**
   - A. Platform setup;
   - B. Data migration;

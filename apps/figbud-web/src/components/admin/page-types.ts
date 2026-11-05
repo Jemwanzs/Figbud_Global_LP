@@ -114,6 +114,7 @@ export const BLOCKS: { type: BlockType; label: string; hint: string }[] = [
   { type: "faq", label: "Questions", hint: "Expandable questions and answers" },
   { type: "modules", label: "Module catalogue", hint: "Modules with one open at a time" },
   { type: "demo", label: "Product demonstration", hint: "An interactive demonstration, with sample data" },
+  { type: "referral_form", label: "Referral form", hint: "Refer & earn: goes to the enquiry inbox" },
   { type: "call_to_action", label: "Call to action", hint: "A closing invitation with a button" },
   { type: "image", label: "Image", hint: "A picture from the media library, with a caption" },
   { type: "shared", label: "Shared content", hint: "A section from the content library, kept in sync" },
@@ -195,6 +196,8 @@ export function newSection(type: BlockType, ref = ""): PageSection {
       };
     case "demo":
       return { id, type, demo: "connected_modules", heading: "", intro: "" };
+    case "referral_form":
+      return { id, type, heading: "", intro: "", contact_phone: "" };
     case "stats":
       return {
         id,

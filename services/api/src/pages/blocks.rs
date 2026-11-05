@@ -123,6 +123,16 @@ pub enum Block {
         #[serde(default)]
         intro: Option<String>,
     },
+    /// Refer & earn: a form that reaches the enquiry inbox (P14-R). The phone
+    /// number people call to follow a deal is set here, never invented.
+    ReferralForm {
+        #[serde(default)]
+        heading: Option<String>,
+        #[serde(default)]
+        intro: Option<String>,
+        #[serde(default)]
+        contact_phone: Option<String>,
+    },
     /// An item from the content library, shown as its latest published
     /// version wherever it's used (resolved by `crate::shared::resolve`).
     Shared { shared_id: uuid::Uuid },
@@ -136,6 +146,9 @@ pub enum DemoKind {
     Payslip,
     Rules,
     SelfService,
+    Outputs,
+    LeaveFlow,
+    TeamCalendar,
 }
 
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq, Default)]
@@ -450,6 +463,31 @@ impl PageDoc {
                         if let Some(cta) = &item.cta {
                             c.cta(cta);
                         }
+                    }
+                }
+                Block::ReferralForm {
+                    heading,
+                    intro,
+                    contact_phone,
+                } => {
+                    c.optional("sections", heading, 120, "Headings can be up to 120 characters.");
+                    c.optional(
+                        "sections",
+                        intro,
+                        400,
+                        "Introductions can be up to 400 characters.",
+                    );
+                    let phone_ok = contact_phone.as_deref().is_none_or(|p| {
+                        p.is_empty()
+                            || (p.len() <= 24
+                                && p.chars().filter(char::is_ascii_digit).count() >= 7
+                                && p.chars().all(|c| c.is_ascii_digit() || " +-()".contains(c)))
+                    });
+                    if !phone_ok {
+                        c.push(
+                            "sections",
+                            "Enter the contact number with digits, spaces and + only.",
+                        );
                     }
                 }
                 Block::Demo { heading, intro, .. } => {
