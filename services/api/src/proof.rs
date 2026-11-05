@@ -1090,7 +1090,7 @@ async fn action(
 
 // ---------------------------------------------------------------- public
 
-async fn media(pool: &PgPool, id: Option<Uuid>) -> Result<Value, sqlx::Error> {
+pub(crate) async fn media(pool: &PgPool, id: Option<Uuid>) -> Result<Value, sqlx::Error> {
     let Some(id) = id else { return Ok(Value::Null) };
     let found: Option<(String, i32, i32)> = sqlx::query_as(
         "SELECT alt_text, width, height FROM media_assets WHERE id = $1 AND archived_at IS NULL",

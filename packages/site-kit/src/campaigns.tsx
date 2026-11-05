@@ -48,6 +48,12 @@ export interface LiveCampaign {
   reference: string;
   kind: string;
   priority: number;
+  /** Customer and partner banners (P10-B1). */
+  announcement?: {
+    kind: string;
+    appearance: "auto" | "light" | "dark";
+    organization?: { name?: string | null; logo?: MediaInfo | null } | null;
+  } | null;
   content: {
     badge?: string | null;
     headline: string;
@@ -481,6 +487,32 @@ function Logo({ ctx, onBrand, height }: { ctx: Context; onBrand: boolean; height
 }
 
 /** The campaign's content: used by every placement, sized by `variant`. */
+/** A banner can stay in one theme whichever the page uses; others follow the page. */
+function Appearance({ campaign, children }: { campaign: LiveCampaign; children: ReactNode }) {
+  const appearance = campaign.announcement?.appearance;
+  if (!appearance || appearance === "auto") return <>{children}</>;
+  return (
+    <div data-theme={appearance} className="contents">
+      {children}
+    </div>
+  );
+}
+
+/** The named organisation: its logo when it has one, otherwise its name. */
+function Organization({ campaign, ctx }: { campaign: LiveCampaign; ctx: Context }) {
+  const organization = campaign.announcement?.organization;
+  if (!organization?.name) return null;
+  if (!organization.logo) return <span className="text-sm font-semibold">{organization.name}</span>;
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      {...mediaImageSources(organization.logo, true, ctx.mediaBase)}
+      alt={organization.name}
+      className="h-7 w-auto max-w-40 rounded bg-white object-contain p-1"
+    />
+  );
+}
+
 function Creative({
   campaign,
   ctx,
@@ -509,160 +541,167 @@ function Creative({
         ? "motion-safe:animate-[fb-campaign-fade_400ms_ease-out]"
         : "";
   return (
-    <div
-      data-product={ctx.product}
-      data-campaign={campaign.reference}
-      className={cn("relative isolate overflow-hidden", RADIUS[design.radius], look.className, animate)}
-      style={look.style}
-    >
-      {background && (
-        <>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            {...mediaImageSources(media, true, ctx.mediaBase)}
-            alt=""
-            className="absolute inset-0 -z-20 size-full object-cover"
-          />
-          <div aria-hidden className="absolute inset-0 -z-10 bg-black/45" />
-        </>
-      )}
-      {!background && look.onBrand && (
-        <div
-          aria-hidden
-          className="pointer-events-none absolute -end-24 -top-24 -z-10 size-72 rounded-full bg-white/15 blur-2xl"
-        />
-      )}
+    <Appearance campaign={campaign}>
       <div
-        className={cn(
-          "grid gap-6",
-          variant === "card"
-            ? "p-5"
-            : variant === "dialog"
-              ? "p-6 sm:p-8"
-              : compact
-                ? "p-5 sm:p-6"
-                : "p-6 sm:p-10 lg:p-12",
-          showImage && "md:grid-cols-2 md:items-center md:gap-10",
-        )}
+        data-product={ctx.product}
+        data-campaign={campaign.reference}
+        className={cn("relative isolate overflow-hidden", RADIUS[design.radius], look.className, animate)}
+        style={look.style}
       >
+        {background && (
+          <>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              {...mediaImageSources(media, true, ctx.mediaBase)}
+              alt=""
+              className="absolute inset-0 -z-20 size-full object-cover"
+            />
+            <div aria-hidden className="absolute inset-0 -z-10 bg-black/45" />
+          </>
+        )}
+        {!background && look.onBrand && (
+          <div
+            aria-hidden
+            className="pointer-events-none absolute -end-24 -top-24 -z-10 size-72 rounded-full bg-white/15 blur-2xl"
+          />
+        )}
         <div
           className={cn(
-            "min-w-0",
-            center && "text-center",
-            showImage && design.image_position === "start" && "md:order-2",
+            "grid gap-6",
+            variant === "card"
+              ? "p-5"
+              : variant === "dialog"
+                ? "p-6 sm:p-8"
+                : compact
+                  ? "p-5 sm:p-6"
+                  : "p-6 sm:p-10 lg:p-12",
+            showImage && "md:grid-cols-2 md:items-center md:gap-10",
           )}
         >
-          <div className={cn("flex flex-wrap items-center gap-3", center && "justify-center")}>
-            {design.show_logo && (
-              <Logo ctx={ctx} onBrand={look.onBrand || Boolean(background)} height={compact ? 24 : 32} />
-            )}
-            {content.badge && (
-              <span className="rounded-full bg-black/15 px-3 py-1 text-xs font-semibold tracking-wide uppercase">
-                {content.badge}
-              </span>
-            )}
-          </div>
-          <h2
-            id={titleId}
+          <div
             className={cn(
-              "mt-4 font-display font-semibold tracking-tight text-balance",
-              compact ? "text-xl sm:text-2xl" : large ? "text-headline" : "text-2xl sm:text-3xl lg:text-4xl",
+              "min-w-0",
+              center && "text-center",
+              showImage && design.image_position === "start" && "md:order-2",
             )}
           >
-            {content.headline}
-          </h2>
-          {content.subheadline && (
-            <p
-              className={cn(
-                "mt-2 opacity-90",
-                compact ? "text-sm" : "text-base sm:text-lg",
-                center && "mx-auto",
-                "max-w-2xl",
+            <div className={cn("flex flex-wrap items-center gap-3", center && "justify-center")}>
+              {design.show_logo && (
+                <Logo ctx={ctx} onBrand={look.onBrand || Boolean(background)} height={compact ? 24 : 32} />
               )}
-            >
-              {content.subheadline}
-            </p>
-          )}
-          {content.body_html && variant !== "card" && (
-            <div
-              className={cn(
-                "fb-prose mt-3 max-w-2xl text-sm opacity-90 [&_a]:underline",
-                center && "mx-auto",
+              <Organization campaign={campaign} ctx={ctx} />
+              {content.badge && (
+                <span className="rounded-full bg-black/15 px-3 py-1 text-xs font-semibold tracking-wide uppercase">
+                  {content.badge}
+                </span>
               )}
-              // Rendered and sanitised by the API's Markdown pipeline.
-              dangerouslySetInnerHTML={{ __html: content.body_html }}
-            />
-          )}
-          {content.countdown && campaign.schedule.ends_at && (
-            <Countdown
-              endsAt={campaign.schedule.ends_at}
-              label={ctx.labels.endsIn}
-              className={cn("mt-4", center && "justify-center")}
-            />
-          )}
-          {(content.primary || content.secondary || content.promo_code) && (
-            <div
-              className={cn(
-                "mt-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center",
-                center && "sm:justify-center",
-              )}
-            >
-              {content.primary && (
-                <Button
-                  cta={content.primary}
-                  campaign={campaign}
-                  ctx={ctx}
-                  primary
-                  onBrand={look.onBrand || Boolean(background)}
-                />
-              )}
-              {content.secondary && (
-                <Button
-                  cta={content.secondary}
-                  campaign={campaign}
-                  ctx={ctx}
-                  primary={false}
-                  onBrand={look.onBrand || Boolean(background)}
-                />
-              )}
-              {content.promo_code && <PromoCode code={content.promo_code} labels={ctx.labels} />}
             </div>
-          )}
-          {campaign.rewards && <SpinToWin campaign={campaign} ctx={ctx} onBrand={look.onBrand} />}
-          {content.terms_html && variant !== "card" && !campaign.rewards && (
-            <details className={cn("mt-4 text-xs opacity-80", center && "mx-auto max-w-2xl")}>
-              <summary className="cursor-pointer">{ctx.labels.terms}</summary>
-              <div className="fb-prose mt-2" dangerouslySetInnerHTML={{ __html: content.terms_html }} />
-            </details>
+            <h2
+              id={titleId}
+              className={cn(
+                "mt-4 font-display font-semibold tracking-tight text-balance",
+                compact
+                  ? "text-xl sm:text-2xl"
+                  : large
+                    ? "text-headline"
+                    : "text-2xl sm:text-3xl lg:text-4xl",
+              )}
+            >
+              {content.headline}
+            </h2>
+            {content.subheadline && (
+              <p
+                className={cn(
+                  "mt-2 opacity-90",
+                  compact ? "text-sm" : "text-base sm:text-lg",
+                  center && "mx-auto",
+                  "max-w-2xl",
+                )}
+              >
+                {content.subheadline}
+              </p>
+            )}
+            {content.body_html && variant !== "card" && (
+              <div
+                className={cn(
+                  "fb-prose mt-3 max-w-2xl text-sm opacity-90 [&_a]:underline",
+                  center && "mx-auto",
+                )}
+                // Rendered and sanitised by the API's Markdown pipeline.
+                dangerouslySetInnerHTML={{ __html: content.body_html }}
+              />
+            )}
+            {content.countdown && campaign.schedule.ends_at && (
+              <Countdown
+                endsAt={campaign.schedule.ends_at}
+                label={ctx.labels.endsIn}
+                className={cn("mt-4", center && "justify-center")}
+              />
+            )}
+            {(content.primary || content.secondary || content.promo_code) && (
+              <div
+                className={cn(
+                  "mt-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center",
+                  center && "sm:justify-center",
+                )}
+              >
+                {content.primary && (
+                  <Button
+                    cta={content.primary}
+                    campaign={campaign}
+                    ctx={ctx}
+                    primary
+                    onBrand={look.onBrand || Boolean(background)}
+                  />
+                )}
+                {content.secondary && (
+                  <Button
+                    cta={content.secondary}
+                    campaign={campaign}
+                    ctx={ctx}
+                    primary={false}
+                    onBrand={look.onBrand || Boolean(background)}
+                  />
+                )}
+                {content.promo_code && <PromoCode code={content.promo_code} labels={ctx.labels} />}
+              </div>
+            )}
+            {campaign.rewards && <SpinToWin campaign={campaign} ctx={ctx} onBrand={look.onBrand} />}
+            {content.terms_html && variant !== "card" && !campaign.rewards && (
+              <details className={cn("mt-4 text-xs opacity-80", center && "mx-auto max-w-2xl")}>
+                <summary className="cursor-pointer">{ctx.labels.terms}</summary>
+                <div className="fb-prose mt-2" dangerouslySetInnerHTML={{ __html: content.terms_html }} />
+              </details>
+            )}
+          </div>
+          {showImage && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              {...mediaImageSources(media, false, ctx.mediaBase)}
+              alt={media.alt}
+              width={media.width}
+              height={media.height}
+              loading="lazy"
+              decoding="async"
+              className={cn(
+                "h-auto w-full object-cover",
+                RADIUS[design.radius] === "rounded-none" ? "" : "rounded-2xl",
+              )}
+            />
           )}
         </div>
-        {showImage && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            {...mediaImageSources(media, false, ctx.mediaBase)}
-            alt={media.alt}
-            width={media.width}
-            height={media.height}
-            loading="lazy"
-            decoding="async"
-            className={cn(
-              "h-auto w-full object-cover",
-              RADIUS[design.radius] === "rounded-none" ? "" : "rounded-2xl",
-            )}
-          />
+        {onDismiss && (
+          <button
+            type="button"
+            onClick={onDismiss}
+            className="absolute end-2 top-2 inline-flex size-10 items-center justify-center rounded-full hover:bg-black/10 focus-visible:outline-2 focus-visible:outline-current"
+          >
+            <X aria-hidden className="size-4" />
+            <span className="sr-only">{ctx.labels.dismiss}</span>
+          </button>
         )}
       </div>
-      {onDismiss && (
-        <button
-          type="button"
-          onClick={onDismiss}
-          className="absolute end-2 top-2 inline-flex size-10 items-center justify-center rounded-full hover:bg-black/10 focus-visible:outline-2 focus-visible:outline-current"
-        >
-          <X aria-hidden className="size-4" />
-          <span className="sr-only">{ctx.labels.dismiss}</span>
-        </button>
-      )}
-    </div>
+    </Appearance>
   );
 }
 
@@ -689,48 +728,53 @@ export function CampaignSlot({
     const look = surface(campaign);
     const cta = campaign.content.primary;
     return (
-      <div
-        role="region"
-        aria-label={campaign.content.headline}
-        data-product={ctx.product}
-        data-campaign={campaign.reference}
-        className={cn("relative px-12 py-2.5 text-center text-sm", look.className, className)}
-        style={look.style}
-      >
-        {campaign.content.badge && (
-          <span className="me-2 rounded-full bg-black/15 px-2 py-0.5 text-xs font-semibold uppercase">
-            {campaign.content.badge}
-          </span>
-        )}
-        <span className="font-medium">{campaign.content.headline}</span>
-        {campaign.content.countdown && campaign.schedule.ends_at && (
-          <Countdown
-            endsAt={campaign.schedule.ends_at}
-            label={ctx.labels.endsIn}
-            className="ms-3 inline-flex text-xs"
-          />
-        )}
-        {cta && (
-          <a
-            href={ctaHref(cta, campaign, ctx)}
-            onClick={() => track(ctx, campaign.id, "click")}
-            className="ms-3 inline-flex items-center gap-1 font-semibold underline underline-offset-4"
-          >
-            {cta.label}
-            <ArrowRight aria-hidden className="size-3.5 rtl:rotate-180" />
-          </a>
-        )}
-        {onDismiss && (
-          <button
-            type="button"
-            onClick={onDismiss}
-            className="absolute end-2 top-1/2 inline-flex size-9 -translate-y-1/2 items-center justify-center rounded-full hover:bg-black/10"
-          >
-            <X aria-hidden className="size-4" />
-            <span className="sr-only">{ctx.labels.dismiss}</span>
-          </button>
-        )}
-      </div>
+      <Appearance campaign={campaign}>
+        <div
+          role="region"
+          aria-label={campaign.content.headline}
+          data-product={ctx.product}
+          data-campaign={campaign.reference}
+          className={cn("relative px-12 py-2.5 text-center text-sm", look.className, className)}
+          style={look.style}
+        >
+          {campaign.content.badge && (
+            <span className="me-2 rounded-full bg-black/15 px-2 py-0.5 text-xs font-semibold uppercase">
+              {campaign.content.badge}
+            </span>
+          )}
+          {campaign.announcement?.organization?.name && (
+            <span className="me-2 font-semibold">{campaign.announcement.organization.name}:</span>
+          )}
+          <span className="font-medium">{campaign.content.headline}</span>
+          {campaign.content.countdown && campaign.schedule.ends_at && (
+            <Countdown
+              endsAt={campaign.schedule.ends_at}
+              label={ctx.labels.endsIn}
+              className="ms-3 inline-flex text-xs"
+            />
+          )}
+          {cta && (
+            <a
+              href={ctaHref(cta, campaign, ctx)}
+              onClick={() => track(ctx, campaign.id, "click")}
+              className="ms-3 inline-flex items-center gap-1 font-semibold underline underline-offset-4"
+            >
+              {cta.label}
+              <ArrowRight aria-hidden className="size-3.5 rtl:rotate-180" />
+            </a>
+          )}
+          {onDismiss && (
+            <button
+              type="button"
+              onClick={onDismiss}
+              className="absolute end-2 top-1/2 inline-flex size-9 -translate-y-1/2 items-center justify-center rounded-full hover:bg-black/10"
+            >
+              <X aria-hidden className="size-4" />
+              <span className="sr-only">{ctx.labels.dismiss}</span>
+            </button>
+          )}
+        </div>
+      </Appearance>
     );
   }
   return (

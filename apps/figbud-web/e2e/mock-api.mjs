@@ -2397,6 +2397,7 @@ const KINDS = [
   "rewards",
   "referral",
   "event",
+  "banner",
 ];
 function campaignTemplate(kind, siteName) {
   const placements = {
@@ -2405,8 +2406,12 @@ function campaignTemplate(kind, siteName) {
     modal: ["modal"],
     rewards: ["modal"],
     event: ["below_nav"],
+    banner: ["below_nav"],
   }[kind] ?? ["home_hero"];
   return {
+    ...(kind === "banner"
+      ? { announcement: { kind: "launch", organization_id: null, appearance: "auto" }, also_on: [] }
+      : {}),
     content: {
       badge: kind === "seasonal" || kind === "countdown" ? "Limited time" : null,
       headline: `Replace with your ${siteName} headline`,
@@ -2499,7 +2504,15 @@ const campaignMd = (text) =>
   text
     ? `<p>${String(text).replace(/[&<>]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[ch])}</p>`
     : null;
-function publicCampaign(c) {
+/** The organisation a banner names, while it's approved for this website. */
+function bannerOrganization(c, slug) {
+  const id = c.published.announcement?.organization_id;
+  if (!id) return null;
+  const org = proofItems.get(id);
+  const approved = org?.published && org.active && !org.archived_at && org.published_sites.includes(slug);
+  return approved ? { name: org.published.name, logo: null } : undefined;
+}
+function publicCampaign(c, slug = c.site.slug) {
   const doc = c.published;
   const open = (r) => r.weight > 0 && (r.quantity == null || (c.awarded[r.id] ?? 0) < r.quantity);
   const total = (doc.rewards?.rewards ?? []).filter(open).reduce((n, r) => n + r.weight, 0);
@@ -2509,8 +2522,29 @@ function publicCampaign(c) {
     reference: c.reference,
     kind: c.kind,
     priority: doc.schedule.priority,
+    ...(doc.announcement
+      ? {
+          announcement: {
+            kind: doc.announcement.kind,
+            appearance: doc.announcement.appearance,
+            organization: bannerOrganization(c, slug),
+          },
+        }
+      : {}),
     content: {
       ...doc.content,
+      badge:
+        doc.content.badge ??
+        (doc.announcement
+          ? {
+              new_customer: "New customer",
+              partnership: "Partnership",
+              launch: "Launch",
+              milestone: "Milestone",
+              success_story: "Success story",
+              event: "Event",
+            }[doc.announcement.kind]
+          : null),
       body_html: campaignMd(doc.content.body),
       terms_html: campaignMd(doc.content.terms),
     },
@@ -3971,12 +4005,33 @@ function campaignRoutes(path, req, body, user, send) {
     /^campaigns\/([0-9a-f-]{36})(?:\/(draft|submit|pause|resume|archive|restore|duplicate)|\/revisions\/([0-9a-f-]{36})\/(approve|reject|cancel|restore))?$/.exec(
       path,
     );
+  const visibility = /^campaigns\/([0-9a-f-]{36})\/websites$/.exec(path);
+  if (visibility) {
+    const target = campaigns.get(visibility[1]);
+    if (!target) return err(404, "Not found.", "not_found");
+    if (rank < RANKS.reviewer) return err(403, "You don't have permission to do that.", "forbidden");
+    const hidden = (target.hidden_sites ?? []).filter((s) => s !== body.site);
+    target.hidden_sites = body.visible ? hidden : [...hidden, body.site];
+    return send(200, { ok: true });
+  }
   const c = m && campaigns.get(m[1]);
   if (!c) return err(404, "Not found.", "not_found");
   const [, , action, revisionId, decision] = m;
   if (!action && !revisionId)
     return send(200, {
       id: c.id,
+      ...(c.kind === "banner"
+        ? {
+            organizations: [...proofItems.values()]
+              .filter((i) => i.kind === "organization" && i.published && i.active && !i.archived_at)
+              .map((i) => ({ id: i.id, name: i.published.name, sites: i.published_sites })),
+            websites: sites
+              .filter((s) => s.slug !== c.site.slug && !s.archived_at)
+              .map((s) => ({ slug: s.slug, name: s.name, can_edit: true })),
+            can_review_websites: rank >= RANKS.reviewer,
+          }
+        : {}),
+      hidden_sites: c.hidden_sites ?? [],
       site_id: c.site.id,
       site_slug: c.site.slug,
       site_name: c.site.name,
@@ -4048,6 +4103,14 @@ function campaignRoutes(path, req, body, user, send) {
       });
     if (JSON.stringify(c.draft) === JSON.stringify(c.published))
       return err(409, "The draft is the same as the published campaign.");
+    if (c.draft.announcement) {
+      const { kind, organization_id: org } = c.draft.announcement;
+      if (["new_customer", "partnership", "success_story"].includes(kind) && !org)
+        return err(409, "Choose the organisation this banner names.");
+      const approved = org && proofItems.get(org)?.published_sites;
+      if (org && ![c.site.slug, ...(c.draft.also_on ?? [])].every((s) => approved?.includes(s)))
+        return err(409, "This organisation isn't approved for every website showing the banner.");
+    }
     if (c.revisions.some((x) => x.state === "pending"))
       return err(409, "A change to this campaign is already waiting for approval.");
     if (c.draft.rewards && String(c.draft.rewards.legal_review ?? "").trim().length < 20)
@@ -5347,6 +5410,17 @@ createServer(async (req, res) => {
   if (url.pathname.startsWith("/v1/admin/")) return admin(req, res, url, body, send, raw);
   if (url.pathname === "/v1/articles") return send(200, list(url));
   // Test helpers (mock only): the emailed link, and time passing for the identity check.
+  if (url.pathname === "/v1/__test/banner-org") {
+    const org = newProof("organization", "test");
+    org.draft.name = body.name;
+    Object.assign(org, {
+      published: clone(org.draft),
+      published_sites: body.sites,
+      sites: body.sites,
+      published_number: 1,
+    });
+    return send(200, { id: org.id });
+  }
   if (url.pathname === "/v1/__test/audit-change") {
     audit.unshift({
       id: `change-${Date.now()}`,
@@ -5452,14 +5526,16 @@ createServer(async (req, res) => {
       campaigns: [...campaigns.values()]
         .filter(
           (c) =>
-            c.site.slug === liveList[1] &&
             c.published &&
+            (c.site.slug === liveList[1] || c.published.also_on?.includes(liveList[1])) &&
+            !(c.hidden_sites ?? []).includes(liveList[1]) &&
             !c.paused_at &&
             !c.archived_at &&
-            liveAt(c.published),
+            liveAt(c.published) &&
+            bannerOrganization(c, liveList[1]) !== undefined,
         )
         .sort((a, b) => b.published.schedule.priority - a.published.schedule.priority)
-        .map(publicCampaign),
+        .map((c) => publicCampaign(c, liveList[1])),
       now: new Date().toISOString(),
     });
   const campaignEvent = /^\/v1\/campaigns\/([0-9a-f-]{36})\/(events|spin)$/.exec(url.pathname);

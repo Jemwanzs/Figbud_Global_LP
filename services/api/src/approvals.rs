@@ -62,7 +62,9 @@ const PENDING: &str = concat!(
        FROM site_payroll_calculators c JOIN sites s ON s.id = c.site_id
       WHERE c.review_requested_at IS NOT NULL AND s.archived_at IS NULL",
     " UNION ALL
-     SELECT 'campaign', r.id::text, c.id::text, ARRAY[s.slug], c.name, r.note, r.requested_by, r.created_at
+     SELECT 'campaign', r.id::text, c.id::text,
+            ARRAY[s.slug] || ARRAY(SELECT jsonb_array_elements_text(r.document -> 'also_on')),
+            c.name, r.note, r.requested_by, r.created_at
        FROM campaign_revisions r JOIN campaigns c ON c.id = r.campaign_id JOIN sites s ON s.id = c.site_id
       WHERE r.state = 'pending' AND c.archived_at IS NULL AND s.archived_at IS NULL",
     " UNION ALL

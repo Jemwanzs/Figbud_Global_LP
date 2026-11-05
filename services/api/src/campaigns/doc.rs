@@ -9,7 +9,7 @@ use serde_json::{Value, json};
 
 use crate::{cms::markdown, error::FieldError, pages::blocks::safe_href};
 
-pub const KINDS: [&str; 10] = [
+pub const KINDS: [&str; 11] = [
     "hero",
     "announcement",
     "floating",
@@ -20,6 +20,7 @@ pub const KINDS: [&str; 10] = [
     "rewards",
     "referral",
     "event",
+    "banner",
 ];
 
 /// What a call to action does. Enquiry actions open the existing contact
@@ -288,6 +289,57 @@ fn thirty() -> u16 {
     30
 }
 
+/// What a customer or partner banner announces (P10-B1).
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum AnnouncementKind {
+    NewCustomer,
+    Partnership,
+    Launch,
+    Milestone,
+    SuccessStory,
+    Event,
+}
+
+impl AnnouncementKind {
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::NewCustomer => "New customer",
+            Self::Partnership => "Partnership",
+            Self::Launch => "Launch",
+            Self::Milestone => "Milestone",
+            Self::SuccessStory => "Success story",
+            Self::Event => "Event",
+        }
+    }
+
+    /// These name someone else, so they need an approved organisation record.
+    pub fn names_an_organization(self) -> bool {
+        matches!(self, Self::NewCustomer | Self::Partnership | Self::SuccessStory)
+    }
+}
+
+/// Follow the visitor's theme, or always use one, whichever the page is in.
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum Appearance {
+    #[default]
+    Auto,
+    Light,
+    Dark,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct Announcement {
+    pub kind: AnnouncementKind,
+    /// A published organisation in Trusted By (`proof_items`).
+    #[serde(default)]
+    pub organization_id: Option<uuid::Uuid>,
+    #[serde(default)]
+    pub appearance: Appearance,
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct CampaignDoc {
@@ -298,6 +350,12 @@ pub struct CampaignDoc {
     pub schedule: Schedule,
     #[serde(default)]
     pub rewards: Option<Rewards>,
+    /// Banners only: what's being announced.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub announcement: Option<Announcement>,
+    /// Banners only: other websites (slugs) showing this one record.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub also_on: Vec<String>,
 }
 
 struct Checker(Vec<FieldError>);
@@ -342,6 +400,22 @@ impl CampaignDoc {
     /// Checks a draft: lengths, links and choices. `kind` is the campaign's type.
     pub fn validate(&self, kind: &str) -> Result<(), Vec<FieldError>> {
         let mut c = Checker(Vec::new());
+        if kind == "banner" {
+            if self.announcement.is_none() {
+                c.push("announcement", "Say what this banner announces.");
+            }
+            if self.also_on.len() > 10 {
+                c.push("also_on", "Choose up to ten other websites.");
+            }
+            let mut unique = self.also_on.clone();
+            unique.sort();
+            unique.dedup();
+            if unique.len() != self.also_on.len() {
+                c.push("also_on", "Each website can only be chosen once.");
+            }
+        } else if self.announcement.is_some() || !self.also_on.is_empty() {
+            c.push("announcement", "Only customer and partner banners announce news.");
+        }
         let content = &self.content;
         c.optional(
             "content",
@@ -503,7 +577,13 @@ impl CampaignDoc {
         if self.schedule.ends_at.is_none() && kind == "rewards" {
             return Err("Reward campaigns need an end date.");
         }
-        if self.content.primary.is_none() && kind != "rewards" && kind != "announcement" {
+        if let Some(a) = &self.announcement
+            && a.kind.names_an_organization()
+            && a.organization_id.is_none()
+        {
+            return Err("Choose the organisation this banner names.");
+        }
+        if self.content.primary.is_none() && kind != "rewards" && kind != "announcement" && kind != "banner" {
             return Err("Add a call to action.");
         }
         if let Some(r) = &self.rewards {
@@ -620,6 +700,14 @@ pub fn template(kind: &str, site_name: &str) -> CampaignDoc {
             format!("Introducing something new from {site_name}"),
             Action::Waitlist,
         ),
+        "banner" => (
+            vec![Placement::BelowNav],
+            Frequency::Session,
+            Trigger::Immediate,
+            0,
+            format!("News from {site_name}"),
+            Action::Link,
+        ),
         "event" => (
             vec![Placement::BelowNav],
             Frequency::Session,
@@ -703,6 +791,12 @@ pub fn template(kind: &str, site_name: &str) -> CampaignDoc {
             restrictions: None,
             legal_review: String::new(),
         }),
+        announcement: (kind == "banner").then_some(Announcement {
+            kind: AnnouncementKind::Launch,
+            organization_id: None,
+            appearance: Appearance::Auto,
+        }),
+        also_on: Vec::new(),
     }
 }
 

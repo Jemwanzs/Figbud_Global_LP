@@ -215,6 +215,13 @@ export function CampaignBuilder({
       reference: initial.reference,
       kind: initial.kind,
       priority: doc.schedule.priority,
+      announcement: doc.announcement && {
+        kind: doc.announcement.kind,
+        appearance: doc.announcement.appearance,
+        organization: {
+          name: initial.organizations?.find((o) => o.id === doc.announcement?.organization_id)?.name,
+        },
+      },
       content: {
         ...doc.content,
         body_html: paragraphs(doc.content.body),
@@ -378,6 +385,136 @@ export function CampaignBuilder({
             />
           </Field>
         </Section>
+
+        {doc.announcement && (
+          <Section title="Announcement" id={`${uid}-announcement`}>
+            <Choice
+              label="What is this about?"
+              value={doc.announcement.kind}
+              disabled={!editable}
+              options={{
+                new_customer: "New customer",
+                partnership: "Partnership",
+                launch: "Launch",
+                milestone: "Milestone",
+                success_story: "Success story",
+                event: "Event",
+              }}
+              onChange={(kind) => set({ ...doc, announcement: { ...doc.announcement!, kind } })}
+            />
+            <Field
+              label="Organisation"
+              hint="Only organisations published in Trusted By, which records their permission. It must be published for every website showing this banner."
+            >
+              <select
+                value={doc.announcement.organization_id ?? ""}
+                disabled={!editable}
+                onChange={(e) =>
+                  set({
+                    ...doc,
+                    announcement: { ...doc.announcement!, organization_id: e.target.value || null },
+                  })
+                }
+                className={inputClass}
+              >
+                <option value="">None</option>
+                {(initial.organizations ?? []).map((org) => (
+                  <option key={org.id} value={org.id}>
+                    {org.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            {doc.announcement.organization_id &&
+              (() => {
+                const org = initial.organizations?.find((o) => o.id === doc.announcement!.organization_id);
+                const missing = [initial.site_slug, ...(doc.also_on ?? [])].filter(
+                  (site) => !org?.sites.includes(site),
+                );
+                return missing.length > 0 ? (
+                  <p role="status" className="text-sm text-warning">
+                    Not yet approved for: {missing.join(", ")}. Publish the organisation for these websites in
+                    Trusted By before submitting.
+                  </p>
+                ) : null;
+              })()}
+            <Choice
+              label="Appearance"
+              value={doc.announcement.appearance}
+              disabled={!editable}
+              options={{ auto: "Follow the page", light: "Always light", dark: "Always dark" }}
+              onChange={(appearance) => set({ ...doc, announcement: { ...doc.announcement!, appearance } })}
+            />
+            <fieldset>
+              <legend className="text-sm font-medium text-text">Also show on</legend>
+              <p className="mt-0.5 text-xs text-muted">
+                One banner, no copies. {initial.site_name} always shows it. You need access to each website.
+              </p>
+              <div className="mt-2 grid gap-1">
+                {(initial.websites ?? []).map((site) => {
+                  const on = (doc.also_on ?? []).includes(site.slug);
+                  return (
+                    <label key={site.slug} className="flex min-h-11 items-center gap-3 text-sm text-text">
+                      <input
+                        type="checkbox"
+                        checked={on}
+                        disabled={!editable || !site.can_edit}
+                        onChange={() =>
+                          set({
+                            ...doc,
+                            also_on: on
+                              ? (doc.also_on ?? []).filter((s) => s !== site.slug)
+                              : [...(doc.also_on ?? []), site.slug],
+                          })
+                        }
+                        className="size-5 accent-[var(--accent)]"
+                      />
+                      {site.name}
+                    </label>
+                  );
+                })}
+              </div>
+            </fieldset>
+            {initial.published && initial.can_review_websites && (
+              <fieldset>
+                <legend className="text-sm font-medium text-text">Showing now</legend>
+                <p className="mt-0.5 text-xs text-muted">
+                  Hide or show the published banner on one website, straight away and without a new approval.
+                </p>
+                <div className="mt-2 grid gap-1">
+                  {[
+                    { slug: initial.site_slug, name: initial.site_name },
+                    ...(initial.websites ?? []).filter((w) =>
+                      ((initial.published as unknown as CampaignDoc).also_on ?? []).includes(w.slug),
+                    ),
+                  ].map((site) => {
+                    const shown = !(initial.hidden_sites ?? []).includes(site.slug);
+                    return (
+                      <label key={site.slug} className="flex min-h-11 items-center gap-3 text-sm text-text">
+                        <input
+                          type="checkbox"
+                          role="switch"
+                          checked={shown}
+                          disabled={busy !== null}
+                          onChange={() =>
+                            run(
+                              `website-${site.slug}`,
+                              `campaigns/${id}/websites`,
+                              { site: site.slug, visible: !shown },
+                              shown ? `Hidden on ${site.name}.` : `Showing on ${site.name}.`,
+                            )
+                          }
+                          className="size-5 accent-[var(--accent)]"
+                        />
+                        {site.name}
+                      </label>
+                    );
+                  })}
+                </div>
+              </fieldset>
+            )}
+          </Section>
+        )}
 
         <Section title="Banner content" id={`${uid}-content`}>
           <div className="grid gap-4 sm:grid-cols-[12rem_1fr]">

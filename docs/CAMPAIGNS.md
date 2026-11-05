@@ -80,3 +80,16 @@ Hero, announcement bar, floating promotion, modal, seasonal, countdown, product 
 - **Conversions:** these are enquiries sent from a campaign, plus reward claims.
 - **Where they show:** the Studio shows totals, click-through, per-website performance, reward stock, claims and redemptions.
 - **No estimates:** everything shown is a recorded count.
+
+## Customer & partner banners (P10-B1)
+
+A campaign type for news: new customer, partnership, launch, milestone, success story or event. It has everything a campaign has (draft, approval, schedule, versions, analytics), plus:
+
+- **Organisation:** chosen from organisations published in Trusted By, which is where their permission is recorded. New customer, partnership and success story banners must name one. Submitting and approving both refuse an organisation that isn't approved for every website showing the banner.
+- **Withdrawal:** if the organisation is unpublished, hidden or removed from a website, the banner stops showing there on its own.
+- **Websites:** one record on any selection of websites, with no copies. Which websites is part of the approved version. People need access to every website involved to edit, approve, pause or switch it, and the approval queue hides it from anyone who lacks one.
+- **Showing now:** reviewers can hide or show a published banner on one website at once, without a new approval. It's audited as `campaign.website_hidden` and `campaign.website_shown`.
+- **Appearance:** follow the page, always light or always dark.
+- **Badge:** if none is typed, it shows the kind of news, such as "New customer".
+
+Analytics count across all its websites together.

@@ -77,6 +77,12 @@ export interface CampaignDoc {
     restrictions?: string | null;
     legal_review: string;
   } | null;
+  announcement?: {
+    kind: "new_customer" | "partnership" | "launch" | "milestone" | "success_story" | "event";
+    organization_id?: string | null;
+    appearance: "auto" | "light" | "dark";
+  } | null;
+  also_on?: string[];
 }
 
 export interface CampaignRevision {
@@ -93,6 +99,10 @@ export interface CampaignRevision {
 }
 
 export interface CampaignDetail {
+  organizations?: { id: string; name: string | null; sites: string[] }[];
+  websites?: { slug: string; name: string; can_edit: boolean }[];
+  can_review_websites?: boolean;
+  hidden_sites?: string[];
   id: string;
   site_id: string;
   site_slug: string;
@@ -143,6 +153,10 @@ export const KIND_LABELS: Record<string, { label: string; hint: string }> = {
   rewards: { label: "Interactive rewards", hint: "Spin to win, decided securely by the API" },
   referral: { label: "Referral campaign", hint: "Invitations and eligible rewards" },
   event: { label: "Event campaign", hint: "Webinars, demos and showcases" },
+  banner: {
+    label: "Customer & partner banner",
+    hint: "News naming an approved organisation, on any websites",
+  },
 };
 
 export const STATUS_LABELS: Record<CampaignStatus, { label: string; tone: string }> = {

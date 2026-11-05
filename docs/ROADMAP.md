@@ -484,8 +484,8 @@ Scope: premium, lightweight motion on one shared system; product discovery witho
 | P10-T1  | Trusted By & partner logo management: Studio → Content & Marketing → Trusted By; organisation, relationship, website, description, logo and icon from the corporate media library, order, active switch, website targeting; publishing needs a confirmed relationship, display approval and recorded evidence; public animated logo row | ✅ Built (migration 23, `proof.rs`, Studio, both website types); content ⛔ Q22 |
 | P10-T2  | Customer testimonials: quote, organisation, person and title (only with approval), photo (only with approval), product, industry, country, evidence; maker-checker publication, versions, audit; public cards with product accents | ✅ Built; content: genuine, approved quotes only |
 | P10-T3  | Verified success metrics: label, value, number/currency (KES)/percent, compact notation, decimals, marks, source and period (shown publicly), verified flag; count-up showcase | ✅ Built; content: verified figures only |
-| P10-B1  | Customer & partner banners on the campaign engine: announcement kinds (new customer, partnership, launch, milestone, success story, event), associated organisation, light and dark appearance, independent website toggles | ⬜ |
-| P10-W1  | Multi-website targeting: one record shown on any selection of websites without copies; publication and visibility controlled separately; editors and reviewers need every targeted website | 🔄 Records done; banners with P10-B1 |
+| P10-B1  | Customer & partner banners on the campaign engine: new customer, partnership, launch, milestone, success story and event; an associated organisation that must already be approved in Trusted By for every website showing it, and the banner comes down by itself if that's withdrawn; follow-the-page, always light or always dark; independent website switches. Drafts, approval, schedule, versions and analytics as for every campaign | ✅ Built; content: real, approved organisations only |
+| P10-W1  | Multi-website targeting: one record shown on any selection of websites without copies; publication and visibility controlled separately; editors and reviewers need every targeted website | ✅ |
 | P10-V1  | Responsive, accessibility and performance validation of every new section (360 px to wide screens, both themes, axe, reduced motion, no horizontal overflow, Lighthouse) | 🔄 Continuous: motion and Products page checked |
 
 ### Phase 11 — Pricing Studio & quotations 🔄
@@ -594,6 +594,11 @@ Scope: a four-page, SaaS-only ZiraHR website from the Enhanced Content & Develop
 
 | Date        | Change                                                                                                   |
 | ----------- | -------------------------------------------------------------------------------------------------------- |
+| 5 Nov 2026 | Customer & partner banners (P10-B1, P10-W1):
+- **What it is:** a new campaign type announcing a new customer, partnership, launch, milestone, success story or event, on any selection of websites from one record.
+- **Guard rails:** new customer, partnership and success story banners must name an organisation approved in Trusted By for every website showing them. If that approval is withdrawn, the banner disappears without anyone acting.
+- **Controls:** always light, always dark or follow the page; a switch per website that hides or shows it at once; approvals need every website involved. Migration 29.
+- **No content added:** nothing appears until someone creates a banner and a second person approves it. |
 | 5 Nov 2026 | Approvals and Activity in the Studio (P7-F2):
 - **Approvals:** one list of everything waiting for a second person, on every website you can see, saying whose turn it is. Decisions still happen on each item's own screen, so no approval rule changed.
 - **Activity:** owners can filter the log by website and open before and after values. Hero, pricing and Payroll Calculator publishing now record them too.

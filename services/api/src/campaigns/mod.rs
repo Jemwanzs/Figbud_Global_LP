@@ -51,6 +51,7 @@ pub fn router() -> Router<SharedState> {
             "/v1/admin/campaigns/{id}/revisions/{revision}/{action}",
             post(revision_action),
         )
+        .route("/v1/admin/campaigns/{id}/websites", post(website_visibility))
         .route("/v1/admin/campaigns/{id}/{action}", post(campaign_action))
 }
 
@@ -82,6 +83,73 @@ struct Row {
     paused_at: Option<DateTime<Utc>>,
     archived_at: Option<DateTime<Utc>>,
     created_at: DateTime<Utc>,
+    #[sqlx(default)]
+    hidden_sites: Vec<String>,
+}
+
+/// Other websites a stored document shows on.
+fn also_on(document: &Value) -> Vec<String> {
+    document["also_on"]
+        .as_array()
+        .map(|list| {
+            list.iter()
+                .filter_map(|s| s.as_str().map(str::to_owned))
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+impl Row {
+    /// Other websites its draft or published version reaches.
+    fn targets(&self) -> Vec<String> {
+        let mut all = also_on(&self.draft);
+        all.extend(self.published.as_ref().map(also_on).unwrap_or_default());
+        all.sort();
+        all.dedup();
+        all
+    }
+}
+
+/// Working on a record shown on several websites needs every one of them (P10-W1).
+fn require_targets(session: &AdminSession, slugs: &[String], role: Role) -> Result<(), ApiError> {
+    for slug in slugs {
+        match session.slug_role(slug) {
+            None => {
+                return Err(ApiError::NotPermitted(
+                    "You don't have access to every website this campaign is shown on.",
+                ));
+            }
+            Some(have) if have < role => return Err(ApiError::Forbidden),
+            Some(_) => {}
+        }
+    }
+    Ok(())
+}
+
+/// A banner can only name an organisation that's approved for every website
+/// showing it: the permission recorded in Trusted By is what makes it public.
+async fn check_organization(pool: &PgPool, doc: &CampaignDoc, site: &str) -> Result<(), ApiError> {
+    let Some(org) = doc.announcement.as_ref().and_then(|a| a.organization_id) else {
+        return Ok(());
+    };
+    let mut sites = doc.also_on.clone();
+    sites.push(site.to_owned());
+    let approved: bool = sqlx::query_scalar(
+        "SELECT EXISTS (SELECT 1 FROM proof_items
+          WHERE id = $1 AND kind = 'organization' AND published IS NOT NULL AND active
+            AND archived_at IS NULL AND published_sites @> $2)",
+    )
+    .bind(org)
+    .bind(&sites)
+    .fetch_one(pool)
+    .await?;
+    if approved {
+        Ok(())
+    } else {
+        Err(ApiError::Conflict(
+            "This organisation isn't approved for every website showing the banner. Publish it for them in Trusted By first.",
+        ))
+    }
 }
 
 macro_rules! select {
@@ -89,7 +157,7 @@ macro_rules! select {
         "SELECT c.id, c.site_id, s.slug AS site_slug, s.name AS site_name, c.name, c.reference, c.kind, c.objective,
                 c.description, c.owner_id, o.name AS owner_name, c.draft, c.draft_version, c.draft_updated_at,
                 c.published, c.published_revision, c.published_at, c.starts_at, c.ends_at, c.priority, c.paused_at,
-                c.archived_at, c.created_at
+                c.archived_at, c.created_at, c.hidden_sites
            FROM campaigns c JOIN sites s ON s.id = c.site_id LEFT JOIN admin_users o ON o.id = c.owner_id "
     };
 }
@@ -418,6 +486,37 @@ async fn read(
     value["can_edit"] = json!(role >= Some(Role::Editor) && row.archived_at.is_none());
     value["can_review"] = json!(role >= Some(Role::Reviewer));
     value["can_approve_rewards"] = json!(role >= Some(Role::Owner));
+    if row.kind == "banner" {
+        // What the builder offers: approved organisations and the other websites.
+        let organizations: Vec<(Uuid, Option<String>, Vec<String>)> = sqlx::query_as(
+            "SELECT id, published ->> 'name', published_sites FROM proof_items
+              WHERE kind = 'organization' AND published IS NOT NULL AND active AND archived_at IS NULL
+              ORDER BY published ->> 'name'",
+        )
+        .fetch_all(&state.pool)
+        .await?;
+        value["organizations"] = json!(
+            organizations
+                .into_iter()
+                .map(|(id, name, sites)| json!({
+                    "id": id, "name": name, "sites": sites,
+                }))
+                .collect::<Vec<_>>()
+        );
+        let websites: Vec<(String, String)> = sqlx::query_as(
+            "SELECT slug, name FROM sites WHERE archived_at IS NULL AND id <> $1 ORDER BY position, name",
+        )
+        .bind(row.site_id)
+        .fetch_all(&state.pool)
+        .await?;
+        value["websites"] =
+            json!(websites.into_iter().map(|(slug, name)| json!({
+            "slug": slug, "name": name, "can_edit": session.slug_role(&slug) >= Some(Role::Editor),
+        })).collect::<Vec<_>>());
+        value["can_review_websites"] = json!(
+            role >= Some(Role::Reviewer) && require_targets(&session, &row.targets(), Role::Reviewer).is_ok()
+        );
+    }
     Ok(Json(value))
 }
 
@@ -467,6 +566,25 @@ async fn save_draft(
         return Err(ApiError::Validation(errors));
     }
     let doc = decode(&input.document, &row.kind)?;
+    // Changing where a banner shows needs the websites it leaves as well as those it reaches.
+    require_targets(&session, &row.targets(), Role::Editor)?;
+    require_targets(&session, &doc.also_on, Role::Editor)?;
+    if !doc.also_on.is_empty() {
+        let known: i64 = sqlx::query_scalar(
+            "SELECT count(*) FROM sites WHERE slug = ANY ($1) AND archived_at IS NULL AND id <> $2",
+        )
+        .bind(&doc.also_on)
+        .bind(row.site_id)
+        .fetch_one(&state.pool)
+        .await?;
+        if known != doc.also_on.len() as i64 {
+            return Err(ApiError::Validation(vec![FieldError {
+                field: "also_on",
+                code: "invalid",
+                message: "Choose from the other websites.",
+            }]));
+        }
+    }
     if let Some(image) = doc.content.image_id {
         let ok: bool = sqlx::query_scalar(
             "SELECT EXISTS (SELECT 1 FROM media_assets WHERE id = $1 AND site_id = $2 AND archived_at IS NULL)",
@@ -549,6 +667,8 @@ async fn submit(
     }
     let doc = decode(&row.draft, &row.kind)?;
     doc.ready(&row.kind).map_err(ApiError::Conflict)?;
+    require_targets(&session, &row.targets(), Role::Editor)?;
+    check_organization(&state.pool, &doc, &row.site_slug).await?;
     let revision = Uuid::now_v7();
     sqlx::query(
         "INSERT INTO campaign_revisions (id, campaign_id, number, document, note, requested_by)
@@ -640,6 +760,8 @@ async fn revision_action(
     let own = requested_by == Some(session.user.id);
     if action == "restore" {
         session.require_site(row.site_id, Role::Editor)?;
+        require_targets(&session, &row.targets(), Role::Editor)?;
+        require_targets(&session, &also_on(&document), Role::Editor)?;
         if current != "published" {
             return Err(ApiError::Conflict("Only published versions can be restored."));
         }
@@ -679,6 +801,9 @@ async fn revision_action(
             }
             let doc = decode(&document, &row.kind)?;
             doc.ready(&row.kind).map_err(ApiError::Conflict)?;
+            require_targets(&session, &row.targets(), Role::Reviewer)?;
+            require_targets(&session, &doc.also_on, Role::Reviewer)?;
+            check_organization(&state.pool, &doc, &row.site_slug).await?;
             if doc.rewards.is_some() && session.site_role(row.site_id) < Some(Role::Owner) {
                 return Err(ApiError::NotPermitted(
                     "Interactive reward campaigns need an owner's approval.",
@@ -764,6 +889,7 @@ async fn campaign_action(
         ),
         "duplicate" => {
             session.require_site(row.site_id, Role::Editor)?;
+            require_targets(&session, &row.targets(), Role::Editor)?;
             let new_id = Uuid::now_v7();
             let suffix = &Uuid::new_v4().simple().to_string()[..4].to_uppercase();
             let base: String = row.reference.chars().take(34).collect();
@@ -796,6 +922,7 @@ async fn campaign_action(
         _ => return Err(ApiError::NotFound),
     };
     session.require_site(row.site_id, need)?;
+    require_targets(&session, &row.targets(), need)?;
     let changed = sqlx::query(sql).bind(id).execute(&state.pool).await?;
     if changed.rows_affected() == 0 {
         return Err(ApiError::Conflict(
@@ -824,13 +951,65 @@ async fn campaign_action(
 
 /// Live campaigns of a listed website, highest priority first. Cached only
 /// briefly, and each carries its end so websites hide it on time.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct WebsiteVisibility {
+    site: String,
+    visible: bool,
+}
+
+/// Hide or show a banner on one of its websites straight away, without a new
+/// approval: publication and visibility are separate (P10-W1).
+async fn website_visibility(
+    State(state): State<SharedState>,
+    session: AdminSession,
+    Path(id): Path<Uuid>,
+    Json(input): Json<WebsiteVisibility>,
+) -> Result<impl IntoResponse, ApiError> {
+    let row = load(&state.pool, id).await?;
+    session.require_site(row.site_id, Role::Reviewer)?;
+    require_targets(&session, &row.targets(), Role::Reviewer)?;
+    let shown = row.published.as_ref().map(also_on).unwrap_or_default();
+    if input.site != row.site_slug && !shown.contains(&input.site) {
+        return Err(ApiError::BadRequest(
+            "That website isn't part of the published banner.",
+        ));
+    }
+    sqlx::query(
+        "UPDATE campaigns
+            SET hidden_sites = CASE WHEN $3 THEN array_remove(hidden_sites, $2)
+                                    ELSE array_append(array_remove(hidden_sites, $2), $2) END
+          WHERE id = $1",
+    )
+    .bind(id)
+    .bind(&input.site)
+    .bind(input.visible)
+    .execute(&state.pool)
+    .await?;
+    audit_site(
+        &state.pool,
+        &session,
+        row.site_id,
+        if input.visible {
+            "campaign.website_shown"
+        } else {
+            "campaign.website_hidden"
+        },
+        json!({ "campaign": id, "website": input.site }),
+    )
+    .await?;
+    Ok(Json(json!({ "ok": true })))
+}
+
 async fn public_live(
     State(state): State<SharedState>,
     Path(slug): Path<String>,
 ) -> Result<impl IntoResponse, ApiError> {
     let rows: Vec<(Uuid, String, String, Value, i32)> = sqlx::query_as(
-        "SELECT c.id, c.reference, c.kind, c.published, c.priority FROM campaigns c JOIN sites s ON s.id = c.site_id
+        "SELECT c.id, c.reference, c.kind, c.published, c.priority FROM campaigns c
+           JOIN sites s ON s.id = c.site_id OR jsonb_exists(COALESCE(c.published -> 'also_on', '[]'), s.slug)
           WHERE s.slug = $1 AND s.archived_at IS NULL AND s.status IN ('coming_soon', 'beta', 'active')
+            AND NOT s.slug = ANY (c.hidden_sites)
             AND c.published IS NOT NULL AND c.paused_at IS NULL AND c.archived_at IS NULL
           ORDER BY c.priority DESC, c.published_at DESC",
     )
@@ -853,6 +1032,35 @@ async fn public_live(
         .fetch_all(&state.pool)
         .await?;
         let mut value = doc.public(&available);
+        if let Some(announcement) = &doc.announcement {
+            let mut organization = Value::Null;
+            if let Some(org) = announcement.organization_id {
+                // Approval withdrawn or not given for this website: the banner doesn't show.
+                let found: Option<(Option<String>, Option<String>)> = sqlx::query_as(
+                    "SELECT published ->> 'name', published ->> 'logo_id' FROM proof_items
+                      WHERE id = $1 AND kind = 'organization' AND published IS NOT NULL AND active
+                        AND archived_at IS NULL AND $2 = ANY (published_sites)",
+                )
+                .bind(org)
+                .bind(&slug)
+                .fetch_optional(&state.pool)
+                .await?;
+                let Some((name, logo)) = found else { continue };
+                let logo = logo.and_then(|l| Uuid::parse_str(&l).ok());
+                organization = json!({ "name": name, "logo": crate::proof::media(&state.pool, logo).await? });
+            }
+            value["announcement"] = json!({
+                "kind": announcement.kind,
+                "appearance": announcement.appearance,
+                "organization": organization,
+            });
+            if doc.content.badge.is_none() {
+                value["content"]["badge"] = json!(announcement.kind.label());
+            }
+        }
+        if let Some(fields) = value.as_object_mut() {
+            fields.remove("also_on");
+        }
         if let Some(image) = doc.content.image_id {
             let media: Option<(String, i32, i32, String)> = sqlx::query_as(
                 "SELECT alt_text, width, height, content_type FROM media_assets WHERE id = $1 AND archived_at IS NULL",
