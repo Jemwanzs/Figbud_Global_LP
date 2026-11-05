@@ -46,3 +46,12 @@ Asset financing stays marked as planned until confirmed (Q11). The plan is one s
 **Avoiding near-duplicate pages.** Jasiri's voice is decisions and portfolio control ("Every loan. Every decision. Connected."). Ziwa's is the borrower and operator journey ("Every loan. A smoother journey."). Their headlines, examples and demonstrations differ, each page has its own canonical URL, and neither copies the other's text.
 
 **Ziwa website pages (P4-W):** Home, Platform, Lending Solutions, Features, Integrations, Resources, Contact. These are defined in `productSites.ziwa` and will be built on the shared lending template once Ziwa's capabilities and launch are confirmed (Q19).
+
+## Coming Soon (5 Nov 2026)
+
+Every product except ZiraHR shows Coming Soon until it's approved for launch. Migration 30 moved Jasiri LMS there, recorded as an approved status change.
+
+- A Coming Soon or beta website without a published home page shows a branded Coming Soon page (`ComingSoon` in `site-kit`): name, tagline and description from the registry, and a waitlist or early-access form. Sign-ups go through `/{site}/waitlist-submit`, which takes the kind and product from the registry, to the enquiry inbox.
+- A website that isn't taking enquiries shows its closed message instead of the form.
+- On the corporate site, a Coming Soon product links to its Coming Soon page when `NEXT_PUBLIC_<PRODUCT>_URL` is set, and to the waitlist form when it isn't.
+- To launch a website, an owner changes its status in Admin → Websites, which a second person approves.

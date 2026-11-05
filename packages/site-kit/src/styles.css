@@ -641,6 +641,34 @@
     transform: translateY(6px);
   }
 }
+/* Coming Soon (P15): a soft product glow and slow rings around the mark. */
+.fb-soon-glow {
+  background:
+    radial-gradient(60% 55% at 85% 35%, var(--product-soft), transparent 70%),
+    radial-gradient(40% 40% at 10% 90%, var(--product-soft), transparent 70%);
+}
+.fb-soon-ring {
+  animation: fb-soon-turn 48s linear infinite;
+}
+.fb-soon-dot {
+  animation: fb-soon-pulse 2.4s var(--motion-ease-standard) infinite;
+}
+@keyframes fb-soon-turn {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes fb-soon-pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fb-soon-ring,
+  .fb-soon-dot {
+    animation: none;
+  }
+}
 /* Scroll stories (UI-MO6): position comes from the stage's own size, and only
    transforms, opacity and stroke offsets change, so nothing lays out on scroll. */
 .fb-story-stage {

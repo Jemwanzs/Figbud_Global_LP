@@ -1,5 +1,7 @@
 import {
+  BrandLogo,
   CampaignSlot,
+  ComingSoon,
   JsonLd,
   PageBlocks,
   ProductHero,
@@ -9,6 +11,7 @@ import {
   Testimonials,
   TrustedBy,
   breadcrumbLd,
+  enquiriesOpen,
   faqLd,
   organizationLd,
   softwareApplicationLd,
@@ -228,7 +231,37 @@ export default async function SitePage({ params }: PageProps<"/[site]/[[...path]
     if (path === "payroll-calculator") return <PayrollCalculatorPage site={site} ownDomain={ownDomain} />;
     // Old addresses of moved pages are forwarded earlier, by the proxy.
     if (path !== "") notFound();
-    // Listed but nothing published yet: an honest holding page from the registry.
+    // Not launched yet: a branded Coming Soon page with a waitlist (owner's instruction, 5 Nov 2026).
+    if (site.status !== "active") {
+      return (
+        <>
+          <CampaignSlot placement="home_hero" className="block" />
+          <ComingSoon
+            name={site.name}
+            tagline={site.tagline}
+            description={site.description}
+            status={site.status}
+            endpoint={enquiriesOpen(site) ? pageHref(site.slug, ownDomain, "waitlist-submit") : undefined}
+            closedMessage={site.settings?.enquiries.closed_message}
+            corporateHref={`${figbudOrigin}/en/products`}
+            mark={
+              <BrandLogo
+                pair={site.brand?.logos.symbol}
+                height={72}
+                maxWidth={140}
+                alt=""
+                fallback={
+                  <span className="font-display text-5xl font-semibold text-product">
+                    {site.name.charAt(0)}
+                  </span>
+                }
+              />
+            }
+          />
+        </>
+      );
+    }
+    // Listed and launched, with nothing published yet: an honest holding page from the registry.
     return (
       <div className="mx-auto max-w-[92rem] px-5 pt-page-top pb-section sm:px-8 md:px-10 lg:px-16">
         <CampaignSlot placement="home_hero" className="mb-section-sm block" />

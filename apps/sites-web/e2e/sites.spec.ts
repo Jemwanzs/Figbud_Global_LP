@@ -338,6 +338,51 @@ test("a product website shows its own hover previews, never FigBud Global's word
   await expect(page).toHaveURL(/\/ziwa\/platform$/);
 });
 
+/** Accessibility violations on the page, by rule and element. */
+const axe = async (page: Page) =>
+  (
+    await new AxeBuilder({ page })
+      .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
+      .analyze()
+  ).violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`);
+
+test("a website that isn't launched shows a branded Coming Soon page with a working waitlist", async ({
+  page,
+}) => {
+  await page.goto("/expense_now");
+  const main = page.getByRole("main");
+  await expect(main.getByText("Coming soon", { exact: true })).toBeVisible();
+  await expect(main.getByRole("heading", { level: 1 })).toHaveText("Expense Now");
+  // No feature claims: only what the registry approves, and a way to wait for it.
+  const form = main.getByRole("form", { name: "Join the waitlist" });
+  await expect(form).toBeVisible();
+  await expect(main.getByRole("link", { name: /Explore the FigBud Global ecosystem/ })).toHaveAttribute(
+    "href",
+    /\/en\/products$/,
+  );
+  expect(await axe(page)).toEqual([]);
+
+  await expect(async () => {
+    await form.getByRole("button", { name: "Join the waitlist" }).click();
+    await expect(form.getByRole("alert")).toContainText("highlighted", { timeout: 2_000 });
+  }).toPass();
+  await expect(page.getByText("You're on the list")).toHaveCount(0);
+  await form.getByLabel("Your name").fill("Amina Wanjiru");
+  await form.getByLabel("Work email").fill("amina@example.co.ke");
+  await form.getByRole("checkbox").check();
+  await form.getByRole("button", { name: "Join the waitlist" }).click();
+  await expect(page.getByText("You're on the list")).toBeVisible();
+  await expect(page.getByText("WL-TEST-0001")).toBeVisible();
+
+  await page.getByRole("button", { name: /Switch to (light|dark) theme/ }).click();
+  expect(await axe(page)).toEqual([]);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(0);
+
+  // A launched website without pages keeps its plain holding page, and nobody can join a waitlist for it.
+  const response = await page.request.post("/jasiri/waitlist-submit", { data: {} });
+  expect(response.status()).toBe(404);
+});
+
 test.describe("ZiraHR: payroll calculator and demonstrations (P14)", () => {
   test.describe.configure({ mode: "serial" });
   const API = "http://localhost:3199";

@@ -39,7 +39,7 @@ export const products: readonly Product[] = [
   {
     slug: "jasiri",
     name: "Jasiri LMS",
-    status: "active",
+    status: "coming_soon",
     proposedOrigin: "https://jasiri.figbudglobal.com",
     devPort: 3002,
     originEnv: "NEXT_PUBLIC_JASIRI_URL",

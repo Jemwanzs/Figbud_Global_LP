@@ -5462,17 +5462,21 @@ createServer(async (req, res) => {
       fields.push({ field: "email", message: "Enter your email address." });
     if (body?.consent !== true)
       fields.push({ field: "consent", message: "Please agree so we can contact you." });
-    if (!referred.company?.trim())
+    const referral = body?.kind === "referral";
+    if (referral && !referred.company?.trim())
       fields.push({ field: "referred_company", message: "Enter the business's name." });
-    if (!referred.contact_name?.trim())
+    if (referral && !referred.contact_name?.trim())
       fields.push({ field: "referred_name", message: "Enter who we should speak to." });
-    if (!/.+@.+\..+/.test(referred.contact_email ?? ""))
+    if (referral && !/.+@.+\..+/.test(referred.contact_email ?? ""))
       fields.push({ field: "referred_email", message: "Enter their email address." });
     if (fields.length)
       return send(422, {
         error: { code: "validation_failed", message: "Some fields need attention.", fields },
       });
-    return send(201, { reference: "ZR-TEST-0001", status: "received" });
+    return send(201, {
+      reference: body?.kind === "referral" ? "ZR-TEST-0001" : "WL-TEST-0001",
+      status: "received",
+    });
   }
   const publicPayroll = /^\/v1\/sites\/([a-z0-9_-]+)\/payroll-calculator(\/calculate)?$/.exec(url.pathname);
   if (publicPayroll) {

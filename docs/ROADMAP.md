@@ -208,6 +208,7 @@ Items marked **Blocking** stop the listed tasks; everything else proceeds with t
 | Q24 | ~~Payroll Calculator statutory check~~ **Decided 5 Nov 2026:** we checked the values ourselves against the listed sources and the owner confirmed SHIF is a current deduction. Re-check when a new Finance Act, NSSF year or SHIF ruling takes effect | P14-C | Closed | Published, with the check date and sources on the page |
 | Q25 | ~~ZiraHR referral terms~~ **Decided 5 Nov 2026:** refer and earn; click to refer, enter the potential customer's details, start with your contacts, earn only after the deal has closed, follow the deal by calling our number. **Still needed: the contact number**, and reward amounts if they're ever to be shown | P14-R | The number, to show it | Built without amounts; no number shown until it's entered in the Studio |
 | Q26 | ~~ZiraHR module availability~~ **Decided 5 Nov 2026:** the owner confirmed the modules in the guide are true, so all eight show as available | P14-W | Closed | Published |
+| Q27 | StockFlow: approved product name, one-line description, category and logo. Nothing about it exists in the code or content yet, and the brief says not to invent product facts | P4-CS2 | Yes, to add it | Not shown anywhere |
 | Q19 | Ziwa LMS: commercial launch readiness, confirmed live capabilities, website destination, logo approval | P4-W1 | Partly | Logo approved 28 Oct 2026 and published; launch readiness, live capabilities and destination still to confirm (listed as coming soon with a waitlist) |
 | Q18 | Logo files: complete ZiraHR logo (supplied file is missing "HR"), SVG or larger versions, light-background versions, the FigBud "GLOBAL" lockup; ~~approve or replace the Expense Now concept~~ (approved 30 Oct 2026) | P7-BR9 | Partly | Official files published for dark backgrounds; light theme shows them on a dark plate; Expense Now and Ziwa LMS identities approved and published |
 | Q17 | Railway project ID, and whether staging and production environments already exist                    | P6 deployment           | Partly    | **ID provided** (`5c4df4db…`); environments confirmed on inspection |
@@ -330,6 +331,8 @@ Items marked **Blocking** stop the listed tasks; everything else proceeds with t
 | P4-W1   | Ziwa LMS website on the lending template: Home ("Every loan. A smoother journey."), Platform, Lending Solutions, Features, Integrations, Resources, Contact; copy differentiated from Jasiri | ⛔ Q19 |
 | **All products** |  |  |
 | P4-10   | Per-site metadata ✅ and SoftwareApplication schema ✅ (ZiraHR); per-site sitemaps once pages are published | 🔄 In progress |
+| P4-CS1  | Coming Soon for every product except ZiraHR until approved for launch (owner, 5 Nov 2026): Jasiri LMS moved to Coming Soon (migration 30, recorded as an approved status change); a branded Coming Soon page for product websites without a published home page, with the registry's approved name, tagline and description, an animated mark that holds still under reduced motion, and a waitlist that reaches the enquiry inbox; the corporate site links Coming Soon products to that page once each has a website address. Owners relaunch a website from Admin → Websites → status | ✅ |
+| P4-CS2  | StockFlow: add to the registry and corporate site once its name, description and logo are approved | ⛔ Q27 |
 | P4-11   | Product-intent SEO content (HR/payroll; loan management; expense management)                    | ⬜ |
 | P4-12   | Product accents and logos confirmed                                                             | ⛔ Q7 |
 | P4-13   | Real sanitised screenshots where available                                                      | ⛔ Q9 |
@@ -598,6 +601,12 @@ Scope: a four-page, SaaS-only ZiraHR website from the Enhanced Content & Develop
 
 | Date        | Change                                                                                                   |
 | ----------- | -------------------------------------------------------------------------------------------------------- |
+| 5 Nov 2026 | Coming Soon for every product except ZiraHR (P4-CS1), on the owner's instruction:
+- **Jasiri LMS** now shows Coming Soon, like Ziwa LMS and Expense Now. Migration 30 records it as an approved status change in each website's history and the audit log.
+- **A branded Coming Soon page** replaces the bare holding page: the product's colours and mark, its approved tagline and description, and a waitlist that only confirms once the API accepts it.
+- **Links:** the corporate site sends Coming Soon products to that page once each has a website address, otherwise to the waitlist form as before.
+- **StockFlow** isn't added: nothing about it is approved yet (Q27).
+- **ZiraHR** stays at its temporary address until the owner sends the domain. |
 | 5 Nov 2026 | Scroll stories (UI-MO6, UI-MO7), first milestone of the Premium Website Experience brief:
 - **What visitors see:** on ZiraHR's Platform page, a product visual stays in view while the text beside it scrolls normally. One story shows scattered tools becoming one platform; the other follows one employee from application to next goal.
 - **Reading comes first:** all the words are in the page's HTML, nothing takes over scrolling, and reduced motion gets the same states without movement.

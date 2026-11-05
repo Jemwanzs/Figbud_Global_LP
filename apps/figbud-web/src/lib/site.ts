@@ -51,15 +51,16 @@ export function productLink(
   locale: Locale,
   status: ProductStatus = getProduct(slug).status,
 ): ProductLink {
+  const origin = productOrigins[slug];
+  // Product websites aren't split by language, so their address is used as it is. One
+  // that isn't launched shows its Coming Soon page, with a waitlist (sites-web).
+  if (origin) return { href: origin.replace(/\/$/, ""), external: true };
   if (status === "coming_soon") {
     return {
       href: `${localizePath(locale, "/contact")}?kind=waitlist&product=${slug}`,
       external: false,
     };
   }
-  const origin = productOrigins[slug];
-  // Product websites aren't split by language, so their address is used as it is.
-  if (origin) return { href: origin.replace(/\/$/, ""), external: true };
   return { href: `${localizePath(locale, "/products")}#${slug}`, external: false };
 }
 

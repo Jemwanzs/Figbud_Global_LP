@@ -16,13 +16,22 @@ describe("productLink", () => {
 
   it("opens configured product websites externally, at the address they're served from", async () => {
     const { productLink } = await loadSite({ NEXT_PUBLIC_JASIRI_URL: "https://sites.example.com/jasiri/" });
-    expect(productLink("jasiri", "sw")).toEqual({ href: "https://sites.example.com/jasiri", external: true });
+    expect(productLink("jasiri", "sw", "active")).toEqual({
+      href: "https://sites.example.com/jasiri",
+      external: true,
+    });
   });
 
-  it("routes coming-soon products to the waitlist, never a live CTA", async () => {
-    const { productLink } = await loadSite({ NEXT_PUBLIC_EXPENSE_NOW_URL: "https://expense.example.com" });
+  it("sends coming-soon products to their Coming Soon page, or the waitlist without one", async () => {
+    const { productLink } = await loadSite({
+      NEXT_PUBLIC_EXPENSE_NOW_URL: "https://sites.example.com/expense_now",
+    });
     expect(productLink("expense_now", "en")).toEqual({
-      href: "/en/contact?kind=waitlist&product=expense_now",
+      href: "https://sites.example.com/expense_now",
+      external: true,
+    });
+    expect(productLink("ziwa", "en")).toEqual({
+      href: "/en/contact?kind=waitlist&product=ziwa",
       external: false,
     });
   });
