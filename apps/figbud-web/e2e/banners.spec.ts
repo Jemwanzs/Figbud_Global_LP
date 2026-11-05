@@ -120,7 +120,11 @@ test("a banner names an approved organisation, keeps its own theme and can be hi
   await expect(banner).toContainText("New customer");
   await expect(banner.locator("xpath=.//ancestor-or-self::*[@data-theme='light'][1]")).toHaveCount(1);
   expect(await scan(site)).toEqual([]);
-  await site.getByRole("button", { name: /Switch to (light|dark) theme/ }).click();
+  // Clicked from inside the page, as a visitor's click is: Playwright's own click scrolls
+  // the header button into view first, which can tuck the banner under the sticky header.
+  await site
+    .getByRole("button", { name: /Switch to (light|dark) theme/ })
+    .evaluate((button) => (button as HTMLButtonElement).click());
   expect(await scan(site)).toEqual([]);
 
   // Hidden on this website at once, with no new approval.

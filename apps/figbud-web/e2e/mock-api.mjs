@@ -5560,7 +5560,12 @@ createServer(async (req, res) => {
             liveAt(c.published) &&
             bannerOrganization(c, liveList[1]) !== undefined,
         )
-        .sort((a, b) => b.published.schedule.priority - a.published.schedule.priority)
+        // As the API: highest priority, then the most recently published.
+        .sort(
+          (a, b) =>
+            b.published.schedule.priority - a.published.schedule.priority ||
+            String(b.published_at).localeCompare(String(a.published_at)),
+        )
         .map((c) => publicCampaign(c, liveList[1])),
       now: new Date().toISOString(),
     });

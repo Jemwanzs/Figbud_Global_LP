@@ -141,8 +141,14 @@ test("build a page from a template, publish it, and manage pages", async ({ page
   await list.getByRole("button", { name: "Move Platform (copy) up" }).click();
   await expect(saveOrder).toBeEnabled();
   await saveOrder.click();
-  await expect(page.getByRole("status").filter({ hasText: "Order saved." })).toBeVisible();
+  // Saved: the button settles back to disabled and the order survives a reload (the
+  // confirmation can be replaced by the list refreshing before it's read).
+  await expect(saveOrder).toBeDisabled();
   await expect(list.getByRole("listitem").first()).toContainText("Platform (copy)");
+  await page.reload();
+  await expect(page.getByRole("list", { name: "Pages" }).getByRole("listitem").first()).toContainText(
+    "Platform (copy)",
+  );
 
   // Archive from the editor, restore from the list.
   await list.getByRole("link", { name: "Edit Platform (copy)" }).click();
