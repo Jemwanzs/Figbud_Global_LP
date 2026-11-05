@@ -38,8 +38,11 @@ export function AdminShell({
         <div className="relative mx-auto flex h-16 max-w-7xl items-center gap-3 px-5 sm:px-8 xl:gap-5">
           <Link href="/admin" className="flex shrink-0 items-center gap-3 rounded-lg py-1">
             <FigBudBrand />
-            <span aria-hidden className="h-6 w-px bg-line-strong" />
-            <span className="text-sm font-medium tracking-wide text-accent">Studio</span>
+            {/* Named for everyone; shown beside the logo once all the links have room. */}
+            <span aria-hidden className="hidden h-6 w-px bg-line-strong xl:block" />
+            <span className="sr-only text-sm font-medium tracking-wide text-accent xl:not-sr-only">
+              Studio
+            </span>
           </Link>
           <AdminNav items={NAV} active={active} />
           <div className="shrink-0">
