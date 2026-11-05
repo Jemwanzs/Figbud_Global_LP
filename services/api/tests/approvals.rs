@@ -94,6 +94,22 @@ impl Studio {
         revision
     }
 
+    /// A website of this test's own, so its pages don't touch the seeded ones.
+    async fn own_site(&self) -> (Uuid, String) {
+        let id = Uuid::now_v7();
+        let slug = format!("queue_{}", &id.simple().to_string()[20..]);
+        sqlx::query(
+            "INSERT INTO sites (id, slug, name, kind, status, category, template)
+             VALUES ($1, $2, 'Queue Site', 'product', 'active', 'hr_workforce', 'hr')",
+        )
+        .bind(id)
+        .bind(&slug)
+        .execute(&self.pool)
+        .await
+        .unwrap();
+        (id, slug)
+    }
+
     async fn site(&self, slug: &str) -> Uuid {
         sqlx::query_scalar("SELECT id FROM sites WHERE slug = $1")
             .bind(slug)
@@ -120,17 +136,17 @@ async fn the_queue_shows_whose_turn_it_is_and_hides_other_websites() {
         app: app_with(pool.clone(), config(&url)),
         pool,
     };
-    let zirahr = s.site("zirahr").await;
+    let (own, own_slug) = s.own_site().await;
     let jasiri = s.site("jasiri").await;
 
-    let (editor_id, editor) = s.person("editor", &[(zirahr, "editor")]).await;
-    let (_, reviewer) = s.person("reviewer", &[(zirahr, "reviewer")]).await;
+    let (editor_id, editor) = s.person("editor", &[(own, "editor")]).await;
+    let (_, reviewer) = s.person("reviewer", &[(own, "reviewer")]).await;
     let (_, elsewhere) = s.person("reviewer", &[(jasiri, "reviewer")]).await;
-    let (_, viewer) = s.person("viewer", &[(zirahr, "viewer")]).await;
+    let (_, viewer) = s.person("viewer", &[(own, "viewer")]).await;
     let (owner_id, owner) = s.person("owner", &[]).await;
 
-    let page = s.pending_page(zirahr, "Queue page", editor_id).await;
-    let owners_own = s.pending_page(zirahr, "Owner's page", owner_id).await;
+    let page = s.pending_page(own, "Queue page", editor_id).await;
+    let owners_own = s.pending_page(own, "Owner's page", owner_id).await;
 
     // Whoever asked waits; a different reviewer decides.
     let (status, queue) = s.get("/v1/admin/approvals", &editor).await;
@@ -143,7 +159,7 @@ async fn the_queue_shows_whose_turn_it_is_and_hides_other_websites() {
     assert_eq!(mine["kind"], "page");
     assert_eq!(mine["title"], "Queue page");
     assert_eq!(mine["note"], "Please review");
-    assert_eq!(mine["sites"][0]["slug"], "zirahr");
+    assert_eq!(mine["sites"][0]["slug"], own_slug);
     assert_eq!(mine["requested_by"], "Queue editor");
 
     let (_, queue) = s.get("/v1/admin/approvals", &reviewer).await;
