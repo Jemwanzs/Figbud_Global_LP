@@ -189,10 +189,14 @@ async fn public_list(
         published_at: Option<DateTime<Utc>>,
         show_in_nav: bool,
         noindex: bool,
+        /// It shows the enquiry form, so the website's calls to action can stay on it.
+        enquiry_form: bool,
     }
     let pages: Vec<Listed> = sqlx::query_as(
         "SELECT p.path, p.title, p.published_at, p.show_in_nav,
-                COALESCE((p.published->>'seo_noindex')::boolean, false) AS noindex
+                COALESCE((p.published->>'seo_noindex')::boolean, false) AS noindex,
+                jsonb_path_exists(p.published,
+                  '$.sections[*] ? (@.type == \"enquiry_form\" && !(@.hidden == true))') AS enquiry_form
            FROM pages p JOIN sites s ON s.id = p.site_id
           WHERE s.slug = $1 AND s.archived_at IS NULL AND s.status IN ('coming_soon', 'beta', 'active')
             AND p.archived_at IS NULL AND p.published IS NOT NULL AND NOT p.offline

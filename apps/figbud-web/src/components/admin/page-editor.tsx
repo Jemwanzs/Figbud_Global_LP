@@ -785,6 +785,29 @@ export function BlockForm({
           />
         </div>
       );
+    case "enquiry_form":
+      return (
+        <div className="grid gap-3">
+          <TextField
+            label="Heading (optional)"
+            value={section.heading}
+            max={120}
+            {...p}
+            onChange={(v) => onChange({ ...section, heading: v })}
+          />
+          <TextField
+            label="Introduction (optional)"
+            value={section.intro}
+            max={400}
+            {...p}
+            onChange={(v) => onChange({ ...section, intro: v })}
+          />
+          <p className="text-xs text-subtle">
+            With this form on the Contact page, the website&apos;s demo and contact buttons open it here
+            instead of the FigBud Global contact page.
+          </p>
+        </div>
+      );
     case "referral_form":
       return (
         <div className="grid gap-3">

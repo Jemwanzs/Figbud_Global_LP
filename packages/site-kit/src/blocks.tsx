@@ -1,9 +1,19 @@
 import { buttonClasses, cn } from "@figbud/ui";
 import { ArrowRight, Check } from "lucide-react";
-import type { ReactNode } from "react";
+import { type ReactNode, Suspense } from "react";
 
 import { type DemoKind, ModuleCatalogue, type ModuleItem, ProductDemo } from "./product-demos";
+import { enquiryFormCopy, type EnquiryProduct } from "./enquiry";
+import { EnquiryForm } from "./enquiry-form";
 import { ReferralForm } from "./referral-form";
+
+/** What a website's enquiry form needs; absent in Studio previews. */
+export interface EnquiryContext {
+  apiOrigin: string;
+  /** The product, when the website is one the enquiry inbox knows. */
+  product?: EnquiryProduct;
+  privacyHref: string;
+}
 import type { StoryMotion } from "./scroll-story";
 
 /**
@@ -70,6 +80,7 @@ export type PageSection = Base &
         layout?: "stacked" | "split";
       }
     | { type: "referral_form"; heading?: string | null; intro?: string | null; contact_phone?: string | null }
+    | { type: "enquiry_form"; heading?: string | null; intro?: string | null }
     | {
         type: "image";
         image_id: string;
@@ -188,6 +199,7 @@ function Block({
   first,
   resolve,
   mediaBase,
+  enquiry,
 }: {
   section: PageSection;
   mode: Mode;
@@ -196,6 +208,7 @@ function Block({
   first: boolean;
   resolve?: HrefResolver;
   mediaBase?: string;
+  enquiry?: EnquiryContext;
 }) {
   switch (section.type) {
     case "hero":
@@ -341,6 +354,36 @@ function Block({
           </div>
         </div>
       );
+    case "enquiry_form":
+      return (
+        <div id="enquire" className="grid scroll-mt-32 gap-8 @5xl:grid-cols-12 @5xl:gap-12">
+          <div className="@5xl:col-span-4">
+            {section.heading && <Heading>{section.heading}</Heading>}
+            {section.intro && <p className="mt-4 text-lead text-muted">{section.intro}</p>}
+          </div>
+          <div className="@5xl:col-span-8">
+            {enquiry ? (
+              // The form reads ?kind= from the address, which is request-time data.
+              <Suspense
+                fallback={<div className="fb-panel h-[52rem] rounded-[var(--radius-panel)]" aria-hidden />}
+              >
+                <EnquiryForm
+                  locale="en"
+                  copy={enquiryFormCopy}
+                  privacyHref={enquiry.privacyHref}
+                  apiOrigin={enquiry.apiOrigin}
+                  product={enquiry.product}
+                />
+              </Suspense>
+            ) : (
+              <p className="rounded-[var(--radius-panel)] border border-dashed border-line-strong p-8 text-muted">
+                The enquiry form appears here on the website: demo requests and questions, sent to the enquiry
+                inbox.
+              </p>
+            )}
+          </div>
+        </div>
+      );
     case "referral_form":
       return (
         <div className="max-w-4xl">
@@ -423,6 +466,7 @@ export function PageBlocks({
   firstHeading = 1,
   resolveHref,
   mediaBase,
+  enquiry,
 }: {
   document: PageDocument;
   mode?: Mode;
@@ -433,6 +477,8 @@ export function PageBlocks({
   resolveHref?: HrefResolver;
   /** Where media library images are served from (the Studio uses its private proxy). */
   mediaBase?: string;
+  /** Live websites: where the enquiry form sends enquiries. */
+  enquiry?: EnquiryContext;
 }) {
   return (
     // Blocks respond to the space they are given (container queries), so the
@@ -464,6 +510,7 @@ export function PageBlocks({
               first={i === 0}
               resolve={resolveHref}
               mediaBase={mediaBase}
+              enquiry={enquiry}
             />
           </section>
         ))}

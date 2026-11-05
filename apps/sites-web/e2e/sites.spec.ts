@@ -117,10 +117,10 @@ test("ZiraHR is served from the page imported into the Studio", async ({ page })
   await expect(
     page.getByRole("heading", { name: "One platform for the whole employee journey" }),
   ).toBeVisible();
-  // Active website: demo requests, through the corporate enquiry form.
+  // Active website with its own enquiry form: demo requests stay on ZiraHR (owner, 6 Nov 2026).
   await expect(page.getByRole("banner").getByRole("link", { name: "Request a demo" })).toHaveAttribute(
     "href",
-    /\/en\/contact\?kind=demo_request&product=zirahr$/,
+    "/zirahr/contact?kind=demo_request#enquire",
   );
 });
 
@@ -346,6 +346,40 @@ const axe = async (page: Page) =>
       .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
       .analyze()
   ).violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`);
+
+test("ZiraHR's demo call opens the same enquiry form on ZiraHR, without leaving it", async ({ page }) => {
+  let sent: Record<string, unknown> | null = null;
+  await page.route("**/v1/enquiries", async (route) => {
+    sent = route.request().postDataJSON();
+    await route.fulfill({ status: 201, json: { reference: "ZR-DEMO-0001", status: "received" } });
+  });
+  await page.goto("/zirahr");
+  const origin = new URL(page.url()).origin;
+  await page
+    .getByRole("banner")
+    .getByRole("link", { name: /Request a demo/ })
+    .click();
+  await expect(page).toHaveURL(new RegExp(`^${origin}/zirahr/contact\\?kind=demo_request#enquire$`));
+  const form = page.locator("#enquire form");
+  await expect(form).toBeVisible();
+  // The product is ZiraHR, fixed: no product choice to make.
+  await expect(form.getByLabel("Product")).toHaveCount(0);
+  await expect(form.getByRole("radio", { name: "Request a demo" })).toBeChecked();
+  expect(await axe(page)).toEqual([]);
+
+  await expect(async () => {
+    await form.getByLabel("Full name").fill("Amina Wanjiru");
+    await expect(form.getByLabel("Full name")).toHaveValue("Amina Wanjiru", { timeout: 1_000 });
+  }).toPass();
+  await form.getByLabel("Work email").fill("amina@mfano.co.ke");
+  await form.getByLabel("Company or organisation").fill("Mfano Ltd");
+  await form.getByRole("checkbox").check();
+  await form.getByRole("button", { name: "Send enquiry" }).click();
+  await expect(page.getByText("Thank you. We've received your enquiry.")).toBeVisible();
+  await expect(page.getByText("ZR-DEMO-0001")).toBeVisible();
+  expect(sent).toMatchObject({ kind: "demo_request", product: "zirahr", source_path: "/zirahr/contact" });
+  expect(new URL(page.url()).origin).toBe(origin);
+});
 
 test("a website that isn't launched shows a branded Coming Soon page with a working waitlist", async ({
   page,

@@ -332,7 +332,7 @@ Items marked **Blocking** stop the listed tasks; everything else proceeds with t
 | **All products** |  |  |
 | P4-10   | Per-site metadata ✅ and SoftwareApplication schema ✅ (ZiraHR); per-site sitemaps once pages are published | 🔄 In progress |
 | P4-CS1  | Coming Soon for every product except ZiraHR until approved for launch (owner, 5 Nov 2026): Jasiri LMS moved to Coming Soon (migration 30, recorded as an approved status change); a branded Coming Soon page for product websites without a published home page, with the registry's approved name, tagline and description, an animated mark that holds still under reduced motion, and a waitlist that reaches the enquiry inbox; the corporate site links Coming Soon products to that page once each has a website address. Owners relaunch a website from Admin → Websites → status | ✅ |
-| P4-CS2  | StockFlow: add to the registry and corporate site once its name, description and logo are approved | ⛔ Q27 |
+| P4-CS2  | StockFlow and every product website other than FigBud Global and ZiraHR: **on hold** (owner, 6 Nov 2026) until those two are complete; they keep their Coming Soon pages | ⏸ On hold |
 | P4-11   | Product-intent SEO content (HR/payroll; loan management; expense management)                    | ⬜ |
 | P4-12   | Product accents and logos confirmed                                                             | ⛔ Q7 |
 | P4-13   | Real sanitised screenshots where available                                                      | ⛔ Q9 |
@@ -487,6 +487,7 @@ Scope: premium, lightweight motion on one shared system; product discovery witho
 | UI-MO7  | Two ZiraHR stories as page-builder demonstrations, published on Platform as a new restorable version: scattered tools becoming one platform (connected paths, unfolding record, a pay run that moves itself to locked) and one employee's journey (one card turning into each stage, with a scroll-driven rail) | ✅ |
 | UI-TH3  | Intelligent theme inversion: `data-tone="inverse"` gives a surface the other theme's colours through CSS alone (one theme engine, no flash on load), and inside two of them the page's theme returns; product text follows the surface; a full-width contrasting band as a page-builder section style; demonstration stages contrast with whatever surrounds them; one shared 280 ms colour change on theme switch that leaves transforms, and so scroll animations, alone (instant with reduced motion); demonstrations can sit beside their words (split layout) | ✅ |
 | UI-TH4  | ZiraHR home page rewritten and reordered from the content guide as alternating bands (hero, scattered-to-connected story, modules, payslip, pay run, self-service, employee journey, why ZiraHR, calculator, questions, closing call), published once as a new restorable version on the owner's brief | ✅ |
+| UI-F2   | Enquiries stay on the product website: the corporate enquiry form moved into the shared kit and became a page-builder section ("Enquiry form"), the same component and wording on both kinds of website; a product website's demo and contact buttons open its own Contact page form whenever that page has one, and the corporate form otherwise; ZiraHR's Contact & Demo page gained it, published once as a new version with any draft in progress kept | ✅ |
 | UI-TH5  | FigBud Global home: contrasting bands for the corporate sections, then forms and overlays (brief section 5) | ⬜ |
 | UI-MO8  | Editorial hero designs (the third style in the brief) for FigBud Global and ZiraHR, alongside the existing default and motion-led designs | ⬜ |
 | UI-MO9  | Page-by-page polish audit: navigation, Home and About, comparisons, pricing and calculator, testimonials, FAQs, forms, footer, legal, phones | ⬜ |
@@ -558,7 +559,7 @@ Scope: a four-page, SaaS-only ZiraHR website from the Enhanced Content & Develop
 | P14-W1 | Module catalogue and eight product demonstrations as page-builder blocks, in original ZiraHR art direction, synthetic and labelled. Added from the second set of samples: what a finished run gives you, leave request and approval, team calendar | ✅ |
 | P14-W2 | Guide content published once on the owner's instruction: Platform, About, Contact & Demo, Refer & earn, hover previews, footer links. Home was left alone because it had been edited in the Studio | ✅ · Home is the owner's decision |
 | P14-W3 | Reconciliation of guide, brief and build; sign-off register; Pricing Studio reviewed against the brief (one quotation-number defect found and fixed) | ✅ |
-| P14-R  | Refer & earn: form, enquiry kind, inbox label, acknowledgement email, server validation, no amounts | ✅ · number outstanding (Q25) |
+| P14-R  | Refer & earn: form, enquiry kind, inbox label, acknowledgement email, server validation, no amounts; the follow-up number +254 798 993 404 shown on the page (owner, 6 Nov 2026), editable in the Studio on the page's referral form | ✅ |
 | P14-I  | ZiraHR Insights: decide per-product or shared, then verified articles | ⬜ |
 | P14-D  | Renderer deployed as `figbud-sites` in the existing Railway project, so the ZiraHR website is public; corporate site links to it. Indexing stays off until the real domain | ✅ · domain outstanding |
 
@@ -604,6 +605,12 @@ Scope: a four-page, SaaS-only ZiraHR website from the Enhanced Content & Develop
 
 | Date        | Change                                                                                                   |
 | ----------- | -------------------------------------------------------------------------------------------------------- |
+| 6 Nov 2026 | Enquiries stay on ZiraHR (UI-F2) and the owner's decisions:
+- **Book a demo and Contact us** on ZiraHR open the same enquiry form as FigBud Global's, on ZiraHR's own Contact & Demo page, so visitors never leave ZiraHR. The product is fixed to ZiraHR.
+- **In the Studio:** a new "Enquiry form" section. A website's buttons stay local wherever its Contact page has one.
+- **Refer & earn** shows +254 798 993 404 for following a referral, editable on the page in the Studio.
+- **On hold:** StockFlow and the other product websites, until FigBud Global and ZiraHR are complete. They keep their Coming Soon pages.
+- **Waiting on the owner:** the hero sample (it didn't come through), the ZiraHR domain, and `ADMIN_SECRETS_KEY` on figbud-api. |
 | 5 Nov 2026 | Theme inversion and the new ZiraHR home page (UI-TH3, UI-TH4):
 - **Contrasting bands:** a section can be a full-width band in the opposite of the visitor's theme, and demonstration panels contrast with whatever surrounds them. Switching theme flips them all together over 280 ms, without moving the page or restarting scroll animations.
 - **ZiraHR home page:** rewritten and reordered from the content guide as a story in alternating bands. It replaced the 29 October version, which stays in the page's history, one click to restore.

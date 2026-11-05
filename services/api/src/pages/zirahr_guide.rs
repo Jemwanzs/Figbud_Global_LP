@@ -200,6 +200,8 @@ fn contact() -> Value {
               "heading": "Tell us what your team needs. We'll take it from there.",
               "lead": "Have a payroll challenge, a growing workforce or a process you want to simplify? Start the conversation with the ZiraHR team.",
               "primary": demo_cta() },
+            { "id": id(), "type": "enquiry_form", "heading": "Book a demo or ask us anything",
+              "intro": "Tell us a little about your team. We'll reply to the email you give us." },
             { "id": id(), "type": "steps", "heading": "What happens next",
               "items": [
                   { "title": "Tell us about your team", "body": "A short form: your details, your team's size and what's slowing you down." },
@@ -226,7 +228,7 @@ fn refer() -> Value {
                   { "title": "Follow the deal", "body": "Keep your reference, and call us any time for an update." },
                   { "title": "Earn when it closes", "body": "You earn only after the deal has closed." },
               ] },
-            { "id": id(), "type": "referral_form", "heading": "Submit a referral", "contact_phone": null },
+            { "id": id(), "type": "referral_form", "heading": "Submit a referral", "contact_phone": REFERRAL_PHONE },
         ],
     })
 }
@@ -337,6 +339,120 @@ fn story_sections() -> [Value; 2] {
 }
 
 const HOME_REDESIGN: &str = "page.zirahr_home_redesigned";
+const LOCAL_ENQUIRIES: &str = "page.zirahr_enquiries_local";
+/// The number people call to follow a referral (owner, 6 Nov 2026); editable in the Studio.
+const REFERRAL_PHONE: &str = "+254 798 993 404";
+
+/// The owner's instructions of 6 Nov 2026, once: ZiraHR's demo and contact calls
+/// keep visitors on ZiraHR (the enquiry form joins its Contact & Demo page), and
+/// Refer & earn shows the number to call. Applied to the published page and to any
+/// draft in progress alike, so nobody's unpublished edits are lost; each page gets
+/// a new numbered version.
+pub async fn publish_local_enquiries(pool: &PgPool) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let mut tx = pool.begin().await?;
+    let site: Option<Uuid> = sqlx::query_scalar(
+        "SELECT s.id FROM sites s WHERE s.slug = 'zirahr' AND NOT EXISTS (
+                SELECT 1 FROM audit_log a WHERE a.site_id = s.id AND a.action = $1)
+            FOR UPDATE",
+    )
+    .bind(LOCAL_ENQUIRIES)
+    .fetch_optional(&mut *tx)
+    .await?;
+    let Some(site_id) = site else { return Ok(()) };
+
+    let add_form = |doc: &mut Value| {
+        let Some(sections) = doc["sections"].as_array_mut() else {
+            return;
+        };
+        if sections.iter().any(|s| s["type"] == "enquiry_form") {
+            return;
+        }
+        let at = usize::from(sections.first().is_some_and(|s| s["type"] == "hero"));
+        sections.insert(
+            at,
+            json!({ "id": id(), "type": "enquiry_form",
+            "heading": "Book a demo or ask us anything",
+            "intro": "Tell us a little about your team. We'll reply to the email you give us." }),
+        );
+    };
+    let set_phone = |doc: &mut Value| {
+        let Some(sections) = doc["sections"].as_array_mut() else {
+            return;
+        };
+        for section in sections.iter_mut().filter(|s| s["type"] == "referral_form") {
+            if section["contact_phone"].as_str().is_none_or(str::is_empty) {
+                section["contact_phone"] = json!(REFERRAL_PHONE);
+            }
+        }
+    };
+    let mut changed = Vec::new();
+    for (path, change) in [
+        ("contact", &add_form as &dyn Fn(&mut Value)),
+        ("refer", &set_phone),
+    ] {
+        let page: Option<(Uuid, Value, Option<Value>)> = sqlx::query_as(
+            "SELECT id, draft, published FROM pages
+              WHERE site_id = $1 AND path = $2 AND archived_at IS NULL FOR UPDATE",
+        )
+        .bind(site_id)
+        .bind(path)
+        .fetch_optional(&mut *tx)
+        .await?;
+        let Some((page_id, mut draft, Some(mut published))) = page else {
+            continue;
+        };
+        let before = published.clone();
+        change(&mut published);
+        change(&mut draft);
+        if published == before {
+            continue;
+        }
+        for doc in [&published, &draft] {
+            let parsed: PageDoc = serde_json::from_value(doc.clone())?;
+            parsed
+                .validate()
+                .map_err(|e| format!("ZiraHR {path} page: {e:?}"))?;
+        }
+        let revision = Uuid::now_v7();
+        sqlx::query(
+            "INSERT INTO page_revisions (id, page_id, number, document, note, state, decided_at)
+             SELECT $1, $2, COALESCE(max(number), 0) + 1, $3, $4, 'published', now()
+               FROM page_revisions WHERE page_id = $2",
+        )
+        .bind(revision)
+        .bind(page_id)
+        .bind(&published)
+        .bind("On the owner's instruction, 6 Nov 2026: enquiries stay on ZiraHR; the referral number")
+        .execute(&mut *tx)
+        .await?;
+        sqlx::query(
+            "UPDATE pages SET draft = $2, published = $3, published_revision = $4, published_at = now(),
+                    draft_version = draft_version + 1
+              WHERE id = $1",
+        )
+        .bind(page_id)
+        .bind(&draft)
+        .bind(&published)
+        .bind(revision)
+        .execute(&mut *tx)
+        .await?;
+        changed.push(path);
+    }
+    sqlx::query(
+        "INSERT INTO audit_log (id, action, target_type, target_id, detail, site_id)
+         VALUES ($1, $2, 'site', $3, $4, $5)",
+    )
+    .bind(Uuid::now_v7())
+    .bind(LOCAL_ENQUIRIES)
+    .bind(site_id.to_string())
+    .bind(json!({ "pages": changed, "authorised_by": "owner, 6 Nov 2026" }))
+    .bind(site_id)
+    .execute(&mut *tx)
+    .await?;
+    tx.commit().await?;
+    tracing::info!(pages = ?changed, "ZiraHR enquiries on its own website");
+    Ok(())
+}
 
 /// Publishes the rewritten home page once (UI-TH3), as a new numbered version.
 /// Unlike the other one-off steps, this replaces Home even if it was edited:

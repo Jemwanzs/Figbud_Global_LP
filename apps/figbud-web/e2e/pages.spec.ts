@@ -159,8 +159,8 @@ test("build a page from a template, publish it, and manage pages", async ({ page
     await page.getByRole("radio", { name: /^Blank page/ }).check();
     await page.getByRole("textbox", { name: "Page title" }).fill("Platform");
     await expect(page.getByText("/platform is already used by “Platform”")).toBeVisible({ timeout: 1_000 });
+    await expect(create).toBeDisabled({ timeout: 1_000 });
   }).toPass();
-  await expect(create).toBeDisabled();
 });
 
 test("schedule a change, approve it for later, and call it off", async ({ page }) => {

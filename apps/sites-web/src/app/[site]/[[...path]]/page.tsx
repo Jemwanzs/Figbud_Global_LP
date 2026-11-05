@@ -17,6 +17,7 @@ import {
   softwareApplicationLd,
   websiteLd,
 } from "@figbud/site-kit";
+import { isEnquiryProduct } from "@figbud/site-kit/enquiry";
 import { buttonClasses } from "@figbud/ui";
 import { ArrowRight } from "lucide-react";
 import type { Metadata, ResolvingMetadata } from "next";
@@ -37,6 +38,7 @@ import {
   hrefResolver,
   pageHref,
   parseSiteParam,
+  publicApiOrigin,
 } from "@/lib/sites";
 
 /**
@@ -135,7 +137,8 @@ async function PricingPage({
   site: NonNullable<Awaited<ReturnType<typeof getSite>>>;
   ownDomain: boolean;
 }) {
-  const book = await getPublicPricing(site.slug);
+  const [book, pages] = await Promise.all([getPublicPricing(site.slug), getPages(site.slug)]);
+  const enquire = enquiryHref(site, { ownDomain, pages });
   return (
     <div className="mx-auto max-w-[92rem] px-5 pt-page-top pb-section sm:px-8 md:px-10 lg:px-16">
       <h1 className="font-display text-page font-semibold tracking-tight text-text">{`${site.name} pricing`}</h1>
@@ -149,7 +152,7 @@ async function PricingPage({
             <PublicPricing
               book={book}
               endpoint={pageHref(site.slug, ownDomain, "pricing-calculate")}
-              quoteHref={enquiryHref(site)}
+              quoteHref={enquire}
             />
           </div>
         </>
@@ -158,7 +161,7 @@ async function PricingPage({
           <p className="text-lead text-muted">
             {`Pricing for ${site.name} depends on your modules, number of employees and implementation needs. Tell us about your organisation and we'll prepare a quotation.`}
           </p>
-          <a href={enquiryHref(site)} className={buttonClasses("product", "lg", "mt-8")}>
+          <a href={enquire} className={buttonClasses("product", "lg", "mt-8")}>
             Request a quote
             <ArrowRight aria-hidden className="size-4 rtl:rotate-180" />
           </a>
@@ -175,8 +178,9 @@ async function PayrollCalculatorPage({
   site: NonNullable<Awaited<ReturnType<typeof getSite>>>;
   ownDomain: boolean;
 }) {
-  const calculator = await getPayrollCalculator(site.slug);
+  const [calculator, pages] = await Promise.all([getPayrollCalculator(site.slug), getPages(site.slug)]);
   if (!calculator) notFound();
+  const enquire = enquiryHref(site, { ownDomain, pages });
   return (
     <div className="mx-auto max-w-[92rem] px-5 pt-page-top pb-section sm:px-8 md:px-10 lg:px-16">
       <JsonLd
@@ -199,7 +203,7 @@ async function PayrollCalculatorPage({
         <PayrollSources calculator={calculator} />
       </div>
       <div className="mt-stack flex flex-wrap items-center gap-4">
-        <a href={enquiryHref(site)} className={buttonClasses("product", "lg")}>
+        <a href={enquire} className={buttonClasses("product", "lg")}>
           {CTA_LABELS[site.cta]}
           <ArrowRight aria-hidden className="size-4 rtl:rotate-180" />
         </a>
@@ -320,18 +324,26 @@ export default async function SitePage({ params }: PageProps<"/[site]/[[...path]
           name={site.name}
           brand={site.brand ?? null}
           config={designed.config}
-          demoHref={enquiryHref(site)}
+          demoHref={enquiryHref(site, { ownDomain, pages })}
           featuresHref={
             pages.some((p) => p.path === "platform")
               ? pageHref(site.slug, ownDomain, "platform")
-              : enquiryHref(site)
+              : enquiryHref(site, { ownDomain, pages })
           }
         />
       )}
       <div className="mx-auto max-w-[92rem] px-5 py-section-sm sm:px-8 md:px-10 lg:px-16">
         <JsonLd data={structured} />
         {path === "" && <CampaignSlot placement="home_hero" className="mb-block block" />}
-        <PageBlocks document={blocks} resolveHref={hrefResolver(site, ownDomain, pages)} />
+        <PageBlocks
+          document={blocks}
+          resolveHref={hrefResolver(site, ownDomain, pages)}
+          enquiry={{
+            apiOrigin: publicApiOrigin,
+            product: isEnquiryProduct(site.slug) ? site.slug : undefined,
+            privacyHref: `${figbudOrigin}/en/legal/privacy`,
+          }}
+        />
         {/* Approved customer proof for this website (home page); nothing renders without it. */}
         {proof && proof.organizations.length + proof.metrics.length + proof.testimonials.length > 0 && (
           <div className="space-y-section pt-section">

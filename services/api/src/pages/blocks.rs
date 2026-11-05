@@ -139,6 +139,14 @@ pub enum Block {
         #[serde(default)]
         contact_phone: Option<String>,
     },
+    /// The enquiry form on the website itself (demo requests and questions),
+    /// the same form as the corporate contact page's, so visitors stay put.
+    EnquiryForm {
+        #[serde(default)]
+        heading: Option<String>,
+        #[serde(default)]
+        intro: Option<String>,
+    },
     /// An item from the content library, shown as its latest published
     /// version wherever it's used (resolved by `crate::shared::resolve`).
     Shared { shared_id: uuid::Uuid },
@@ -506,6 +514,15 @@ impl PageDoc {
                             c.cta(cta);
                         }
                     }
+                }
+                Block::EnquiryForm { heading, intro } => {
+                    c.optional("sections", heading, 120, "Headings can be up to 120 characters.");
+                    c.optional(
+                        "sections",
+                        intro,
+                        400,
+                        "Introductions can be up to 400 characters.",
+                    );
                 }
                 Block::ReferralForm {
                     heading,

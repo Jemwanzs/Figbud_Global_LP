@@ -1,14 +1,14 @@
 import { localizePath } from "@figbud/i18n";
+import { EnquiryForm } from "@figbud/site-kit";
 import { Container } from "@figbud/ui";
 import type { Metadata } from "next";
 import { Suspense } from "react";
 
 import { Breadcrumbs } from "@/components/breadcrumbs";
-import { EnquiryForm } from "@/components/contact/enquiry-form";
 import { PageHeader } from "@/components/page-header";
 import { resolvePage } from "@/lib/page";
 import { getClosedEnquiries } from "@/lib/products";
-import { pageMetadata, routes } from "@/lib/site";
+import { apiOrigin, pageMetadata, routes } from "@/lib/site";
 
 export async function generateMetadata({ params }: PageProps<"/[locale]/contact">): Promise<Metadata> {
   const { locale, dict } = await resolvePage(params);
@@ -49,6 +49,7 @@ export default async function ContactPage({ params }: PageProps<"/[locale]/conta
               copy={dict.form}
               closed={closed}
               privacyHref={localizePath(locale, routes.privacy)}
+              apiOrigin={apiOrigin}
             />
           </Suspense>
         </div>

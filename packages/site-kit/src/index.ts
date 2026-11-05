@@ -6,6 +6,7 @@ export * from "./payroll-calculator";
 export * from "./product-demos";
 export * from "./referral-form";
 export * from "./coming-soon";
+export * from "./enquiry-form";
 export type { StoryMotion } from "./scroll-story";
 export * from "./blocks";
 export * from "./brand-logo";

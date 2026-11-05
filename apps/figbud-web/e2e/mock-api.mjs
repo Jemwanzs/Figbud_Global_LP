@@ -1945,6 +1945,12 @@ seedPublishedPage("zirahr", "platform", "Platform", {
     { id: "zp-out", type: "demo", demo: "outputs", heading: "What a finished run gives you." },
   ],
 });
+seedPublishedPage("zirahr", "contact", "Contact & Demo", {
+  sections: [
+    { id: "zc-hero", type: "hero", eyebrow: "Contact and demo", heading: "Tell us what your team needs." },
+    { id: "zc-form", type: "enquiry_form", heading: "Book a demo or ask us anything" },
+  ],
+});
 seedPublishedPage(
   "zirahr",
   "refer",
@@ -2037,6 +2043,7 @@ function publicPages(url, send) {
           published_at: p.published_at,
           show_in_nav: p.show_in_nav !== false,
           noindex: Boolean(p.published?.seo_noindex),
+          enquiry_form: (p.published?.sections ?? []).some((s) => s.type === "enquiry_form" && !s.hidden),
         })),
     );
     return true;

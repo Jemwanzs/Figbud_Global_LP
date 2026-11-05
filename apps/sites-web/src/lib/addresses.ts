@@ -25,6 +25,8 @@ export interface PublishedPageRef {
   show_in_nav?: boolean;
   /** Kept out of search engines (and sitemaps) in the Studio. */
   noindex?: boolean;
+  /** It shows the enquiry form (the website's calls to action can stay on it). */
+  enquiry_form?: boolean;
 }
 
 /**
@@ -61,10 +63,21 @@ const ENQUIRY_KIND = { waitlist: "waitlist", early_access: "early_access", demo:
 /** Products the corporate enquiry form knows (services/api/src/enquiry.rs). */
 const ENQUIRY_PRODUCTS = ["zirahr", "jasiri", "expense_now", "ziwa"];
 
-/** The corporate enquiry form for this website's call to action (decision D14). */
-export function enquiryHref(site: Pick<ListedSite, "slug" | "cta">) {
+/**
+ * Where this website's call to action goes: its own Contact page, when that page
+ * has the enquiry form, so visitors stay on the website (owner, 6 Nov 2026);
+ * otherwise the corporate enquiry form (decision D14).
+ */
+export function enquiryHref(
+  site: Pick<ListedSite, "slug" | "cta">,
+  local?: { ownDomain: boolean; pages: Pick<PublishedPageRef, "path" | "enquiry_form">[] },
+) {
+  const kind = ENQUIRY_KIND[site.cta];
+  if (local?.pages.some((p) => p.path === "contact" && p.enquiry_form)) {
+    return `${pageHref(site.slug, local.ownDomain, "contact")}?kind=${kind}#enquire`;
+  }
   const product = ENQUIRY_PRODUCTS.includes(site.slug) ? `&product=${site.slug}` : "";
-  return `${figbudOrigin}/en/contact?kind=${ENQUIRY_KIND[site.cta]}${product}`;
+  return `${figbudOrigin}/en/contact?kind=${kind}${product}`;
 }
 
 /**
@@ -76,7 +89,7 @@ export function enquiryHref(site: Pick<ListedSite, "slug" | "cta">) {
 export function hrefResolver(
   site: Pick<ListedSite, "slug" | "cta">,
   ownDomain: boolean,
-  pages: Pick<PublishedPageRef, "path">[],
+  pages: Pick<PublishedPageRef, "path" | "enquiry_form">[],
 ) {
   const published = new Set(pages.map((p) => p.path));
   return (href: string) => {
@@ -85,7 +98,8 @@ export function hrefResolver(
     const cut = href.search(/[?#]/);
     const rest = cut === -1 ? "" : href.slice(cut);
     const path = (cut === -1 ? href : href.slice(0, cut)).replace(/^\/+|\/+$/g, "");
-    if (path === "enquire" || (path === "contact" && !published.has("contact"))) return enquiryHref(site);
+    if (path === "enquire" || (path === "contact" && !published.has("contact")))
+      return enquiryHref(site, { ownDomain, pages });
     return `${pageHref(site.slug, ownDomain, path)}${rest}`;
   };
 }

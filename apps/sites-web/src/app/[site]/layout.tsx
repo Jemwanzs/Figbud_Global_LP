@@ -145,7 +145,7 @@ export default async function SiteLayout({ children, params }: LayoutProps<"/[si
           <CampaignProvider
             campaigns={campaigns}
             apiOrigin={publicApiOrigin}
-            enquiryUrl={enquiryHref(site)}
+            enquiryUrl={enquiryHref(site, { ownDomain, pages })}
             pathPrefix={ownDomain ? "" : `/${slug}`}
             brand={site.brand}
             product={KNOWN.includes(slug) ? slug : "figbud"}
@@ -156,7 +156,11 @@ export default async function SiteLayout({ children, params }: LayoutProps<"/[si
               homeHref={pageHref(slug, ownDomain, "")}
               logo={site.brand?.logos.horizontal}
               links={links.slice(0, 6)}
-              cta={enquiriesOpen(site) ? { href: enquiryHref(site), label: CTA_LABELS[site.cta] } : null}
+              cta={
+                enquiriesOpen(site)
+                  ? { href: enquiryHref(site, { ownDomain, pages }), label: CTA_LABELS[site.cta] }
+                  : null
+              }
             />
             <CampaignSlot
               placement="below_nav"

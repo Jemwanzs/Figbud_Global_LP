@@ -342,3 +342,110 @@ async fn the_rewritten_home_page_replaces_home_once_and_the_old_one_stays_restor
         .unwrap();
     assert_eq!(after, before);
 }
+
+#[tokio::test]
+async fn enquiries_stay_on_zirahr_and_refer_shows_the_number_once() {
+    let Some(pool) = database().await else { return };
+    let url = std::env::var("TEST_DATABASE_URL").unwrap();
+    let _turn = ZIRAHR.lock().await;
+    import::run(&pool).await.unwrap();
+    zirahr_guide::run(&pool).await.unwrap();
+    zirahr_guide::launch(&pool).await.unwrap();
+    let site: Uuid = sqlx::query_scalar("SELECT id FROM sites WHERE slug = 'zirahr'")
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    sqlx::query("DELETE FROM audit_log WHERE site_id = $1 AND action = 'page.zirahr_enquiries_local'")
+        .bind(site)
+        .execute(&pool)
+        .await
+        .unwrap();
+    // As they were before: no form on Contact, no number on Refer, and a draft in progress on Contact.
+    let contact = json!({ "sections": [
+        { "id": "h", "type": "hero", "heading": "Contact" },
+        { "id": "c", "type": "call_to_action", "heading": "Ready", "cta": { "label": "Book", "href": "/enquire" } },
+    ] });
+    let mut contact_draft = contact.clone();
+    contact_draft["sections"][1]["heading"] = json!("An unpublished edit");
+    let refer = json!({ "sections": [
+        { "id": "h", "type": "hero", "heading": "Refer" },
+        { "id": "r", "type": "referral_form", "contact_phone": null },
+    ] });
+    for (path, draft, published) in [("contact", &contact_draft, &contact), ("refer", &refer, &refer)] {
+        sqlx::query("UPDATE pages SET draft = $3, published = $4 WHERE site_id = $1 AND path = $2")
+            .bind(site)
+            .bind(path)
+            .bind(draft)
+            .bind(published)
+            .execute(&pool)
+            .await
+            .unwrap();
+    }
+
+    zirahr_guide::publish_local_enquiries(&pool).await.unwrap();
+    let read = |path: &'static str| {
+        let pool = pool.clone();
+        async move {
+            sqlx::query_as::<_, (Value, Value)>(
+                "SELECT draft, published FROM pages WHERE site_id = $1 AND path = $2",
+            )
+            .bind(site)
+            .bind(path)
+            .fetch_one(&pool)
+            .await
+            .unwrap()
+        }
+    };
+    let (draft, published) = read("contact").await;
+    assert_eq!(
+        published["sections"][1]["type"], "enquiry_form",
+        "right after the hero"
+    );
+    assert_eq!(draft["sections"][1]["type"], "enquiry_form");
+    assert_eq!(
+        draft["sections"][2]["heading"], "An unpublished edit",
+        "the draft keeps its edit"
+    );
+    let (_, published) = read("refer").await;
+    assert_eq!(published["sections"][1]["contact_phone"], "+254 798 993 404");
+
+    // The website hears that Contact has the form, so its calls to action stay local.
+    let app = app_with(pool.clone(), config(&url));
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/v1/sites/zirahr/pages")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    let bytes = axum::body::to_bytes(response.into_body(), 1 << 20).await.unwrap();
+    let pages: Value = serde_json::from_slice(&bytes).unwrap();
+    let listed = |path: &str| {
+        pages
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|p| p["path"] == path)
+            .unwrap()["enquiry_form"]
+            .clone()
+    };
+    assert_eq!(listed("contact"), true);
+    assert_eq!(listed("refer"), false);
+
+    // Once only: a number changed in the Studio afterwards stays changed.
+    let mut edited = published.clone();
+    edited["sections"][1]["contact_phone"] = json!("+254 700 000 000");
+    sqlx::query("UPDATE pages SET published = $2 WHERE site_id = $1 AND path = 'refer'")
+        .bind(site)
+        .bind(&edited)
+        .execute(&pool)
+        .await
+        .unwrap();
+    zirahr_guide::publish_local_enquiries(&pool).await.unwrap();
+    assert_eq!(
+        read("refer").await.1["sections"][1]["contact_phone"],
+        "+254 700 000 000"
+    );
+}

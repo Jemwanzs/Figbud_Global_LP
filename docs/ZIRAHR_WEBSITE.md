@@ -17,9 +17,9 @@ Last updated: 5 Nov 2026.
 | Payroll Calculator | None | Complete and published: [PAYROLL_CALCULATOR.md](PAYROLL_CALCULATOR.md) | Engine unit tests, API integration, Studio and public e2e | Re-check when the law changes |
 | Pricing | Pricing Studio and quotations (P11) | Reviewed against the brief (§5); one quotation defect found and fixed | Existing engine and API tests, plus a regression test | Approved KES rates (Q23) |
 | Hover previews | Built (UI-NAV2) | The guide's wording, published | e2e | |
-| Refer & earn | None | Page and form reaching the enquiry inbox; earn after the deal closes; no amounts | API validation test, e2e, axe | **The contact number** (Q25) |
+| Refer & earn | None | Page and form reaching the enquiry inbox; earn after the deal closes; no amounts; follow-up number +254 798 993 404, editable in the Studio | API validation test, e2e, axe | |
 | Insights / blog | Corporate blog only | **Not built** for ZiraHR | | Decide per-product or shared; the guide's article ideas need verified references |
-| Contact & demo | Corporate enquiry form, pre-filled for the product, with server validation | Contact & Demo page leads to that form | Existing form tests | On-page form if you want one |
+| Contact & demo | Corporate enquiry form, pre-filled for the product | The same form on ZiraHR's own Contact & Demo page; every demo and contact button opens it there (6 Nov 2026) | API, e2e on desktop and phone, axe | |
 | Testimonials, partners, banners | Trusted By, testimonials and metrics; campaigns | Unchanged; nothing renders until approved records are published | Existing tests | Approved records (Q22) |
 | SEO | Per-page metadata, canonical URLs, sitemap, structured data, indexing controls | Titles and descriptions on every draft; calculator page in the sitemap only while on | Renderer e2e | Kenya targeting needs the live domain (Q1) and Search Console (Q21) |
 

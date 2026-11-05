@@ -1,14 +1,14 @@
 "use client";
 
 import type { Locale } from "@figbud/i18n";
-import { CountrySelect, type CountryCode, PhoneNumbers } from "@figbud/site-kit";
 import { buttonClasses, cn } from "@figbud/ui";
 import { ArrowRight, CircleCheck, Info, LoaderCircle, TriangleAlert } from "lucide-react";
 import { useSearchParams } from "next/navigation";
-import { type FormEvent, type ReactNode, useEffect, useId, useRef, useState } from "react";
+import { type FormEvent, Fragment, type ReactNode, useEffect, useId, useRef, useState } from "react";
 
-import type { Dictionary } from "@/i18n/get-dictionary";
 import {
+  type EnquiryFormCopy,
+  type EnquiryProduct,
   type EnquiryErrors,
   type EnquiryValues,
   MAX_PHONES,
@@ -24,11 +24,19 @@ import {
   requiresMessage,
   submitEnquiry,
   validateEnquiry,
-} from "@/lib/enquiry";
-import { fillNodes } from "@/lib/format";
-import { apiOrigin } from "@/lib/site";
+} from "./enquiry";
+import { CountrySelect, PhoneNumbers } from "./forms";
+import type { CountryCode } from "./phone";
 
-type Copy = Dictionary["form"];
+type Copy = EnquiryFormCopy;
+
+/** Placeholders in the wording can be links or emphasis. */
+function fillNodes(template: string, values: Record<string, ReactNode>): ReactNode {
+  return template.split(/(\{\w+\})/g).map((part, i) => {
+    const key = /^\{(\w+)\}$/.exec(part)?.[1];
+    return <Fragment key={i}>{key && key in values ? values[key] : part}</Fragment>;
+  });
+}
 type Status =
   | { state: "idle" }
   | { state: "submitting" }
@@ -46,24 +54,34 @@ const SERVER_FIELD_ERROR: Record<string, EnquiryErrors[keyof EnquiryErrors]> = {
   consent: "consent",
 };
 
+/**
+ * The enquiry form on the corporate contact page and on product websites'
+ * own pages (one component, the same experience), validated by the API.
+ */
 export function EnquiryForm({
   locale,
   copy,
   closed = {},
   privacyHref,
+  apiOrigin,
+  product,
 }: {
   locale: Locale;
   copy: Copy;
   /** Products not taking enquiries, with the Studio's message ("" for the default). */
   closed?: Record<string, string>;
   privacyHref: string;
+  /** Where enquiries are sent (the API, which allows each website's origin). */
+  apiOrigin: string;
+  /** On a product's own website: the product, fixed, with no product choice shown. */
+  product?: EnquiryProduct;
 }) {
   const params = useSearchParams();
   const initialKind = params.get("kind");
   const requested = params.get("product");
   // A link to a closed product says so above the form, which starts on FigBud Global instead.
   const closedRequest = isEnquiryProduct(requested) && requested in closed ? requested : null;
-  const initialProduct = closedRequest ? null : requested;
+  const initialProduct = product ?? (closedRequest ? null : requested);
   // The campaign that brought the visitor, kept with the enquiry (attribution).
   const campaign = /^[0-9a-f-]{36}$/.test(params.get("campaign") ?? "") ? params.get("campaign") : null;
 
@@ -287,24 +305,26 @@ export function EnquiryForm({
       </fieldset>
 
       <div className="mt-8 grid gap-5 sm:grid-cols-2">
-        <Field id={`${formId}-product`} label={copy.product} className="sm:col-span-2">
-          {(props) => (
-            <select
-              {...props}
-              value={values.product}
-              onChange={(e) => set("product", e.target.value as EnquiryValues["product"])}
-              className={inputClass}
-            >
-              {enquiryProducts.map((product) => (
-                <option key={product} value={product} disabled={product in closed}>
-                  {product in closed
-                    ? copy.closedOption.replace("{product}", copy.productOptions[product])
-                    : copy.productOptions[product]}
-                </option>
-              ))}
-            </select>
-          )}
-        </Field>
+        {!product && (
+          <Field id={`${formId}-product`} label={copy.product} className="sm:col-span-2">
+            {(props) => (
+              <select
+                {...props}
+                value={values.product}
+                onChange={(e) => set("product", e.target.value as EnquiryValues["product"])}
+                className={inputClass}
+              >
+                {enquiryProducts.map((product) => (
+                  <option key={product} value={product} disabled={product in closed}>
+                    {product in closed
+                      ? copy.closedOption.replace("{product}", copy.productOptions[product])
+                      : copy.productOptions[product]}
+                  </option>
+                ))}
+              </select>
+            )}
+          </Field>
+        )}
 
         <Field id={`${formId}-name`} label={copy.name} error={errorText("name")}>
           {(props) => (

@@ -389,3 +389,8 @@ One settings document for every FigBud website (one data controller). Everyone s
 - **Section style → Contrasting band:** a full-width band in the opposite of the visitor's theme. Demonstrations inside it flip too, so they still contrast.
 - **Demonstration → Layout:** heading above the demonstration, or beside it on wide screens.
 - Previews follow the theme you choose, exactly as visitors see it.
+
+## Enquiry form (UI-F2)
+
+- **Enquiry form** section: the same form as the corporate contact page (demo request, sales, question, partnership), sent to the enquiry inbox. On a product's own website the product is fixed, so there's no product choice.
+- Put it on a website's **Contact** page and that website's demo and contact buttons open it there, instead of the FigBud Global contact page. Remove it and they go back to the corporate form.
