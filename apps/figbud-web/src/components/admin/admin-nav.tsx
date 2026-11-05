@@ -29,7 +29,7 @@ export function AdminNav({
       onClick={() => setOpen(false)}
       className={cn(
         "relative inline-flex min-h-11 items-center rounded-full text-sm whitespace-nowrap transition-colors",
-        mobile ? "w-full px-4" : "px-3",
+        mobile ? "w-full px-4" : "px-2 xl:px-3",
         item.href === active
           ? "bg-surface-2 font-medium text-text"
           : "text-muted hover:bg-surface-2/60 hover:text-text",

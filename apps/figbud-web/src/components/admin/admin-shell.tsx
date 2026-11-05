@@ -10,6 +10,7 @@ import { AuthCard } from "./auth-card";
 
 const NAV = [
   { href: "/admin", label: "Overview" },
+  { href: "/admin/approvals", label: "Approvals" },
   { href: "/admin/sites", label: "Websites" },
   { href: "/admin/content", label: "Content" },
   { href: "/admin/marketing", label: "Marketing" },
@@ -34,7 +35,7 @@ export function AdminShell({
       {/* One compact row that stays visible while scrolling; below lg the links
           move into a menu so nothing wraps onto a second row. */}
       <header className="sticky top-0 z-40 border-b border-line bg-bg/90 backdrop-blur-md print:hidden">
-        <div className="relative mx-auto flex h-16 max-w-7xl items-center gap-3 px-5 sm:px-8 lg:gap-5">
+        <div className="relative mx-auto flex h-16 max-w-7xl items-center gap-3 px-5 sm:px-8 xl:gap-5">
           <Link href="/admin" className="flex shrink-0 items-center gap-3 rounded-lg py-1">
             <FigBudBrand />
             <span aria-hidden className="h-6 w-px bg-line-strong" />

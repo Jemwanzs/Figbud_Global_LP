@@ -702,7 +702,7 @@ async fn publish(
         site_id,
         audit_action,
         json!({ "version": number, "design": hero["design"], "variant": hero["name"],
-            "before": row.published.as_ref().map(|p| &p["name"]) }),
+            "from": row.published, "to": hero }),
     )
     .await?;
     Ok(())

@@ -432,6 +432,7 @@ async fn book_action(
                 site.id,
                 "pricing.published",
                 json!({ "version": number, "effective_from": row.effective_from,
+                    "from": row.published, "to": row.draft,
                     "changes": compare(row.published.clone().map(decode).transpose()?.as_ref(), &decode(row.draft.clone())?) }),
             )
             .await?;

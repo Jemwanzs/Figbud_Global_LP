@@ -500,24 +500,40 @@ struct AuditEntry {
     target_type: Option<String>,
     target_id: Option<String>,
     detail: Value,
+    /// Whether previous and new values are recorded (`/audit/{id}/changes`).
+    has_changes: bool,
     created_at: chrono::DateTime<chrono::Utc>,
+}
+
+#[derive(serde::Deserialize)]
+struct AuditQuery {
+    site: Option<String>,
+    before: Option<chrono::DateTime<chrono::Utc>>,
 }
 
 async fn audit_log(
     State(state): State<SharedState>,
     session: AdminSession,
+    axum::extract::Query(query): axum::extract::Query<AuditQuery>,
 ) -> Result<impl IntoResponse, ApiError> {
     session.require(Role::Owner)?;
     // The feed names what happened; previous and new values (whole page
     // documents, brand drafts) stay in the log without being sent.
     let entries: Vec<AuditEntry> = sqlx::query_as(
         "SELECT a.id, a.action, u.email AS actor_email, s.name AS site_name, a.target_type, a.target_id,
-                a.detail - 'from' - 'to' AS detail, a.created_at
+                a.detail - 'from' - 'to' - 'before' - 'after' AS detail,
+                (jsonb_exists(a.detail, 'from') AND jsonb_exists(a.detail, 'to'))
+                  OR (jsonb_exists(a.detail, 'before') AND jsonb_exists(a.detail, 'after')) AS has_changes,
+                a.created_at
            FROM audit_log a
            LEFT JOIN admin_users u ON u.id = a.actor_user_id
            LEFT JOIN sites s ON s.id = a.site_id
+          WHERE ($1::text IS NULL OR s.slug = $1)
+            AND ($2::timestamptz IS NULL OR a.created_at < $2)
           ORDER BY a.created_at DESC LIMIT 200",
     )
+    .bind(query.site)
+    .bind(query.before)
     .fetch_all(&state.pool)
     .await?;
     Ok(Json(entries))

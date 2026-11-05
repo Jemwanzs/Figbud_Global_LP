@@ -7,6 +7,7 @@
 //! holds marketing-site data.
 
 pub mod admin;
+pub mod approvals;
 pub mod brand;
 pub mod campaigns;
 pub mod cms;

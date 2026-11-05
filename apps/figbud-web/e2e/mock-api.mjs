@@ -130,6 +130,41 @@ const passwordProblem = (password, email) => {
 const challenges = new Map(); // id -> { kind, challenge, email, name }
 const usedInvites = new Set();
 const audit = [];
+const approvalQueue = [
+  {
+    kind: "page",
+    id: "queue-page",
+    parent: "queue-page",
+    sites: [{ slug: "zirahr", name: "ZiraHR" }],
+    title: "Platform",
+    note: "New module wording",
+    requested_by: "Edna Editor",
+    requested_at: "2026-11-05T08:00:00Z",
+  },
+  {
+    kind: "payroll",
+    id: "queue-payroll",
+    parent: "queue-payroll",
+    sites: [{ slug: "zirahr", name: "ZiraHR" }],
+    title: "Payroll Calculator rules",
+    note: "",
+    requested_by: "Rita Reviewer",
+    requested_at: "2026-11-05T08:10:00Z",
+  },
+  {
+    kind: "proof",
+    id: "queue-proof",
+    parent: "queue-proof",
+    sites: [
+      { slug: "figbud", name: "FigBud Global" },
+      { slug: "jasiri", name: "Jasiri LMS" },
+    ],
+    title: "Sample organisation",
+    note: "Permission recorded",
+    requested_by: "Edna Editor",
+    requested_at: "2026-11-05T08:20:00Z",
+  },
+];
 
 const drafts = new Map(); // editorial articles by id
 // Synthetic enquiries for the inbox (no real people).
@@ -219,6 +254,7 @@ const publicUser = (u) => ({ id: u.id, email: u.email, name: u.name, role: u.rol
 // Per-website permissions (services/api/src/admin/team.rs, P7-F1).
 const invites = new Map(); // token -> { role, grants }
 const allSites = (u) => u.role === "owner" || !u.grants;
+const seesSlug = (u, slug) => allSites(u) || u.grants.some((g) => g.site === slug);
 const grantsOf = (u) =>
   (u.grants ?? []).map((g) => ({
     site: g.site,
@@ -5039,7 +5075,40 @@ function admin(req, res, url, body, send, raw) {
       expires_at: new Date(Date.now() + 7 * 864e5).toISOString(),
     });
   }
-  if (path === "audit") return send(200, audit.slice(0, 200));
+  if (path === "audit") {
+    const site = url.searchParams.get("site");
+    return send(
+      200,
+      audit
+        .filter((e) => !site || sites.find((s) => s.slug === site)?.name === e.site_name)
+        .slice(0, 200)
+        .map(({ from, to, ...entry }) => ({ ...entry, has_changes: from !== undefined && to !== undefined })),
+    );
+  }
+  const auditChanges = /^audit\/([^/]+)\/changes$/.exec(path);
+  if (auditChanges) {
+    if (user.role !== "owner") return send(403, { error: { code: "forbidden", message: "Not permitted." } });
+    const entry = audit.find((e) => e.id === auditChanges[1]);
+    if (!entry) return send(404, { error: { code: "not_found", message: "Not found." } });
+    const keys = [...new Set([...Object.keys(entry.from ?? {}), ...Object.keys(entry.to ?? {})])].sort();
+    return send(200, {
+      changes: keys
+        .filter((k) => entry.from?.[k] !== entry.to?.[k])
+        .map((k) => ({ path: k, before: entry.from?.[k] ?? null, after: entry.to?.[k] ?? null })),
+      truncated: false,
+    });
+  }
+  // The approval queue across websites (services/api/src/approvals.rs).
+  if (path === "approvals") {
+    const reviewer = RANKS[user.role] >= RANKS.reviewer;
+    const items = approvalQueue
+      .filter((item) => item.sites.every((s) => seesSlug(user, s.slug)))
+      .map((item) => {
+        const mine = item.requested_by === user.name;
+        return { ...item, mine, can_decide: reviewer && (!mine || user.role === "owner") };
+      });
+    return send(200, { items, waiting_for_you: items.filter((i) => i.can_decide).length });
+  }
 
   // --- Enquiries inbox (services/api/src/admin/enquiries.rs) ---
   if (path === "enquiries" || path === "enquiries/export") {
@@ -5278,6 +5347,19 @@ createServer(async (req, res) => {
   if (url.pathname.startsWith("/v1/admin/")) return admin(req, res, url, body, send, raw);
   if (url.pathname === "/v1/articles") return send(200, list(url));
   // Test helpers (mock only): the emailed link, and time passing for the identity check.
+  if (url.pathname === "/v1/__test/audit-change") {
+    audit.unshift({
+      id: `change-${Date.now()}`,
+      action: "page.published",
+      actor_email: "edna@figbud.test",
+      site_name: "ZiraHR",
+      detail: {},
+      from: { heading: "<b>Old heading</b>", intro: "" },
+      to: { heading: "New heading", intro: "Added" },
+      created_at: new Date().toISOString(),
+    });
+    return send(200, {});
+  }
   if (url.pathname === "/v1/__test/recovery")
     return send(200, { token: lastRecovery.get(url.searchParams.get("email")) ?? null });
   if (url.pathname === "/v1/__test/expire-check") {

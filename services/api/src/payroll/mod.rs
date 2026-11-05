@@ -479,7 +479,7 @@ async fn publish(
         session,
         site_id,
         audit_action,
-        json!({ "version": number, "note": note }),
+        json!({ "version": number, "note": note, "from": row.published, "to": config }),
     )
     .await?;
     Ok(())

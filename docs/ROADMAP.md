@@ -312,10 +312,10 @@ Items marked **Blocking** stop the listed tasks; everything else proceeds with t
 | P4-02   | Cross-site links: env-driven origins, new-tab behaviour with announced "opens in a new tab", Back to FigBud, never-dead fallbacks; product CTAs to the corporate enquiry form | ✅ |
 | **ZiraHR** |  |  |
 | P4-Z1   | Homepage — The Connected Workforce (`apps/zirahr-web`: hero, modules, payroll, demo CTA; built and tested, not yet deployed) | 🔄 In progress |
-| P4-Z2   | Platform and Modules pages (Employee 360, payroll, leave, attendance, performance, collaboration, analytics, ESS) — each a distinct interactive experience | ⬜ |
+| P4-Z2   | Platform and Modules pages (Employee 360, payroll, leave, attendance, performance, collaboration, analytics, ESS) — each a distinct interactive experience | ✅ Studio-built Platform page: module catalogue and demonstrations (P14-W1) |
 | P4-Z3   | Kenya payroll engine: rules-based, effective-dated, unit-tested against signed-off cases      | ⛔ Q10 |
 | P4-Z4   | Payroll calculator page (Kenya default; other countries disabled until validated)             | ⛔ Q10 |
-| P4-Z5   | Leave approval journey animation; attendance location-and-shift demo                           | ⬜ |
+| P4-Z5   | Leave approval journey animation; attendance location-and-shift demo                           | 🔄 Leave approval and team calendar done (P14-W1); attendance demo not built |
 | P4-Z6   | Solutions, Resources, Pricing, Company, Book a Demo                                            | ⬜ |
 | **Jasiri LMS** |  |  |
 | P4-J1   | Homepage — Lending is complex. Your technology shouldn't be.                                   | ⬜ |
@@ -435,7 +435,7 @@ Items marked **Blocking** stop the listed tasks; everything else proceeds with t
 | P7-E2  | Navigation and footer configuration per website, with the enquiry switch: menu from the website's pages or up to 8 chosen links, footer note and links, enquiries on/off with a closed message (enforced by the API, 409 `enquiries_closed`; received enquiries kept; the corporate site always open); reviewers change them directly, audited; applied on the product sites and the corporate contact form | ✅ |
 | P7-E3  | Multi-site renderer (D16); ZiraHR website moves onto registry-driven pages: renderer built and tested (`apps/sites-web`: path prefix or own domain, published pages, brand, navigation, calls to action, SEO, sitemap, holding pages); deployment needs a Railway service (your approval); ZiraHR's move onto it remains | 🔄 In progress |
 | P7-F1  | Per-website permissions on top of Studio roles: everyone keeps one Studio role; owners can limit people to selected websites, each with its own role (never above the Studio role; owners always have every website); websites without access are hidden (404) across websites, pages, media, brand, settings and status requests; enquiries filtered to the person's websites; Insights need the corporate website; shared content changes need every website; Settings → Team & access (owners) and website access in invites; changes apply at once and are audited with before and after | ✅ |
-| P7-F2  | Approval queue across websites; audit with previous and new values; rollback                 | ⬜ |
+| P7-F2  | **Approvals** in the Studio: everything waiting for a second person across pages, brand, website status, heroes, pricing, the Payroll Calculator, campaigns, customer proof and articles, in one list that says whose turn it is and links to the item's own screen; it hides requests on websites someone can't access. **Activity** for owners: the log by website, with before and after values on request, now also for hero, pricing and Payroll Calculator publishing. Rollback stays on each item's screen. Records made before this change keep what they recorded | ✅ |
 | P7-G1  | SEO per page: search title and description with a live result preview, the page's own sharing image from the media library, "Hide from search engines" (noindex, left out of the sitemap), canonical URLs, automatic 308 redirects when a published page moves (listed in the page, removable), sitemap of indexable published pages | ✅ |
 | P7-G2  | Localisation workflow (EN/SW/FR/AR/ZH, Arabic right-to-left); unreviewed translations stay unindexed | ⬜ |
 | P7-G3  | Forms and leads per website, delivered through Resend (with P5-11)                          | ⬜ Q4 |
@@ -594,6 +594,10 @@ Scope: a four-page, SaaS-only ZiraHR website from the Enhanced Content & Develop
 
 | Date        | Change                                                                                                   |
 | ----------- | -------------------------------------------------------------------------------------------------------- |
+| 5 Nov 2026 | Approvals and Activity in the Studio (P7-F2):
+- **Approvals:** one list of everything waiting for a second person, on every website you can see, saying whose turn it is. Decisions still happen on each item's own screen, so no approval rule changed.
+- **Activity:** owners can filter the log by website and open before and after values. Hero, pricing and Payroll Calculator publishing now record them too.
+- **Audit of the public site:** every link on the six ZiraHR pages checked after launch, no faults found. |
 | 5 Nov 2026 | ZiraHR go-live work, on the owner's decisions (Q24 to Q26, P14-D):
 - **Refer & earn:** a page and form that reach the enquiry inbox as a new Referral kind. You earn only after the deal closes. No amounts, and no phone number until one is entered.
 - **New demonstrations:** what a finished run gives you, leave request and approval, and a team calendar that leaves out weekends and public holidays.
