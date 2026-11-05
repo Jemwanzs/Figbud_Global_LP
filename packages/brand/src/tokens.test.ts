@@ -6,10 +6,11 @@ import { describe, expect, it } from "vitest";
 // readable on both site themes (WCAG 2.2 AA).
 const css = readFileSync(new URL("./tokens.css", import.meta.url), "utf8");
 
+/** The declarations of the first rule whose selectors begin with `selector`. */
 function block(selector: string): Record<string, string> {
-  const start = css.indexOf(`${selector} {`);
+  const start = css.indexOf(selector);
   if (start < 0) throw new Error(`missing ${selector}`);
-  const body = css.slice(start, css.indexOf("}", start));
+  const body = css.slice(css.indexOf("{", start), css.indexOf("}", start));
   return Object.fromEntries([...body.matchAll(/--([\w-]+):\s*(#[0-9a-f]{6})/gi)].map((m) => [m[1], m[2]]));
 }
 
@@ -26,11 +27,22 @@ const contrast = (a: string, b: string) => {
   return (hi! + 0.05) / (lo! + 0.05);
 };
 
-const dark = block(':root,\n[data-theme="dark"]');
-const light = block('[data-theme="light"]');
+const DARK = ':root,\n[data-theme="dark"],';
+const LIGHT = '\n[data-theme="light"],\n[data-theme="dark"] [data-tone="inverse"]';
+const dark = block(DARK);
+const light = block(LIGHT);
+
+describe("contrasting surfaces (UI-TH3)", () => {
+  const selectors = (start: string) => css.slice(css.indexOf(start), css.indexOf("{", css.indexOf(start)));
+  it("take the other theme's colours, and the page's own again inside two", () => {
+    expect(selectors(DARK)).toContain('[data-theme="light"] [data-tone="inverse"]');
+    expect(selectors(DARK)).toContain('[data-theme="dark"] [data-tone="inverse"] [data-tone="inverse"]');
+    expect(selectors(LIGHT)).toContain('[data-theme="light"] [data-tone="inverse"] [data-tone="inverse"]');
+  });
+});
 
 describe.each(["figbud", "zirahr", "jasiri", "expense_now", "ziwa"])("%s tokens", (slug) => {
-  const product = block(`[data-product="${slug}"]`);
+  const product = block(`[data-product="${slug}"] {`);
 
   it("accent text is readable on the dark theme", () => {
     const text = product["product-text"] ?? dark.accent!;
@@ -95,11 +107,11 @@ function blend(fg: string, alpha: number, bg: string): string {
   );
 }
 const softAlpha = (selector: string) =>
-  Number(/--accent-soft: rgb\(\d+ \d+ \d+ \/ ([\d.]+)\)/.exec(css.slice(css.indexOf(`${selector} {`)))![1]);
+  Number(/--accent-soft: rgb\(\d+ \d+ \d+ \/ ([\d.]+)\)/.exec(css.slice(css.indexOf(selector)))![1]);
 
 describe.each([
-  ["dark", dark, ':root,\n[data-theme="dark"]'],
-  ["light", light, '[data-theme="light"]'],
+  ["dark", dark, DARK],
+  ["light", light, LIGHT],
 ] as const)("tinted chips, %s theme", (_name, theme, selector) => {
   it("status colours are readable on their own tint", () => {
     for (const role of ["success", "warning", "danger"]) {
