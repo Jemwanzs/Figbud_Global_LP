@@ -4,6 +4,7 @@ import { randomBytes } from "node:crypto";
 import { type BrowserContext, type Page, expect, test } from "@playwright/test";
 
 import { studioLink } from "./studio-nav";
+import { themeSettled } from "./theme-settled";
 
 // Campaigns & promotions (P8-M1) against e2e/mock-api.mjs. Campaigns target
 // /en/legal/terms only, so other tests never see them.
@@ -84,7 +85,7 @@ test("build, approve and show a campaign; dismiss and pause it", async ({ page, 
   await targetTermsPage(page);
   // Nothing goes live until it's saved, submitted and approved.
   await expect(page.getByRole("button", { name: "Submit for approval" })).toBeDisabled();
-  const results = await new AxeBuilder({ page })
+  const results = await new AxeBuilder({ page: await themeSettled(page) })
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
     .analyze();
   expect(results.violations.map((v) => v.id)).toEqual([]);

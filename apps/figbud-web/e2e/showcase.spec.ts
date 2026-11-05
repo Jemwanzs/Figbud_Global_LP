@@ -2,6 +2,7 @@ import AxeBuilder from "@axe-core/playwright";
 import { randomBytes } from "node:crypto";
 
 import { type Page, expect, test } from "@playwright/test";
+import { themeSettled } from "./theme-settled";
 
 // Scroll-driven Our Platforms (UI-MO5). Desktop screens that fit the whole
 // showcase pin it while scrolling moves through the products; phones,
@@ -242,7 +243,7 @@ test("Studio: Our Platforms controls, saved with the website's settings", async 
   await expect(page.getByRole("status").filter({ hasText: "Saved." })).toBeVisible();
   expect((await listed()).intensity).toBe("standard");
 
-  const results = await new AxeBuilder({ page })
+  const results = await new AxeBuilder({ page: await themeSettled(page) })
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
     .analyze();
   expect(

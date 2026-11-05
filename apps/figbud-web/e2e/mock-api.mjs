@@ -1927,9 +1927,15 @@ seedPublishedPage("zirahr", "platform", "Platform", {
         },
       ],
     },
-    { id: "zp-ring", type: "demo", demo: "connected_modules", heading: "Eight connected modules." },
+    {
+      id: "zp-ring",
+      type: "demo",
+      demo: "connected_modules",
+      tone: "inverse",
+      heading: "Eight connected modules.",
+    },
     { id: "zp-run", type: "demo", demo: "pay_run", heading: "Every run, in the open." },
-    { id: "zp-slip", type: "demo", demo: "payslip", heading: "Payroll day." },
+    { id: "zp-slip", type: "demo", demo: "payslip", layout: "split", heading: "Payroll day." },
     { id: "zp-rules", type: "demo", demo: "rules", heading: "Payroll rules you can see." },
     { id: "zp-ess", type: "demo", demo: "self_service", heading: "One browser tab away." },
     { id: "zp-story", type: "demo", demo: "scattered_to_connected", heading: "From scattered to connected." },
@@ -5412,6 +5418,13 @@ createServer(async (req, res) => {
   if (url.pathname.startsWith("/v1/admin/")) return admin(req, res, url, body, send, raw);
   if (url.pathname === "/v1/articles") return send(200, list(url));
   // Test helpers (mock only): the emailed link, and time passing for the identity check.
+  // Replaces a published page's document, for previewing real content locally.
+  if (url.pathname === "/v1/__test/replace-page") {
+    const page = [...pages.values()].find((p) => p.site?.slug === body.site && p.path === body.path);
+    if (!page) return send(404, {});
+    Object.assign(page, { draft: body.document, published: body.document });
+    return send(200, {});
+  }
   if (url.pathname === "/v1/__test/banner-org") {
     const org = newProof("organization", "test");
     org.draft.name = body.name;

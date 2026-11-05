@@ -18,6 +18,9 @@ Thumbs.db
 
 # Third-party design references: kept locally for inspiration, never published.
 draft_designs/
+*.mp4
+*.mov
+*.webm
 
 # Lighthouse CI output
 .lighthouseci

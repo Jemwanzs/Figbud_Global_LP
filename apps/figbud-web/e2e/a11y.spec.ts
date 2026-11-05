@@ -1,5 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, type Page, test } from "@playwright/test";
+import { themeSettled } from "./theme-settled";
 
 /** WCAG 2.2 AA plus axe best practices, on every public route. */
 const WCAG_TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa", "best-practice"];
@@ -43,7 +44,7 @@ async function scan(page: Page) {
       { timeout: 15_000 },
     )
     .toBe(true);
-  const results = await new AxeBuilder({ page }).withTags(WCAG_TAGS).analyze();
+  const results = await new AxeBuilder({ page: await themeSettled(page) }).withTags(WCAG_TAGS).analyze();
   const summary = results.violations.map((v) => ({
     rule: v.id,
     impact: v.impact,

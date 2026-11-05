@@ -2,6 +2,7 @@ import AxeBuilder from "@axe-core/playwright";
 import { randomBytes } from "node:crypto";
 
 import { type Page, expect, test } from "@playwright/test";
+import { themeSettled } from "./theme-settled";
 
 // Customers & proof (P10-T1..T3). The mock API seeds one synthetic, clearly
 // labelled organisation, testimonial and metric, published for FigBud Global.
@@ -96,7 +97,7 @@ test.describe("Studio", () => {
     await expect(page.getByText(/Published version 1, shown on figbud/)).toBeVisible();
     await expect(page.getByRole("heading", { name: "Versions" }).locator("..")).toContainText("Version 1");
 
-    const results = await new AxeBuilder({ page })
+    const results = await new AxeBuilder({ page: await themeSettled(page) })
       .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
       .analyze();
     expect(results.violations.map((v) => v.id)).toEqual([]);

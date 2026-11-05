@@ -2,6 +2,7 @@ import AxeBuilder from "@axe-core/playwright";
 import { createHmac, randomBytes } from "node:crypto";
 
 import { type Browser, type Page, devices, expect, test } from "@playwright/test";
+import { themeSettled } from "./theme-settled";
 
 // Password sign-in with mandatory two-factor, recovery and Security &
 // Authentication (P13-A). The API's rules are tested in services/api/tests/admin_security.rs;
@@ -68,7 +69,7 @@ async function join(page: Page, name = "Olu Owner") {
 }
 
 const axe = async (page: Page) => {
-  const results = await new AxeBuilder({ page })
+  const results = await new AxeBuilder({ page: await themeSettled(page) })
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
     .analyze();
   return results.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`);

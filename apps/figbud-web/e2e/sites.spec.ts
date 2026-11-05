@@ -4,6 +4,7 @@ import { randomBytes } from "node:crypto";
 import { type Page, expect, test } from "@playwright/test";
 
 import { studioLink } from "./studio-nav";
+import { themeSettled } from "./theme-settled";
 
 // Website registry (Admin Studio, Phase B) against e2e/mock-api.mjs, signed in as an owner.
 
@@ -134,7 +135,7 @@ test("website pages are accessible", async ({ page }) => {
   for (const path of ["/admin/sites", "/admin/sites/new", "/admin/sites/expense_now"]) {
     await page.goto(path);
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-    const results = await new AxeBuilder({ page })
+    const results = await new AxeBuilder({ page: await themeSettled(page) })
       .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa", "best-practice"])
       .analyze();
     expect(results.violations.map((v) => `${path}: ${v.id}`)).toEqual([]);

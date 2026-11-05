@@ -4,6 +4,7 @@ import { randomBytes } from "node:crypto";
 import { type Page, type Request, expect, test } from "@playwright/test";
 
 import { studioLink } from "./studio-nav";
+import { themeSettled } from "./theme-settled";
 
 // Cookie consent (P7-PC1). These visitors arrive without a choice; the mock
 // API has one enabled analytics provider (Plausible) to show it loads only
@@ -55,7 +56,7 @@ test("first visit: essentials only, a non-blocking banner, and rejecting keeps o
   expect(await consentCookie(page)).toBeNull();
   await page.getByRole("button", { name: "Switch to light theme" }).click();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
-  const results = await new AxeBuilder({ page })
+  const results = await new AxeBuilder({ page: await themeSettled(page) })
     .include("[data-consent-banner]")
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
     .analyze();
@@ -103,7 +104,7 @@ test("customize: optional categories start off, choices are saved, and the foote
   await expect(dialog.getByText("Always on", { exact: true })).toBeVisible();
   for (const name of ["Analytics", "Preferences", "Marketing"])
     await expect(dialog.getByRole("switch", { name })).toHaveAttribute("aria-checked", "false");
-  const scan = await new AxeBuilder({ page })
+  const scan = await new AxeBuilder({ page: await themeSettled(page) })
     .include("dialog")
     .withTags(["wcag2a", "wcag2aa", "wcag22aa"])
     .analyze();
@@ -225,7 +226,7 @@ test("Studio: Settings → Privacy & Cookies edits the banner and integrations",
   await expect(page.getByLabel("Remember a visitor's choice for (days)")).toHaveValue("120");
   await expect(page.getByLabel("Meta Pixel ID")).toHaveValue("123456789012345");
   await expect(page.getByRole("switch", { name: "Meta Pixel" })).toHaveAttribute("aria-checked", "false");
-  const results = await new AxeBuilder({ page })
+  const results = await new AxeBuilder({ page: await themeSettled(page) })
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
     .analyze();
   expect(results.violations.map((v) => v.id)).toEqual([]);

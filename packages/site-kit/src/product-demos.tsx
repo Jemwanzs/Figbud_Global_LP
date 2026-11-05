@@ -135,7 +135,7 @@ function ConnectedModules() {
   return (
     <div
       ref={ref}
-      data-theme="dark"
+      data-tone="inverse"
       data-reveal-state={state}
       className="fb-demo-stage grid items-center gap-8 overflow-hidden rounded-[var(--radius-panel)] p-5 text-text sm:p-8 @3xl:grid-cols-2"
     >
@@ -460,7 +460,7 @@ function Payslip() {
         </div>
       </div>
       <div
-        data-theme="dark"
+        data-tone="inverse"
         id="demo-slip-panel"
         role="tabpanel"
         aria-labelledby={`demo-slip-${line.key}`}
@@ -513,7 +513,7 @@ function Rules() {
   return (
     <div
       ref={ref}
-      data-theme="dark"
+      data-tone="inverse"
       data-reveal-state={state}
       className="fb-demo-stage overflow-hidden rounded-[var(--radius-panel)] p-5 text-text sm:p-8"
     >
@@ -724,7 +724,7 @@ function Outputs() {
     <div
       ref={ref}
       data-reveal-state={state}
-      data-theme="dark"
+      data-tone="inverse"
       className="fb-demo-stage rounded-[var(--radius-panel)] p-5 text-text sm:p-8"
     >
       <p className="flex items-center gap-2 text-sm font-medium text-text">
@@ -745,7 +745,7 @@ function Outputs() {
             >
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <h3 className="flex items-center gap-2.5 font-semibold text-text">
-                  <Icon aria-hidden className="size-5 text-product" />
+                  <Icon aria-hidden className="size-5 text-product-text" />
                   {output.name}
                 </h3>
                 <span className="rounded-full border border-product/40 px-2.5 py-0.5 text-xs text-text">
@@ -816,7 +816,7 @@ function LeaveFlow() {
         </div>
       </div>
       <div
-        data-theme="dark"
+        data-tone="inverse"
         className="fb-demo-stage rounded-[var(--radius-panel)] p-5 text-text sm:p-6 @3xl:col-span-7"
       >
         <div
@@ -844,7 +844,7 @@ function LeaveFlow() {
         </div>
         <ol className="mt-5 space-y-0">
           <li className="flex items-center gap-3 py-2 text-sm text-text">
-            <CircleCheck aria-hidden className="size-6 text-product" />
+            <CircleCheck aria-hidden className="size-6 text-product-text" />
             Request submitted
           </li>
           {steps.map((step, i) => {
@@ -852,7 +852,7 @@ function LeaveFlow() {
             return (
               <li key={step} className="flex items-center gap-3 py-2 text-sm">
                 {isDone ? (
-                  <CircleCheck aria-hidden className="size-6 text-product" />
+                  <CircleCheck aria-hidden className="size-6 text-product-text" />
                 ) : (
                   <CircleDashed
                     aria-hidden
@@ -868,7 +868,7 @@ function LeaveFlow() {
           })}
           <li className="flex items-center gap-3 py-2 text-sm">
             {done ? (
-              <CircleCheck aria-hidden className="size-6 text-product" />
+              <CircleCheck aria-hidden className="size-6 text-product-text" />
             ) : (
               <CircleDashed aria-hidden className="size-6 text-subtle" />
             )}

@@ -162,7 +162,7 @@ export default async function SiteLayout({ children, params }: LayoutProps<"/[si
               placement="below_nav"
               className="mx-auto block w-full max-w-[92rem] px-5 pt-4 sm:px-8 md:px-10 lg:px-16"
             />
-            <main id="main" tabIndex={-1} className="flex-1 outline-none">
+            <main id="main" tabIndex={-1} className="flex-1 overflow-x-clip outline-none">
               {children}
             </main>
             <CampaignSlot

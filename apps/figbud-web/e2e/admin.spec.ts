@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 
 import AxeBuilder from "@axe-core/playwright";
 import { type Page, expect, test } from "@playwright/test";
+import { themeSettled } from "./theme-settled";
 
 // Admin flows against e2e/mock-api.mjs through the real same-origin proxy.
 // Chromium's virtual authenticator performs genuine WebAuthn ceremonies; the
@@ -58,14 +59,14 @@ test("invite → passkey → dashboard → invite a colleague → sign out → s
   await account.click();
   await expect(account).toHaveAttribute("aria-expanded", "true");
   await expect(page.getByText(email, { exact: true })).toBeVisible();
-  const results = await new AxeBuilder({ page })
+  const results = await new AxeBuilder({ page: await themeSettled(page) })
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa", "best-practice"])
     .analyze();
   expect(results.violations.map((v) => v.id)).toEqual([]);
   // The Studio has the same one-button theme switch, and is accessible in light mode too.
   await page.getByRole("button", { name: "Switch to light theme" }).click();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
-  const light = await new AxeBuilder({ page })
+  const light = await new AxeBuilder({ page: await themeSettled(page) })
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa", "best-practice"])
     .analyze();
   expect(light.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target).join(" ")}`)).toEqual([]);
@@ -125,7 +126,7 @@ test("sign-in and invite pages are accessible", async ({ page }) => {
   for (const path of ["/admin/login", `/admin/invite#token=${"a".repeat(64)}`]) {
     await page.goto(path);
     await page.emulateMedia({ reducedMotion: "reduce" });
-    const results = await new AxeBuilder({ page })
+    const results = await new AxeBuilder({ page: await themeSettled(page) })
       .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa", "best-practice"])
       .analyze();
     expect(results.violations.map((v) => v.id)).toEqual([]);

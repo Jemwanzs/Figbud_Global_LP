@@ -4,6 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { type Page, expect, test } from "@playwright/test";
+import { themeSettled } from "./theme-settled";
 
 // Media library (P7-D2) against e2e/mock-api.mjs: Ziwa LMS has a seeded
 // image on its published Platform page.
@@ -72,7 +73,7 @@ test("upload with alt text, use it on a page, and see where it's used", async ({
   await card.getByLabel("Alt text").fill("Customers celebrating a branch opening in Kisumu");
   await card.getByRole("button", { name: "Save" }).click();
   await expect(card).toContainText("Customers celebrating a branch opening in Kisumu");
-  const results = await new AxeBuilder({ page })
+  const results = await new AxeBuilder({ page: await themeSettled(page) })
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
     .analyze();
   expect(results.violations.map((v) => v.id)).toEqual([]);

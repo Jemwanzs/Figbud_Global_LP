@@ -125,6 +125,9 @@ pub enum Block {
         /// How much a scroll story moves.
         #[serde(default, skip_serializing_if = "DemoMotion::is_standard")]
         motion: DemoMotion,
+        /// Words above the demonstration, or beside it on wide screens.
+        #[serde(default, skip_serializing_if = "DemoLayout::is_stacked")]
+        layout: DemoLayout,
     },
     /// Refer & earn: a form that reaches the enquiry inbox (P14-R). The phone
     /// number people call to follow a deal is set here, never invented.
@@ -170,6 +173,21 @@ pub enum DemoMotion {
 impl DemoMotion {
     fn is_standard(&self) -> bool {
         *self == Self::Standard
+    }
+}
+
+/// Where a demonstration's heading and introduction sit (UI-TH3).
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum DemoLayout {
+    #[default]
+    Stacked,
+    Split,
+}
+
+impl DemoLayout {
+    fn is_stacked(&self) -> bool {
+        *self == Self::Stacked
     }
 }
 
@@ -227,12 +245,14 @@ pub struct Section {
 }
 
 /// Section styles: the website's brand band (light text on its brand
-/// colour) or its soft band (a light tint; a deep tint in dark mode).
+/// colour), its soft band (a light tint; a deep tint in dark mode), or a
+/// contrasting band in the opposite of the visitor's theme (UI-TH3).
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum Tone {
     Brand,
     Soft,
+    Inverse,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]

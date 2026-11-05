@@ -2,6 +2,7 @@ import AxeBuilder from "@axe-core/playwright";
 import { randomBytes } from "node:crypto";
 
 import { type Page, expect, test } from "@playwright/test";
+import { themeSettled } from "./theme-settled";
 
 // Per-website permissions (P7-F1) against e2e/mock-api.mjs: an owner invites
 // an editor limited to ZiraHR, then gives them every website.
@@ -77,7 +78,7 @@ test("limit an invited editor to one website, then give them every website", asy
   await save.click();
   await expect(member.getByRole("status")).toContainText("Access saved");
   await expect(member).toContainText("All websites");
-  const results = await new AxeBuilder({ page })
+  const results = await new AxeBuilder({ page: await themeSettled(page) })
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
     .analyze();
   expect(results.violations.map((v) => v.id)).toEqual([]);

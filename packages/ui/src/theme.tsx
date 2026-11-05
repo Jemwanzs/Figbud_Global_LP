@@ -24,17 +24,36 @@ function subscribe(onChange: () => void) {
 
 const getTheme = (): Theme => (document.documentElement.dataset.theme === "light" ? "light" : "dark");
 
+/** How long the whole page takes to change theme (UI-TH3). */
+export const THEME_TRANSITION_MS = 280;
+
 /** Applies and remembers the visitor's theme. */
 export function setTheme(next: Theme) {
-  // Colours change at once: hover and focus transitions would otherwise
-  // animate every surface and text colour through the old theme.
-  const freeze = document.createElement("style");
-  freeze.textContent = "*,*::before,*::after{transition:none!important}";
-  document.head.appendChild(freeze);
-  document.documentElement.dataset.theme = next;
-  // Apply the new colours before transitions come back.
+  // Every colour changes together, on one clock, so no surface passes through a
+  // mismatched in-between state. Only colours move: transforms, and so scroll
+  // animations, carry on untouched. With reduced motion, colours change at once.
+  const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const style = document.createElement("style");
+  style.textContent = still
+    ? "*,*::before,*::after{transition:none!important}"
+    : `*,*::before,*::after{transition-property:color,background-color,border-color,outline-color,fill,stroke,box-shadow,text-decoration-color!important;transition-duration:${THEME_TRANSITION_MS}ms!important;transition-timing-function:ease!important;transition-delay:0s!important}`;
+  document.head.appendChild(style);
+  const root = document.documentElement;
+  // Marks the change in progress (contrast checks and tests wait for the end state).
+  root.setAttribute("data-theme-switching", "");
+  const done = () => {
+    style.remove();
+    root.removeAttribute("data-theme-switching");
+  };
+  // Start from the current colours, then change them.
   void window.getComputedStyle(document.body).color;
-  requestAnimationFrame(() => requestAnimationFrame(() => freeze.remove()));
+  root.dataset.theme = next;
+  if (still) {
+    void window.getComputedStyle(document.body).color;
+    requestAnimationFrame(() => requestAnimationFrame(done));
+  } else {
+    window.setTimeout(done, THEME_TRANSITION_MS + 40);
+  }
   try {
     localStorage.setItem(THEME_STORAGE_KEY, next);
   } catch {

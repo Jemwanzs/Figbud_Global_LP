@@ -2,6 +2,7 @@ import AxeBuilder from "@axe-core/playwright";
 import { randomBytes } from "node:crypto";
 
 import { type Page, expect, test } from "@playwright/test";
+import { themeSettled } from "./theme-settled";
 
 // Navigation, footer & forms per website (P7-E2). In the mock API, Jasiri LMS
 // isn't taking enquiries (a fixture); the Studio test edits Ziwa LMS's menu.
@@ -95,7 +96,7 @@ test("Studio: a website's navigation, footer and enquiry switch", async ({ page 
   await page.reload();
   await expect(page.getByRole("radio", { name: /Links I choose/ })).toHaveAttribute("aria-checked", "true");
   await expect(page.getByLabel("Menu links: link 1 address")).toHaveValue("/platform");
-  const results = await new AxeBuilder({ page })
+  const results = await new AxeBuilder({ page: await themeSettled(page) })
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
     .analyze();
   expect(results.violations.map((v) => v.id)).toEqual([]);

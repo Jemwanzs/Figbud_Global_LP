@@ -4,6 +4,12 @@
  *
  * Semantic colour tokens switch with `html[data-theme]` (dark is default).
  * Product accents are applied by setting `data-product` on any element.
+ *
+ * `data-tone="inverse"` marks a contrasting surface (UI-TH3): it takes the
+ * other theme's colours, so a light panel on a dark page becomes a dark panel
+ * on a light page. Inside two of them, the page's own theme returns. One theme
+ * engine: these follow `html[data-theme]` through CSS alone, so nothing waits
+ * for JavaScript and nothing flashes on load.
  */
 
 /* FigBud Global parent palette (aligned with figbudglobal.online, 28 Oct 2026):
@@ -36,7 +42,9 @@
 }
 
 :root,
-[data-theme="dark"] {
+[data-theme="dark"],
+[data-theme="light"] [data-tone="inverse"],
+[data-theme="dark"] [data-tone="inverse"] [data-tone="inverse"] {
   color-scheme: dark;
 
   /* Semantic */
@@ -65,7 +73,9 @@
   --shadow-elevated: 0 1px 0 rgb(255 255 255 / 0.04) inset, 0 24px 60px -24px rgb(0 0 0 / 0.7);
 }
 
-[data-theme="light"] {
+[data-theme="light"],
+[data-theme="dark"] [data-tone="inverse"],
+[data-theme="light"] [data-tone="inverse"] [data-tone="inverse"] {
   color-scheme: light;
 
   --bg: #f8fafc;
@@ -244,4 +254,54 @@
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 
   --breakpoint-3xl: 112rem;
+}
+
+/* Product text on contrasting surfaces follows the surface, not the page. */
+[data-theme="dark"] [data-product="zirahr"] [data-tone="inverse"],
+[data-theme="dark"][data-product="zirahr"] [data-tone="inverse"],
+[data-theme="light"] [data-product="zirahr"] [data-tone="inverse"] [data-tone="inverse"],
+[data-theme="light"][data-product="zirahr"] [data-tone="inverse"] [data-tone="inverse"] {
+  --product-text: #0e7490;
+}
+[data-theme="light"] [data-product="zirahr"] [data-tone="inverse"],
+[data-theme="light"][data-product="zirahr"] [data-tone="inverse"],
+[data-theme="dark"] [data-product="zirahr"] [data-tone="inverse"] [data-tone="inverse"],
+[data-theme="dark"][data-product="zirahr"] [data-tone="inverse"] [data-tone="inverse"] {
+  --product-text: #67e8f9;
+}
+[data-theme="dark"] [data-product="jasiri"] [data-tone="inverse"],
+[data-theme="dark"][data-product="jasiri"] [data-tone="inverse"],
+[data-theme="light"] [data-product="jasiri"] [data-tone="inverse"] [data-tone="inverse"],
+[data-theme="light"][data-product="jasiri"] [data-tone="inverse"] [data-tone="inverse"] {
+  --product-text: #15803d;
+}
+[data-theme="light"] [data-product="jasiri"] [data-tone="inverse"],
+[data-theme="light"][data-product="jasiri"] [data-tone="inverse"],
+[data-theme="dark"] [data-product="jasiri"] [data-tone="inverse"] [data-tone="inverse"],
+[data-theme="dark"][data-product="jasiri"] [data-tone="inverse"] [data-tone="inverse"] {
+  --product-text: #4ade80;
+}
+[data-theme="dark"] [data-product="ziwa"] [data-tone="inverse"],
+[data-theme="dark"][data-product="ziwa"] [data-tone="inverse"],
+[data-theme="light"] [data-product="ziwa"] [data-tone="inverse"] [data-tone="inverse"],
+[data-theme="light"][data-product="ziwa"] [data-tone="inverse"] [data-tone="inverse"] {
+  --product-text: #a8480c;
+}
+[data-theme="light"] [data-product="ziwa"] [data-tone="inverse"],
+[data-theme="light"][data-product="ziwa"] [data-tone="inverse"],
+[data-theme="dark"] [data-product="ziwa"] [data-tone="inverse"] [data-tone="inverse"],
+[data-theme="dark"][data-product="ziwa"] [data-tone="inverse"] [data-tone="inverse"] {
+  --product-text: #fb7a1a;
+}
+[data-theme="dark"] [data-product="expense_now"] [data-tone="inverse"],
+[data-theme="dark"][data-product="expense_now"] [data-tone="inverse"],
+[data-theme="light"] [data-product="expense_now"] [data-tone="inverse"] [data-tone="inverse"],
+[data-theme="light"][data-product="expense_now"] [data-tone="inverse"] [data-tone="inverse"] {
+  --product-text: #a84f00;
+}
+[data-theme="light"] [data-product="expense_now"] [data-tone="inverse"],
+[data-theme="light"][data-product="expense_now"] [data-tone="inverse"],
+[data-theme="dark"] [data-product="expense_now"] [data-tone="inverse"] [data-tone="inverse"],
+[data-theme="dark"][data-product="expense_now"] [data-tone="inverse"] [data-tone="inverse"] {
+  --product-text: #ff8a1f;
 }

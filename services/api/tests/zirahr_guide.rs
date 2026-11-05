@@ -261,3 +261,84 @@ async fn the_scroll_stories_join_the_platform_page_once_and_never_over_an_edit()
         .await
         .unwrap();
 }
+
+#[tokio::test]
+async fn the_rewritten_home_page_replaces_home_once_and_the_old_one_stays_restorable() {
+    let Some(pool) = database().await else { return };
+    let _turn = ZIRAHR.lock().await;
+    import::run(&pool).await.unwrap();
+    let site: Uuid = sqlx::query_scalar("SELECT id FROM sites WHERE slug = 'zirahr'")
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    sqlx::query("DELETE FROM audit_log WHERE site_id = $1 AND action = 'page.zirahr_home_redesigned'")
+        .bind(site)
+        .execute(&pool)
+        .await
+        .unwrap();
+    // A Home someone had edited: the owner asked for this one to be replaced.
+    let editor: Option<Uuid> = sqlx::query_scalar("SELECT id FROM admin_users LIMIT 1")
+        .fetch_optional(&pool)
+        .await
+        .unwrap();
+    let before = json!({ "sections": [{ "id": "x", "type": "hero", "heading": "An earlier home page" }] });
+    sqlx::query(
+        "UPDATE pages SET draft = $2, published = $2, draft_updated_by = $3 WHERE site_id = $1 AND path = ''",
+    )
+    .bind(site)
+    .bind(&before)
+    .bind(editor)
+    .execute(&pool)
+    .await
+    .unwrap();
+    let count = |pool: sqlx::PgPool| async move {
+        sqlx::query_scalar::<_, i64>(
+            "SELECT count(*) FROM page_revisions r JOIN pages p ON p.id = r.page_id WHERE p.site_id = $1 AND p.path = ''",
+        )
+        .bind(site)
+        .fetch_one(&pool)
+        .await
+        .unwrap()
+    };
+    let versions = count(pool.clone()).await;
+
+    zirahr_guide::publish_home_redesign(&pool).await.unwrap();
+    let published: Value = sqlx::query_scalar("SELECT published FROM pages WHERE site_id = $1 AND path = ''")
+        .bind(site)
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    let sections = published["sections"].as_array().unwrap();
+    assert_eq!(
+        sections[0]["heading"],
+        "Your people. Your payroll. One smarter way to work."
+    );
+    // Contrasting bands alternate with the page's own, and the page ends on one.
+    let tones: Vec<bool> = sections.iter().map(|s| s["tone"] == "inverse").collect();
+    assert!(tones.iter().filter(|t| **t).count() >= 4);
+    assert!(
+        tones.windows(2).all(|w| !(w[0] && w[1])),
+        "never two contrasting bands in a row"
+    );
+    assert_eq!(tones.last(), Some(&true));
+    assert_eq!(
+        count(pool.clone()).await,
+        versions + 1,
+        "a new version; the earlier one stays"
+    );
+
+    // Once only: later edits in the Studio are never overwritten on restart.
+    sqlx::query("UPDATE pages SET draft = $2, published = $2 WHERE site_id = $1 AND path = ''")
+        .bind(site)
+        .bind(&before)
+        .execute(&pool)
+        .await
+        .unwrap();
+    zirahr_guide::publish_home_redesign(&pool).await.unwrap();
+    let after: Value = sqlx::query_scalar("SELECT published FROM pages WHERE site_id = $1 AND path = ''")
+        .bind(site)
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    assert_eq!(after, before);
+}

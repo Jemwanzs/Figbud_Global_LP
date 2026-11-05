@@ -2,6 +2,7 @@ import AxeBuilder from "@axe-core/playwright";
 import { randomBytes } from "node:crypto";
 
 import { type Page, expect, test } from "@playwright/test";
+import { themeSettled } from "./theme-settled";
 
 // Page builder (Admin Studio, Phase C) against e2e/mock-api.mjs.
 
@@ -190,7 +191,7 @@ test("schedule a change, approve it for later, and call it off", async ({ page }
   await expect(page.getByRole("region", { name: "Version history" })).toContainText(
     "Version 1 · Scheduled for",
   );
-  const results = await new AxeBuilder({ page })
+  const results = await new AxeBuilder({ page: await themeSettled(page) })
     .include(`section[aria-labelledby$="-publish"]`)
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa", "best-practice"])
     .analyze();
@@ -211,7 +212,7 @@ test("the page editor is accessible", async ({ page }) => {
   await page.getByRole("link", { name: "Pages" }).click();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(/ pages$/);
   // The new-page form, template gallery included, passes the same checks.
-  const list = await new AxeBuilder({ page })
+  const list = await new AxeBuilder({ page: await themeSettled(page) })
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa", "best-practice"])
     .analyze();
   expect(list.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target).join(" ")}`)).toEqual([]);
@@ -225,7 +226,7 @@ test("the page editor is accessible", async ({ page }) => {
     await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth),
   ).toBeLessThanOrEqual(0);
   await page.emulateMedia({ reducedMotion: "reduce" });
-  const results = await new AxeBuilder({ page })
+  const results = await new AxeBuilder({ page: await themeSettled(page) })
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa", "best-practice"])
     .analyze();
   expect(results.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target).join(" ")}`)).toEqual([]);
@@ -281,7 +282,7 @@ test("hide a section, and manage a page's visibility without losing it", async (
   await row.getByRole("link", { name: /^Edit Features/ }).click();
   await online.click();
   await expect(online).toHaveAttribute("aria-checked", "true");
-  const results = await new AxeBuilder({ page })
+  const results = await new AxeBuilder({ page: await themeSettled(page) })
     .include(`section[aria-labelledby$="-visibility"]`)
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa", "best-practice"])
     .analyze();

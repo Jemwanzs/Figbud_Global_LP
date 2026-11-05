@@ -36,7 +36,7 @@ export function SiteHeader({
   const isActive = (href: string) => href === current || href === pathname;
 
   return (
-    <header className="sticky top-0 z-40 border-b border-line bg-bg/85 backdrop-blur-xl">
+    <header className="sticky top-0 z-40 border-b border-line bg-bg/95 backdrop-blur-xl">
       <div className="mx-auto flex max-w-[92rem] flex-wrap items-center gap-x-6 gap-y-2 px-5 py-3 sm:px-8 md:px-10 lg:px-16">
         <a href={homeHref} className="flex min-h-11 items-center gap-3 rounded-lg">
           <BrandLogo

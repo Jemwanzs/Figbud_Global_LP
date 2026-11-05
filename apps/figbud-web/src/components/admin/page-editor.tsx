@@ -247,6 +247,11 @@ const TONES: { value: SectionTone | undefined; label: string; hint: string }[] =
   { value: undefined, label: "Default", hint: "On the page background" },
   { value: "brand", label: "Brand band", hint: "White text on the website's brand colour" },
   { value: "soft", label: "Soft band", hint: "A light tint (a deep tint in dark mode)" },
+  {
+    value: "inverse",
+    label: "Contrasting band",
+    hint: "Full width, in the opposite of the visitor's theme; demonstrations inside flip too",
+  },
 ];
 
 /** A section's style: none, or a band in the website's theme colours (Navigation & forms → Theme). */
@@ -266,7 +271,7 @@ function ToneField({
   return (
     <div className="mt-5 border-t border-line pt-4">
       <p className="text-sm font-medium text-text">Section style</p>
-      <div role="radiogroup" aria-label={`${label} section style`} className="mt-2 grid gap-2 sm:grid-cols-3">
+      <div role="radiogroup" aria-label={`${label} section style`} className="mt-2 grid gap-2 sm:grid-cols-2">
         {TONES.map((t) => {
           const selected = tone === t.value;
           return (
@@ -290,7 +295,9 @@ function ToneField({
                       ? (theme?.brand_section ?? "#1e293b")
                       : t.value === "soft"
                         ? (theme?.soft_section ?? "#f1f5f9")
-                        : "transparent",
+                        : t.value === "inverse"
+                          ? "linear-gradient(90deg, #020617 50%, #f8fafc 50%)"
+                          : "transparent",
                 }}
                 className="mt-0.5 size-4 shrink-0 rounded-full border border-line-strong"
               />
@@ -828,6 +835,20 @@ export function BlockForm({
               <option value="employee_journey">Scroll story: one employee&apos;s journey</option>
             </select>
           </label>
+          {section.demo !== "scattered_to_connected" && section.demo !== "employee_journey" && (
+            <label className="block text-sm font-medium text-text">
+              Layout
+              <select
+                value={section.layout ?? "stacked"}
+                disabled={p.disabled}
+                onChange={(e) => onChange({ ...section, layout: e.target.value as "stacked" | "split" })}
+                className="mt-1.5 min-h-11 w-full rounded-xl border border-line-strong bg-surface px-3 text-text"
+              >
+                <option value="stacked">Heading above the demonstration</option>
+                <option value="split">Heading beside it on wide screens</option>
+              </select>
+            </label>
+          )}
           {(section.demo === "scattered_to_connected" || section.demo === "employee_journey") && (
             <label className="block text-sm font-medium text-text">
               Animation

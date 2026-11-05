@@ -2,6 +2,7 @@ import AxeBuilder from "@axe-core/playwright";
 import { randomBytes } from "node:crypto";
 
 import { type Page, expect, test } from "@playwright/test";
+import { themeSettled } from "./theme-settled";
 
 // Brand profiles and logo management against e2e/mock-api.mjs, which seeds the
 // same official and proposed files as the real API.
@@ -213,7 +214,7 @@ test.describe("admin branding", () => {
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page.goto("/admin/sites/figbud/brand");
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("FigBud Global branding");
-    const results = await new AxeBuilder({ page })
+    const results = await new AxeBuilder({ page: await themeSettled(page) })
       .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa", "best-practice"])
       .analyze();
     expect(results.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target).join(" ")}`)).toEqual([]);

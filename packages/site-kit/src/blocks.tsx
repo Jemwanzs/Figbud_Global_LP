@@ -28,7 +28,7 @@ interface Base {
   shared?: { id: string; name: string; version: number };
 }
 
-export type SectionTone = "brand" | "soft";
+export type SectionTone = "brand" | "soft" | "inverse";
 
 export type PageSection = Base &
   (
@@ -67,6 +67,7 @@ export type PageSection = Base &
         heading?: string | null;
         intro?: string | null;
         motion?: StoryMotion;
+        layout?: "stacked" | "split";
       }
     | { type: "referral_form"; heading?: string | null; intro?: string | null; contact_phone?: string | null }
     | {
@@ -355,7 +356,19 @@ function Block({
         </div>
       );
     case "demo":
-      return (
+      // Split: an editorial column beside the showcase on wide screens, stacked on narrow ones.
+      return section.layout === "split" ? (
+        <div className="grid gap-8 @5xl:grid-cols-12 @5xl:items-center @5xl:gap-12">
+          <div className="@5xl:col-span-4">
+            <span aria-hidden className="mb-5 block h-0.5 w-12 bg-product" />
+            {section.heading && <Heading>{section.heading}</Heading>}
+            {section.intro && <p className="mt-4 text-lead text-muted">{section.intro}</p>}
+          </div>
+          <div className="min-w-0 @5xl:col-span-8">
+            <ProductDemo demo={section.demo} motion={section.motion} />
+          </div>
+        </div>
+      ) : (
         <div>
           {section.heading && <Heading>{section.heading}</Heading>}
           {section.intro && <p className="mt-4 max-w-2xl text-lead text-muted">{section.intro}</p>}

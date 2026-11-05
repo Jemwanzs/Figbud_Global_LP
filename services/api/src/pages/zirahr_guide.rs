@@ -24,38 +24,64 @@ fn demo_cta() -> Value {
     json!({ "label": "Book a demo", "href": "/enquire" })
 }
 
+/// The home page, rewritten on the owner's brief of 5 Nov 2026 (UI-TH3): the
+/// guide's content as a story in alternating bands. Each contrasting band, and
+/// each demonstration's stage, flips with the visitor's theme.
 fn home() -> Value {
     json!({
         "seo_title": "ZiraHR · HR Simplified. Business Amplified.",
-        "seo_description": "ZiraHR is cloud HR and payroll software: employee records, leave, payroll, attendance and performance in one connected platform.",
+        "seo_description": "ZiraHR is cloud HR and payroll software: employee records, leave, payroll, attendance and performance in one connected platform, with self-service in any web browser.",
         "sections": [
             { "id": id(), "type": "hero", "eyebrow": "HR Simplified. Business Amplified.",
               "heading": "Your people. Your payroll. One smarter way to work.",
               "lead": "Meet ZiraHR: the connected HR platform that brings employee records, leave, payroll, attendance and performance together, so your team can spend less time chasing processes and more time moving forward.",
               "primary": demo_cta(),
-              "secondary": { "label": "Explore the platform", "href": "/platform" } },
+              "secondary": { "label": "Calculate my pay", "href": "/payroll-calculator" } },
+            { "id": id(), "type": "demo", "demo": "scattered_to_connected", "tone": "inverse",
+              "heading": "HR shouldn't live in five different places.",
+              "intro": "No more scattered files, disconnected approvals or last-minute payroll panic. Keep scrolling to watch it come together." },
             { "id": id(), "type": "demo", "demo": "connected_modules",
               "heading": "Eight connected modules. One smarter workspace.",
-              "intro": "No more scattered files, disconnected approvals or last-minute payroll panic. Bring your everyday people operations into one dependable workspace." },
-            { "id": id(), "type": "demo", "demo": "payslip",
+              "intro": "Core HR, payroll, leave, attendance, performance, recruitment, learning and collaboration, all working from the same employee record." },
+            { "id": id(), "type": "demo", "demo": "payslip", "tone": "inverse", "layout": "split",
               "heading": "Payroll day, minus the drama.",
-              "intro": "Bring earnings, deductions, reviews, approvals and reporting into a controlled workflow, built for accuracy, visibility and accountability." },
-            { "id": id(), "type": "feature_grid", "heading": "Made for the way real teams work.",
+              "intro": "Every earning and deduction on the payslip, with how it was worked out. NSSF, SHIF, the Housing Levy and PAYE, line by line." },
+            { "id": id(), "type": "demo", "demo": "pay_run", "layout": "split",
+              "heading": "Nothing is paid until it's signed off.",
+              "intro": "Guided payroll cycles with role-based approvals, comments, flags and audit trails, so every run is accurate, visible and accountable." },
+            { "id": id(), "type": "demo", "demo": "self_service", "tone": "inverse", "layout": "split",
+              "heading": "Your workday, one browser tab away.",
+              "intro": "Payslips, P9 forms, leave requests, documents and updates, securely in your web browser, at your desk or on your phone. Salary advances too, where enabled. No app download needed." },
+            { "id": id(), "type": "demo", "demo": "employee_journey",
+              "heading": "One employee, one record, start to finish.",
+              "intro": "Follow someone from their application to their next goal, without anything typed twice." },
+            { "id": id(), "type": "feature_grid", "tone": "inverse",
+              "heading": "Made for the way real teams work.",
               "intro": "Whether you run one office or several branches, ZiraHR gives HR, managers and employees the right information at the right moment.",
               "items": [
                   { "title": "Many branches, one view", "body": "Built for multiple branches, departments and operating regions." },
-                  { "title": "Approvals that follow you", "body": "Configurable approvals that follow your organisation." },
+                  { "title": "Approvals that follow you", "body": "Configurable single- and multi-stage approvals that follow your organisation." },
                   { "title": "Connected workflows", "body": "Payroll, leave and attendance work from the same records." },
                   { "title": "Self-service in a browser", "body": "On phone, tablet or desktop, with no app to install." },
                   { "title": "Answers, not exports", "body": "Actionable dashboards, reports and role-based access." },
+                  { "title": "Statutory rules you can see", "body": "Dated Kenyan rules for NSSF, SHIF, the Housing Levy and PAYE." },
               ] },
-            { "id": id(), "type": "demo", "demo": "pay_run",
-              "heading": "Every run, in the open.",
-              "intro": "Guided payroll cycles with role-based approvals, comments, flags and audit trails." },
             { "id": id(), "type": "call_to_action", "heading": "Know the numbers before payday.",
-              "body": "Explore a transparent Kenyan payroll estimate in either direction, with every step visible.",
+              "body": "Explore a transparent Kenyan payroll estimate in either direction, gross to net or net to gross, with every step visible.",
               "cta": { "label": "Calculate my pay", "href": "/payroll-calculator" } },
-            { "id": id(), "type": "call_to_action", "heading": "Ready to give HR its time back?",
+            { "id": id(), "type": "faq", "heading": "Good to know",
+              "items": [
+                  { "question": "Do employees need to install an app?",
+                    "answer": "No. Employee self-service runs in any modern web browser, on a phone, tablet or computer." },
+                  { "question": "Can ZiraHR work across several branches?",
+                    "answer": "Yes. ZiraHR is built for multiple branches, departments and operating regions, with approvals that follow your organisation." },
+                  { "question": "Which Kenyan deductions does the payroll calculator show?",
+                    "answer": "NSSF, SHIF, the Affordable Housing Levy and PAYE, with personal and insurance relief, each shown step by step. It's an estimate, not payroll, tax or legal advice." },
+                  { "question": "How do I see it with my own workflows?",
+                    "answer": "Book a demo and tell us what's slowing your team down. We'll show you how ZiraHR fits." },
+              ] },
+            { "id": id(), "type": "call_to_action", "tone": "inverse",
+              "heading": "Ready to give HR its time back?",
               "body": "Tell us what is slowing your team down. We'll show you a clearer, more connected way forward.",
               "cta": demo_cta() },
         ],
@@ -308,6 +334,75 @@ fn story_sections() -> [Value; 2] {
                 "heading": "One employee, one record, start to finish.",
                 "intro": "Follow someone from their application to their next goal." }),
     ]
+}
+
+const HOME_REDESIGN: &str = "page.zirahr_home_redesigned";
+
+/// Publishes the rewritten home page once (UI-TH3), as a new numbered version.
+/// Unlike the other one-off steps, this replaces Home even if it was edited:
+/// the owner asked for this page in particular to be reordered and rewritten
+/// (5 Nov 2026). The earlier version stays in its history, one click to restore.
+pub async fn publish_home_redesign(pool: &PgPool) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let mut tx = pool.begin().await?;
+    let site: Option<Uuid> = sqlx::query_scalar(
+        "SELECT s.id FROM sites s WHERE s.slug = 'zirahr' AND NOT EXISTS (
+                SELECT 1 FROM audit_log a WHERE a.site_id = s.id AND a.action = $1)
+            FOR UPDATE",
+    )
+    .bind(HOME_REDESIGN)
+    .fetch_optional(&mut *tx)
+    .await?;
+    let Some(site_id) = site else { return Ok(()) };
+    let document = home();
+    let doc: PageDoc = serde_json::from_value(document.clone())?;
+    doc.validate().map_err(|e| format!("ZiraHR home page: {e:?}"))?;
+    let page: Option<Uuid> = sqlx::query_scalar(
+        "SELECT id FROM pages WHERE site_id = $1 AND path = '' AND archived_at IS NULL FOR UPDATE",
+    )
+    .bind(site_id)
+    .fetch_optional(&mut *tx)
+    .await?;
+    let published = if let Some(page_id) = page {
+        let revision = Uuid::now_v7();
+        sqlx::query(
+            "INSERT INTO page_revisions (id, page_id, number, document, note, state, decided_at)
+             SELECT $1, $2, COALESCE(max(number), 0) + 1, $3, $4, 'published', now()
+               FROM page_revisions WHERE page_id = $2",
+        )
+        .bind(revision)
+        .bind(page_id)
+        .bind(&document)
+        .bind("Home rewritten and reordered on the owner's brief, 5 Nov 2026")
+        .execute(&mut *tx)
+        .await?;
+        sqlx::query(
+            "UPDATE pages SET draft = $2, published = $2, published_revision = $3, published_at = now(),
+                    draft_version = draft_version + 1, draft_updated_at = now(), draft_updated_by = NULL
+              WHERE id = $1",
+        )
+        .bind(page_id)
+        .bind(&document)
+        .bind(revision)
+        .execute(&mut *tx)
+        .await?;
+        true
+    } else {
+        false
+    };
+    sqlx::query(
+        "INSERT INTO audit_log (id, action, target_type, target_id, detail, site_id)
+         VALUES ($1, $2, 'site', $3, $4, $5)",
+    )
+    .bind(Uuid::now_v7())
+    .bind(HOME_REDESIGN)
+    .bind(site_id.to_string())
+    .bind(json!({ "published": published, "authorised_by": "owner's brief, 5 Nov 2026" }))
+    .bind(site_id)
+    .execute(&mut *tx)
+    .await?;
+    tx.commit().await?;
+    tracing::info!(published, "ZiraHR home page redesigned");
+    Ok(())
 }
 
 /// Adds the scroll stories to the Platform page once (UI-MO6), as a new numbered

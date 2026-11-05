@@ -122,7 +122,7 @@ function ScrollStory({
         {/* The steps say all of this in words, so the picture isn't read out. */}
         <div
           aria-hidden
-          data-theme="dark"
+          data-tone="inverse"
           className="fb-demo-stage fb-story-stage relative h-[40svh] min-h-64 overflow-hidden rounded-[var(--radius-panel)] text-text lg:h-[min(36rem,calc(100svh-8rem))]"
         >
           {children({ step, onScreen })}
@@ -233,7 +233,10 @@ function ScatteredStage({ step, onScreen }: { step: number; onScreen: boolean })
                 settled ? "border-product/50 bg-product-soft" : "border-line bg-surface",
               )}
             >
-              <Icon aria-hidden className={cn("size-4 shrink-0", settled ? "text-product" : "text-muted")} />
+              <Icon
+                aria-hidden
+                className={cn("size-4 shrink-0", settled ? "text-product-text" : "text-muted")}
+              />
               {settled ? (
                 // Icons alone on phones: five labels don't fit, and the text beside this names them.
                 <span className="hidden font-medium @lg:inline">{MODULES[i]}</span>
@@ -510,7 +513,7 @@ function JourneyStage({ step }: { step: number }) {
             data-place={i < step ? "past" : i === step ? "now" : "next"}
             className="fb-story-card absolute inset-0 overflow-hidden rounded-2xl border border-line bg-surface p-3 shadow-2xl @lg:p-6"
           >
-            <p className="text-xs font-medium tracking-wide text-product uppercase">{item.stage}</p>
+            <p className="text-xs font-medium tracking-wide text-product-text uppercase">{item.stage}</p>
             <p className="mt-1 font-semibold">{item.title}</p>
             <p className="mt-0.5 hidden text-xs text-muted @lg:block">
               Amani W. · the same record throughout

@@ -9,7 +9,7 @@ Last updated: 5 Nov 2026.
 | Area | Existed before | Enhanced now | Tested | Still pending |
 | --- | --- | --- | --- | --- |
 | Website delivery | Renderer (`apps/sites-web`) built but not deployed | Deployed as its own Railway service on the owner's approval (DEPLOYMENT.md) | Renderer e2e | Real domain, then indexing on |
-| Pages | Home only | Platform, About, Contact & Demo and Refer & earn published at start-up on 5 Nov 2026. **Home kept its 29 Oct version**, because someone had edited it in the Studio | API validation of every page; guard test for banned claims; go-live integration test; live checks | **Your decision:** keep Home, or use the guide's Home (with the connected-modules, payslip and pay-run demos and the calculator link) |
+| Pages | Home only | Home (rewritten as alternating bands, 5 Nov 2026), Platform, About, Contact & Demo and Refer & earn, all published. The earlier Home is in its version history | API validation of every page; guard test for banned claims; go-live and redesign integration tests; live checks | |
 | Navigation | Pages or chosen links | Four primary pages. Calculator and Refer & earn are utility pages, linked from the footer | Renderer e2e | |
 | Module catalogue | Six feature cards on Home | **Module catalogue** block: all eight modules, one open at a time | e2e, axe in both themes | |
 | Demonstrations | Three hero designs | **Product demonstration** block, ten kinds: connected modules, pay run, payslip, payroll rules, self-service, what a run gives you, leave approval, team calendar, and two scroll stories. Original art direction, synthetic and labelled | e2e with keyboard, axe in both themes | |
@@ -38,7 +38,7 @@ Decisions taken, for you to overrule if you prefer:
 
 | Guide section | Where it lives | State |
 | --- | --- | --- |
-| §2 Home: hero, platform overview, why ZiraHR, closing | Guide's Home written, but **not published**: the live Home was edited in the Studio and was left alone | Your decision |
+| §2 Home: hero, platform overview, why ZiraHR, closing | Home, rewritten 5 Nov 2026 as alternating bands: hero, scattered-to-connected story, modules, payslip, pay run, self-service, employee journey, why ZiraHR, calculator, questions, closing call | Published |
 | §2 Trust strip | **Left out:** its sector list and "teams that mean business" need customer evidence. The Trusted By section appears when approved records exist | Pending Q22 |
 | §3 Eight modules | Platform: Module catalogue | Published |
 | §4 Employee Self-Service | Platform: self-service, leave and calendar demos | Published |

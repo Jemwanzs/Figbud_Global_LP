@@ -2,6 +2,7 @@ import AxeBuilder from "@axe-core/playwright";
 import { randomBytes } from "node:crypto";
 
 import { type Page, expect, test } from "@playwright/test";
+import { themeSettled } from "./theme-settled";
 
 // Hero Design Studio (P12). Publishing is exercised on ZiraHR (the product
 // renderer reads it), so the corporate home page other tests use stays on
@@ -28,8 +29,10 @@ async function signInAsOwner(page: Page) {
   await expect(page.getByRole("heading", { level: 1, name: "Welcome, Olu" })).toBeVisible();
 }
 
-const axe = (page: Page) =>
-  new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze();
+const axe = async (page: Page) =>
+  new AxeBuilder({ page: await themeSettled(page) })
+    .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
+    .analyze();
 // Rule ids with the elements at fault, so a failure says where to look.
 const violations = (results: Awaited<ReturnType<typeof axe>>, prefix = "") =>
   results.violations.map((v) => `${prefix}${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`);

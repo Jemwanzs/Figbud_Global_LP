@@ -607,6 +607,32 @@
 [data-theme="light"] .fb-tone-soft {
   background: var(--section-soft, #f1f5f9);
 }
+/* Contrasting band (UI-TH3): its colour reaches both edges of the window from
+   a layer behind it, one surface with no seam. The website's full-width main
+   area clips it (`overflow-x-clip` on <main>), so it never widens the page.
+   Colours come from the inverse tokens. */
+.fb-tone-inverse {
+  position: relative;
+  isolation: isolate;
+  border-radius: 0;
+  padding-inline: 0;
+  padding-block: clamp(3.5rem, 9cqi, 6.5rem);
+  color: var(--text);
+}
+.fb-tone-inverse::before {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  inset-inline: -100vmax;
+  z-index: -1;
+  background: var(--bg);
+}
+/* A showcase panel on its own surface: rounded, with depth suited to it. */
+.fb-surface {
+  background: var(--bg);
+  color: var(--text);
+  box-shadow: var(--shadow-elevated);
+}
 
 /* Campaigns (campaigns.tsx): rise or fade in once; reduced motion skips it. */
 @keyframes fb-campaign-in {

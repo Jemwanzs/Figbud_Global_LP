@@ -4,6 +4,7 @@ import { randomBytes } from "node:crypto";
 import { expect, test } from "@playwright/test";
 
 import { studioLink } from "./studio-nav";
+import { themeSettled } from "./theme-settled";
 
 // SEO & search visibility in the Studio (P9-S1) against e2e/mock-api.mjs.
 
@@ -52,7 +53,7 @@ test("overview across websites, then one website's search identity and page chec
   await expect(page.getByRole("list", { name: "Target markets" })).toContainText("Uganda");
   await save.click();
   await expect(page.getByRole("status").filter({ hasText: "SEO settings saved." })).toBeVisible();
-  const results = await new AxeBuilder({ page })
+  const results = await new AxeBuilder({ page: await themeSettled(page) })
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
     .analyze();
   expect(results.violations.map((v) => v.id)).toEqual([]);

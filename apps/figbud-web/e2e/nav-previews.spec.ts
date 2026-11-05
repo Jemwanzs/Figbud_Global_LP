@@ -2,6 +2,7 @@ import AxeBuilder from "@axe-core/playwright";
 import { randomBytes } from "node:crypto";
 
 import { type Page, expect, test } from "@playwright/test";
+import { themeSettled } from "./theme-settled";
 
 // Hover previews on the menu (UI-NAV2). Desktop interactions on the corporate
 // site; phones get the same words inside the menu, and touch opens nothing.
@@ -51,7 +52,7 @@ test.describe("desktop", () => {
     // Accessible while open, in this theme and the other.
     const scan = async () =>
       (
-        await new AxeBuilder({ page })
+        await new AxeBuilder({ page: await themeSettled(page) })
           .include("header")
           .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
           .analyze()
@@ -248,7 +249,7 @@ test("Studio: draft, preview, publish and the on/off switch", async ({ page, req
   await page.reload();
   await expect(about.getByLabel("Headline for About Us")).toHaveValue(unpublishedLine);
 
-  const results = await new AxeBuilder({ page })
+  const results = await new AxeBuilder({ page: await themeSettled(page) })
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
     .analyze();
   expect(

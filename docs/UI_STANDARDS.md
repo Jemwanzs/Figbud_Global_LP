@@ -140,3 +140,11 @@ Motion explains and guides. It never decorates for its own sake, and content nev
 - **`ProductCard`:** equal proportions in a 1/2/3-column grid. A brand accent line and glow, the approved logo as the h2, status, category, tagline, summary and highlights all stay visible. The demo request or waitlist and the product website sit at the bottom.
 - **Hover and focus:** a 4px lift, the product-tinted border and shadow; no lift with reduced motion.
 - Logos come from the brand registry. Product names stay h2 under the page h1.
+
+## Theme inversion (UI-TH3, 5 Nov 2026)
+
+- **One engine.** `html[data-theme]` sets the theme. `data-tone="inverse"` on any element gives it the other theme's colours, and inside two inverse surfaces the page's theme returns (`tokens.css`). It's CSS only, so nothing waits for JavaScript and nothing flashes on load. Don't hard-code `data-theme="dark"` on a showcase panel: use `data-tone="inverse"` so it contrasts in both themes.
+- **Product text** (`--product-text`) follows the surface it's on, not the page.
+- **Contrasting band:** the page builder's section style `inverse` paints a full-width band from a layer behind the section. The page clips sideways overflow, so the band can't cause sideways scrolling.
+- **Switching theme** changes every colour together over `THEME_TRANSITION_MS` (280 ms). Only colour properties transition, so transforms (scroll stories, reveals) carry on. With reduced motion the change is instant. The scroll position, open menus and form values aren't touched.
+- **Rhythm:** alternate the page's own bands with contrasting ones, never two contrasting bands in a row, and end on one.

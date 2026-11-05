@@ -4,6 +4,7 @@ import { randomBytes } from "node:crypto";
 import { type Browser, type BrowserContext, type Page, expect, test } from "@playwright/test";
 
 import { studioLink } from "./studio-nav";
+import { themeSettled } from "./theme-settled";
 
 // Customer & partner banners (P10-B1) against e2e/mock-api.mjs.
 
@@ -39,7 +40,7 @@ async function routeCampaignCalls(context: BrowserContext) {
 
 const scan = async (page: Page) =>
   (
-    await new AxeBuilder({ page })
+    await new AxeBuilder({ page: await themeSettled(page) })
       .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
       .analyze()
   ).violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`);

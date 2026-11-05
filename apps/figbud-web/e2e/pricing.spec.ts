@@ -2,6 +2,7 @@ import AxeBuilder from "@axe-core/playwright";
 import { randomBytes } from "node:crypto";
 
 import { type Page, expect, test } from "@playwright/test";
+import { themeSettled } from "./theme-settled";
 
 // Pricing Studio (P11) against the mock API, which mirrors the API's rules;
 // the exact arithmetic is tested in Rust (services/api/src/pricing/engine.rs).
@@ -93,7 +94,7 @@ test("ZiraHR pricing: rates, approval, calculator, quotation, customer link; hid
   // Published, still hidden from the website.
   expect(await (await request.get(`${API}/v1/sites/zirahr/pricing`)).json()).toEqual({ visible: false });
 
-  const results = await new AxeBuilder({ page })
+  const results = await new AxeBuilder({ page: await themeSettled(page) })
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
     .analyze();
   expect(results.violations.map((v) => v.id)).toEqual([]);

@@ -4,6 +4,7 @@ import { randomBytes } from "node:crypto";
 import { type Page, expect, test } from "@playwright/test";
 
 import { studioLink } from "./studio-nav";
+import { themeSettled } from "./theme-settled";
 
 // Content library (P7-D1) against e2e/mock-api.mjs: "Data promise" is
 // published and used on Ziwa's Security page.
@@ -63,7 +64,7 @@ test("create, publish and version shared content, and use it on pages", async ({
   await publish.click();
   await expect(page.getByRole("status").filter({ hasText: "Published everywhere it's used." })).toBeVisible();
   await expect(page.getByRole("region", { name: "Versions" })).toContainText("Version 1");
-  const results = await new AxeBuilder({ page })
+  const results = await new AxeBuilder({ page: await themeSettled(page) })
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
     .analyze();
   expect(results.violations.map((v) => v.id)).toEqual([]);

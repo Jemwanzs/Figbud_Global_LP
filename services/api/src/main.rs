@@ -42,6 +42,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     if let Err(err) = figbud_api::pages::zirahr_guide::publish_stories(&pool).await {
         tracing::warn!(error = %err, "ZiraHR scroll stories failed");
     }
+    if let Err(err) = figbud_api::pages::zirahr_guide::publish_home_redesign(&pool).await {
+        tracing::warn!(error = %err, "ZiraHR home redesign failed");
+    }
 
     // `figbud-api admin invite --email <email> --role <role>`: bootstrap the
     // first owner (or any admin) without a running UI. Prints the link once.

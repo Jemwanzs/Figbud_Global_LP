@@ -1,5 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import { type Page, expect, test } from "@playwright/test";
+import { themeSettled } from "./theme-settled";
 
 // The product-site renderer (D16): websites, pages and brands from the
 // registry, through the mock API (synthetic Ziwa LMS pages).
@@ -73,7 +74,7 @@ test("fits phones and is accessible", async ({ page }) => {
     await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth),
   ).toBeLessThanOrEqual(0);
   await page.emulateMedia({ reducedMotion: "reduce" });
-  const results = await new AxeBuilder({ page })
+  const results = await new AxeBuilder({ page: await themeSettled(page) })
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa", "best-practice"])
     .analyze();
   expect(results.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target).join(" ")}`)).toEqual([]);
@@ -199,7 +200,7 @@ test("sections styled in the Studio sit on the website's theme bands, in both th
     "color",
     "rgb(255, 255, 255)",
   );
-  const results = await new AxeBuilder({ page })
+  const results = await new AxeBuilder({ page: await themeSettled(page) })
     .include('section[data-tone="brand"]')
     .withTags(["wcag2aa"])
     .analyze();
@@ -341,7 +342,7 @@ test("a product website shows its own hover previews, never FigBud Global's word
 /** Accessibility violations on the page, by rule and element. */
 const axe = async (page: Page) =>
   (
-    await new AxeBuilder({ page })
+    await new AxeBuilder({ page: await themeSettled(page) })
       .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
       .analyze()
   ).violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`);
@@ -388,7 +389,7 @@ test.describe("ZiraHR: payroll calculator and demonstrations (P14)", () => {
   const API = "http://localhost:3199";
   const scan = async (page: Page) =>
     (
-      await new AxeBuilder({ page })
+      await new AxeBuilder({ page: await themeSettled(page) })
         .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
         .analyze()
     ).violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`);
@@ -501,6 +502,9 @@ test.describe("ZiraHR: payroll calculator and demonstrations (P14)", () => {
     // The pay run moves on by itself once it's reached, and stops at Locked.
     await expect(stage.getByText("Locked", { exact: true })).toBeVisible();
     await expect(stage.locator("li.bg-product")).toHaveCount(4, { timeout: 10_000 });
+    // The trail's last entry has finished fading in before contrast is checked.
+    const lastEntry = stage.locator('.fb-story-rise[data-open="true"]').last();
+    await expect.poll(() => lastEntry.evaluate((el) => getComputedStyle(el).opacity)).toBe("1");
 
     const journey = page.locator('[data-story="employee-journey"]');
     await journey
@@ -515,6 +519,54 @@ test.describe("ZiraHR: payroll calculator and demonstrations (P14)", () => {
     expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(
       0,
     );
+  });
+
+  test("contrasting bands and their stages flip with the theme, without moving the page", async ({
+    page,
+  }) => {
+    await page.goto("/zirahr/platform");
+    const band = page.locator('section[data-tone="inverse"]').first();
+    const stage = band.locator(".fb-demo-stage, [data-tone='inverse']").first();
+    // The band paints its colour from a layer behind it; a stage paints its own.
+    const background = (el: typeof band) =>
+      el.evaluate((node) => {
+        const own = getComputedStyle(node).backgroundColor;
+        return own === "rgba(0, 0, 0, 0)" ? getComputedStyle(node, "::before").backgroundColor : own;
+      });
+    const lightness = (rgb: string) => {
+      const [r, g, b] = rgb.match(/\d+/g)!.map(Number);
+      return (r! + g! + b!) / 3;
+    };
+    await band.scrollIntoViewIfNeeded();
+    const theme = await page.evaluate(() => document.documentElement.dataset.theme);
+    const pageIsDark = theme !== "light";
+    // On a dark page the band is light and its stage dark; the opposite on a light page.
+    expect(lightness(await background(band)) > 128).toBe(pageIsDark);
+    expect(lightness(await background(stage)) > 128).toBe(!pageIsDark);
+
+    const y = await page.evaluate(() => window.scrollY);
+    // Clicked from inside the page, as a visitor's click is: Playwright's own click
+    // scrolls its target into view first, which isn't what's being measured.
+    await page
+      .getByRole("button", { name: /Switch to (light|dark) theme/ })
+      .evaluate((button) => (button as HTMLButtonElement).click());
+    await expect(page.locator("html")).toHaveAttribute("data-theme", pageIsDark ? "light" : "dark");
+    // Colours ease over one shared clock, then the temporary rule is gone.
+    await expect
+      .poll(async () => lightness(await background(band)) > 128, { timeout: 2_000 })
+      .toBe(!pageIsDark);
+    expect(lightness(await background(stage)) > 128).toBe(pageIsDark);
+    expect(Math.abs((await page.evaluate(() => window.scrollY)) - y)).toBeLessThanOrEqual(1);
+    await expect
+      .poll(() =>
+        page.evaluate(() =>
+          [...document.head.querySelectorAll("style")].some((s) =>
+            s.textContent?.includes("transition-property:color"),
+          ),
+        ),
+      )
+      .toBe(false);
+    expect(await scan(page)).toEqual([]);
   });
 
   test("with reduced motion, a story's states change without any transition", async ({ page }) => {
