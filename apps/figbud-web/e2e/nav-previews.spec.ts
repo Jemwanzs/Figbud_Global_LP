@@ -140,9 +140,12 @@ test.describe("desktop", () => {
       for (let i = 0; i < count; i++) {
         await links.nth(i).hover();
         await expect(tooltip(page)).toHaveCount(1);
-        const card = (await tooltip(page).boundingBox())!;
-        expect(card.x).toBeGreaterThanOrEqual(0);
-        expect(card.x + card.width).toBeLessThanOrEqual(1024);
+        // Read again if the card is being replaced as the pointer moves between links.
+        await expect(async () => {
+          const card = (await tooltip(page).boundingBox())!;
+          expect(card.x).toBeGreaterThanOrEqual(0);
+          expect(card.x + card.width).toBeLessThanOrEqual(1024);
+        }).toPass({ timeout: 5_000 });
       }
       expect(
         await page.evaluate(() => document.documentElement.scrollWidth - innerWidth),

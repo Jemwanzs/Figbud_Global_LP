@@ -1,5 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import { randomBytes } from "node:crypto";
+import fs from "node:fs";
 import path from "node:path";
 
 import { type Page, expect, test } from "@playwright/test";
@@ -34,7 +35,15 @@ async function signInAsOwner(page: Page) {
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Welcome, Olu");
 }
 
-test("upload with alt text, use it on a page, and see where it's used", async ({ page }) => {
+test("upload with alt text, use it on a page, and see where it's used", async ({ page }, testInfo) => {
+  // A retry finds the last attempt's image in the shared library: a new file with a new name.
+  const label = `Branch opening ${testInfo.retry}`;
+  const icon = fs.readFileSync(path.join(process.cwd(), "public", "icon.png"));
+  const file = {
+    name: "icon.png",
+    mimeType: "image/png",
+    buffer: Buffer.concat([icon, Buffer.from([testInfo.retry])]),
+  };
   await signInAsOwner(page);
   await page.goto("/admin/sites/ziwa");
   await page.getByRole("link", { name: "Media", exact: true }).click();
@@ -47,19 +56,19 @@ test("upload with alt text, use it on a page, and see where it's used", async ({
 
   // Alt text is required before uploading.
   const form = page.getByRole("region", { name: "Upload an image" });
-  await form.getByLabel("File").setInputFiles(path.join(process.cwd(), "public", "icon.png"));
+  await form.getByLabel("File").setInputFiles(file);
   await expect(form.getByLabel("Name", { exact: true })).toHaveValue("icon");
   const uploadButton = page.getByRole("button", { name: "Upload image" });
   await expect(uploadButton).toBeDisabled();
-  await form.getByLabel("Name", { exact: true }).fill("Branch opening");
+  await form.getByLabel("Name", { exact: true }).fill(label);
   await form.getByLabel("Alt text", { exact: true }).fill("Customers at a branch opening in Kisumu");
   await uploadButton.click();
   await expect(page.getByRole("status").filter({ hasText: "Uploaded" })).toBeVisible();
-  const card = page.getByRole("listitem", { name: "Branch opening" });
+  const card = page.getByRole("listitem", { name: label });
   await expect(card).toContainText("Not used on any page");
 
   // Alt text stays editable.
-  await card.getByRole("button", { name: "Edit Branch opening" }).click();
+  await card.getByRole("button", { name: `Edit ${label}` }).click();
   await card.getByLabel("Alt text").fill("Customers celebrating a branch opening in Kisumu");
   await card.getByRole("button", { name: "Save" }).click();
   await expect(card).toContainText("Customers celebrating a branch opening in Kisumu");
@@ -71,11 +80,12 @@ test("upload with alt text, use it on a page, and see where it's used", async ({
   // Use it on the Platform page: the preview shows it with the library's alt text.
   await page.goto("/admin/sites/ziwa/pages");
   await page.locator(`a[href^="/admin/sites/ziwa/pages/"]`, { hasText: "Platform" }).first().click();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Platform");
   const sections = page.getByRole("list", { name: "Sections" });
   await sections.getByRole("button", { name: /^Image/ }).click();
   const picker = page.getByRole("radiogroup", { name: "Image", exact: true });
   await expect(picker.getByRole("radio", { name: "Ziwa team" })).toHaveAttribute("aria-checked", "true");
-  await picker.getByRole("radio", { name: "Branch opening" }).click();
+  await picker.getByRole("radio", { name: label }).click();
   const preview = page.getByRole("region", { name: "Live preview" });
   await expect(
     preview.getByRole("img", { name: "Customers celebrating a branch opening in Kisumu" }),
@@ -84,10 +94,8 @@ test("upload with alt text, use it on a page, and see where it's used", async ({
 
   // Back in the library, the draft use is shown and archiving is blocked.
   await page.goto("/admin/sites/ziwa/media");
-  await expect(page.getByRole("listitem", { name: "Branch opening" })).toContainText("Platform (draft)");
+  await expect(page.getByRole("listitem", { name: label })).toContainText("Platform (draft)");
   await expect(
-    page
-      .getByRole("listitem", { name: "Branch opening" })
-      .getByRole("button", { name: "Archive Branch opening" }),
+    page.getByRole("listitem", { name: label }).getByRole("button", { name: `Archive ${label}` }),
   ).toBeDisabled();
 });
