@@ -9,7 +9,7 @@ Last updated: 5 Nov 2026.
 | Area | Existed before | Enhanced now | Tested | Still pending |
 | --- | --- | --- | --- | --- |
 | Website delivery | Renderer (`apps/sites-web`) built but not deployed | Deployed as its own Railway service on the owner's approval (DEPLOYMENT.md) | Renderer e2e | Real domain, then indexing on |
-| Pages | Home only | Home, Platform, About, Contact & Demo and Refer & earn, published once at start-up. Pages edited in the Studio are left alone | API validation of every page; guard test for banned claims; go-live integration test | |
+| Pages | Home only | Platform, About, Contact & Demo and Refer & earn published at start-up on 5 Nov 2026. **Home kept its 29 Oct version**, because someone had edited it in the Studio | API validation of every page; guard test for banned claims; go-live integration test; live checks | **Your decision:** keep Home, or use the guide's Home (with the connected-modules, payslip and pay-run demos and the calculator link) |
 | Navigation | Pages or chosen links | Four primary pages. Calculator and Refer & earn are utility pages, linked from the footer | Renderer e2e | |
 | Module catalogue | Six feature cards on Home | **Module catalogue** block: all eight modules, one open at a time | e2e, axe in both themes | |
 | Demonstrations | Three hero designs | **Product demonstration** block, eight kinds: connected modules, pay run, payslip, payroll rules, self-service, what a run gives you, leave approval, team calendar. Original art direction, synthetic and labelled | e2e with keyboard, axe in both themes | |
@@ -30,7 +30,7 @@ Decisions taken, for you to overrule if you prefer:
 | Topic | Guide | Brief | Done |
 | --- | --- | --- | --- |
 | Primary navigation | Six items, including ESS, Referral and Insights | At most four pages | **Four:** Home, Platform, About, Contact & Demo. ESS sits within Platform |
-| Hero line | "Your people. Your payroll. One smarter way to work." | "HR Simplified. Business Amplified." | The guide's line as the headline, the slogan as the eyebrow. The earlier "People. Payroll. Progress. Connected." remains in the page's version history and can be restored in the Studio |
+| Hero line | "Your people. Your payroll. One smarter way to work." | "HR Simplified. Business Amplified." | The live Home still leads with "People. Payroll. Progress. Connected.". The guide's Home would use the guide's line as the headline and the slogan as the eyebrow |
 | Payroll stages | Draft to locked | n/a | Five stages, matching the published hero design. The Meridian reference's wording wasn't reused |
 | Spelling | US ("organization") | n/a | British/Kenyan English in drafts, matching the rest of the site |
 
@@ -38,7 +38,7 @@ Decisions taken, for you to overrule if you prefer:
 
 | Guide section | Where it lives | State |
 | --- | --- | --- |
-| §2 Home: hero, platform overview, why ZiraHR, closing | Home: Hero, connected-modules demo, payslip demo, feature grid, pay-run demo, calculator link, call to action | Published |
+| §2 Home: hero, platform overview, why ZiraHR, closing | Guide's Home written, but **not published**: the live Home was edited in the Studio and was left alone | Your decision |
 | §2 Trust strip | **Left out:** its sector list and "teams that mean business" need customer evidence. The Trusted By section appears when approved records exist | Pending Q22 |
 | §3 Eight modules | Platform: Module catalogue | Published |
 | §4 Employee Self-Service | Platform: self-service, leave and calendar demos | Published |

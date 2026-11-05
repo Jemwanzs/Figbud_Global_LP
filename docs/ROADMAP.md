@@ -546,11 +546,11 @@ Scope: a four-page, SaaS-only ZiraHR website from the Enhanced Content & Develop
 | P14-C2 | Dated rule sets in the Studio with draft, verification date required before approval, maker-checker, versions, rollback, audit, and a public switch that's off by default | ✅ |
 | P14-C3 | Public page and shared calculator: recalculates on change, ignores stale answers, errors clear figures, both themes, phones, sources and assumptions, copy summary; sitemap only while on | ✅ |
 | P14-W1 | Module catalogue and eight product demonstrations as page-builder blocks, in original ZiraHR art direction, synthetic and labelled. Added from the second set of samples: what a finished run gives you, leave request and approval, team calendar | ✅ |
-| P14-W2 | Guide content published once on the owner's instruction: Home, Platform, About, Contact & Demo, Refer & earn, hover previews, footer links. Pages edited in the Studio are left alone | ✅ |
+| P14-W2 | Guide content published once on the owner's instruction: Platform, About, Contact & Demo, Refer & earn, hover previews, footer links. Home was left alone because it had been edited in the Studio | ✅ · Home is the owner's decision |
 | P14-W3 | Reconciliation of guide, brief and build; sign-off register; Pricing Studio reviewed against the brief (one quotation-number defect found and fixed) | ✅ |
 | P14-R  | Refer & earn: form, enquiry kind, inbox label, acknowledgement email, server validation, no amounts | ✅ · number outstanding (Q25) |
 | P14-I  | ZiraHR Insights: decide per-product or shared, then verified articles | ⬜ |
-| P14-D  | Renderer deployment, so the ZiraHR website is public | See the change log and DEPLOYMENT.md |
+| P14-D  | Renderer deployed as `figbud-sites` in the existing Railway project, so the ZiraHR website is public; corporate site links to it. Indexing stays off until the real domain | ✅ · domain outstanding |
 
 ## 7. Milestones
 
@@ -597,7 +597,8 @@ Scope: a four-page, SaaS-only ZiraHR website from the Enhanced Content & Develop
 | 5 Nov 2026 | ZiraHR go-live work, on the owner's decisions (Q24 to Q26, P14-D):
 - **Refer & earn:** a page and form that reach the enquiry inbox as a new Referral kind. You earn only after the deal closes. No amounts, and no phone number until one is entered.
 - **New demonstrations:** what a finished run gives you, leave request and approval, and a team calendar that leaves out weekends and public holidays.
-- **Published once at start-up:** the pages, hover previews, footer links and the calculator, with its rules recorded as checked on 5 Nov 2026. Anything edited in the Studio is left alone, and the audit log records the owner's instruction.
+- **Published once at start-up:** Platform, About, Contact & Demo, Refer & earn, hover previews, footer links and the calculator, with its rules recorded as checked on 5 Nov 2026. Home kept its edited version, and the audit log records the owner's instruction.
+- **Now public:** the renderer runs as `figbud-sites` at https://figbud-sites-production.up.railway.app/zirahr, and the corporate site links to it. Indexing is off until the real domain.
 - **Modules:** all eight show as available. New price books list Recruitment and Salary advances as available too.
 - **Left out on purpose:** bank files, tax-authority file formats, payslip designer, and proration or carry-forward leave rules. They're in the samples but not in the guide. |
 | 5 Nov 2026 | ZiraHR website and Payroll Calculator (P14-C, P14-W). Nothing here is public yet.

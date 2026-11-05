@@ -31,13 +31,14 @@ Guidelines:
 
 **Brand seeding.** After migrations, the API gives every website without a brand profile its first profile from the files in `services/api/seed/brand/` (embedded in the binary). The official logos are published and proposed variants go into the draft. Websites that already have a profile are never touched, so changes made in Admin → Branding are never overwritten. A seeding failure is logged and never stops the API. Brand files are stored in PostgreSQL (`brand_assets`) and so are covered by the database backups. See [BRAND_ASSETS.md](BRAND_ASSETS.md).
 
-**Product-site renderer (`apps/sites-web`, not deployed).** The renderer serves every product website from the Studio (decision D16). It isn't on Railway yet: a new service needs your approval, because it costs money. When approved, create one service `figbud-sites`:
+**Product-site renderer (`apps/sites-web`, service `figbud-sites`).** The renderer serves every product website from the Studio (decision D16). Deployed on 5 Nov 2026 with the owner's approval, in the existing project, at `https://figbud-sites-production.up.railway.app`. ZiraHR is at `/zirahr`. Indexing stays off until the real domain is attached.
 - **Source:** GitHub `main`, repo root.
 - **Build:** `npm run build --workspace=sites-web`.
 - **Start:** `npm run start --workspace=sites-web`.
 - **Health check:** any listed website, e.g. `/ziwa`.
 - **Watch paths:** `/apps/sites-web/**`, `/packages/**`, `/package.json`, `/package-lock.json`.
-- **Variables:** `API_INTERNAL_URL` (the API over Railway's private network), `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_SITE_URL` (its Railway URL), `NEXT_PUBLIC_FIGBUD_URL` (the corporate site), and `NEXT_PUBLIC_ALLOW_INDEXING` (only once real domains are live).
+- **Variables:** `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_SITE_URL` (its Railway URL), `NEXT_PUBLIC_FIGBUD_URL` (the corporate site), `NEXT_PUBLIC_ALLOW_INDEXING` (`false` until the real domain). `API_INTERNAL_URL` is optional and unset for now, so server calls use the public API address.
+- **Elsewhere:** the renderer's origin is in the API's `CORS_ALLOWED_ORIGINS`, and `NEXT_PUBLIC_ZIRAHR_URL` on `figbud-web` points at `/zirahr`. It's read at build time, so changing it needs a web rebuild.
 
 Websites are served under `/{site}` on the shared domain. When a website's *Domain* is set in Admin → Websites and the domain is attached to this service, it is served from that domain's root.
 
@@ -76,7 +77,7 @@ Websites are served under `/{site}` on the shared domain. When a website's *Doma
 | `NEXT_PUBLIC_SITE_URL`         | now `https://figbud-web-production.up.railway.app`; later `https://figbudglobal.com` |
 | `NEXT_PUBLIC_API_URL`          | now `https://figbud-api-production.up.railway.app`; later `https://api.figbudglobal.com` |
 | `NEXT_PUBLIC_ALLOW_INDEXING`   | `false` until the production domain is attached; then `true` in production only |
-| `NEXT_PUBLIC_ZIRAHR_URL` etc.  | set when each product website goes live (Phase 4)                     |
+| `NEXT_PUBLIC_ZIRAHR_URL` etc.  | a product website's full address, including any `/{site}` path        |
 | `API_INTERNAL_URL` (optional, server-only) | private-network API origin for server-side blog fetches, e.g. `http://figbud-api.railway.internal:8080`; falls back to `NEXT_PUBLIC_API_URL` |
 
 ## First deployment checklist

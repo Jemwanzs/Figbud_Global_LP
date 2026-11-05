@@ -14,9 +14,9 @@ describe("productLink", () => {
     expect(productLink("zirahr", "en")).toEqual({ href: "/en/products#zirahr", external: false });
   });
 
-  it("opens configured product websites externally, keeping the locale", async () => {
-    const { productLink } = await loadSite({ NEXT_PUBLIC_JASIRI_URL: "https://jasiri.example.com/" });
-    expect(productLink("jasiri", "sw")).toEqual({ href: "https://jasiri.example.com/sw", external: true });
+  it("opens configured product websites externally, at the address they're served from", async () => {
+    const { productLink } = await loadSite({ NEXT_PUBLIC_JASIRI_URL: "https://sites.example.com/jasiri/" });
+    expect(productLink("jasiri", "sw")).toEqual({ href: "https://sites.example.com/jasiri", external: true });
   });
 
   it("routes coming-soon products to the waitlist, never a live CTA", async () => {

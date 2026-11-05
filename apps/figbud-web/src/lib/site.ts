@@ -58,7 +58,8 @@ export function productLink(
     };
   }
   const origin = productOrigins[slug];
-  if (origin) return { href: `${origin.replace(/\/$/, "")}/${locale}`, external: true };
+  // Product websites aren't split by language, so their address is used as it is.
+  if (origin) return { href: origin.replace(/\/$/, ""), external: true };
   return { href: `${localizePath(locale, "/products")}#${slug}`, external: false };
 }
 
