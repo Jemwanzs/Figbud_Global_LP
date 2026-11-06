@@ -1905,6 +1905,9 @@ seedPublishedPage("zirahr", "platform", "Platform", {
       type: "hero",
       eyebrow: "The platform",
       heading: "Everything your people operations run on.",
+      accent: "Everything connected.",
+      visual: "connected_modules",
+      highlights: ["Many branches, one view", "Self-service in any browser"],
     },
     {
       id: "zp-modules",

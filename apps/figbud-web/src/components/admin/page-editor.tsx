@@ -617,12 +617,45 @@ export function BlockForm({
             onChange={(v) => onChange({ ...section, heading: v })}
           />
           <TextField
+            label="Accent line (optional)"
+            value={section.accent}
+            max={90}
+            hint="A second line of the headline, in the website's colour."
+            {...p}
+            onChange={(v) => onChange({ ...section, accent: v })}
+          />
+          <TextField
             label="Introduction (optional)"
             value={section.lead}
             max={400}
             multiline
             {...p}
             onChange={(v) => onChange({ ...section, lead: v })}
+          />
+          <label className="block text-sm font-medium text-text">
+            Visual
+            <select
+              value={section.visual ?? ""}
+              disabled={p.disabled}
+              onChange={(e) =>
+                onChange({
+                  ...section,
+                  visual: e.target.value ? (e.target.value as "connected_modules") : null,
+                })
+              }
+              className="mt-1.5 min-h-11 w-full rounded-xl border border-line-strong bg-surface px-3 text-text"
+            >
+              <option value="">None: words only</option>
+              <option value="connected_modules">Connected modules, lit by a signal line (animated)</option>
+            </select>
+          </label>
+          <TextField
+            label="Highlights (optional, one per line, up to four)"
+            value={(section.highlights ?? []).join("\n")}
+            max={4 * 49}
+            multiline
+            {...p}
+            onChange={(v) => onChange({ ...section, highlights: v.split("\n").slice(0, 4) })}
           />
           <CtaFields
             label="Primary button"

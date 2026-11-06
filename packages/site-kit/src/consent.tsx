@@ -261,6 +261,7 @@ export function CookieConsent({
     () => false,
   );
   const dialogRef = useRef<HTMLDialogElement>(null);
+  const bannerRef = useRef<HTMLDialogElement>(null);
   const [draft, setDraft] = useState<Choices>(NONE);
   const loaded = useRef(new Set<ConsentCategory>());
   const titleId = useId();
@@ -274,6 +275,21 @@ export function CookieConsent({
       loaded.current.add(integration.category);
     }
   }, [consent, settings.integrations]);
+
+  // The first visit asks in the middle of the screen, as a modal: the page waits
+  // behind a dimmed backdrop, focus moves to the choices, and the page behind
+  // can't be reached by keyboard or screen reader until a choice is made.
+  const asking = hydrated && !consent;
+  useEffect(() => {
+    const banner = bannerRef.current;
+    if (!banner) return;
+    if (asking && !banner.open) {
+      banner.showModal();
+      // The choices take focus, ahead of the policy links above them.
+      banner.querySelector<HTMLButtonElement>("[data-consent-first]")?.focus();
+    }
+    if (!asking && banner.open) banner.close();
+  }, [asking]);
 
   const openPreferences = useCallback(() => {
     setDraft(consent?.choices ?? NONE);
@@ -324,56 +340,58 @@ export function CookieConsent({
       </a>
     </p>
   );
+  const choice = buttonClasses("secondary", "md", "min-h-11 w-full px-4 text-sm");
   const secondary = buttonClasses("secondary", "md", "min-h-10 flex-1 px-4 text-sm");
 
   return (
     <>
-      {hydrated && !consent && (
-        <section
+      {asking && (
+        <dialog
+          ref={bannerRef}
           aria-label={labels.region}
           aria-describedby={`${titleId}-banner`}
           data-consent-banner=""
+          // Escape doesn't dismiss it: a choice is needed (Reject optional is one button away).
+          onCancel={(event) => event.preventDefault()}
           className={cn(
-            "fixed inset-x-3 bottom-3 z-50 rounded-2xl border border-line bg-bg-elevated/95 p-5 shadow-[var(--shadow-elevated)] backdrop-blur-xl",
+            "m-auto w-[min(36rem,calc(100%-2rem))] rounded-2xl border border-line bg-bg-elevated p-6 text-text shadow-[var(--shadow-elevated)] sm:p-8",
+            "backdrop:bg-black/55 backdrop:backdrop-blur-[2px]",
             "animate-[fb-consent-in_400ms_cubic-bezier(0.16,1,0.3,1)] motion-reduce:animate-none",
-            "sm:inset-x-auto sm:start-5 sm:bottom-5 sm:w-[26rem] sm:p-6",
           )}
         >
           <div className="flex items-start gap-3">
             <span
               aria-hidden
-              className="mt-0.5 grid size-9 shrink-0 place-items-center rounded-full bg-accent-soft text-accent"
+              className="mt-0.5 grid size-10 shrink-0 place-items-center rounded-full bg-accent-soft text-accent"
             >
-              <Cookie className="size-4.5" />
+              <Cookie className="size-5" />
             </span>
             <div className="min-w-0">
-              <h2 className="text-base font-semibold text-text">{settings.banner.title}</h2>
-              <p id={`${titleId}-banner`} className="mt-1.5 text-sm leading-relaxed text-muted">
+              <h2 className="font-display text-xl font-semibold text-text">{settings.banner.title}</h2>
+              <p id={`${titleId}-banner`} className="mt-2 leading-relaxed text-muted">
                 {settings.banner.body}
               </p>
               {links}
             </div>
           </div>
-          <div className="mt-5 flex flex-wrap gap-2">
-            <button type="button" className={secondary} onClick={() => save(NONE, "reject_optional")}>
-              {labels.rejectOptional}
-            </button>
-            <button type="button" className={secondary} onClick={() => save(ALL, "accept_all")}>
-              {labels.acceptAll}
-            </button>
+          {/* Equal weight: accepting, rejecting and choosing are the same size and style. */}
+          <div className="mt-6 grid gap-2 sm:grid-cols-3">
             <button
               type="button"
-              className={buttonClasses(
-                "ghost",
-                "md",
-                "min-h-10 w-full px-4 text-sm underline-offset-4 hover:underline",
-              )}
-              onClick={openPreferences}
+              data-consent-first=""
+              className={choice}
+              onClick={() => save(ALL, "accept_all")}
             >
+              {labels.acceptAll}
+            </button>
+            <button type="button" className={choice} onClick={() => save(NONE, "reject_optional")}>
+              {labels.rejectOptional}
+            </button>
+            <button type="button" className={choice} onClick={openPreferences}>
               {labels.customize}
             </button>
           </div>
-        </section>
+        </dialog>
       )}
 
       <dialog

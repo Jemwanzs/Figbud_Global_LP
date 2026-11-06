@@ -54,12 +54,21 @@ pub enum Block {
         #[serde(default)]
         eyebrow: Option<String>,
         heading: String,
+        /// A second line of the headline, in the product's colour (UI-HE1).
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        accent: Option<String>,
         #[serde(default)]
         lead: Option<String>,
         #[serde(default)]
         primary: Option<Cta>,
         #[serde(default)]
         secondary: Option<Cta>,
+        /// An animated visual beside the words.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        visual: Option<HeroVisual>,
+        /// Short benefits under the buttons, each with a tick.
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        highlights: Vec<String>,
     },
     Text {
         #[serde(default)]
@@ -182,6 +191,14 @@ impl DemoMotion {
     fn is_standard(&self) -> bool {
         *self == Self::Standard
     }
+}
+
+/// A hero's animated visual (UI-HE1).
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum HeroVisual {
+    /// Module cards lit in turn by a signal line beneath them.
+    ConnectedModules,
 }
 
 /// Where a demonstration's heading and introduction sit (UI-TH3).
@@ -366,12 +383,21 @@ impl PageDoc {
                 Block::Hero {
                     eyebrow,
                     heading,
+                    accent,
                     lead,
                     primary,
                     secondary,
+                    highlights,
+                    ..
                 } => {
                     c.optional("sections", eyebrow, 60, "Eyebrows can be up to 60 characters.");
                     c.text("sections", heading, 120, "Headings need 1–120 characters.");
+                    c.optional("sections", accent, 90, "Accent lines can be up to 90 characters.");
+                    // Blank lines (left while typing) are ignored, here and on the website.
+                    let filled: Vec<&String> = highlights.iter().filter(|h| !h.trim().is_empty()).collect();
+                    if filled.len() > 4 || filled.iter().any(|h| h.trim().chars().count() > 48) {
+                        c.push("sections", "Up to four highlights, each up to 48 characters.");
+                    }
                     c.optional("sections", lead, 400, "Lead text can be up to 400 characters.");
                     for cta in primary.iter().chain(secondary.iter()) {
                         c.cta(cta);

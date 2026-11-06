@@ -32,11 +32,11 @@ fn home() -> Value {
         "seo_title": "ZiraHR · HR Simplified. Business Amplified.",
         "seo_description": "ZiraHR is cloud HR and payroll software: employee records, leave, payroll, attendance and performance in one connected platform, with self-service in any web browser.",
         "sections": [
-            { "id": id(), "type": "hero", "eyebrow": "HR Simplified. Business Amplified.",
+            hero_signal(json!({ "id": id(), "type": "hero", "eyebrow": "HR Simplified. Business Amplified.",
               "heading": "Your people. Your payroll. One smarter way to work.",
               "lead": "Meet ZiraHR: the connected HR platform that brings employee records, leave, payroll, attendance and performance together, so your team can spend less time chasing processes and more time moving forward.",
               "primary": demo_cta(),
-              "secondary": { "label": "Calculate my pay", "href": "/payroll-calculator" } },
+              "secondary": { "label": "Calculate my pay", "href": "/payroll-calculator" } })),
             { "id": id(), "type": "demo", "demo": "scattered_to_connected", "tone": "inverse",
               "heading": "HR shouldn't live in five different places.",
               "intro": "No more scattered files, disconnected approvals or last-minute payroll panic. Keep scrolling to watch it come together." },
@@ -340,6 +340,106 @@ fn story_sections() -> [Value; 2] {
 
 const HOME_REDESIGN: &str = "page.zirahr_home_redesigned";
 const LOCAL_ENQUIRIES: &str = "page.zirahr_enquiries_local";
+const HERO_SIGNAL: &str = "page.zirahr_hero_signal";
+
+/// The default hero's animated look (UI-HE1, owner's brief of 6 Nov 2026): the
+/// headline split into a line and an accent line, the connected-modules visual
+/// and the guide's four benefits. Leaves a hero someone has restyled alone.
+fn hero_signal(mut hero: Value) -> Value {
+    if hero["type"] != "hero" || !hero["visual"].is_null() {
+        return hero;
+    }
+    if hero["heading"] == "Your people. Your payroll. One smarter way to work." {
+        hero["heading"] = json!("Your people. Your payroll.");
+        hero["accent"] = json!("One smarter way to work.");
+    }
+    hero["visual"] = json!("connected_modules");
+    hero["highlights"] = json!([
+        "Many branches, one view",
+        "Approvals that follow you",
+        "Self-service in any browser",
+        "Statutory rules you can see",
+    ]);
+    hero
+}
+
+/// Gives the live home page's hero that look once, as a new numbered version, in
+/// the published page and any draft in progress alike.
+pub async fn publish_hero_signal(pool: &PgPool) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let mut tx = pool.begin().await?;
+    let site: Option<Uuid> = sqlx::query_scalar(
+        "SELECT s.id FROM sites s WHERE s.slug = 'zirahr' AND NOT EXISTS (
+                SELECT 1 FROM audit_log a WHERE a.site_id = s.id AND a.action = $1)
+            FOR UPDATE",
+    )
+    .bind(HERO_SIGNAL)
+    .fetch_optional(&mut *tx)
+    .await?;
+    let Some(site_id) = site else { return Ok(()) };
+    let page: Option<(Uuid, Value, Option<Value>)> = sqlx::query_as(
+        "SELECT id, draft, published FROM pages WHERE site_id = $1 AND path = '' AND archived_at IS NULL FOR UPDATE",
+    )
+    .bind(site_id)
+    .fetch_optional(&mut *tx)
+    .await?;
+    let restyle = |doc: &mut Value| {
+        if let Some(first) = doc["sections"].as_array_mut().and_then(|s| s.first_mut()) {
+            *first = hero_signal(first.take());
+        }
+    };
+    let mut changed = false;
+    if let Some((page_id, mut draft, Some(mut published))) = page {
+        let before = published.clone();
+        restyle(&mut published);
+        restyle(&mut draft);
+        if published != before {
+            for doc in [&published, &draft] {
+                let parsed: PageDoc = serde_json::from_value(doc.clone())?;
+                parsed
+                    .validate()
+                    .map_err(|e| format!("ZiraHR home page: {e:?}"))?;
+            }
+            let revision = Uuid::now_v7();
+            sqlx::query(
+                "INSERT INTO page_revisions (id, page_id, number, document, note, state, decided_at)
+                 SELECT $1, $2, COALESCE(max(number), 0) + 1, $3, $4, 'published', now()
+                   FROM page_revisions WHERE page_id = $2",
+            )
+            .bind(revision)
+            .bind(page_id)
+            .bind(&published)
+            .bind("Animated default hero on the owner's brief, 6 Nov 2026")
+            .execute(&mut *tx)
+            .await?;
+            sqlx::query(
+                "UPDATE pages SET draft = $2, published = $3, published_revision = $4, published_at = now(),
+                        draft_version = draft_version + 1
+                  WHERE id = $1",
+            )
+            .bind(page_id)
+            .bind(&draft)
+            .bind(&published)
+            .bind(revision)
+            .execute(&mut *tx)
+            .await?;
+            changed = true;
+        }
+    }
+    sqlx::query(
+        "INSERT INTO audit_log (id, action, target_type, target_id, detail, site_id)
+         VALUES ($1, $2, 'site', $3, $4, $5)",
+    )
+    .bind(Uuid::now_v7())
+    .bind(HERO_SIGNAL)
+    .bind(site_id.to_string())
+    .bind(json!({ "changed": changed, "authorised_by": "owner, 6 Nov 2026" }))
+    .bind(site_id)
+    .execute(&mut *tx)
+    .await?;
+    tx.commit().await?;
+    tracing::info!(changed, "ZiraHR animated default hero");
+    Ok(())
+}
 /// The number people call to follow a referral (owner, 6 Nov 2026); editable in the Studio.
 const REFERRAL_PHONE: &str = "+254 798 993 404";
 

@@ -5,6 +5,7 @@ import { type ReactNode, Suspense } from "react";
 import { type DemoKind, ModuleCatalogue, type ModuleItem, ProductDemo } from "./product-demos";
 import { enquiryFormCopy, type EnquiryProduct } from "./enquiry";
 import { EnquiryForm } from "./enquiry-form";
+import { HeroSignal } from "./hero-signal";
 import { ReferralForm } from "./referral-form";
 
 /** The website's own mark, for demonstrations that show it (the scroll story's hub). */
@@ -49,9 +50,12 @@ export type PageSection = Base &
         type: "hero";
         eyebrow?: string | null;
         heading: string;
+        accent?: string | null;
         lead?: string | null;
         primary?: PageCta | null;
         secondary?: PageCta | null;
+        visual?: "connected_modules" | null;
+        highlights?: string[];
       }
     | { type: "text"; heading?: string | null; body?: string; body_html?: string }
     | {
@@ -216,16 +220,20 @@ function Block({
   mark?: BrandMark;
 }) {
   switch (section.type) {
-    case "hero":
-      return (
-        <div className="max-w-3xl">
+    case "hero": {
+      const highlights = (section.highlights ?? []).map((h) => h.trim()).filter(Boolean);
+      const words = (
+        <div className={section.visual ? "min-w-0" : "max-w-3xl"}>
           {section.eyebrow && (
             <p className="text-sm font-medium tracking-[0.14em] text-product-text uppercase">
               {section.eyebrow}
             </p>
           )}
           <div className="mt-4">
-            <Heading level={top}>{section.heading}</Heading>
+            <Heading level={top}>
+              {section.heading}
+              {section.accent && <span className="block text-product-text">{section.accent}</span>}
+            </Heading>
           </div>
           {section.lead && <p className="mt-6 text-lead text-muted">{section.lead}</p>}
           {(section.primary || section.secondary) && (
@@ -234,8 +242,30 @@ function Block({
               {section.secondary && <Action cta={section.secondary} mode={mode} resolve={resolve} />}
             </div>
           )}
+          {highlights.length > 0 && (
+            <ul className="mt-8 flex flex-wrap gap-x-6 gap-y-3 text-sm text-muted">
+              {highlights.map((item) => (
+                <li key={item} className="flex items-center gap-2">
+                  <span className="grid size-5 place-items-center rounded-full bg-product-soft text-product-text">
+                    <Check aria-hidden className="size-3" />
+                  </span>
+                  {item}
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       );
+      if (!section.visual) return words;
+      return (
+        <div className="fb-hero-signal relative isolate grid items-center gap-10 @5xl:grid-cols-12 @5xl:gap-8">
+          <div className="@5xl:col-span-6">{words}</div>
+          <div className="@container @5xl:col-span-6">
+            <HeroSignal />
+          </div>
+        </div>
+      );
+    }
     case "text":
       return (
         <div>

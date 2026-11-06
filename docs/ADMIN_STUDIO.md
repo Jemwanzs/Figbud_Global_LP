@@ -394,3 +394,9 @@ One settings document for every FigBud website (one data controller). Everyone s
 
 - **Enquiry form** section: the same form as the corporate contact page (demo request, sales, question, partnership), sent to the enquiry inbox. On a product's own website the product is fixed, so there's no product choice.
 - Put it on a website's **Contact** page and that website's demo and contact buttons open it there, instead of the FigBud Global contact page. Remove it and they go back to the corporate form.
+
+## Hero section options (UI-HE1)
+
+- **Accent line:** a second line of the headline in the website's colour.
+- **Visual:** none, or "Connected modules": module cards lit in turn by a signal line (animated, settled for visitors who prefer reduced motion).
+- **Highlights:** up to four short benefits, one per line, shown with ticks under the buttons.

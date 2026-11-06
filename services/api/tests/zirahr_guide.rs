@@ -309,10 +309,9 @@ async fn the_rewritten_home_page_replaces_home_once_and_the_old_one_stays_restor
         .await
         .unwrap();
     let sections = published["sections"].as_array().unwrap();
-    assert_eq!(
-        sections[0]["heading"],
-        "Your people. Your payroll. One smarter way to work."
-    );
+    assert_eq!(sections[0]["heading"], "Your people. Your payroll.");
+    assert_eq!(sections[0]["accent"], "One smarter way to work.");
+    assert_eq!(sections[0]["visual"], "connected_modules");
     // Contrasting bands alternate with the page's own, and the page ends on one.
     let tones: Vec<bool> = sections.iter().map(|s| s["tone"] == "inverse").collect();
     assert!(tones.iter().filter(|t| **t).count() >= 4);
@@ -448,4 +447,61 @@ async fn enquiries_stay_on_zirahr_and_refer_shows_the_number_once() {
         read("refer").await.1["sections"][1]["contact_phone"],
         "+254 700 000 000"
     );
+}
+
+#[tokio::test]
+async fn the_home_hero_gets_its_animated_look_once_and_keeps_later_edits() {
+    let Some(pool) = database().await else { return };
+    let _turn = ZIRAHR.lock().await;
+    import::run(&pool).await.unwrap();
+    let site: Uuid = sqlx::query_scalar("SELECT id FROM sites WHERE slug = 'zirahr'")
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    sqlx::query("DELETE FROM audit_log WHERE site_id = $1 AND action = 'page.zirahr_hero_signal'")
+        .bind(site)
+        .execute(&pool)
+        .await
+        .unwrap();
+    let plain = json!({ "sections": [
+        { "id": "h", "type": "hero", "heading": "Your people. Your payroll. One smarter way to work." },
+        { "id": "t", "type": "text", "body": "Words." },
+    ] });
+    sqlx::query("UPDATE pages SET draft = $2, published = $2 WHERE site_id = $1 AND path = ''")
+        .bind(site)
+        .bind(&plain)
+        .execute(&pool)
+        .await
+        .unwrap();
+
+    zirahr_guide::publish_hero_signal(&pool).await.unwrap();
+    let published: Value = sqlx::query_scalar("SELECT published FROM pages WHERE site_id = $1 AND path = ''")
+        .bind(site)
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    let hero = &published["sections"][0];
+    assert_eq!(hero["heading"], "Your people. Your payroll.");
+    assert_eq!(hero["accent"], "One smarter way to work.");
+    assert_eq!(hero["visual"], "connected_modules");
+    assert_eq!(hero["highlights"].as_array().unwrap().len(), 4);
+    assert_eq!(
+        published["sections"][1]["type"], "text",
+        "the rest of the page is untouched"
+    );
+
+    // Once only: a hero restyled in the Studio afterwards stays as it was set.
+    sqlx::query("UPDATE pages SET draft = $2, published = $2 WHERE site_id = $1 AND path = ''")
+        .bind(site)
+        .bind(&plain)
+        .execute(&pool)
+        .await
+        .unwrap();
+    zirahr_guide::publish_hero_signal(&pool).await.unwrap();
+    let after: Value = sqlx::query_scalar("SELECT published FROM pages WHERE site_id = $1 AND path = ''")
+        .bind(site)
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    assert_eq!(after, plain);
 }

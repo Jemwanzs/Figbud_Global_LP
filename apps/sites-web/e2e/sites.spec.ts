@@ -143,7 +143,7 @@ test.describe("cookie consent", () => {
   }) => {
     await page.route("**/v1/privacy/consent", (route) => route.fulfill({ status: 204 }));
     await page.goto("/ziwa");
-    const banner = page.getByRole("region", { name: "Cookie consent" });
+    const banner = page.getByRole("dialog", { name: "Cookie consent" });
     await expect(banner).toBeVisible();
     await expect(banner.getByRole("link", { name: "Privacy Policy" })).toHaveAttribute(
       "href",

@@ -667,6 +667,66 @@
     transform: translateY(6px);
   }
 }
+/* Hero signal (UI-HE1): a soft product glow behind; the line draws in, nodes and
+   cards rise in turn, then the lit node pulses. Settled with reduced motion. */
+.fb-hero-signal::before {
+  content: "";
+  position: absolute;
+  inset: -12% -8% -12% 35%;
+  z-index: -1;
+  background: radial-gradient(55% 60% at 60% 50%, var(--product-soft), transparent 70%);
+  pointer-events: none;
+}
+.fb-signal-line,
+.fb-signal-glow {
+  fill: none;
+  stroke: var(--product);
+  stroke-linecap: round;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 0;
+}
+.fb-signal-line {
+  stroke-width: 0.55;
+}
+.fb-signal-glow {
+  stroke-width: 2.4;
+  opacity: 0.18;
+}
+.fb-signal-node-on {
+  box-shadow:
+    0 0 0 6px var(--product-soft),
+    0 0 18px 4px var(--product);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .fb-signal :is(.fb-signal-line, .fb-signal-glow) {
+    animation: fb-signal-draw 1.6s var(--motion-ease) both;
+  }
+  .fb-signal-node,
+  .fb-signal-card {
+    animation: fb-signal-rise var(--motion-slow) var(--motion-ease) both;
+  }
+  .fb-signal-node-on {
+    animation: fb-signal-pulse 2.4s var(--motion-ease-standard) infinite;
+  }
+}
+@keyframes fb-signal-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+}
+@keyframes fb-signal-rise {
+  from {
+    opacity: 0;
+    translate: 0 14px;
+  }
+}
+@keyframes fb-signal-pulse {
+  50% {
+    box-shadow:
+      0 0 0 10px transparent,
+      0 0 26px 6px var(--product);
+  }
+}
 /* Coming Soon (P15): a soft product glow and slow rings around the mark. */
 .fb-soon-glow {
   background:

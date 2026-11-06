@@ -12,7 +12,7 @@ import { themeSettled } from "./theme-settled";
 
 test.use({ storageState: { cookies: [], origins: [] } });
 
-const banner = (page: Page) => page.getByRole("region", { name: "Cookie consent" });
+const banner = (page: Page) => page.getByRole("dialog", { name: "Cookie consent" });
 const plausible = (page: Page) => page.locator("script#fb-int-plausible");
 
 async function consentCookie(page: Page) {
@@ -34,7 +34,7 @@ async function recordConsent(page: Page) {
   return sent;
 }
 
-test("first visit: essentials only, a non-blocking banner, and rejecting keeps optional cookies off", async ({
+test("first visit: essentials only, a centred consent dialog, and rejecting keeps optional cookies off", async ({
   page,
 }) => {
   const sent = await recordConsent(page);
@@ -51,16 +51,33 @@ test("first visit: essentials only, a non-blocking banner, and rejecting keeps o
     "href",
     "/en/legal/cookies",
   );
-  // Nothing optional runs before a choice, and the page stays usable.
+  // Nothing optional runs before a choice.
   await expect(plausible(page)).toHaveCount(0);
   expect(await consentCookie(page)).toBeNull();
-  await page.getByRole("button", { name: "Switch to light theme" }).click();
-  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
-  const results = await new AxeBuilder({ page: await themeSettled(page) })
-    .include("[data-consent-banner]")
-    .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
-    .analyze();
-  expect(results.violations.map((v) => v.id)).toEqual([]);
+  // Asked in the middle of the screen, as a modal: focus moves to the choices, and
+  // Escape doesn't dismiss it without one.
+  const box = (await banner(page).boundingBox())!;
+  const viewport = page.viewportSize()!;
+  expect(Math.abs(box.x + box.width / 2 - viewport.width / 2)).toBeLessThanOrEqual(2);
+  expect(Math.abs(box.y + box.height / 2 - viewport.height / 2)).toBeLessThanOrEqual(viewport.height * 0.1);
+  await expect(banner(page).getByRole("button", { name: "Accept all" })).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(banner(page)).toBeVisible();
+  for (const theme of ["dark", "light"] as const) {
+    if (theme === "light") {
+      await page.evaluate(() => {
+        document.documentElement.dataset.theme = "light";
+      });
+    }
+    const results = await new AxeBuilder({ page: await themeSettled(page) })
+      .include("[data-consent-banner]")
+      .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
+      .analyze();
+    expect(
+      results.violations.map((v) => v.id),
+      theme,
+    ).toEqual([]);
+  }
   // The banner never makes the page scroll sideways.
   expect(
     await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth),
@@ -167,7 +184,7 @@ test("asks again once the choice is older than the retention period", async ({ p
 test("other languages show the banner in their language", async ({ page }) => {
   await recordConsent(page);
   await page.goto("/fr");
-  await expect(page.getByRole("region", { name: "Consentement aux cookies" })).toBeVisible();
+  await expect(page.getByRole("dialog", { name: "Consentement aux cookies" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Tout accepter" })).toBeVisible();
 });
 
