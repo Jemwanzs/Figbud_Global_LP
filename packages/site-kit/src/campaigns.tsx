@@ -863,7 +863,7 @@ function ModalCampaign() {
       onClick={(event) => {
         if (event.target === ref.current && campaign.display.dismissible) close();
       }}
-      className="m-auto max-h-[calc(100dvh-2rem)] w-[min(36rem,calc(100vw-2rem))] overflow-y-auto bg-transparent p-0 backdrop:bg-black/60 backdrop:backdrop-blur-sm"
+      className="fb-overlay m-auto max-h-[calc(100dvh-2rem)] w-[min(36rem,calc(100vw-2rem))] overflow-y-auto bg-transparent p-0 backdrop:bg-black/60"
     >
       <Creative
         campaign={campaign}

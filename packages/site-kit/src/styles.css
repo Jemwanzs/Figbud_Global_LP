@@ -575,10 +575,53 @@
 }
 
 /* Cookie consent banner (consent.tsx): rises in once, never moves content. */
-@keyframes fb-consent-in {
-  from {
+/* Overlays (UI-TH5): one motion for every dialog on the websites. Centred
+   dialogs (.fb-overlay) fade and rise; menus (.fb-drawer, with the sliding
+   panel marked .fb-drawer-panel) slide in from the reading edge; backdrops
+   fade. Closing plays the same in reverse, because the dialog stays in the
+   top layer until its transition ends. With reduced motion, everything is
+   instant. */
+@media (prefers-reduced-motion: no-preference) {
+  .fb-overlay,
+  .fb-drawer,
+  .fb-overlay::backdrop,
+  .fb-drawer::backdrop {
+    transition:
+      opacity var(--motion-base) var(--motion-ease),
+      translate var(--motion-base) var(--motion-ease),
+      overlay var(--motion-base) allow-discrete,
+      display var(--motion-base) allow-discrete;
+  }
+  .fb-drawer-panel {
+    transition: translate var(--motion-base) var(--motion-ease);
+  }
+  .fb-overlay:not([open]) {
     opacity: 0;
-    transform: translateY(1rem);
+    translate: 0 0.75rem;
+  }
+  :is(.fb-overlay, .fb-drawer):not([open])::backdrop {
+    opacity: 0;
+  }
+  .fb-drawer:not([open]) .fb-drawer-panel {
+    translate: 100% 0;
+  }
+  [dir="rtl"] .fb-drawer:not([open]) .fb-drawer-panel {
+    translate: -100% 0;
+  }
+  @starting-style {
+    .fb-overlay[open] {
+      opacity: 0;
+      translate: 0 0.75rem;
+    }
+    :is(.fb-overlay, .fb-drawer)[open]::backdrop {
+      opacity: 0;
+    }
+    .fb-drawer[open] .fb-drawer-panel {
+      translate: 100% 0;
+    }
+    [dir="rtl"] .fb-drawer[open] .fb-drawer-panel {
+      translate: -100% 0;
+    }
   }
 }
 

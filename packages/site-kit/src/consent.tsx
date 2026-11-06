@@ -370,7 +370,7 @@ export function CookieConsent({
             "m-auto w-[min(36rem,calc(100%-2rem))] rounded-2xl border border-line bg-bg-elevated p-6 text-text shadow-[var(--shadow-elevated)] sm:p-8",
             // Dimmed, not blurred: a blurred page behind a modal stalls painting in WebKit.
             "backdrop:bg-black/60",
-            "animate-[fb-consent-in_400ms_cubic-bezier(0.16,1,0.3,1)] motion-reduce:animate-none",
+            "fb-overlay",
           )}
         >
           <div className="flex items-start gap-3">
@@ -416,8 +416,8 @@ export function CookieConsent({
           ask();
         }}
         className={cn(
-          "m-auto w-[min(34rem,calc(100vw-1.5rem))] rounded-3xl border border-line bg-bg-elevated p-0 text-text shadow-[var(--shadow-elevated)]",
-          "backdrop:bg-black/50 backdrop:backdrop-blur-sm",
+          "fb-overlay m-auto w-[min(34rem,calc(100vw-1.5rem))] rounded-3xl border border-line bg-bg-elevated p-0 text-text shadow-[var(--shadow-elevated)]",
+          "backdrop:bg-black/60",
         )}
       >
         <div className="max-h-[min(44rem,calc(100dvh-2rem))] overflow-y-auto p-6 sm:p-8">

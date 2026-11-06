@@ -251,6 +251,37 @@ test.describe("navigation", () => {
     await expect(dialog).toBeHidden();
   });
 
+  test("the mobile menu slides in and out; with reduced motion it simply appears (UI-TH5)", async ({
+    page,
+    isMobile,
+  }) => {
+    test.skip(!isMobile, "mobile only");
+    await page.goto("/en");
+    const dialog = page.getByRole("dialog");
+    const panel = dialog.locator(".fb-drawer-panel");
+    // Whether a slide (a running translate transition) is under way.
+    const sliding = () =>
+      page.evaluate(() =>
+        document
+          .getAnimations()
+          .some((a) => a instanceof CSSTransition && a.transitionProperty === "translate"),
+      );
+    await page.getByRole("button", { name: "Open menu" }).click();
+    await expect(dialog).toBeVisible();
+    await expect.poll(() => panel.evaluate((el) => getComputedStyle(el).translate)).toMatch(/^(none|0px)$/);
+    // Closing slides it out before it leaves.
+    await page.keyboard.press("Escape");
+    expect(await sliding()).toBe(true);
+    await expect(dialog).toBeHidden();
+
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.getByRole("button", { name: "Open menu" }).click();
+    await expect(dialog).toBeVisible();
+    expect(await sliding()).toBe(false);
+    await page.keyboard.press("Escape");
+    await expect(dialog).toBeHidden({ timeout: 100 });
+  });
+
   test("navbar dropdowns use the opposite theme, stay on screen and close with Escape", async ({
     page,
     isMobile,

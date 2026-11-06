@@ -144,9 +144,9 @@ function MobileMenu({
         onClick={(event) => {
           if (event.target === dialogRef.current) close();
         }}
-        className="fixed inset-0 m-0 h-dvh max-h-none w-full max-w-none bg-transparent p-0 text-text backdrop:bg-black/50 backdrop:backdrop-blur-sm open:flex lg:hidden"
+        className="fb-drawer fixed inset-0 m-0 h-dvh max-h-none w-full max-w-none bg-transparent p-0 text-text backdrop:bg-black/60 open:flex lg:hidden"
       >
-        <div className="ms-auto flex h-full w-full max-w-md flex-col overflow-y-auto bg-bg-elevated shadow-2xl sm:border-s sm:border-line">
+        <div className="fb-drawer-panel ms-auto flex h-full w-full max-w-md flex-col overflow-y-auto bg-bg-elevated shadow-2xl sm:border-s sm:border-line">
           <div className="flex h-[4.5rem] shrink-0 items-center justify-between px-5 sm:px-8">
             <ProductIdentity
               slug={slug}
