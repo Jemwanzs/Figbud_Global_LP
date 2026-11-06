@@ -1,6 +1,6 @@
 "use client";
 
-import { buttonClasses } from "@figbud/ui";
+import { buttonClasses, fieldClasses } from "@figbud/ui";
 import { CheckCircle2, LoaderCircle } from "lucide-react";
 import { type FormEvent, useEffect, useId, useRef, useState } from "react";
 
@@ -118,8 +118,7 @@ export function ReferralForm({
     );
   }
 
-  const input =
-    "mt-1.5 min-h-12 w-full rounded-xl border border-line-strong bg-surface px-4 text-base text-text";
+  const input = fieldClasses("mt-1.5");
   const field = (
     name: string,
     label: string,

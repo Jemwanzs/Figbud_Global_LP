@@ -2,6 +2,7 @@ export * from "./button";
 export * from "./cn";
 export * from "./container";
 export * from "./eyebrow";
+export * from "./field";
 export * from "./figbud-mark";
 export * from "./motion";
 export * from "./reveal-order";

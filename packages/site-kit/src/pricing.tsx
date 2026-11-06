@@ -1,6 +1,6 @@
 "use client";
 
-import { cn } from "@figbud/ui";
+import { cn, fieldClasses } from "@figbud/ui";
 import { useEffect, useRef, useState } from "react";
 
 /*
@@ -556,7 +556,7 @@ export function PublicPricing({
             inputMode="numeric"
             value={employees}
             onChange={(e) => setEmployees(Number(e.target.value))}
-            className="mt-1 min-h-11 w-36 rounded-xl border border-line-strong bg-surface px-3 font-mono text-text"
+            className={fieldClasses("mt-1 w-36 px-3 font-mono")}
           />
         </div>
         <div

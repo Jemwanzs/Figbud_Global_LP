@@ -1,6 +1,6 @@
 "use client";
 
-import { cn } from "@figbud/ui";
+import { cn, fieldClasses } from "@figbud/ui";
 import { Check, ChevronDown, Copy, ExternalLink, Info, LoaderCircle } from "lucide-react";
 import { type ReactNode, useEffect, useId, useRef, useState } from "react";
 
@@ -158,7 +158,7 @@ function Field({
         onChange={(e) => onChange(e.target.value.replace(/[\s,]/g, ""))}
         aria-invalid={error ? true : undefined}
         aria-describedby={error ? `${id}-error` : hint ? `${id}-hint` : undefined}
-        className="mt-1.5 min-h-12 w-full rounded-xl border border-line-strong bg-surface px-4 text-base text-text tabular-nums"
+        className={fieldClasses("mt-1.5 tabular-nums")}
       />
       {hint && !error && (
         <p id={`${id}-hint`} className="mt-1 text-xs text-subtle">
@@ -349,7 +349,7 @@ export function PayrollCalculator({
                   value={payMonth}
                   onChange={(e) => setPayMonth(e.target.value)}
                   aria-invalid={fieldError("pay_month") ? true : undefined}
-                  className="mt-1.5 min-h-12 w-full rounded-xl border border-line-strong bg-surface px-4 text-base text-text"
+                  className={fieldClasses("mt-1.5")}
                 />
                 <p className={cn("mt-1 text-xs", fieldError("pay_month") ? "text-danger" : "text-subtle")}>
                   {fieldError("pay_month") ?? "Rules change over time. Leave empty for this month."}

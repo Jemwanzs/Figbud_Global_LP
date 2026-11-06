@@ -244,9 +244,12 @@ test.describe("navigation", () => {
   test("mobile menu opens, traps focus and closes with Escape", async ({ page, isMobile }) => {
     test.skip(!isMobile, "mobile only");
     await page.goto("/en");
-    await page.getByRole("button", { name: "Open menu" }).click();
     const dialog = page.getByRole("dialog");
-    await expect(dialog).toBeVisible();
+    // Again if the tap landed before the page was interactive.
+    await expect(async () => {
+      await page.getByRole("button", { name: "Open menu" }).click();
+      await expect(dialog).toBeVisible({ timeout: 1_000 });
+    }).toPass();
     await expect(dialog.getByRole("link", { name: "Contact" })).toBeVisible();
     await page.keyboard.press("Escape");
     await expect(dialog).toBeHidden();
@@ -267,13 +270,15 @@ test.describe("navigation", () => {
         const w = window as unknown as { slid: boolean };
         w.slid = false;
         el.addEventListener("transitionrun", (e) => {
-          if (e.propertyName === "translate") w.slid = true;
+          if ((e as TransitionEvent).propertyName === "translate") w.slid = true;
         });
       });
     const slid = () => page.evaluate(() => (window as unknown as { slid: boolean }).slid);
 
-    await page.getByRole("button", { name: "Open menu" }).click();
-    await expect(dialog).toBeVisible();
+    await expect(async () => {
+      await page.getByRole("button", { name: "Open menu" }).click();
+      await expect(dialog).toBeVisible({ timeout: 1_000 });
+    }).toPass();
     await expect.poll(() => panel.evaluate((el) => getComputedStyle(el).translate)).toMatch(/^(none|0px)$/);
     // Closing slides it out before it leaves, where the browser can keep a closing
     // dialog on screen (CSS `overlay`); others, such as Safari today, close at once.
@@ -440,6 +445,25 @@ test.describe("contact form", () => {
     await expect(page.getByText("Please correct the highlighted fields.")).toBeVisible();
     await expect(page.getByLabel("Full name")).toHaveAttribute("aria-invalid", "true");
     expect(called).toBe(false);
+  });
+
+  test("keyboard focus shows a clear ring in the focus colour, red while a field is invalid (UI-TH5)", async ({
+    page,
+  }) => {
+    await page.goto("/en/contact");
+    const name = page.getByLabel("Full name");
+    const ring = () => name.evaluate((el) => getComputedStyle(el).boxShadow);
+    expect(await ring()).toBe("none");
+    await name.focus();
+    // A 3px ring in the focus colour (browsers write the mixed colour differently).
+    await expect.poll(ring).toMatch(/ 0px 0px 0px 3px$/);
+    const focusRing = await ring();
+    await page.getByRole("button", { name: "Send enquiry" }).click();
+    await expect(name).toHaveAttribute("aria-invalid", "true");
+    await name.focus();
+    // While invalid, the ring turns to the danger colour.
+    await expect.poll(ring).toMatch(/ 0px 0px 0px 3px$/);
+    expect(await ring()).not.toBe(focusRing);
   });
 
   test("submits once with an idempotency key and shows the reference", async ({ page }) => {

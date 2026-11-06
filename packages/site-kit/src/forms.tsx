@@ -1,6 +1,6 @@
 "use client";
 
-import { cn } from "@figbud/ui";
+import { cn, fieldClasses } from "@figbud/ui";
 import { Check, ChevronDown, Plus, Search, X } from "lucide-react";
 import { type KeyboardEvent, useId, useMemo, useRef, useState } from "react";
 
@@ -135,9 +135,8 @@ function CountryPicker({
           requestAnimationFrame(() => search.current?.focus());
         }}
         className={cn(
-          "flex min-h-12 items-center gap-2 rounded-xl border border-line-strong bg-bg/60 text-start text-text transition-[border-color,box-shadow] outline-none",
-          "hover:border-accent/40 focus-visible:border-accent focus-visible:shadow-[0_0_0_3px_var(--accent-soft)] disabled:opacity-60 aria-[invalid=true]:border-danger",
-          compact ? "shrink-0 px-3" : "w-full px-4",
+          fieldClasses("flex items-center gap-2 text-start"),
+          compact ? "w-auto shrink-0 px-3" : "w-full px-4",
         )}
       >
         {selected ? (
@@ -309,7 +308,7 @@ export function PhoneInput({
         aria-required={required || undefined}
         onChange={(e) => onChange({ ...value, number: e.target.value })}
         onBlur={onBlur}
-        className="block min-h-12 w-full min-w-0 rounded-xl border border-line-strong bg-bg/60 px-4 text-text tabular-nums transition-[border-color,box-shadow] outline-none placeholder:text-subtle hover:border-accent/40 focus:border-accent focus:shadow-[0_0_0_3px_var(--accent-soft)] aria-[invalid=true]:border-danger"
+        className={fieldClasses("min-w-0 tabular-nums")}
       />
     </div>
   );

@@ -1,7 +1,7 @@
 "use client";
 
 import type { Locale } from "@figbud/i18n";
-import { buttonClasses, cn } from "@figbud/ui";
+import { buttonClasses, cn, fieldClasses } from "@figbud/ui";
 import { ArrowRight, CircleCheck, Info, LoaderCircle, TriangleAlert } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { type FormEvent, Fragment, type ReactNode, useEffect, useId, useRef, useState } from "react";
@@ -518,10 +518,7 @@ export function EnquiryForm({
   );
 }
 
-const inputClass =
-  "block min-h-12 w-full rounded-xl border border-line-strong bg-bg/60 px-4 text-text placeholder:text-subtle " +
-  "transition-[border-color,box-shadow] outline-none hover:border-accent/40 focus:border-accent " +
-  "focus:shadow-[0_0_0_3px_var(--accent-soft)] aria-[invalid=true]:border-danger";
+const inputClass = fieldClasses();
 
 function Field({
   id,

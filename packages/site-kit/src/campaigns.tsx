@@ -1,6 +1,6 @@
 "use client";
 
-import { cn } from "@figbud/ui";
+import { cn, fieldClasses } from "@figbud/ui";
 import { ArrowRight, Check, Copy, Gift, X } from "lucide-react";
 import { usePathname } from "next/navigation";
 import {
@@ -1013,7 +1013,7 @@ function SpinToWin({ campaign, ctx, onBrand }: { campaign: LiveCampaign; ctx: Co
                 autoComplete="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="mt-1 min-h-11 w-full rounded-xl border border-line-strong bg-surface px-3 text-text"
+                className={fieldClasses("mt-1 px-3")}
               />
             </label>
             <label className="flex items-start gap-2.5 text-sm">
