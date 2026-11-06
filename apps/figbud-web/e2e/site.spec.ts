@@ -204,6 +204,7 @@ test.describe("theme and language", () => {
     expect(await lightness(body)).toBeLessThan(128);
     // Images and fonts settled first, so only the theme switch could move the page.
     await page.waitForLoadState("networkidle");
+    await page.evaluate(() => document.fonts.ready.then(() => undefined));
     const y = await page.evaluate(() => {
       document.querySelector("#philosophy-title")!.scrollIntoView({ behavior: "instant" });
       return window.scrollY;
@@ -258,28 +259,37 @@ test.describe("navigation", () => {
     test.skip(!isMobile, "mobile only");
     await page.goto("/en");
     const dialog = page.getByRole("dialog");
-    const panel = dialog.locator(".fb-drawer-panel");
-    // Whether a slide (a running translate transition) is under way.
-    const sliding = () =>
-      page.evaluate(() =>
-        document
-          .getAnimations()
-          .some((a) => a instanceof CSSTransition && a.transitionProperty === "translate"),
-      );
+    // By class: a closed dialog has no role to find it by.
+    const panel = page.locator(".fb-drawer-panel");
+    // Records whether the panel starts a slide (a translate transition) from now on.
+    const watchSlides = () =>
+      panel.evaluate((el) => {
+        const w = window as unknown as { slid: boolean };
+        w.slid = false;
+        el.addEventListener("transitionrun", (e) => {
+          if (e.propertyName === "translate") w.slid = true;
+        });
+      });
+    const slid = () => page.evaluate(() => (window as unknown as { slid: boolean }).slid);
+
     await page.getByRole("button", { name: "Open menu" }).click();
     await expect(dialog).toBeVisible();
     await expect.poll(() => panel.evaluate((el) => getComputedStyle(el).translate)).toMatch(/^(none|0px)$/);
-    // Closing slides it out before it leaves.
+    // Closing slides it out before it leaves, where the browser can keep a closing
+    // dialog on screen (CSS `overlay`); others, such as Safari today, close at once.
+    const exits = await page.evaluate(() => CSS.supports("overlay", "auto"));
+    await watchSlides();
     await page.keyboard.press("Escape");
-    expect(await sliding()).toBe(true);
     await expect(dialog).toBeHidden();
+    expect(await slid()).toBe(exits);
 
     await page.emulateMedia({ reducedMotion: "reduce" });
+    await watchSlides();
     await page.getByRole("button", { name: "Open menu" }).click();
     await expect(dialog).toBeVisible();
-    expect(await sliding()).toBe(false);
     await page.keyboard.press("Escape");
     await expect(dialog).toBeHidden({ timeout: 100 });
+    expect(await slid()).toBe(false);
   });
 
   test("navbar dropdowns use the opposite theme, stay on screen and close with Escape", async ({
