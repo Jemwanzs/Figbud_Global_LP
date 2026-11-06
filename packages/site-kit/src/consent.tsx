@@ -279,20 +279,27 @@ export function CookieConsent({
   // The first visit asks in the middle of the screen, as a modal: the page waits
   // behind a dimmed backdrop, focus moves to the choices, and the page behind
   // can't be reached by keyboard or screen reader until a choice is made.
+  // One modal at a time: Customize swaps the question for the preferences, and
+  // closing those unsaved brings the question back.
   const asking = hydrated && !consent;
-  useEffect(() => {
+  const stillAsking = useRef(false);
+  const customizing = useRef(false);
+  const ask = useCallback(() => {
     const banner = bannerRef.current;
-    if (!banner) return;
-    if (asking && !banner.open) {
-      banner.showModal();
-      // The choices take focus, ahead of the policy links above them.
-      banner.querySelector<HTMLButtonElement>("[data-consent-first]")?.focus();
-    }
-    if (!asking && banner.open) banner.close();
-  }, [asking]);
+    if (!banner || banner.open || !stillAsking.current || customizing.current) return;
+    banner.showModal();
+    // The choices take focus, ahead of the policy links above them.
+    banner.querySelector<HTMLButtonElement>("[data-consent-first]")?.focus();
+  }, []);
+  useEffect(() => {
+    stillAsking.current = asking;
+    ask();
+  }, [asking, ask]);
 
   const openPreferences = useCallback(() => {
     setDraft(consent?.choices ?? NONE);
+    customizing.current = true;
+    bannerRef.current?.close();
     dialogRef.current?.showModal();
   }, [consent]);
 
@@ -309,6 +316,7 @@ export function CookieConsent({
       savedAt: Math.floor(Date.now() / 1000),
     };
     writeConsent(next, settings.retention_days);
+    stillAsking.current = false;
     dialogRef.current?.close();
     // Proof of consent without personal data; the choice applies either way.
     void fetch(`${apiOrigin.replace(/\/$/, "")}/v1/privacy/consent`, {
@@ -351,11 +359,17 @@ export function CookieConsent({
           aria-label={labels.region}
           aria-describedby={`${titleId}-banner`}
           data-consent-banner=""
-          // Escape doesn't dismiss it: a choice is needed (Reject optional is one button away).
+          // Escape doesn't dismiss it: a choice is needed (Reject optional is one button
+          // away). Some browsers close it anyway, so it comes straight back.
+          onKeyDown={(event) => {
+            if (event.key === "Escape") event.preventDefault();
+          }}
           onCancel={(event) => event.preventDefault()}
+          onClose={ask}
           className={cn(
             "m-auto w-[min(36rem,calc(100%-2rem))] rounded-2xl border border-line bg-bg-elevated p-6 text-text shadow-[var(--shadow-elevated)] sm:p-8",
-            "backdrop:bg-black/55 backdrop:backdrop-blur-[2px]",
+            // Dimmed, not blurred: a blurred page behind a modal stalls painting in WebKit.
+            "backdrop:bg-black/60",
             "animate-[fb-consent-in_400ms_cubic-bezier(0.16,1,0.3,1)] motion-reduce:animate-none",
           )}
         >
@@ -397,6 +411,10 @@ export function CookieConsent({
       <dialog
         ref={dialogRef}
         aria-labelledby={titleId}
+        onClose={() => {
+          customizing.current = false;
+          ask();
+        }}
         className={cn(
           "m-auto w-[min(34rem,calc(100vw-1.5rem))] rounded-3xl border border-line bg-bg-elevated p-0 text-text shadow-[var(--shadow-elevated)]",
           "backdrop:bg-black/50 backdrop:backdrop-blur-sm",

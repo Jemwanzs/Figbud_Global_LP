@@ -115,8 +115,16 @@ test("customize: optional categories start off, choices are saved, and the foote
 }) => {
   const sent = await recordConsent(page);
   await page.goto("/en");
-  await banner(page).getByRole("button", { name: "Customize" }).click();
   const dialog = page.getByRole("dialog", { name: "Cookie preferences" });
+  // One modal at a time: Customize swaps the question for the preferences, and
+  // closing them unsaved brings the question back.
+  await banner(page).getByRole("button", { name: "Customize" }).click();
+  await expect(dialog).toBeVisible();
+  await expect(banner(page)).toBeHidden();
+  await dialog.getByRole("button", { name: "Close" }).click();
+  await expect(banner(page)).toBeVisible();
+  await expect(banner(page).getByRole("button", { name: "Accept all" })).toBeFocused();
+  await banner(page).getByRole("button", { name: "Customize" }).click();
   await expect(dialog).toBeVisible();
   await expect(dialog.getByText("Always on", { exact: true })).toBeVisible();
   for (const name of ["Analytics", "Preferences", "Marketing"])

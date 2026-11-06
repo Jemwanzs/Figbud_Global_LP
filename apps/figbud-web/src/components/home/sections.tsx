@@ -91,9 +91,11 @@ export function PlatformsSection({
 export function PhilosophySection({ dict }: SectionProps) {
   const philosophy = dict.home.philosophy;
   return (
+    // Contrasting band (UI-TH5): the other theme's colours, flipping with the global switch.
     <section
       aria-labelledby="philosophy-title"
-      className="relative overflow-x-clip border-y border-line bg-bg-elevated/50 py-section"
+      data-tone="inverse"
+      className="relative overflow-x-clip bg-bg py-section text-text"
     >
       <Container>
         <SectionHeading id="philosophy-title" eyebrow={philosophy.eyebrow} title={philosophy.title} />
@@ -198,9 +200,11 @@ const capabilityIcons = {
 export function EngineerSection({ dict }: SectionProps) {
   const engineer = dict.home.engineer;
   return (
+    // The second contrasting band, so the page alternates as it scrolls.
     <section
       aria-labelledby="engineer-title"
-      className="relative overflow-x-clip border-t border-line py-section"
+      data-tone="inverse"
+      className="relative overflow-x-clip bg-bg py-section text-text"
     >
       <Container size="wide" className="grid gap-14 lg:grid-cols-12 lg:gap-16">
         <div className="lg:col-span-5">

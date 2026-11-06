@@ -524,6 +524,14 @@
   display: inline-flex;
   border-radius: 0.55rem;
 }
+/* A logo with a file for one background only sits on a plate of that background
+   in the other theme. The plate reaches out around the logo rather than taking
+   room, so switching theme changes its colour, never the logo's size, and
+   nothing around it moves. */
+.fb-brand-solo {
+  padding: 0.3rem 0.5rem;
+  margin: -0.3rem -0.5rem;
+}
 .fb-brand-on-light:not(.fb-brand-solo) {
   display: none;
 }
@@ -535,11 +543,9 @@
 }
 [data-theme="light"] .fb-brand-on-dark.fb-brand-solo {
   background: var(--fb-ink);
-  padding: 0.3rem 0.5rem;
 }
 [data-theme="dark"] .fb-brand-on-light.fb-brand-solo {
   background: var(--fb-paper);
-  padding: 0.3rem 0.5rem;
 }
 /* Inside a surface in the opposite theme (InverseTheme: navigation
    dropdowns), logos follow that surface, not the page. */
@@ -551,11 +557,9 @@
 }
 [data-theme="light"] [data-theme="dark"] .fb-brand-on-dark.fb-brand-solo {
   background: none;
-  padding: 0;
 }
 [data-theme="light"] [data-theme="dark"] .fb-brand-on-light.fb-brand-solo {
   background: var(--fb-paper);
-  padding: 0.3rem 0.5rem;
 }
 [data-theme="dark"] [data-theme="light"] .fb-brand-on-light:not(.fb-brand-solo) {
   display: inline-flex;
@@ -565,11 +569,9 @@
 }
 [data-theme="dark"] [data-theme="light"] .fb-brand-on-light.fb-brand-solo {
   background: none;
-  padding: 0;
 }
 [data-theme="dark"] [data-theme="light"] .fb-brand-on-dark.fb-brand-solo {
   background: var(--fb-ink);
-  padding: 0.3rem 0.5rem;
 }
 
 /* Cookie consent banner (consent.tsx): rises in once, never moves content. */

@@ -28,3 +28,12 @@ export async function themeSettled(page: Page): Promise<Page> {
     .catch(() => undefined);
   return page;
 }
+
+/**
+ * Scrolls to the top before a whole-page scan: sticky headers cover whatever
+ * sits under them, and axe counts a part-covered field as an undersized target.
+ */
+export async function scrolledToTop(page: Page): Promise<Page> {
+  await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
+  return page;
+}

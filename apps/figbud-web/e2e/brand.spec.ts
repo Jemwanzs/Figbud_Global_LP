@@ -25,10 +25,13 @@ test.describe("public websites", () => {
     // Proportions come from the file: 306 × 64 shown at 28 px high.
     expect(await logo.getAttribute("width")).toBe(String(Math.round((28 * 306) / 64)));
 
+    const before = await logo.boundingBox();
     await page.evaluate(() => (document.documentElement.dataset.theme = "light"));
     const plate = header.locator(".fb-brand-solo").filter({ visible: true }).first();
     // The plate is the parent palette's midnight navy (--fb-ink).
     await expect(plate).toHaveCSS("background-color", "rgb(2, 6, 23)");
+    // It reaches out around the logo: the logo, and everything beside it, stays put.
+    expect(await logo.boundingBox()).toEqual(before);
   });
 
   test("product cards use the published logos and symbols", async ({ page }) => {

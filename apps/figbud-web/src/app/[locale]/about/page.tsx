@@ -125,8 +125,8 @@ export default async function AboutPage({ params }: PageProps<"/[locale]/about">
         </Container>
       </section>
 
-      {/* What we believe */}
-      <section aria-labelledby="about-belief" className="border-y border-line bg-bg-elevated/50 py-section">
+      {/* What we believe: a contrasting band, like the home page's (UI-TH5) */}
+      <section aria-labelledby="about-belief" data-tone="inverse" className="bg-bg py-section text-text">
         <Container size="wide">
           <Reveal>
             <Eyebrow>{page.beliefEyebrow}</Eyebrow>

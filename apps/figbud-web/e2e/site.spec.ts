@@ -186,6 +186,42 @@ test.describe("theme and language", () => {
     await expect(html).toHaveAttribute("data-theme", "dark");
   });
 
+  test("the home page's contrasting bands take the other theme and flip with the switch (UI-TH5)", async ({
+    page,
+  }) => {
+    await page.goto("/en");
+    const bands = page.locator('section[data-tone="inverse"]');
+    await expect(bands).toHaveCount(2);
+    const lightness = (el: ReturnType<typeof bands.first>) =>
+      el.evaluate((node) => {
+        const [r, g, b] = getComputedStyle(node).backgroundColor.match(/\d+/g)!.map(Number);
+        return (r! + g! + b!) / 3;
+      });
+    const body = page.locator("body");
+    // Dark page, light bands.
+    expect(await lightness(bands.first())).toBeGreaterThan(128);
+    expect(await lightness(bands.last())).toBeGreaterThan(128);
+    expect(await lightness(body)).toBeLessThan(128);
+    // Images and fonts settled first, so only the theme switch could move the page.
+    await page.waitForLoadState("networkidle");
+    const y = await page.evaluate(() => {
+      document.querySelector("#philosophy-title")!.scrollIntoView({ behavior: "instant" });
+      return window.scrollY;
+    });
+    // Clicked from inside the page, as a visitor's click is (Playwright's own click
+    // would scroll), and again if it landed before the page was interactive.
+    await expect(async () => {
+      await page
+        .getByRole("button", { name: "Switch to light theme" })
+        .evaluate((button) => (button as HTMLButtonElement).click());
+      await expect(page.locator("html")).toHaveAttribute("data-theme", "light", { timeout: 1_000 });
+    }).toPass();
+    // Light page, dark bands, once the shared colour transition ends; same scroll position.
+    await expect.poll(() => lightness(bands.first()), { timeout: 2_000 }).toBeLessThan(128);
+    expect(await lightness(bands.last())).toBeLessThan(128);
+    expect(Math.abs((await page.evaluate(() => window.scrollY)) - y)).toBeLessThanOrEqual(1);
+  });
+
   test("an older saved preference to follow the device starts dark", async ({ page }) => {
     await page.emulateMedia({ colorScheme: "light" });
     await page.addInitScript(() => localStorage.setItem("fb-theme", "system"));

@@ -2,7 +2,7 @@ import AxeBuilder from "@axe-core/playwright";
 import { randomBytes } from "node:crypto";
 
 import { expect, test } from "@playwright/test";
-import { themeSettled } from "./theme-settled";
+import { scrolledToTop, themeSettled } from "./theme-settled";
 
 // Studio → Websites → ZiraHR → Payroll Calculator (P14-C). The rules behind
 // this are tested in services/api/tests/payroll.rs and the engine's unit tests.
@@ -63,7 +63,7 @@ test("rules can't be published unchecked; draft, approve, switch on and roll bac
   await older.locator("summary").click();
   await older.getByLabel("Checked against official sources on").fill("2026-11-05");
   await expect(current.getByText("Checked 2026-11-05")).toBeVisible();
-  const results = await new AxeBuilder({ page: await themeSettled(page) })
+  const results = await new AxeBuilder({ page: await themeSettled(await scrolledToTop(page)) })
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
     .analyze();
   expect(
