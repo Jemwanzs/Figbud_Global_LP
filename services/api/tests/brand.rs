@@ -405,6 +405,60 @@ async fn seeded_official_logos_are_published_and_proposals_stay_in_draft() {
     .await
     .unwrap();
 
+    // ZiraHR's warm palette (owner, 6 Nov 2026) replaces the old cyan once, as a
+    // recorded revision; a palette chosen in the Studio would be kept.
+    let zirahr_colours = || async {
+        sqlx::query_scalar::<_, String>(
+            "SELECT b.published->'colors'->>'primary' FROM site_brands b JOIN sites s ON s.id = b.site_id
+              WHERE s.slug = 'zirahr'",
+        )
+        .fetch_one(&s.pool)
+        .await
+        .unwrap()
+    };
+    let set_zirahr = |primary: &'static str| {
+        sqlx::query(
+            "UPDATE site_brands SET published = jsonb_set(published, '{colors}',
+                    jsonb_build_object('primary', $1::text, 'secondary', '#0891b2', 'accent', '#11e6ff'))
+              WHERE site_id = (SELECT id FROM sites WHERE slug = 'zirahr')",
+        )
+        .bind(primary)
+    };
+    let clear_zirahr = || {
+        sqlx::query(
+            "DELETE FROM audit_log WHERE action = 'brand.zirahr_palette_seeded'
+                AND site_id = (SELECT id FROM sites WHERE slug = 'zirahr')",
+        )
+    };
+    set_zirahr("#22d3ee").execute(&s.pool).await.unwrap();
+    clear_zirahr().execute(&s.pool).await.unwrap();
+    brand::seed::run(&s.pool).await.unwrap();
+    assert_eq!(zirahr_colours().await, "#f5913e", "the old cyan is upgraded");
+    let noted: bool = sqlx::query_scalar(
+        "SELECT EXISTS (SELECT 1 FROM brand_revisions r JOIN sites s ON s.id = r.site_id
+          WHERE s.slug = 'zirahr' AND r.note LIKE 'ZiraHR palette%' AND r.state = 'published')",
+    )
+    .fetch_one(&s.pool)
+    .await
+    .unwrap();
+    assert!(noted, "the change is a recorded, published revision");
+    set_zirahr("#123456").execute(&s.pool).await.unwrap();
+    clear_zirahr().execute(&s.pool).await.unwrap();
+    brand::seed::run(&s.pool).await.unwrap();
+    assert_eq!(
+        zirahr_colours().await,
+        "#123456",
+        "a palette chosen in the Studio is kept"
+    );
+    sqlx::query(
+        "UPDATE site_brands SET published = jsonb_set(published, '{colors}',
+                '{\"primary\":\"#f5913e\",\"secondary\":\"#8b4a1f\",\"accent\":\"#ffa95e\"}')
+          WHERE site_id = (SELECT id FROM sites WHERE slug = 'zirahr')",
+    )
+    .execute(&s.pool)
+    .await
+    .unwrap();
+
     // Published files are public (and cache forever); renditions are WebP.
     let url = logo["url"].as_str().unwrap();
     let get = |uri: String| Request::builder().uri(uri).body(Body::empty()).unwrap();

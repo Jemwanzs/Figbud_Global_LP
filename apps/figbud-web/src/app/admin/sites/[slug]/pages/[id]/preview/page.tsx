@@ -34,8 +34,9 @@ async function Preview({ params }: Pick<PageProps<"/admin/sites/[slug]/pages/[id
   return (
     <div
       data-product={KNOWN.includes(slug) ? slug : "figbud"}
+      data-site={slug}
       style={siteThemeStyle(data.site.theme)}
-      className="min-h-dvh"
+      className="min-h-dvh bg-bg text-text"
     >
       <div className="sticky top-0 z-10 border-b border-warning/40 bg-warning/10 px-5 py-2.5 text-center text-sm text-text backdrop-blur">
         Draft preview of <strong>{data.page.title}</strong> on {data.site.name} · not public ·{" "}

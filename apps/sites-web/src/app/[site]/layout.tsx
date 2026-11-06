@@ -130,7 +130,8 @@ export default async function SiteLayout({ children, params }: LayoutProps<"/[si
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
-      <body className="min-h-dvh">
+      {/* `data-site` lets a website have its own surfaces (ZiraHR's warm palette). */}
+      <body data-site={slug} className="min-h-dvh">
         <div
           data-product={KNOWN.includes(slug) ? slug : "figbud"}
           style={colours}

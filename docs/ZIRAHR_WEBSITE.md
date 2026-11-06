@@ -91,4 +91,4 @@ Checked against the brief's list. Existing tests cover each item, so nothing was
 
 ## 6. Design direction
 
-The supplied samples informed ideas only: a line-by-line payslip, payroll rates as visible settings, a stepped pay run, modules around one record, outputs from a run, a request moving through approvers, and a team calendar. No layouts, artwork, wording or colours were copied. ZiraHR uses its own cyan brand colour, Outfit, and a "signal line" motif instead of the sample's orange dot-matrix art.
+The supplied samples informed ideas only: a line-by-line payslip, payroll rates as visible settings, a stepped pay run, modules around one record, outputs from a run, a request moving through approvers, and a team calendar. No layouts, artwork, wording or colours were copied. ZiraHR uses its own palette (warm orange and warm brown on white or deep brown, since 6 Nov 2026; cyan before), Outfit, and a "signal line" motif instead of the sample's orange dot-matrix art.

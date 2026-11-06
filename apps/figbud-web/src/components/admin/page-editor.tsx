@@ -1764,6 +1764,8 @@ export function PageEditor({ slug, user, initial }: { slug: string; user: AdminU
             </div>
             <div
               data-product={KNOWN.includes(slug) ? slug : "figbud"}
+              // The website's own surfaces, as on the live site (ZiraHR's warm palette).
+              data-site={slug}
               style={siteThemeStyle(initial.site.theme)}
               tabIndex={0}
               role="group"

@@ -117,10 +117,12 @@ Product accent tokens (`packages/brand/src/tokens.css`) now follow each product'
 | Product | Accent | Second | Text on dark | Text on light |
 | ------- | ------ | ------ | ------------ | ------------- |
 | FigBud Global (parent palette, 28 Oct 2026) | #22C55E emerald (navy text on it) | #3B82F6 electric blue | #22C55E | #15803D |
-| ZiraHR | #22D3EE cyan | #0891B2 | #67E8F9 | #0E7490 |
+| ZiraHR (owner, 6 Nov 2026) | #F5913E warm orange (deep brown #1F1006 text on it) | #8B4A1F warm brown | #FFA95E | #9A4A12 |
 | Jasiri LMS | #22C55E green | #7C3AED purple | #4ADE80 | #15803D |
 | Expense Now | #FF7A00 orange | #FFC107 yellow | #FF8A1F | #A84F00 |
 | Ziwa LMS (final, 29 Oct 2026) | #FB7A1A orange (deep brown #2B1609 text on it) | #FFC642 yellow | #FB7A1A | #A8480C |
+
+ZiraHR's website also has its own surfaces (owner, 6 Nov 2026: warm brown, brown and orange, warm orange, white). In the dark theme, the pages sit on deep warm brown (#140C07 to #3A2617) with warm white text. In the light theme, they sit on white and warm white (#FFFDFA, #FBF3EA) with brown text (#2B1A0E). Buttons and links use warm orange, with #B4540F and white text in the light theme. "Brand" sections use warm brown #5C3317, and "soft" sections use warm white #FFF7EE. These are scoped to the ZiraHR website (`data-site="zirahr"` on its `<body>`, and on Studio previews), so ZiraHR cards on FigBud Global pages keep the parent surfaces with ZiraHR's orange accent. `tokens.test.ts` checks every text, accent, status and focus colour on these surfaces in both themes. The official ZiraHR symbol keeps its own cyan: no logo file was recoloured.
 
 Ziwa's brand profile stores orange, yellow and tan as primary, secondary and accent; brown is its wordmark and button-text colour. Orange #FB7A1A is 2.5:1 on the light theme, so light pages use the darker #A8480C for orange text.
 

@@ -127,3 +127,42 @@ describe.each([
     expect(contrast(theme.accent!, chip)).toBeGreaterThanOrEqual(4.5);
   });
 });
+
+// ZiraHR's own warm surfaces (owner, 6 Nov 2026): the same checks as the parent
+// palette, plus the status colours and ZiraHR's accent as text on them.
+const warmDark = block('[data-theme="dark"] [data-site="zirahr"],');
+const warmLight = block('[data-theme="light"] [data-site="zirahr"],');
+const zirahr = block('[data-product="zirahr"] {');
+
+describe.each([
+  ["dark", warmDark, dark],
+  ["light", warmLight, light],
+] as const)("ZiraHR warm palette, %s theme", (_name, theme, parent) => {
+  const surfaces = ["bg", "bg-elevated", "surface", "surface-2"];
+
+  it.each(["text", "text-muted", "text-subtle", "accent", "product-text"])(
+    "%s is readable on every surface",
+    (role) => {
+      for (const surface of surfaces) {
+        expect(contrast(theme[role]!, theme[surface]!), `${role} on ${surface}`).toBeGreaterThanOrEqual(4.5);
+      }
+    },
+  );
+
+  it("status colours, kept from the parent palette, are readable on the warm surfaces", () => {
+    for (const role of ["success", "warning", "danger"]) {
+      for (const surface of surfaces) {
+        expect(contrast(parent[role]!, theme[surface]!), `${role} on ${surface}`).toBeGreaterThanOrEqual(4.5);
+      }
+    }
+  });
+
+  it("button text is readable on the accent and on ZiraHR's orange", () => {
+    expect(contrast(theme["accent-ink"]!, theme.accent!)).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(zirahr["product-ink"]!, zirahr.product!)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("focus rings stand out from the page", () => {
+    expect(contrast(theme.focus!, theme.bg!)).toBeGreaterThanOrEqual(3);
+  });
+});

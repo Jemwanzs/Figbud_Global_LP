@@ -79,7 +79,8 @@ impl BrandConfig {
         let (primary, secondary, accent) = match slug {
             // The FigBud Global parent palette: emerald, electric blue, violet.
             "figbud" => ("#22c55e", "#3b82f6", "#a855f7"),
-            "zirahr" => ("#22d3ee", "#0891b2", "#11e6ff"),
+            // ZiraHR (owner, 6 Nov 2026): warm orange, warm brown, light warm orange.
+            "zirahr" => ("#f5913e", "#8b4a1f", "#ffa95e"),
             "jasiri" => ("#22c55e", "#7c3aed", "#4ade80"),
             // The Expense Now palette: primary orange, brand brown, accent yellow.
             "expense_now" => ("#ff7a00", "#4e2d17", "#ffc107"),
@@ -270,8 +271,8 @@ mod tests {
     #[test]
     fn normalise_rejects_bad_colours_and_sizes() {
         let mut config = BrandConfig::default_for("zirahr");
-        config.colors.primary = " #22D3EE ".into();
-        assert_eq!(config.clone().normalise().unwrap().colors.primary, "#22d3ee");
+        config.colors.primary = " #F5913E ".into();
+        assert_eq!(config.clone().normalise().unwrap().colors.primary, "#f5913e");
         config.colors.accent = "cyan".into();
         config.logo_height = 90;
         let fields: Vec<&str> = config.normalise().unwrap_err().iter().map(|e| e.field).collect();

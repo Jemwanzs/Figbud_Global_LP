@@ -114,12 +114,14 @@
 /* Product palettes follow each product's official logo (docs/BRAND_ASSETS.md):
    ZiraHR cyan, Jasiri green with purple, Expense Now orange (proposed),
    Ziwa LMS orange with yellow and brown (final identity approved 29 Oct 2026). */
+/* ZiraHR (owner, 6 Nov 2026): warm orange, warm brown, white. The official
+   symbol keeps its own colours. */
 [data-product="zirahr"] {
-  --product: #22d3ee;
-  --product-2: #0891b2;
-  --product-ink: #04161b;
-  --product-text: #67e8f9;
-  --product-soft: rgb(34 211 238 / 0.12);
+  --product: #f5913e;
+  --product-2: #8b4a1f;
+  --product-ink: #1f1006;
+  --product-text: #ffa95e;
+  --product-soft: rgb(245 145 62 / 0.14);
 }
 [data-product="jasiri"] {
   --product: #22c55e;
@@ -146,7 +148,7 @@
 }
 [data-theme="light"] [data-product="zirahr"],
 [data-theme="light"][data-product="zirahr"] {
-  --product-text: #0e7490;
+  --product-text: #9a4a12;
 }
 [data-theme="light"] [data-product="jasiri"],
 [data-theme="light"][data-product="jasiri"] {
@@ -163,7 +165,7 @@
 /* A dark surface on a light page (InverseTheme: navigation dropdowns) keeps
    the dark-background product colours. */
 [data-theme="light"] [data-theme="dark"] [data-product="zirahr"] {
-  --product-text: #67e8f9;
+  --product-text: #ffa95e;
 }
 [data-theme="light"] [data-theme="dark"] [data-product="jasiri"] {
   --product-text: #4ade80;
@@ -261,13 +263,13 @@
 [data-theme="dark"][data-product="zirahr"] [data-tone="inverse"],
 [data-theme="light"] [data-product="zirahr"] [data-tone="inverse"] [data-tone="inverse"],
 [data-theme="light"][data-product="zirahr"] [data-tone="inverse"] [data-tone="inverse"] {
-  --product-text: #0e7490;
+  --product-text: #9a4a12;
 }
 [data-theme="light"] [data-product="zirahr"] [data-tone="inverse"],
 [data-theme="light"][data-product="zirahr"] [data-tone="inverse"],
 [data-theme="dark"] [data-product="zirahr"] [data-tone="inverse"] [data-tone="inverse"],
 [data-theme="dark"][data-product="zirahr"] [data-tone="inverse"] [data-tone="inverse"] {
-  --product-text: #67e8f9;
+  --product-text: #ffa95e;
 }
 [data-theme="dark"] [data-product="jasiri"] [data-tone="inverse"],
 [data-theme="dark"][data-product="jasiri"] [data-tone="inverse"],
@@ -304,4 +306,64 @@
 [data-theme="dark"] [data-product="expense_now"] [data-tone="inverse"] [data-tone="inverse"],
 [data-theme="dark"][data-product="expense_now"] [data-tone="inverse"] [data-tone="inverse"] {
   --product-text: #ff8a1f;
+}
+
+/*
+ * The ZiraHR website's own surfaces (owner, 6 Nov 2026): deep warm brown in
+ * the dark theme, white and warm white in the light theme, warm orange
+ * accents. Scoped to the website (`data-site` on its <body>), so ZiraHR cards
+ * on FigBud Global pages keep the parent surfaces. Contrasting bands and
+ * opposite-theme surfaces inside it take the other warm set, as elsewhere.
+ */
+[data-theme="dark"] [data-site="zirahr"],
+[data-site="zirahr"] [data-theme="dark"],
+[data-theme="light"] [data-site="zirahr"] [data-tone="inverse"],
+[data-theme="dark"] [data-site="zirahr"] [data-tone="inverse"] [data-tone="inverse"] {
+  color-scheme: dark;
+  --bg: #140c07;
+  --bg-elevated: #1b110a;
+  --surface: #22160d;
+  --surface-2: #2c1c11;
+  --surface-3: #3a2617;
+  --line: rgb(253 216 186 / 0.12);
+  --line-strong: rgb(253 216 186 / 0.22);
+  --text: #fff8f1;
+  --text-muted: #ecdccb;
+  --text-subtle: #c9ad94;
+  --accent: #f5913e;
+  --accent-strong: #ffa95e;
+  --accent-ink: #1f1006;
+  --accent-soft: rgb(245 145 62 / 0.14);
+  --accent-2: #e0a872;
+  --accent-3: #ffcf99;
+  --glow: rgb(245 145 62 / 0.24);
+  --focus: #ffa95e;
+  --product-text: #ffa95e;
+  --shadow-elevated: 0 1px 0 rgb(255 240 225 / 0.04) inset, 0 24px 60px -24px rgb(0 0 0 / 0.7);
+}
+[data-theme="light"] [data-site="zirahr"],
+[data-site="zirahr"] [data-theme="light"],
+[data-theme="dark"] [data-site="zirahr"] [data-tone="inverse"],
+[data-theme="light"] [data-site="zirahr"] [data-tone="inverse"] [data-tone="inverse"] {
+  color-scheme: light;
+  --bg: #fffdfa;
+  --bg-elevated: #ffffff;
+  --surface: #ffffff;
+  --surface-2: #fbf3ea;
+  --surface-3: #f3e3d2;
+  --line: rgb(92 51 23 / 0.1);
+  --line-strong: rgb(92 51 23 / 0.18);
+  --text: #2b1a0e;
+  --text-muted: #5c4331;
+  --text-subtle: #6e5442;
+  --accent: #b4540f;
+  --accent-strong: #94440b;
+  --accent-ink: #ffffff;
+  --accent-soft: rgb(217 110 30 / 0.09);
+  --accent-2: #7a4019;
+  --accent-3: #e07b28;
+  --glow: rgb(234 128 44 / 0.2);
+  --focus: #c2600f;
+  --product-text: #9a4a12;
+  --shadow-elevated: 0 1px 2px rgb(43 26 14 / 0.06), 0 24px 48px -28px rgb(43 26 14 / 0.25);
 }

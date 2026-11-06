@@ -466,45 +466,75 @@ pub async fn run(pool: &PgPool) -> Result<(), Box<dyn std::error::Error + Send +
     for identity in &IDENTITIES {
         upgrade_identity(pool, identity).await?;
     }
-    upgrade_figbud_palette(pool).await
+    for palette in &PALETTES {
+        upgrade_palette(pool, palette).await?;
+    }
+    Ok(())
 }
 
-/// The FigBud Global palette before 28 Oct 2026 (amber, copper).
-const FIGBUD_AMBER: [&str; 3] = ["#f0a65d", "#a66538", "#f6bd82"];
+/// A one-time palette change for a website: the colours it replaces, and how
+/// the change is recorded.
+struct Palette {
+    slug: &'static str,
+    old: [&'static str; 3],
+    marker: &'static str,
+    note: &'static str,
+}
 
-/// One-time upgrade to the FigBud Global parent palette (emerald, electric
-/// blue, violet; 28 Oct 2026). Only colours still at the old defaults change,
-/// so a palette chosen in the Studio is kept; logos are never touched. The new
-/// colours are published as a recorded revision and the audit marker means
-/// it never runs twice.
-async fn upgrade_figbud_palette(pool: &PgPool) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+const PALETTES: [Palette; 2] = [
+    // Amber and copper, before the FigBud Global parent palette of 28 Oct 2026.
+    Palette {
+        slug: "figbud",
+        old: ["#f0a65d", "#a66538", "#f6bd82"],
+        marker: "brand.figbud_palette_seeded",
+        note: "FigBud Global parent palette: emerald, electric blue, violet",
+    },
+    // Cyan, before ZiraHR's warm palette (owner, 6 Nov 2026).
+    Palette {
+        slug: "zirahr",
+        old: ["#22d3ee", "#0891b2", "#11e6ff"],
+        marker: "brand.zirahr_palette_seeded",
+        note: "ZiraHR palette on the owner's brief of 6 Nov 2026: warm orange, warm brown, white",
+    },
+];
+
+/// One-time upgrade to a website's new palette (`default_for`). Only colours
+/// still at the old defaults change, so a palette chosen in the Studio is kept;
+/// logos are never touched. The new colours are published as a recorded
+/// revision and the audit marker means it never runs twice.
+async fn upgrade_palette(
+    pool: &PgPool,
+    palette: &Palette,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let mut tx = pool.begin().await?;
     let row: Option<(Uuid, Value, Option<Value>)> = sqlx::query_as(
         "SELECT b.site_id, b.draft, b.published FROM site_brands b JOIN sites s ON s.id = b.site_id
-          WHERE s.slug = 'figbud' AND NOT EXISTS (
-                SELECT 1 FROM audit_log a WHERE a.site_id = s.id AND a.action = 'brand.figbud_palette_seeded')
+          WHERE s.slug = $1 AND NOT EXISTS (
+                SELECT 1 FROM audit_log a WHERE a.site_id = s.id AND a.action = $2)
             FOR UPDATE OF b",
     )
+    .bind(palette.slug)
+    .bind(palette.marker)
     .fetch_optional(&mut *tx)
     .await?;
     let Some((site_id, draft, published)) = row else {
         return Ok(());
     };
-    let already: bool = sqlx::query_scalar(
-        "SELECT EXISTS (SELECT 1 FROM audit_log WHERE site_id = $1 AND action = 'brand.figbud_palette_seeded')",
-    )
-    .bind(site_id)
-    .fetch_one(&mut *tx)
-    .await?;
+    let already: bool =
+        sqlx::query_scalar("SELECT EXISTS (SELECT 1 FROM audit_log WHERE site_id = $1 AND action = $2)")
+            .bind(site_id)
+            .bind(palette.marker)
+            .fetch_one(&mut *tx)
+            .await?;
     if already {
         // Another replica got there first.
         return Ok(());
     }
-    let colors = BrandConfig::default_for("figbud").colors;
+    let colors = BrandConfig::default_for(palette.slug).colors;
     let old = |c: &BrandConfig| {
         [&c.colors.primary, &c.colors.secondary, &c.colors.accent]
             .iter()
-            .zip(FIGBUD_AMBER)
+            .zip(palette.old)
             .all(|(a, b)| a.eq_ignore_ascii_case(b))
     };
     let mut published_changed = false;
@@ -517,11 +547,12 @@ async fn upgrade_figbud_palette(pool: &PgPool) -> Result<(), Box<dyn std::error:
         sqlx::query(
             "INSERT INTO brand_revisions (id, site_id, number, config, note, state, decided_at)
              VALUES ($1, $2, COALESCE((SELECT max(number) FROM brand_revisions WHERE site_id = $2), 0) + 1,
-                     $3, 'FigBud Global parent palette: emerald, electric blue, violet', 'published', now())",
+                     $3, $4, 'published', now())",
         )
         .bind(revision)
         .bind(site_id)
         .bind(&value)
+        .bind(palette.note)
         .execute(&mut *tx)
         .await?;
         sqlx::query(
@@ -549,16 +580,17 @@ async fn upgrade_figbud_palette(pool: &PgPool) -> Result<(), Box<dyn std::error:
     }
     sqlx::query(
         "INSERT INTO audit_log (id, action, target_type, target_id, detail, site_id)
-         VALUES ($1, 'brand.figbud_palette_seeded', 'site', $2, $3, $4)",
+         VALUES ($1, $2, 'site', $3, $4, $5)",
     )
     .bind(Uuid::now_v7())
+    .bind(palette.marker)
     .bind(site_id.to_string())
     .bind(json!({ "published": published_changed }))
     .bind(site_id)
     .execute(&mut *tx)
     .await?;
     tx.commit().await?;
-    tracing::info!(published_changed, "FigBud Global palette applied");
+    tracing::info!(slug = palette.slug, published_changed, "palette applied");
     Ok(())
 }
 
