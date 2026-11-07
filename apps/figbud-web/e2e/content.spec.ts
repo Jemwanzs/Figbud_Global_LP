@@ -36,7 +36,7 @@ async function signInAsOwner(page: Page) {
 test("create, publish and version shared content, and use it on pages", async ({ page }) => {
   test.setTimeout(90_000);
   await signInAsOwner(page);
-  await studioLink(page, "Content");
+  await studioLink(page, "Content library");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Content library");
   const promise = page.getByRole("listitem").filter({ hasText: "Data promise" });
   await expect(promise).toContainText("Version 1");

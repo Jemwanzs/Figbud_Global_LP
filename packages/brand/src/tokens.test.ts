@@ -166,3 +166,56 @@ describe.each([
     expect(contrast(theme.focus!, theme.bg!)).toBeGreaterThanOrEqual(3);
   });
 });
+
+// FigBud Studio's warm palette (owner, 8 Nov 2026): text and accents readable
+// on every surface, buttons readable in both themes, section colours visible.
+const studioDark = block('[data-studio][data-theme="dark"] {');
+const studioLight = block('[data-studio][data-theme="light"] {');
+const AREAS = ["overview", "websites", "products", "content", "leads", "pricing", "publishing", "settings"];
+
+describe.each([
+  ["dark", studioDark, dark],
+  ["light", studioLight, light],
+] as const)("Studio palette, %s theme", (_name, theme, parent) => {
+  const surfaces = ["bg", "bg-elevated", "surface", "surface-2"];
+
+  it.each(["text", "text-muted", "text-subtle", "accent", "accent-2", "accent-3"])(
+    "%s is readable on every surface",
+    (role) => {
+      for (const surface of surfaces) {
+        expect(contrast(theme[role]!, theme[surface]!), `${role} on ${surface}`).toBeGreaterThanOrEqual(4.5);
+      }
+    },
+  );
+
+  it("status colours, kept from the parent palette, are readable on the warm surfaces", () => {
+    for (const role of ["success", "warning", "danger"]) {
+      for (const surface of surfaces) {
+        expect(contrast(parent[role]!, theme[surface]!), `${role} on ${surface}`).toBeGreaterThanOrEqual(4.5);
+      }
+    }
+  });
+
+  it("button text is readable on the primary action and on the accent", () => {
+    const action = theme.action ?? theme.accent!;
+    const ink = theme["action-ink"] ?? theme["accent-ink"]!;
+    expect(contrast(ink, action)).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(ink, theme["action-strong"] ?? theme["accent-strong"]!)).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(theme["accent-ink"]!, theme.accent!)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("section colours stand out from the sidebar and its highlighted row", () => {
+    for (const area of AREAS) {
+      for (const surface of ["bg-elevated", "surface-2"]) {
+        expect(
+          contrast(theme[`area-${area}`]!, theme[surface]!),
+          `${area} on ${surface}`,
+        ).toBeGreaterThanOrEqual(3);
+      }
+    }
+  });
+
+  it("focus rings stand out from the page", () => {
+    expect(contrast(theme.focus!, theme.bg!)).toBeGreaterThanOrEqual(3);
+  });
+});

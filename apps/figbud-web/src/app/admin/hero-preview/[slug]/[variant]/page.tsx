@@ -38,7 +38,7 @@ async function Preview({
   searchParams,
 }: Pick<PageProps<"/admin/hero-preview/[slug]/[variant]">, "params" | "searchParams">) {
   const user = await requireAdmin();
-  if (user === "unavailable") return <AdminUnavailable />;
+  if (user === "unavailable") return <AdminUnavailable standalone />;
   const { slug, variant: id } = await params;
   const { theme } = await searchParams;
   if (!SLUG.test(slug) || !ID.test(id)) notFound();
@@ -54,7 +54,7 @@ async function Preview({
       <script
         dangerouslySetInnerHTML={{ __html: `document.documentElement.dataset.theme=${JSON.stringify(mode)}` }}
       />
-      <div data-preview={variant.design} className="min-h-dvh bg-bg">
+      <div data-preview={variant.design} data-site-preview="" className="min-h-dvh bg-bg">
         {slug === "figbud" ? (
           <HeroSlot hero={variant} locale="en" dict={dict} products={products} brands={brands} />
         ) : (

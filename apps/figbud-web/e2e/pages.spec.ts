@@ -125,6 +125,12 @@ test("build a page from a template, publish it, and manage pages", async ({ page
     page.getByRole("link", { name: /Full preview/ }).click(),
   ]);
   await expect(full.getByText(/Draft preview of/)).toBeVisible();
+  // The website's own colours, not the Studio's warm ones (owner's brief, 8 Nov 2026).
+  expect(
+    await full
+      .locator("[data-site-preview] > [data-site]")
+      .evaluate((el) => getComputedStyle(el).backgroundColor),
+  ).not.toBe("rgb(12, 8, 6)");
   await expect(
     full.getByRole("heading", { level: 1, name: "Every loan. A smoother journey." }),
   ).toBeVisible();

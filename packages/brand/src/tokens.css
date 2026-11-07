@@ -44,8 +44,13 @@
 :root,
 [data-theme="dark"],
 [data-theme="light"] [data-tone="inverse"],
-[data-theme="dark"] [data-tone="inverse"] [data-tone="inverse"] {
+[data-theme="dark"] [data-tone="inverse"] [data-tone="inverse"],
+[data-studio][data-theme="dark"] [data-site-preview] {
   color-scheme: dark;
+  /* Studio-only tokens fall back to the accent everywhere else. */
+  --action: initial;
+  --action-strong: initial;
+  --action-ink: initial;
 
   /* Semantic */
   --bg: #020617;
@@ -75,8 +80,12 @@
 
 [data-theme="light"],
 [data-theme="dark"] [data-tone="inverse"],
-[data-theme="light"] [data-tone="inverse"] [data-tone="inverse"] {
+[data-theme="light"] [data-tone="inverse"] [data-tone="inverse"],
+[data-studio][data-theme="light"] [data-site-preview] {
   color-scheme: light;
+  --action: initial;
+  --action-strong: initial;
+  --action-ink: initial;
 
   --bg: #f8fafc;
   --bg-elevated: #ffffff;
@@ -230,6 +239,12 @@
   --color-accent-soft: var(--accent-soft);
   --color-accent-2: var(--accent-2);
   --color-accent-3: var(--accent-3);
+  /* Primary actions: the accent, except in the Studio (warm orange buttons in both themes). */
+  --color-action: var(--action, var(--accent));
+  --color-action-strong: var(--action-strong, var(--accent-strong));
+  --color-action-ink: var(--action-ink, var(--accent-ink));
+  /* The current Studio section's colour (`data-area`). */
+  --color-area: var(--area, var(--accent));
   --color-success: var(--success);
   --color-warning: var(--warning);
   --color-danger: var(--danger);
@@ -402,4 +417,99 @@
   --focus: #c2600f;
   --product-text: #9a4a12;
   --shadow-elevated: 0 1px 2px rgb(43 26 14 / 0.06), 0 24px 48px -28px rgb(43 26 14 / 0.25);
+}
+
+/*
+ * FigBud Studio, the Admin Manager (owner's brief, 8 Nov 2026): warm cream,
+ * warm orange, warm brown and deep brown. Dark: near-black blended with brown,
+ * cream text, orange highlights. Light: warm cream, deep brown text, orange
+ * buttons with deep brown text, and a deeper orange where orange is text.
+ * Scoped to the Studio's <html> (`data-studio`); website previews inside it
+ * set their own `data-theme`, or carry `data-site-preview`, and keep the
+ * website's colours. Each Studio section has a coordinated colour (`--area`).
+ */
+[data-studio][data-theme="dark"] {
+  --bg: #0c0806;
+  --bg-elevated: #130d09;
+  --surface: #1a120d;
+  --surface-2: #241810;
+  --surface-3: #2f2016;
+  --line: rgb(248 225 200 / 0.1);
+  --line-strong: rgb(248 225 200 / 0.2);
+  --text: #f8f1e8;
+  --text-muted: #e3d4c3;
+  --text-subtle: #b9a08a;
+  --accent: #f28c38;
+  --accent-strong: #f6a560;
+  --accent-ink: #2a170c;
+  --accent-soft: rgb(242 140 56 / 0.12);
+  --accent-2: #c99a76;
+  --accent-3: #f5b546;
+  --glow: rgb(242 140 56 / 0.22);
+  --focus: #f6a560;
+  --shadow-elevated: 0 1px 0 rgb(255 240 225 / 0.04) inset, 0 24px 60px -24px rgb(0 0 0 / 0.75);
+  --area-overview: #f28c38;
+  --area-websites: #c99a76;
+  --area-products: #b08a72;
+  --area-content: #e8a36a;
+  --area-leads: #f5b546;
+  --area-pricing: #e08850;
+  --area-publishing: #d9a066;
+  --area-settings: #a8978a;
+}
+[data-studio][data-theme="light"] {
+  --bg: #f8f1e8;
+  --bg-elevated: #fffaf4;
+  --surface: #fffaf4;
+  --surface-2: #f1e6d8;
+  --surface-3: #e8d9c6;
+  --line: rgb(53 34 25 / 0.1);
+  --line-strong: rgb(53 34 25 / 0.18);
+  --text: #352219;
+  --text-muted: #5c4434;
+  --text-subtle: #6e5443;
+  --accent: #a4500f;
+  --accent-strong: #87410b;
+  --accent-ink: #ffffff;
+  --accent-soft: rgb(242 140 56 / 0.1);
+  --accent-2: #80532f;
+  --accent-3: #8f5e00;
+  --action: #f28c38;
+  --action-strong: #e57d28;
+  --action-ink: #352219;
+  --glow: rgb(242 140 56 / 0.28);
+  --focus: #b5560f;
+  --shadow-elevated: 0 1px 2px rgb(53 34 25 / 0.06), 0 24px 48px -28px rgb(53 34 25 / 0.28);
+  --area-overview: #b5560f;
+  --area-websites: #956343;
+  --area-products: #5a3a28;
+  --area-content: #9c5a1c;
+  --area-leads: #8f5e00;
+  --area-pricing: #9c4f21;
+  --area-publishing: #8a5a2e;
+  --area-settings: #6f5d50;
+}
+[data-area="overview"] {
+  --area: var(--area-overview);
+}
+[data-area="websites"] {
+  --area: var(--area-websites);
+}
+[data-area="products"] {
+  --area: var(--area-products);
+}
+[data-area="content"] {
+  --area: var(--area-content);
+}
+[data-area="leads"] {
+  --area: var(--area-leads);
+}
+[data-area="pricing"] {
+  --area: var(--area-pricing);
+}
+[data-area="publishing"] {
+  --area: var(--area-publishing);
+}
+[data-area="settings"] {
+  --area: var(--area-settings);
 }

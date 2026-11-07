@@ -526,13 +526,13 @@ export function ProofEditor({
             <ul className="mt-2 space-y-1.5">
               {issues.map((issue) => (
                 <li key={`${issue.field}-${issue.code}`} className="flex gap-2 text-sm text-muted">
-                  <CircleAlert aria-hidden className="mt-0.5 size-4 shrink-0 text-amber-500" />
+                  <CircleAlert aria-hidden className="mt-0.5 size-4 shrink-0 text-warning" />
                   {issue.message}
                 </li>
               ))}
               {form.sites.length === 0 && (
                 <li className="flex gap-2 text-sm text-muted">
-                  <CircleAlert aria-hidden className="mt-0.5 size-4 shrink-0 text-amber-500" />
+                  <CircleAlert aria-hidden className="mt-0.5 size-4 shrink-0 text-warning" />
                   Choose at least one website to show it on.
                 </li>
               )}

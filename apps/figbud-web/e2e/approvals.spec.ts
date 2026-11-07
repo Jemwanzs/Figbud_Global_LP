@@ -87,16 +87,16 @@ test("the queue lists every website's requests and links to where they're decide
   expect(await overflow(page)).toBeLessThanOrEqual(0);
 });
 
-test("all nine Studio links fit on one row at the narrowest desktop width", async ({ page }, info) => {
+test("the sidebar shows every main tab at desktop widths, beside the content", async ({ page }, info) => {
   test.skip(info.project.name !== "desktop", "sets its own widths");
   await signInAsOwner(page);
   const nav = page.getByRole("navigation", { name: "Admin" });
   for (const width of [1024, 1100, 1279, 1280, 1440]) {
     await page.setViewportSize({ width, height: 800 });
     await expect(page.getByRole("button", { name: "Menu", exact: true })).toBeHidden();
-    await expect(nav.getByRole("link")).toHaveCount(9);
-    const widths = await nav.evaluate((n) => [n.scrollWidth, n.clientWidth]);
-    expect(widths[0], `at ${width}px`).toBeLessThanOrEqual(widths[1]!);
+    // Overview, then the seven main tabs with sub-tabs.
+    await expect(nav.getByRole("link", { name: "Overview" })).toBeInViewport();
+    await expect(nav.locator(":scope > ul > li")).toHaveCount(8);
     await expect(page.getByRole("button", { name: /Olu/ })).toBeInViewport();
     expect(await overflow(page)).toBeLessThanOrEqual(0);
   }

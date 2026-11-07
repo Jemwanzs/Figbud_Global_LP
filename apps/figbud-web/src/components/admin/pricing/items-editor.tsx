@@ -558,7 +558,7 @@ export function ItemsEditor({
                             {CATEGORY_LABELS[item.category]}
                           </span>
                           {item.availability === "planned" && (
-                            <span className="rounded-full border border-amber-500/40 px-2 py-0.5 text-[0.7rem] font-normal text-amber-700 dark:text-amber-400">
+                            <span className="rounded-full border border-warning/40 px-2 py-0.5 text-[0.7rem] font-normal text-warning">
                               Planned
                             </span>
                           )}

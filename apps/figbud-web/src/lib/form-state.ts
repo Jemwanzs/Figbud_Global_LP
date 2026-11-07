@@ -47,12 +47,36 @@ export function useSavedBaseline<T>(current: T, initial: T = current) {
   return { baseline, dirty: !sameValue(current, baseline), markSaved };
 }
 
-/** Warns before leaving the page while `dirty` (reload, close, external links). */
+export const LEAVE_WITH_CHANGES = "You have unsaved changes. Leave this page and lose them?";
+
+/**
+ * Warns before leaving the page while `dirty`: reload, close and external
+ * links (the browser's prompt), and links inside the app such as the Studio
+ * sidebar, which change page without unloading it (a confirmation).
+ */
 export function useUnsavedChangesWarning(dirty: boolean) {
   useEffect(() => {
     if (!dirty) return;
     const warn = (event: BeforeUnloadEvent) => event.preventDefault();
+    const follow = (event: MouseEvent) => {
+      if (event.defaultPrevented || event.button !== 0) return;
+      if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return; // new tab or window
+      const link = (event.target as Element | null)?.closest?.("a[href]");
+      if (!(link instanceof HTMLAnchorElement) || link.target === "_blank" || link.hasAttribute("download"))
+        return;
+      const to = new URL(link.href, window.location.href);
+      if (to.origin !== window.location.origin) return; // the browser's own prompt covers it
+      if (to.pathname === window.location.pathname && to.search === window.location.search) return;
+      if (!window.confirm(LEAVE_WITH_CHANGES)) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+    };
     window.addEventListener("beforeunload", warn);
-    return () => window.removeEventListener("beforeunload", warn);
+    document.addEventListener("click", follow, true);
+    return () => {
+      window.removeEventListener("beforeunload", warn);
+      document.removeEventListener("click", follow, true);
+    };
   }, [dirty]);
 }

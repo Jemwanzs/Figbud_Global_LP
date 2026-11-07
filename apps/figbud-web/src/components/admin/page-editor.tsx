@@ -1763,30 +1763,33 @@ export function PageEditor({ slug, user, initial }: { slug: string; user: AdminU
                 ))}
               </div>
             </div>
-            <div
-              data-product={KNOWN.includes(slug) ? slug : "figbud"}
-              // The website's own surfaces, as on the live site (ZiraHR's warm palette).
-              data-site={slug}
-              style={siteThemeStyle(initial.site.theme)}
-              tabIndex={0}
-              role="group"
-              aria-label="Page preview (scrollable)"
-              className={cn(
-                "mt-4 max-h-[44rem] overflow-y-auto rounded-2xl border border-line bg-bg p-6 sm:p-8",
-                device === "mobile" && "mx-auto max-w-[24rem] p-5",
-              )}
-            >
-              {sections.length === 0 ? (
-                <p className="py-16 text-center text-muted">Add a section to start building this page.</p>
-              ) : (
-                <PageBlocks
-                  document={previewDoc}
-                  mode="preview"
-                  mediaBase={STUDIO_MEDIA_BASE}
-                  firstHeading={2}
-                  className={device === "mobile" ? "space-y-12" : undefined}
-                />
-              )}
+            {/* The website's colours, not the Studio's. */}
+            <div data-site-preview="">
+              <div
+                data-product={KNOWN.includes(slug) ? slug : "figbud"}
+                // The website's own surfaces, as on the live site (ZiraHR's warm palette).
+                data-site={slug}
+                style={siteThemeStyle(initial.site.theme)}
+                tabIndex={0}
+                role="group"
+                aria-label="Page preview (scrollable)"
+                className={cn(
+                  "mt-4 max-h-[44rem] overflow-y-auto rounded-2xl border border-line bg-bg p-6 sm:p-8",
+                  device === "mobile" && "mx-auto max-w-[24rem] p-5",
+                )}
+              >
+                {sections.length === 0 ? (
+                  <p className="py-16 text-center text-muted">Add a section to start building this page.</p>
+                ) : (
+                  <PageBlocks
+                    document={previewDoc}
+                    mode="preview"
+                    mediaBase={STUDIO_MEDIA_BASE}
+                    firstHeading={2}
+                    className={device === "mobile" ? "space-y-12" : undefined}
+                  />
+                )}
+              </div>
             </div>
           </section>
 

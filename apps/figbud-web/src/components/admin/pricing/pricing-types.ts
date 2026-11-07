@@ -74,10 +74,10 @@ export const QUOTE_STATUS: Record<QuoteStatus, { label: string; tone: string }> 
   draft: { label: "Draft", tone: "border-line-strong text-muted" },
   pending_approval: {
     label: "Pending approval",
-    tone: "border-amber-500/40 text-amber-700 dark:text-amber-400",
+    tone: "border-warning/40 text-warning",
   },
   approved: { label: "Approved", tone: "border-accent/40 text-accent-strong" },
-  sent: { label: "Sent", tone: "border-blue-500/40 text-blue-700 dark:text-blue-300" },
+  sent: { label: "Sent", tone: "border-accent-2/40 text-accent-2" },
   accepted: { label: "Accepted", tone: "border-accent/50 bg-accent-soft text-accent-strong" },
   declined: { label: "Declined", tone: "border-line-strong text-subtle" },
   expired: { label: "Expired", tone: "border-line text-subtle" },

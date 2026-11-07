@@ -38,7 +38,7 @@ const status = (page: Page, text: string) =>
 
 test("create a product website, launch it with approval and manage its settings", async ({ page }) => {
   await signInAsOwner(page);
-  await studioLink(page, "Websites");
+  await studioLink(page, "All websites");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Websites & products");
   const card = (name: string | RegExp) => page.getByRole("article", { name });
   await expect(card("FigBud Global")).toContainText("Corporate website");
@@ -46,7 +46,7 @@ test("create a product website, launch it with approval and manage its settings"
 
   // Guided creation: the identifier follows the name, the template follows the category.
   const run = randomBytes(3).toString("hex");
-  await page.getByRole("link", { name: "New website" }).click();
+  await page.locator("#studio-main").getByRole("link", { name: "New website" }).click();
   // Create stays disabled, and says why, until the required fields are filled.
   await expect(page.getByRole("button", { name: "Create draft website" })).toBeDisabled();
   await expect(page.getByText("Enter a name and a valid identifier")).toBeVisible();
@@ -125,8 +125,10 @@ test("the corporate website is always active and cannot be archived", async ({ p
   await expect(lifecycle).toContainText("The FigBud Global website is always active.");
   await expect(lifecycle.getByRole("button")).toHaveCount(0);
   await expect(page.getByRole("radio", { name: "Lending & Credit" })).toHaveCount(0);
+  // An unknown website shows inside the Studio, with the shell still there.
   await page.goto("/admin/sites/not_a_site");
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("404");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Not found");
+  await expect(page.getByRole("banner")).toBeVisible();
 });
 
 test("website pages are accessible", async ({ page }) => {

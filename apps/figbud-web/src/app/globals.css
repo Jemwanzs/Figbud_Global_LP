@@ -4,3 +4,52 @@
 
 @source "../../../../packages/ui/src";
 @source "../../../../packages/site-kit/src";
+
+/* Studio shell (owner's briefs, 8 Nov 2026): page content eases in while the
+   shell stays put; skeletons pulse softly; the phone drawer slides in. */
+/* Anything scrolled or tabbed into view in the Studio clears its sticky top bar. */
+html[data-studio] {
+  scroll-padding-top: 5rem;
+}
+@layer components {
+  .fb-studio-enter {
+    animation: fb-studio-enter 180ms var(--motion-ease-standard) backwards;
+  }
+  .fb-skeleton-fade {
+    animation: fb-studio-enter 220ms var(--motion-ease-standard) 120ms backwards;
+  }
+  .fb-skeleton {
+    background: var(--surface-2);
+  }
+  /* One opacity pulse for the whole outline: composited, so it costs no repaints. */
+  .fb-skeleton-pulse {
+    animation: fb-skeleton 1.2s ease-in-out infinite alternate;
+  }
+  .fb-studio-drawer[open] {
+    animation: fb-studio-drawer 200ms var(--motion-ease) both;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .fb-studio-enter,
+    .fb-skeleton-fade,
+    .fb-skeleton-pulse,
+    .fb-studio-drawer[open] {
+      animation: none;
+    }
+  }
+}
+@keyframes fb-studio-enter {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+@keyframes fb-skeleton {
+  to {
+    opacity: 0.55;
+  }
+}
+@keyframes fb-studio-drawer {
+  from {
+    transform: translateX(-100%);
+  }
+}

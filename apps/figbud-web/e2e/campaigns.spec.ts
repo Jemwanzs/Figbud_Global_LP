@@ -43,7 +43,7 @@ async function routeCampaignCalls(context: BrowserContext) {
 }
 
 async function create(page: Page, name: string, type: string) {
-  await studioLink(page, "Marketing");
+  await studioLink(page, "Campaigns & promotions");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Campaigns & Promotions");
   await expect(async () => {
     await page.getByLabel("Campaign name").fill(name);

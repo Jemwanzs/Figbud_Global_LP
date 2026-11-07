@@ -257,20 +257,20 @@ test("Studio: draft, preview, publish and the on/off switch", async ({ page, req
   ).toEqual([]);
 
   // Publishing a link with its edits, switching one link off, then putting it all back.
-  await page.getByRole("button", { name: "Publish" }).click();
+  await page.getByRole("button", { name: "Publish", exact: true }).click();
   await expect(page.getByRole("status").filter({ hasText: "Published." })).toBeVisible();
   expect(JSON.stringify(await published("figbud"))).toContain(unpublishedLine);
 
   await page.getByRole("switch", { name: "Show hover previews" }).click();
   await expect(page.getByText("No menu link shows a card.")).toBeVisible();
-  await page.getByRole("button", { name: "Publish" }).click();
+  await page.getByRole("button", { name: "Publish", exact: true }).click();
   await expect(page.getByRole("status").filter({ hasText: "Published." })).toBeVisible();
   expect((await published("figbud")).nav_previews).toMatchObject({ enabled: false });
 
   await page.getByRole("switch", { name: "Show hover previews" }).click();
   await about.getByLabel("Headline for About Us").fill("");
   await about.getByLabel("Icon for About Us").selectOption("");
-  await page.getByRole("button", { name: "Publish" }).click();
+  await page.getByRole("button", { name: "Publish", exact: true }).click();
   await expect(page.getByRole("status").filter({ hasText: "Published." })).toBeVisible();
   expect((await published("figbud")).nav_previews).toMatchObject({ enabled: true, items: [] });
 });

@@ -38,7 +38,7 @@ const STATUS: Record<HeroAdmin["status"], { label: string; tone: string }> = {
     label: "Nothing published · the website keeps its current hero",
     tone: "border-line-strong text-muted",
   },
-  in_review: { label: "Awaiting approval", tone: "border-amber-500/40 text-amber-700 dark:text-amber-400" },
+  in_review: { label: "Awaiting approval", tone: "border-warning/40 text-warning" },
   published: { label: "Published", tone: "border-accent/40 text-accent-strong" },
   changes_pending: { label: "Published · draft changes", tone: "border-accent/40 text-accent-strong" },
 };

@@ -129,6 +129,13 @@ Motion explains and guides. It never decorates for its own sake, and content nev
     - Set `aria-live` only while `state === "manual"`, so automatic changes aren't announced.
     - Auto-demonstrate walkthroughs and illustrative dashboards only. Forms, calculators, consent, bookings and anything with real consequences stay user-controlled.
     - Use pin → progress → complete → release (`useScrollStory`) only where scrolling through states adds meaning, never for ordinary content.
+  - Studio (P7-UX3–UX5):
+    - **Palette:** the Studio's own palette is set on its `<html>` (`data-studio`, tokens in `tokens.css`). Use the semantic tokens, never fixed colours. `bg-action` / `text-action-ink` is the primary button (warm orange in both themes); `text-accent` is orange as text.
+    - **Previews:** a website preview inside the Studio sets its own `data-theme`, or sits inside `data-site-preview`, so it keeps the website's colours. Put `data-site-preview` on a wrapper, not on the element carrying `data-site`.
+    - **Sections:** each has a colour (`data-area`, `bg-area` / `text-area`), always alongside its icon and label.
+    - **Shell:** signed-in pages live under `app/admin/(studio)`, whose layout keeps the top bar and sidebar mounted. A page's loading fallback is `<StudioSkeleton />`, never a blank screen; errors use `StudioProblem`.
+    - **Sidebar:** new destinations are added in `studio-nav.ts` and must map to a page that exists.
+    - **Unsaved changes:** `useUnsavedChangesWarning` covers reload, close and in-app links.
   - Section bands (UI-TH6): FigBud Global's home page sections get their tone from `sectionTones` (site-kit `section-themes.ts`) and `bandProps`. The hero follows the global theme, Our Platforms is opposite, then they alternate, counting only sections on the page. A new major section joins `HOME_SECTIONS` (API `site_settings.rs` too) and takes a `tone` prop. Never hard-code `data-tone` on a home section.
   - Form fields (UI-TH5): style every text field, select and number input with `fieldClasses()` from `@figbud/ui`, adding only spacing, width or type settings. It brings the 48px height, theme-aware surface, `aria-invalid` red border and a 3px focus ring in `--focus` (`--danger` while invalid). Never remove a focus style without replacing it.
   - Scroll stories (`ScrollStory` in `scroll-story.tsx`, UI-MO6; compact since 7 Nov 2026): one pinned panel holds the step's words and the visual (stacked on phones), both driven by the same scroll position, so they change and reverse together.

@@ -36,7 +36,7 @@ test("review an enquiry, follow it up and export the inbox", async ({ page }) =>
   await signInAsOwner(page);
   await expect(page.getByRole("link", { name: /Enquiries.*new, waiting for a reply/ })).toBeVisible();
 
-  await studioLink(page, "Enquiries");
+  await studioLink(page, "All enquiries");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Enquiries");
   await page.getByLabel("Product").selectOption("zirahr");
   await page.getByRole("button", { name: "Apply" }).click();

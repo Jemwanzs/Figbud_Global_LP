@@ -126,7 +126,7 @@ test("Studio: the footer is drafted, checked and published (owner's brief, 7 Nov
   test.setTimeout(90_000);
   await signInAsOwner(page);
   await page.goto("/admin/sites/figbud");
-  await page.getByRole("link", { name: "Footer", exact: true }).click();
+  await page.locator("#studio-main").getByRole("link", { name: "Footer", exact: true }).click();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Footer");
   // Empty fields show the approved wording they keep.
   await expect(page.getByPlaceholder("One Vision. Endless Solutions.")).toBeVisible();
@@ -161,7 +161,7 @@ test("Studio: the footer is drafted, checked and published (owner's brief, 7 Nov
   // Published: it shows at once on the corporate website.
   await page.reload();
   await expect(page.getByLabel("Contact email (optional)")).toHaveValue("studio-footer@figbud.test");
-  await page.getByRole("button", { name: "Publish" }).click();
+  await page.getByRole("button", { name: "Publish", exact: true }).click();
   await expect(page.getByRole("status")).toContainText("Published. The footer shows this now.");
   await expect(async () => {
     await site.reload();
@@ -169,6 +169,8 @@ test("Studio: the footer is drafted, checked and published (owner's brief, 7 Nov
       site.getByRole("contentinfo").getByRole("link", { name: "studio-footer@figbud.test" }),
     ).toHaveAttribute("href", "mailto:studio-footer@figbud.test", { timeout: 2_000 });
   }).toPass({ timeout: 20_000 });
+  // Scanned from the top, so nothing sits under the sticky top bar at that moment.
+  await page.evaluate(() => window.scrollTo(0, 0));
   const results = await new AxeBuilder({ page: await themeSettled(page) })
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
     .analyze();
@@ -178,7 +180,7 @@ test("Studio: the footer is drafted, checked and published (owner's brief, 7 Nov
 
   // Put it back for other tests.
   await page.getByLabel("Contact email (optional)").fill("");
-  await page.getByRole("button", { name: "Publish" }).click();
+  await page.getByRole("button", { name: "Publish", exact: true }).click();
   await expect(page.getByRole("status")).toContainText("Published.");
 });
 
@@ -199,7 +201,7 @@ test("Studio: home page section themes, previewed in both themes, drafted and pu
     ).find((s) => s.slug === "figbud")!.settings.section_themes ?? {};
   await signInAsOwner(page);
   await page.goto("/admin/sites/figbud");
-  await page.getByRole("link", { name: "Section themes" }).click();
+  await page.locator("#studio-main").getByRole("link", { name: "Section themes" }).click();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Section themes");
   const dark = page.locator('[data-strip="dark"] li');
   const light = page.locator('[data-strip="light"] li');
@@ -223,7 +225,7 @@ test("Studio: home page section themes, previewed in both themes, drafted and pu
   const now = (await page.locator("label", { hasText: "Closing call to action" }).textContent())!;
   const tone = now.includes("opposite") ? "inverse" : "follow";
   await closing.selectOption(tone);
-  await page.getByRole("button", { name: "Publish" }).click();
+  await page.getByRole("button", { name: "Publish", exact: true }).click();
   await expect(page.getByRole("status")).toContainText("Published. The home page shows this now.");
   expect((await published()).closing).toBe(tone);
   const home = await page.context().newPage();
@@ -236,7 +238,7 @@ test("Studio: home page section themes, previewed in both themes, drafted and pu
 
   // Back to automatic for other tests.
   await closing.selectOption("auto");
-  await page.getByRole("button", { name: "Publish" }).click();
+  await page.getByRole("button", { name: "Publish", exact: true }).click();
   await expect(page.getByRole("status")).toContainText("Published.");
   expect((await published()).closing).toBeUndefined();
 });

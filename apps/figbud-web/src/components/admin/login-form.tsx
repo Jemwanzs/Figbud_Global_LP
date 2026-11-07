@@ -57,8 +57,8 @@ export function LoginForm() {
   const signedIn = () => {
     setDone(true);
     setPassword("");
+    // The Studio is rendered fresh for the new session (nothing signed-out is reused).
     router.replace("/admin");
-    router.refresh();
   };
 
   async function withPassword(event: React.FormEvent) {

@@ -229,7 +229,7 @@ export function PricingCalculator({
           ) : item.rate ? (
             formatMoney(item.rate, book.currency)
           ) : (
-            <span className="text-amber-700 dark:text-amber-400">Rate not configured</span>
+            <span className="text-warning">Rate not configured</span>
           )}
         </td>
         {item.billing === "one_off" ? (

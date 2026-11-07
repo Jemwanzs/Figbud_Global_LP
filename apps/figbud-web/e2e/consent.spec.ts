@@ -222,7 +222,7 @@ test("Studio: Settings → Privacy & Cookies edits the banner and integrations",
   test.skip(testInfo.project.name !== "desktop", "Studio settings are edited from the desktop project");
   test.setTimeout(60_000);
   await signInAsOwner(page);
-  await studioLink(page, "Settings");
+  await studioLink(page, "General");
   await page.getByRole("link", { name: /Privacy & Cookies/ }).click();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Privacy & Cookies");
   await expect(page.getByRole("heading", { name: /Consent in the last 30 days/ })).toBeVisible();

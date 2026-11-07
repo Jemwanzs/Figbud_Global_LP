@@ -29,12 +29,12 @@ export default function WorkspacePage({ params }: PageProps<"/admin/pricing-work
 
 async function Workspace({ params }: Pick<PageProps<"/admin/pricing-workspace/[slug]">, "params">) {
   const user = await requireAdmin();
-  if (user === "unavailable") return <AdminUnavailable />;
+  if (user === "unavailable") return <AdminUnavailable standalone />;
   const { slug } = await params;
   if (!SLUG.test(slug) || slug.length > 40) notFound();
   const { status, data } = await adminGet<PricingAdmin>(`sites/${slug}/pricing`);
   if (status === 404) notFound();
-  if (!data) return <AdminUnavailable />;
+  if (!data) return <AdminUnavailable standalone />;
   const brands = await getBrands();
   const published = data.published;
   return (

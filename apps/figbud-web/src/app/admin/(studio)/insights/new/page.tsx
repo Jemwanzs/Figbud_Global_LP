@@ -1,0 +1,33 @@
+import type { Metadata } from "next";
+import { redirect } from "next/navigation";
+import { Suspense } from "react";
+
+import { AdminUnavailable } from "@/components/admin/admin-shell";
+import { StudioSkeleton } from "@/components/admin/studio-states";
+import { ArticleEditor, type Taxonomy } from "@/components/admin/article-editor";
+import { forSite, hasRole } from "@/lib/admin-client";
+import { adminGet, requireAdmin } from "@/lib/admin-server";
+
+export const metadata: Metadata = { title: "New article" };
+
+export default function NewArticlePage() {
+  return (
+    <Suspense fallback={<StudioSkeleton />}>
+      <NewArticle />
+    </Suspense>
+  );
+}
+
+async function NewArticle() {
+  const user = await requireAdmin();
+  if (user === "unavailable") return <AdminUnavailable />;
+  if (!hasRole(forSite(user, "figbud"), "editor")) redirect("/admin/insights");
+  const { data: taxonomy } = await adminGet<Taxonomy>("cms/taxonomy");
+  if (!taxonomy) return <AdminUnavailable />;
+  return (
+    <>
+      <h1 className="mb-8 font-display text-3xl font-semibold tracking-tight text-text">New article</h1>
+      <ArticleEditor user={forSite(user, "figbud")} taxonomy={taxonomy} />
+    </>
+  );
+}

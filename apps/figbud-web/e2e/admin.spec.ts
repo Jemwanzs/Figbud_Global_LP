@@ -133,7 +133,7 @@ test("sign-in and invite pages are accessible", async ({ page }) => {
   }
 });
 
-test("the Studio header is one compact row that stays visible, with a menu on narrow screens", async ({
+test("the Studio top bar is one compact row that stays visible, with the sidebar in a menu on narrow screens", async ({
   page,
 }) => {
   await addPasskeyDevice(page);
@@ -144,7 +144,7 @@ test("the Studio header is one compact row that stays visible, with a menu on na
   const header = page.getByRole("banner");
   for (const width of [1440, 1024]) {
     await page.setViewportSize({ width, height: 900 });
-    // Logo, every link and the account control on one row (no wrapped second row).
+    // Logo, where you are and the account control on one row; the sidebar holds the links.
     expect((await header.boundingBox())!.height).toBeLessThanOrEqual(72);
     const nav = page.getByRole("navigation", { name: "Admin" });
     await expect(nav.getByRole("link", { name: "Overview" })).toHaveAttribute("aria-current", "page");
@@ -154,13 +154,13 @@ test("the Studio header is one compact row that stays visible, with a menu on na
   await expect(header).toHaveCSS("position", "sticky");
   await page.mouse.wheel(0, 2000);
   await expect.poll(async () => (await header.boundingBox())!.y).toBe(0);
-  // Narrow: a menu button opens the same links; Escape closes it.
+  // Narrow: a menu button opens the sidebar as a drawer; Escape closes it.
   await page.setViewportSize({ width: 390, height: 844 });
   expect((await header.boundingBox())!.height).toBeLessThanOrEqual(72);
   const menu = page.getByRole("button", { name: "Menu", exact: true });
   await menu.click();
   await expect(
-    page.getByRole("navigation", { name: "Admin" }).getByRole("link", { name: "Websites" }),
+    page.getByRole("navigation", { name: "Admin" }).getByRole("button", { name: "Websites" }),
   ).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(menu).toHaveAttribute("aria-expanded", "false");

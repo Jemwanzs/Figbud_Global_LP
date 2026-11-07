@@ -127,7 +127,7 @@ export function SharedEditor({ item }: { item: SharedDetail }) {
           <h2 id={`${uid}-preview`} className="font-semibold text-text">
             Preview
           </h2>
-          <div className="mt-4 rounded-2xl border border-line bg-bg p-6">
+          <div data-site-preview="" className="mt-4 rounded-2xl border border-line bg-bg p-6">
             <PageBlocks document={{ sections: [section] }} mode="preview" firstHeading={2} />
           </div>
         </section>

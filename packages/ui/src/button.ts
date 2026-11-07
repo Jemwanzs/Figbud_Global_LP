@@ -11,7 +11,7 @@ const base =
 
 const variants: Record<ButtonVariant, string> = {
   primary:
-    "bg-accent text-accent-ink shadow-[0_8px_28px_-10px_var(--glow)] hover:bg-accent-strong hover:shadow-[0_12px_36px_-10px_var(--glow)]",
+    "bg-action text-action-ink shadow-[0_8px_28px_-10px_var(--glow)] hover:bg-action-strong hover:shadow-[0_12px_36px_-10px_var(--glow)]",
   secondary:
     "border border-line-strong bg-surface/40 text-text backdrop-blur hover:border-accent/60 hover:bg-surface-2",
   ghost: "text-text hover:bg-surface-2",

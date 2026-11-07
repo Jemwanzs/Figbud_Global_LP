@@ -61,6 +61,15 @@ export function SiteForm({ site, canEdit }: { site?: AdminSite; canEdit: boolean
   const [busy, setBusy] = useState(false);
   const [fields, setFields] = useState<FieldError[]>([]);
   const [message, setMessage] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
+  // The version the next save is checked against: from each save's answer, so
+  // a second save never waits for the page to refresh; a newer one from the
+  // page (someone else's change, loaded by a refresh) replaces it.
+  const [version, setVersion] = useState(site?.version ?? 0);
+  const [seenVersion, setSeenVersion] = useState(site?.version ?? 0);
+  if (site && site.version !== seenVersion) {
+    setSeenVersion(site.version);
+    if (site.version > version) setVersion(site.version);
+  }
 
   const { dirty, markSaved } = useSavedBaseline(form);
   useUnsavedChangesWarning(canEdit && dirty);
@@ -91,13 +100,14 @@ export function SiteForm({ site, canEdit }: { site?: AdminSite; canEdit: boolean
       description: form.description || null,
       primary_domain: form.primary_domain || null,
       ...(site
-        ? { version: site.version, show_on_map: form.show_on_map }
+        ? { version, show_on_map: form.show_on_map }
         : { slug: form.slug, launch_status: form.launch_status }),
     };
     try {
       const saved = await adminFetch<AdminSite>(site ? `sites/${site.slug}` : "sites", body);
       markSaved();
       if (site) {
+        setVersion(saved.version);
         setMessage({ tone: "ok", text: "Settings saved." });
         router.refresh();
       } else {

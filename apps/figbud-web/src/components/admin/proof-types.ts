@@ -73,7 +73,7 @@ export const KIND_LABELS: Record<ProofKind, { plural: string; singular: string; 
 
 export const STATUS_LABELS: Record<ProofStatus, { label: string; tone: string }> = {
   draft: { label: "Draft", tone: "border-line-strong text-muted" },
-  in_review: { label: "Awaiting approval", tone: "border-amber-500/40 text-amber-600 dark:text-amber-400" },
+  in_review: { label: "Awaiting approval", tone: "border-warning/40 text-warning" },
   published: { label: "Published", tone: "border-accent/40 text-accent-strong" },
   changes_pending: { label: "Published · changes in draft", tone: "border-accent/40 text-accent-strong" },
   unpublished: { label: "Unpublished", tone: "border-line-strong text-muted" },

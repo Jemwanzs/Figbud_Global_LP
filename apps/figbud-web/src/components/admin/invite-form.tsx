@@ -33,8 +33,8 @@ export function InviteForm() {
       await adminFetch("invites/accept/finish", { challenge_id: start.challenge_id, credential });
       // Drop the token from the address bar and history.
       window.history.replaceState(null, "", "/admin/invite");
+      // The Studio is rendered fresh for the new session (nothing signed-out is reused).
       router.replace("/admin");
-      router.refresh();
     } catch (err) {
       setError(describePasskeyError(err));
       setBusy(false);

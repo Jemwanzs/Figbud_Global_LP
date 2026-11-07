@@ -26,7 +26,8 @@ export const viewport: Viewport = {
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" data-theme="dark" suppressHydrationWarning className={outfit.variable}>
+    // `data-studio`: the Studio's own warm palette (tokens in @figbud/brand).
+    <html lang="en" data-theme="dark" data-studio="" suppressHydrationWarning className={outfit.variable}>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>

@@ -63,7 +63,7 @@ test("a banner names an approved organisation, keeps its own theme and can be hi
     data: { name: organisation, sites: ["figbud"] },
   });
   await signInAsOwner(page);
-  await studioLink(page, "Marketing");
+  await studioLink(page, "Campaigns & promotions");
   const name = `Customer news ${run}`;
   await expect(async () => {
     await page.getByLabel("Campaign name").fill(name);
