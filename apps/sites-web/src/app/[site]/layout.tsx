@@ -112,11 +112,6 @@ export default async function SiteLayout({ children, params }: LayoutProps<"/[si
             label: p.title,
             preview: previews[`/${p.path}`],
           }));
-  const footer = site.settings?.footer;
-  const footerLinks = (footer?.links ?? []).map((l) => ({
-    href: siteLinkHref(slug, ownDomain, l.href),
-    label: l.label,
-  }));
   // Brand accents, plus the section band colours from the website's theme (P7-E1).
   const colours = {
     ...(site.brand
@@ -177,8 +172,12 @@ export default async function SiteLayout({ children, params }: LayoutProps<"/[si
             />
             <SiteFooter
               name={site.name}
-              tagline={footer?.note ?? site.tagline}
-              links={footerLinks.length ? footerLinks : links}
+              tagline={site.tagline}
+              description={site.description}
+              settings={site.settings?.footer}
+              fallbackLinks={links}
+              resolve={(href) => siteLinkHref(slug, ownDomain, href)}
+              home={pageHref(slug, ownDomain, "")}
               slug={KNOWN.includes(slug) ? (slug as ProductSlug) : undefined}
               brand={site.brand}
             />

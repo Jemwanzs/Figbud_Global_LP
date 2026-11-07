@@ -83,7 +83,7 @@ const toSettings = (form: Form): NavPreviewSettings => ({
     })),
 });
 
-function Switch({
+export function Switch({
   id,
   label,
   checked,

@@ -151,6 +151,71 @@ test.describe("motion and product discovery (UI-MO1, UI-MO2)", () => {
   });
 });
 
+test.describe("footer (owner's brief, 7 Nov 2026)", () => {
+  test("a call to action panel, the logo column, titled groups and a compact bottom bar", async ({
+    page,
+  }) => {
+    await page.goto("/en/contact");
+    const footer = page.getByRole("contentinfo");
+    const cta = footer.locator("[data-footer-cta]");
+    await expect(cta).toBeVisible();
+    await expect(cta.getByRole("heading", { level: 2 })).toHaveText(
+      "Big ideas deserve brilliant technology.",
+    );
+    await expect(cta).toContainText("Explore the solutions we're building to help businesses work smarter.");
+    await expect(cta.getByRole("link", { name: "Explore Our Products" })).toHaveAttribute(
+      "href",
+      "/en/products",
+    );
+    // The panel takes the opposite theme.
+    await expect(cta.locator('[data-tone="inverse"]')).toHaveCount(1);
+    await expect(footer).toContainText("One Vision. Endless Solutions.");
+    await expect(footer).toContainText("African technology company");
+    for (const name of ["Navigate", "Products", "Legal & support"])
+      await expect(footer.locator(`[data-footer-column="${name}"]`)).toBeVisible();
+    const navigate = footer.locator('[data-footer-column=\"Navigate\"]');
+    for (const name of ["Home", "About Us", "Products", "Blog", "Contact"])
+      await expect(navigate.getByRole("link", { name, exact: true })).toBeVisible();
+    // Coming-soon products say so.
+    await expect(footer.locator('[data-footer-column=\"Products\"]')).toContainText("Coming soon");
+    // No profile is shown until one is verified in the Studio.
+    await expect(footer.getByRole("list", { name: "FigBud Global on social media" })).toHaveCount(0);
+    await expect(footer).toContainText("Built in Kenya. Designed for Africa. Engineered to scale.");
+  });
+
+  test("the home page keeps its own closing call to action, so the footer doesn't add a second", async ({
+    page,
+  }) => {
+    await page.goto("/en");
+    await expect(page.locator('main [data-section="call_to_action"]')).toBeVisible();
+    await expect(page.locator("[data-footer-cta]")).toBeHidden();
+    // About ends with the same closing panel.
+    await page.goto("/en/about");
+    await expect(page.locator("[data-footer-cta]")).toBeHidden();
+  });
+
+  test("every footer link leads somewhere real, with no duplicates, and the cookie settings open", async ({
+    page,
+    request,
+  }) => {
+    await page.goto("/en/contact");
+    const footer = page.getByRole("contentinfo");
+    // The columns' links (the call to action's button is its own thing).
+    const hrefs = await footer
+      .locator("nav a")
+      .evaluateAll((links) => links.map((a) => a.getAttribute("href") ?? ""));
+    expect(hrefs.length).toBeGreaterThan(8);
+    expect(new Set(hrefs).size, "no link repeats").toBe(hrefs.length);
+    for (const href of hrefs.filter((h) => h.startsWith("/"))) {
+      expect((await request.get(href)).status(), href).toBeLessThan(400);
+    }
+    for (const href of hrefs.filter((h) => !h.startsWith("/")))
+      expect(href, "other websites over https only").toMatch(/^https?:\/\/(localhost|127\.0\.0\.1|[^/]+\.)/);
+    await footer.getByRole("button", { name: "Cookie settings" }).click();
+    await expect(page.getByRole("dialog", { name: "Cookie preferences" })).toBeVisible();
+  });
+});
+
 test.describe("theme and language", () => {
   test("dark by default whatever the device prefers; one button switches and is remembered", async ({
     page,
@@ -190,7 +255,7 @@ test.describe("theme and language", () => {
     page,
   }) => {
     await page.goto("/en");
-    const bands = page.locator('section[data-tone="inverse"]');
+    const bands = page.locator('main section[data-tone="inverse"]');
     await expect(bands).toHaveCount(2);
     const lightness = (el: ReturnType<typeof bands.first>) =>
       el.evaluate((node) => {
@@ -394,7 +459,7 @@ test.describe("about page", () => {
   test("tells the company story from approved copy, with the products and their status", async ({ page }) => {
     await page.goto("/en/about");
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("About Us");
-    await expect(page.getByText("One Vision. Endless Solutions.")).toBeVisible();
+    await expect(page.locator("#main").getByText("One Vision. Endless Solutions.")).toBeVisible();
     // A finished page, not the holding notice.
     await expect(page.getByText("In progress")).toHaveCount(0);
     for (const name of ["Who we are", "What we believe", "What we build", "What we engineer"])

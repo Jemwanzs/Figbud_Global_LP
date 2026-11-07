@@ -37,13 +37,41 @@ export interface SiteLink {
   href: string;
 }
 
+/** Must match `SocialNetwork` in `services/api/src/site_settings.rs`. */
+export type FooterSocialNetwork = "linkedin" | "x" | "facebook" | "instagram" | "youtube" | "tiktok";
+
+/**
+ * A website's footer (Studio → a website → Footer; owner's brief, 7 Nov 2026).
+ * Empty text means the website's built-in wording.
+ */
+export interface SiteFooterSettings {
+  /** A short introduction under the tagline. */
+  note?: string | null;
+  /** The older single list of links, shown as one group while `groups` is empty. */
+  links: SiteLink[];
+  tagline?: string | null;
+  groups?: { title: string; links: SiteLink[] }[];
+  cta?: {
+    show: boolean;
+    heading?: string | null;
+    body?: string | null;
+    label?: string | null;
+    href?: string | null;
+  };
+  social?: { network: FooterSocialNetwork; href: string }[];
+  contact?: { email?: string | null; phone?: string | null };
+  hidden?: boolean;
+}
+
 /**
  * Per-website settings (Admin Studio → Websites → Navigation, footer & forms).
  * Missing means the defaults: the website's pages in the menu, enquiries open.
  */
 export interface WebsiteSettings {
   navigation: { mode: "pages" | "custom"; items: SiteLink[] };
-  footer: { note?: string | null; links: SiteLink[] };
+  footer: SiteFooterSettings;
+  /** The footer being edited in the Studio (only the Studio ever receives it). */
+  footer_draft?: SiteFooterSettings | null;
   enquiries: { open: boolean; closed_message?: string | null };
   /** Section band colours (P7-E1); unset means the design system's neutral bands. */
   theme?: SiteTheme;

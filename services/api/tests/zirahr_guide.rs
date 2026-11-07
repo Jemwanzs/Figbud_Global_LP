@@ -505,3 +505,87 @@ async fn the_home_hero_gets_its_animated_look_once_and_keeps_later_edits() {
         .unwrap();
     assert_eq!(after, plain);
 }
+
+#[tokio::test]
+async fn the_footer_is_redesigned_once_and_keeps_later_edits() {
+    let Some(pool) = database().await else { return };
+    let _turn = ZIRAHR.lock().await;
+    import::run(&pool).await.unwrap();
+    let site: Uuid = sqlx::query_scalar("SELECT id FROM sites WHERE slug = 'zirahr'")
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    let reset = |footer: Value, tagline: &'static str| {
+        let pool = pool.clone();
+        async move {
+            sqlx::query(
+                "DELETE FROM audit_log WHERE site_id = $1 AND action = 'site.zirahr_footer_redesigned'",
+            )
+            .bind(site)
+            .execute(&pool)
+            .await
+            .unwrap();
+            sqlx::query(
+                "UPDATE sites SET tagline = $3, settings = jsonb_set(settings - 'footer_draft', '{footer}', $2)
+                  WHERE id = $1",
+            )
+            .bind(site)
+            .bind(footer)
+            .bind(tagline)
+            .execute(&pool)
+            .await
+            .unwrap();
+        }
+    };
+    let state = || async {
+        sqlx::query_as::<_, (Value, Option<String>)>(
+            "SELECT settings->'footer', tagline FROM sites WHERE id = $1",
+        )
+        .bind(site)
+        .fetch_one(&pool)
+        .await
+        .unwrap()
+    };
+
+    // The original single list of links, and the parent company's tagline.
+    reset(
+        json!({ "links": [{ "label": "Payroll calculator", "href": "/payroll-calculator" }] }),
+        "One Vision. Endless Solutions.",
+    )
+    .await;
+    zirahr_guide::publish_footer(&pool).await.unwrap();
+    let (footer, tagline) = state().await;
+    assert_eq!(tagline.as_deref(), Some("HR Simplified. Business Amplified."));
+    assert_eq!(footer["tagline"], "HR Simplified. Business Amplified.");
+    assert_eq!(footer["cta"]["heading"], "Ready to make HR feel effortless?");
+    assert_eq!(footer["cta"]["href"], "/contact?kind=demo_request#enquire");
+    let titles: Vec<&str> = footer["groups"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|g| g["title"].as_str().unwrap())
+        .collect();
+    assert_eq!(titles, ["Platform", "Explore", "Company"]);
+    assert_eq!(footer["links"], json!([]), "the groups replace the old list");
+    assert_eq!(footer["social"], json!([]), "no profile is invented");
+
+    // Once only, and a footer or tagline set in the Studio is kept.
+    let edited = json!({ "tagline": "Edited in the Studio", "groups": [] });
+    reset(edited.clone(), "Our own words").await;
+    sqlx::query("DELETE FROM audit_log WHERE site_id = $1 AND action = 'site.zirahr_footer_redesigned'")
+        .bind(site)
+        .execute(&pool)
+        .await
+        .unwrap();
+    zirahr_guide::publish_footer(&pool).await.unwrap();
+    let (footer, tagline) = state().await;
+    assert_eq!(footer["tagline"], "Edited in the Studio");
+    assert_eq!(tagline.as_deref(), Some("Our own words"));
+
+    // Leave the shared database with the redesigned footer.
+    reset(
+        serde_json::to_value(zirahr_guide::footer()).unwrap(),
+        "HR Simplified. Business Amplified.",
+    )
+    .await;
+}

@@ -420,6 +420,48 @@ Object.assign(sites[2].settings, {
   },
   enquiries: { open: false, closed_message: "Jasiri LMS is taking enquiries through its partners for now." },
 });
+// ZiraHR's redesigned footer (zirahr_guide.rs footer(), owner's brief of 7 Nov 2026).
+Object.assign(sites.find((s) => s.slug === "zirahr").settings, {
+  footer: {
+    note: "The connected HR platform that brings employee records, leave, payroll, attendance and performance together in one place.",
+    links: [],
+    tagline: "HR Simplified. Business Amplified.",
+    groups: [
+      {
+        title: "Platform",
+        links: [
+          { label: "Platform overview", href: "/platform" },
+          { label: "Payroll calculator", href: "/payroll-calculator" },
+          { label: "Referral programme", href: "/refer" },
+        ],
+      },
+      {
+        title: "Explore",
+        links: [
+          { label: "Home", href: "/" },
+          { label: "Book a demo", href: "/contact?kind=demo_request#enquire" },
+        ],
+      },
+      {
+        title: "Company",
+        links: [
+          { label: "About ZiraHR", href: "/about" },
+          { label: "Contact us", href: "/contact" },
+        ],
+      },
+    ],
+    cta: {
+      show: true,
+      heading: "Ready to make HR feel effortless?",
+      body: "Discover a smarter way to manage your people, payroll and workforce.",
+      label: "Book a Demo",
+      href: "/contact?kind=demo_request#enquire",
+    },
+    social: [],
+    contact: { email: null, phone: null },
+    hidden: false,
+  },
+});
 // The admin row has no settings: they have their own endpoint (sites/{slug}/settings).
 // Ziwa LMS's brown and ivory section bands (migration 14).
 sites[4].settings.theme = { brand_section: "#4e2d17", soft_section: "#fdf9f4" };
@@ -1954,6 +1996,24 @@ seedPublishedPage("zirahr", "contact", "Contact & Demo", {
     { id: "zc-form", type: "enquiry_form", heading: "Book a demo or ask us anything" },
   ],
 });
+// Out of the menu, so the menu other tests see is unchanged; the footer links to it.
+seedPublishedPage(
+  "zirahr",
+  "about",
+  "About",
+  {
+    sections: [
+      { id: "za-hero", type: "hero", eyebrow: "About ZiraHR", heading: "HR software built around people." },
+      {
+        id: "za-values",
+        type: "feature_grid",
+        heading: "What guides us",
+        items: [{ title: "Clarity", body: "Rules you can see and explain." }],
+      },
+    ],
+  },
+  { show_in_nav: false },
+);
 seedPublishedPage(
   "zirahr",
   "refer",
@@ -4419,6 +4479,7 @@ function siteSettingsRoutes(slug, req, body, user, send) {
   next.showcase = { ...SHOWCASE_DEFAULT, ...next.showcase };
   next.nav_previews = { enabled: true, items: [], ...next.nav_previews };
   next.nav_previews_draft ??= null;
+  next.footer_draft ??= null;
   const fields = [];
   // Hover previews (site_settings.rs check_nav_previews).
   for (const previews of [next.nav_previews, next.nav_previews_draft]) {
@@ -4486,6 +4547,79 @@ function siteSettingsRoutes(slug, req, body, user, send) {
           message: "Links go to a page path such as /platform, or an https:// address.",
         });
     }
+  }
+  // The footer and its draft (site_settings.rs check_footer).
+  const footerLinkOk = (href) =>
+    /^(\/(?!\/)[A-Za-z0-9/_.#-]*(\?[A-Za-z0-9=&_#-]{0,120})?|https:\/\/[^\s<>"']+)$/.test(href ?? "");
+  for (const footer of [next.footer, next.footer_draft].filter(Boolean)) {
+    const groups = footer.groups ?? [];
+    if (groups.length > 3)
+      fields.push({ field: "footer.groups", code: "too_many", message: "Up to three groups of links." });
+    for (const group of groups) {
+      group.title = String(group.title ?? "").trim();
+      if (!group.title || group.title.length > 30)
+        fields.push({
+          field: "footer.groups",
+          code: "title",
+          message: "Every group needs a title of up to 30 characters.",
+        });
+      if (!group.links?.length)
+        fields.push({
+          field: "footer.groups",
+          code: "empty",
+          message: "Every group needs at least one link.",
+        });
+      for (const link of group.links ?? []) {
+        link.label = String(link.label ?? "").trim();
+        link.href = String(link.href ?? "").trim();
+        if (!link.label || link.label.length > 40)
+          fields.push({
+            field: "footer.groups",
+            code: "label",
+            message: "Every link needs a label of up to 40 characters.",
+          });
+        if (!footerLinkOk(link.href))
+          fields.push({
+            field: "footer.groups",
+            code: "href",
+            message: "Links go to a page path such as /platform, or an https:// address.",
+          });
+      }
+    }
+    for (const [key, max] of [
+      ["tagline", 80],
+      ["note", 280],
+    ])
+      if ((footer[key] ?? "").trim().length > max)
+        fields.push({ field: `footer.${key}`, code: "length", message: "That text is too long." });
+    const cta = footer.cta ?? {};
+    if (cta.href && !footerLinkOk(cta.href.trim()))
+      fields.push({
+        field: "footer.cta.href",
+        code: "href",
+        message: "The button goes to a page path such as /contact, or an https:// address.",
+      });
+    for (const profile of footer.social ?? [])
+      if (!/^https:\/\/[^\s<>"']+$/.test(String(profile.href ?? "").trim()))
+        fields.push({
+          field: "footer.social",
+          code: "href",
+          message: "Profiles need the full https:// address of the official page.",
+        });
+    const email = footer.contact?.email?.trim();
+    if (email && !/^[A-Za-z0-9._+-]+@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+$/.test(email))
+      fields.push({
+        field: "footer.contact.email",
+        code: "format",
+        message: "Use an email address such as hello@example.com.",
+      });
+    const phone = footer.contact?.phone?.trim();
+    if (phone && !/^\+[0-9 ]{8,22}$/.test(phone))
+      fields.push({
+        field: "footer.contact.phone",
+        code: "format",
+        message: "Use the international format, such as +254 798 993 404.",
+      });
   }
   if (next.navigation.mode === "custom" && !next.navigation.items?.length)
     fields.push({

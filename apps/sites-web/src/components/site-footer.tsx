@@ -1,11 +1,17 @@
-import { CookieSettingsButton } from "@figbud/site-kit";
+import type { ProductSlug } from "@figbud/brand";
+import {
+  type BrandProfile,
+  CookieSettingsButton,
+  type FooterColumnSpec,
+  FooterLayout,
+  ProductIdentity,
+  type SiteFooterSettings,
+} from "@figbud/site-kit";
 import { cacheLife } from "next/cache";
 
 import { figbudOrigin } from "@/lib/sites";
 
 import type { NavLink } from "./site-header";
-import type { ProductSlug } from "@figbud/brand";
-import { type BrandProfile, ProductIdentity } from "@figbud/site-kit";
 
 /** The current year, cached so the footer stays part of the static shell. */
 async function currentYear() {
@@ -14,105 +20,129 @@ async function currentYear() {
   return new Date().getFullYear();
 }
 
-/** A product website's footer: its pages and its place in the FigBud ecosystem. */
+/**
+ * A product website's footer (owner's brief, 7 Nov 2026), on the shared
+ * `FooterLayout`: its call to action, identity and link groups from the
+ * Studio, and a fixed Legal & Support column with FigBud Global's policies
+ * and the cookie settings. The product stays the brand; FigBud Global is
+ * named as its maker in words only.
+ */
 export async function SiteFooter({
   name,
   tagline,
-  links,
+  description,
+  settings,
+  fallbackLinks,
+  resolve,
+  home,
   slug,
   brand,
 }: {
   name: string;
+  /** The website's own tagline and description, used when the Studio sets none. */
   tagline?: string | null;
-  links: NavLink[];
-  /** The product, when the brand registry knows it: its official symbol shows beside its name. */
+  description?: string | null;
+  settings?: SiteFooterSettings | null;
+  /** The menu's links, for a website without footer groups or links yet. */
+  fallbackLinks: NavLink[];
+  /** Turns a Studio link ("/platform") into this website's address. */
+  resolve: (href: string) => string;
+  home: string;
+  /** The product, when the brand registry knows it: its official logo or symbol shows. */
   slug?: ProductSlug;
   brand?: BrandProfile | null;
 }) {
   const year = await currentYear();
+  const corporate = (path: string) => `${figbudOrigin}/en${path}`;
+  const toLink = (l: { label: string; href: string }) => ({
+    label: l.label,
+    href: resolve(l.href),
+    external: l.href.startsWith("https://"),
+  });
+
+  const groups = settings?.groups ?? [];
+  const legacy = settings?.links ?? [];
+  const columns: FooterColumnSpec[] = groups.length
+    ? groups.map((g) => ({ title: g.title, links: g.links.map(toLink) }))
+    : [
+        {
+          title: "Explore",
+          links: legacy.length
+            ? legacy.map(toLink)
+            : fallbackLinks.map((l) => ({ label: l.label, href: l.href })),
+        },
+      ].filter((c) => c.links.length > 0);
+  const legal: FooterColumnSpec = {
+    title: "Legal & Support",
+    links: [
+      { label: "Privacy", href: corporate("/legal/privacy") },
+      { label: "Terms", href: corporate("/legal/terms") },
+      { label: "Cookies", href: corporate("/legal/cookies") },
+    ],
+    extra: (
+      <CookieSettingsButton
+        label="Cookie settings"
+        className="inline-flex min-h-10 cursor-pointer items-center rounded-md text-start text-sm text-muted transition-colors duration-200 hover:text-text focus-visible:ring-2 focus-visible:ring-[var(--focus)] focus-visible:outline-none"
+      />
+    ),
+  };
+
+  const cta = settings?.cta;
+  const showCta = cta?.show !== false && cta?.heading && cta.label && cta.href;
   return (
-    <footer className="mt-24 border-t border-line">
-      <div className="mx-auto grid max-w-[92rem] gap-10 px-5 py-14 sm:px-8 md:grid-cols-[1.4fr_1fr_1fr] md:px-10 lg:px-16">
-        <div>
+    <FooterLayout
+      identity={
+        <a href={home} className="inline-block rounded-lg" aria-label={`${name} home`}>
           {slug ? (
             <ProductIdentity
               slug={slug}
               brand={brand}
               name={name}
-              size="sm"
+              maxWidth={160}
               nameClassName="text-lg font-semibold text-text"
             />
           ) : (
-            <p className="text-lg font-semibold text-text">{name}</p>
+            <span className="text-lg font-semibold text-text">{name}</span>
           )}
-          {tagline && <p className="mt-2 max-w-sm text-muted">{tagline}</p>}
-          <p className="mt-6 text-sm text-subtle">
-            {name} is a{" "}
-            <a href={`${figbudOrigin}/en`} className="text-accent underline underline-offset-2">
-              FigBud Global
-            </a>{" "}
-            platform.
-          </p>
-        </div>
-        {links.length > 0 && (
-          <nav aria-label={`${name} pages`}>
-            <ul className="space-y-2 text-sm">
-              {links.map((link) => (
-                <li key={link.href}>
-                  <a href={link.href} className="inline-flex min-h-8 items-center text-muted hover:text-text">
-                    {link.label}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </nav>
-        )}
-        <nav aria-label="FigBud Global">
-          <ul className="space-y-2 text-sm">
-            <li>
-              <a
-                href={`${figbudOrigin}/en/about`}
-                className="inline-flex min-h-8 items-center text-muted hover:text-text"
-              >
-                About FigBud Global
-              </a>
-            </li>
-            <li>
-              <a
-                href={`${figbudOrigin}/en/legal/privacy`}
-                className="inline-flex min-h-8 items-center text-muted hover:text-text"
-              >
-                Privacy
-              </a>
-            </li>
-            <li>
-              <a
-                href={`${figbudOrigin}/en/legal/terms`}
-                className="inline-flex min-h-8 items-center text-muted hover:text-text"
-              >
-                Terms
-              </a>
-            </li>
-            <li>
-              <a
-                href={`${figbudOrigin}/en/legal/cookies`}
-                className="inline-flex min-h-8 items-center text-muted hover:text-text"
-              >
-                Cookies
-              </a>
-            </li>
-            <li>
-              <CookieSettingsButton
-                label="Cookie settings"
-                className="inline-flex min-h-8 cursor-pointer items-center text-muted hover:text-text"
-              />
-            </li>
-          </ul>
-        </nav>
-      </div>
-      <p className="border-t border-line px-5 py-5 text-center text-xs text-subtle">
-        © {year} FigBud Global. All rights reserved.
-      </p>
-    </footer>
+        </a>
+      }
+      tagline={settings?.tagline?.trim() || tagline}
+      description={settings?.note?.trim() || description}
+      cta={
+        showCta
+          ? {
+              heading: cta.heading!,
+              body: cta.body,
+              label: cta.label!,
+              href: resolve(cta.href!),
+              external: cta.href!.startsWith("https://"),
+            }
+          : null
+      }
+      columns={columns}
+      legal={legal}
+      contact={settings?.contact}
+      social={settings?.social}
+      hidden={settings?.hidden}
+      copyright={`© ${year} FigBud Global. All rights reserved.`}
+      note={
+        <>
+          {name} is a product of{" "}
+          <a
+            href={corporate("")}
+            className="rounded text-muted underline underline-offset-4 transition-colors hover:text-text"
+          >
+            FigBud Global
+          </a>
+          .
+        </>
+      }
+      labels={{
+        opensInNewTab: "opens in a new tab",
+        contact: `Contact ${name}`,
+        social: `${name} on social media`,
+        links: "Footer links",
+      }}
+    />
   );
 }

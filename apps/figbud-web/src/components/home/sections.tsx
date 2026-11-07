@@ -350,7 +350,8 @@ export function CompanySection({ locale, dict }: SectionProps) {
 export function FinalCtaSection({ locale, dict }: SectionProps) {
   const cta = dict.home.finalCta;
   return (
-    <section aria-labelledby="final-cta-title" className="pb-section">
+    // Marked as the page's own call to action, so the footer doesn't add a second one.
+    <section aria-labelledby="final-cta-title" data-section="call_to_action" className="pb-section">
       <Container size="wide">
         <Reveal className="relative isolate overflow-hidden rounded-[2rem] border border-line bg-surface px-6 py-12 text-center sm:px-12 sm:py-16 lg:py-20">
           <div aria-hidden className="absolute inset-0 -z-10">

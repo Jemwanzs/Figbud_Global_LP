@@ -56,12 +56,239 @@ pub struct Navigation {
     pub items: Vec<Link>,
 }
 
+/// The website's footer (P7-E2; redesigned on the owner's brief of 7 Nov
+/// 2026): a call to action above it, the identity column, link groups, and a
+/// bottom bar. Empty text means the website's built-in wording.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Default)]
 #[serde(default, deny_unknown_fields)]
 pub struct Footer {
-    /// A short line under the website's name.
+    /// A short introduction under the tagline.
     pub note: Option<String>,
+    /// Older single list of links, shown as one group while `groups` is empty.
     pub links: Vec<Link>,
+    /// The line beside the logo, e.g. "HR Simplified. Business Amplified."
+    pub tagline: Option<String>,
+    /// Titled columns of links, in order.
+    pub groups: Vec<FooterGroup>,
+    pub cta: FooterCta,
+    /// Verified official profiles only; none are shown until added.
+    pub social: Vec<SocialLink>,
+    pub contact: FooterContact,
+    /// Hide the footer's columns (the legal links and copyright always stay).
+    pub hidden: bool,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Default)]
+#[serde(default, deny_unknown_fields)]
+pub struct FooterGroup {
+    pub title: String,
+    pub links: Vec<Link>,
+}
+
+/// The panel above the footer's columns.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[serde(default, deny_unknown_fields)]
+pub struct FooterCta {
+    pub show: bool,
+    pub heading: Option<String>,
+    pub body: Option<String>,
+    pub label: Option<String>,
+    pub href: Option<String>,
+}
+
+impl Default for FooterCta {
+    fn default() -> Self {
+        Self {
+            show: true,
+            heading: None,
+            body: None,
+            label: None,
+            href: None,
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[serde(rename_all = "snake_case")]
+pub enum SocialNetwork {
+    Linkedin,
+    X,
+    Facebook,
+    Instagram,
+    Youtube,
+    Tiktok,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct SocialLink {
+    pub network: SocialNetwork,
+    /// An https:// address of the official profile.
+    pub href: String,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Default)]
+#[serde(default, deny_unknown_fields)]
+pub struct FooterContact {
+    pub email: Option<String>,
+    /// International format, e.g. +254 798 993 404.
+    pub phone: Option<String>,
+}
+
+/// Beside the identity column and the fixed Legal & Support column.
+const MAX_FOOTER_GROUPS: usize = 3;
+const MAX_SOCIAL: usize = 6;
+
+/// A footer destination: a page path, which may carry a query and an anchor
+/// ("/contact?kind=demo_request#enquire"), or an https:// address.
+fn valid_footer_link(href: &str) -> bool {
+    match href.split_once('?') {
+        Some((path, query)) => {
+            path.starts_with('/')
+                && valid_link(path)
+                && query.len() <= 120
+                && query
+                    .bytes()
+                    .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'=' | b'&' | b'-' | b'_' | b'#'))
+        }
+        None => valid_link(href),
+    }
+}
+
+fn check_footer_links(errors: &mut Vec<FieldError>, links: &mut [Link], field: &'static str) {
+    if links.len() > MAX_LINKS {
+        errors.push(FieldError {
+            field,
+            code: "too_many",
+            message: "Up to 8 links.",
+        });
+    }
+    for link in links.iter_mut() {
+        link.label = link.label.trim().to_owned();
+        link.href = link.href.trim().to_owned();
+        if link.label.is_empty() || link.label.chars().count() > 40 {
+            errors.push(FieldError {
+                field,
+                code: "label",
+                message: "Every link needs a label of up to 40 characters.",
+            });
+        }
+        if !valid_footer_link(&link.href) {
+            errors.push(FieldError {
+                field,
+                code: "href",
+                message: "Links go to a page path such as /platform, or an https:// address.",
+            });
+        }
+    }
+}
+
+fn valid_email(email: &str) -> bool {
+    email.split_once('@').is_some_and(|(user, domain)| {
+        !user.is_empty()
+            && domain.contains('.')
+            && !domain.starts_with('.')
+            && !domain.ends_with('.')
+            && !domain.contains('@')
+            && email
+                .bytes()
+                .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'@' | b'.' | b'-' | b'_' | b'+'))
+    })
+}
+
+fn valid_phone(phone: &str) -> bool {
+    let digits = phone.bytes().filter(u8::is_ascii_digit).count();
+    phone.starts_with('+')
+        && (8..=15).contains(&digits)
+        && phone[1..].bytes().all(|b| b.is_ascii_digit() || b == b' ')
+}
+
+fn check_footer(e: &mut Vec<FieldError>, footer: &mut Footer) {
+    check_footer_links(e, &mut footer.links, "footer.links");
+    optional_text(e, &mut footer.note, "footer.note", 280);
+    optional_text(e, &mut footer.tagline, "footer.tagline", 80);
+    if footer.groups.len() > MAX_FOOTER_GROUPS {
+        e.push(FieldError {
+            field: "footer.groups",
+            code: "too_many",
+            message: "Up to three groups of links.",
+        });
+    }
+    for group in footer.groups.iter_mut() {
+        group.title = group.title.trim().to_owned();
+        if group.title.is_empty() || group.title.chars().count() > 30 {
+            e.push(FieldError {
+                field: "footer.groups",
+                code: "title",
+                message: "Every group needs a title of up to 30 characters.",
+            });
+        }
+        if group.links.is_empty() {
+            e.push(FieldError {
+                field: "footer.groups",
+                code: "empty",
+                message: "Every group needs at least one link.",
+            });
+        }
+        check_footer_links(e, &mut group.links, "footer.groups");
+    }
+    let cta = &mut footer.cta;
+    optional_text(e, &mut cta.heading, "footer.cta.heading", 80);
+    optional_text(e, &mut cta.body, "footer.cta.body", 200);
+    optional_text(e, &mut cta.label, "footer.cta.label", 32);
+    optional_text(e, &mut cta.href, "footer.cta.href", 200);
+    if cta.href.as_deref().is_some_and(|h| !valid_footer_link(h)) {
+        e.push(FieldError {
+            field: "footer.cta.href",
+            code: "href",
+            message: "The button goes to a page path such as /contact, or an https:// address.",
+        });
+    }
+    if footer.social.len() > MAX_SOCIAL {
+        e.push(FieldError {
+            field: "footer.social",
+            code: "too_many",
+            message: "Up to six profiles.",
+        });
+    }
+    let mut networks = std::collections::HashSet::new();
+    for profile in footer.social.iter_mut() {
+        profile.href = profile.href.trim().to_owned();
+        if !profile.href.starts_with("https://") || !valid_link(&profile.href) {
+            e.push(FieldError {
+                field: "footer.social",
+                code: "href",
+                message: "Profiles need the full https:// address of the official page.",
+            });
+        }
+        if !networks.insert(profile.network) {
+            e.push(FieldError {
+                field: "footer.social",
+                code: "duplicate",
+                message: "List each network once.",
+            });
+        }
+    }
+    let contact = &mut footer.contact;
+    optional_text(e, &mut contact.email, "footer.contact.email", 120);
+    if let Some(email) = &mut contact.email {
+        *email = email.to_ascii_lowercase();
+        if !valid_email(email) {
+            e.push(FieldError {
+                field: "footer.contact.email",
+                code: "format",
+                message: "Use an email address such as hello@example.com.",
+            });
+        }
+    }
+    optional_text(e, &mut contact.phone, "footer.contact.phone", 24);
+    if contact.phone.as_deref().is_some_and(|p| !valid_phone(p)) {
+        e.push(FieldError {
+            field: "footer.contact.phone",
+            code: "format",
+            message: "Use the international format, such as +254 798 993 404.",
+        });
+    }
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
@@ -309,6 +536,8 @@ pub struct WebsiteSettings {
     pub nav_previews: NavPreviews,
     /// Saved in the Studio but not published: never sent to the websites.
     pub nav_previews_draft: Option<NavPreviews>,
+    /// The footer being edited in the Studio; likewise never sent.
+    pub footer_draft: Option<Footer>,
 }
 
 /// Body and muted text colours of the light theme (packages/brand/src/tokens.css).
@@ -404,8 +633,10 @@ impl WebsiteSettings {
                 message: "Add at least one link, or use the website's pages.",
             });
         }
-        check_links(&mut e, &mut self.footer.links, "footer.links");
-        optional_text(&mut e, &mut self.footer.note, "footer.note", 200);
+        check_footer(&mut e, &mut self.footer);
+        if let Some(draft) = &mut self.footer_draft {
+            check_footer(&mut e, draft);
+        }
         optional_text(
             &mut e,
             &mut self.enquiries.closed_message,
@@ -691,6 +922,96 @@ mod tests {
         assert!(settings.clone().normalise(false).is_ok());
         let errors = settings.normalise(true).unwrap_err();
         assert_eq!(errors[0].field, "enquiries.open");
+    }
+
+    #[test]
+    fn footers_are_checked_tidied_and_drafts_never_reach_the_websites() {
+        let settings = WebsiteSettings::from_stored(json!({
+            "footer": {
+                "tagline": " HR Simplified. Business Amplified. ",
+                "groups": [{ "title": " Platform ", "links": [
+                    { "label": "Book a demo", "href": "/contact?kind=demo_request#enquire" },
+                    { "label": "FigBud Global", "href": "https://figbud.example/en" },
+                ] }],
+                "cta": { "heading": "Ready?", "label": "Book a demo", "href": "/contact?kind=demo_request#enquire" },
+                "social": [{ "network": "linkedin", "href": "https://www.linkedin.com/company/example" }],
+                "contact": { "email": " Hello@Example.com ", "phone": "+254 798 993 404" },
+            },
+            "footer_draft": { "tagline": "Unpublished footer", "hidden": true },
+        }))
+        .normalise(false)
+        .unwrap();
+        let footer = &settings.footer;
+        assert_eq!(
+            footer.tagline.as_deref(),
+            Some("HR Simplified. Business Amplified.")
+        );
+        assert_eq!(footer.groups[0].title, "Platform");
+        assert!(footer.cta.show, "the call to action shows unless switched off");
+        assert_eq!(footer.contact.email.as_deref(), Some("hello@example.com"));
+        assert!(!footer.hidden);
+        let public = settings.public();
+        assert_eq!(
+            public["footer"]["groups"][0]["links"][0]["href"],
+            "/contact?kind=demo_request#enquire"
+        );
+        assert!(public.get("footer_draft").is_none());
+        assert!(!public.to_string().contains("Unpublished footer"));
+
+        for (bad, field) in [
+            (
+                json!({ "groups": [{ "title": "", "links": [{ "label": "A", "href": "/a" }] }] }),
+                "footer.groups",
+            ),
+            (
+                json!({ "groups": [{ "title": "Empty", "links": [] }] }),
+                "footer.groups",
+            ),
+            (
+                json!({ "groups": [{ "title": "X", "links": [{ "label": "A", "href": "javascript:alert(1)" }] }] }),
+                "footer.groups",
+            ),
+            (
+                json!({ "groups": [{ "title": "X", "links": [{ "label": "A", "href": "/a?x=<b>" }] }] }),
+                "footer.groups",
+            ),
+            (
+                json!({ "groups": (0..5).map(|i| json!({ "title": format!("G{i}"), "links": [{ "label": "A", "href": "/a" }] })).collect::<Vec<_>>() }),
+                "footer.groups",
+            ),
+            (json!({ "tagline": "x".repeat(81) }), "footer.tagline"),
+            (json!({ "note": "x".repeat(281) }), "footer.note"),
+            (
+                json!({ "cta": { "href": "javascript:alert(1)" } }),
+                "footer.cta.href",
+            ),
+            (
+                json!({ "cta": { "heading": "x".repeat(81) } }),
+                "footer.cta.heading",
+            ),
+            (
+                json!({ "social": [{ "network": "x", "href": "http://x.com/figbud" }] }),
+                "footer.social",
+            ),
+            (
+                json!({ "social": [
+                { "network": "x", "href": "https://x.com/a" },
+                { "network": "x", "href": "https://x.com/b" },
+            ] }),
+                "footer.social",
+            ),
+            (
+                json!({ "contact": { "email": "not-an-email" } }),
+                "footer.contact.email",
+            ),
+            (
+                json!({ "contact": { "phone": "0798 993 404" } }),
+                "footer.contact.phone",
+            ),
+        ] {
+            let draft = WebsiteSettings::from_stored(json!({ "footer_draft": bad.clone() }));
+            assert_eq!(draft.normalise(false).unwrap_err()[0].field, field, "{bad}");
+        }
     }
 
     #[test]

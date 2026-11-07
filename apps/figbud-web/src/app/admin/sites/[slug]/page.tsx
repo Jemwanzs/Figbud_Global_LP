@@ -5,6 +5,7 @@ import {
   GalleryHorizontal,
   Images,
   Palette,
+  PanelBottom,
   PanelsTopLeft,
   Scale,
   SearchCheck,
@@ -80,6 +81,10 @@ async function Site({ params }: Pick<PageProps<"/admin/sites/[slug]">, "params">
         <Link href={`/admin/sites/${site.slug}/website`} className={buttonClasses("secondary", "md")}>
           <PanelsTopLeft aria-hidden className="size-4" />
           Navigation & forms
+        </Link>
+        <Link href={`/admin/sites/${site.slug}/footer`} className={buttonClasses("secondary", "md")}>
+          <PanelBottom aria-hidden className="size-4" />
+          Footer
         </Link>
         <Link href={`/admin/sites/${site.slug}/seo`} className={buttonClasses("secondary", "md")}>
           <SearchCheck aria-hidden className="size-4" />

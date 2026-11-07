@@ -31,7 +31,7 @@ test("a published home page renders with the website's brand, navigation and cal
   // Markdown arrives sanitised from the API.
   await page.getByText("Is Ziwa available today?").click();
   await expect(page.locator("strong", { hasText: "coming soon" })).toBeVisible();
-  await expect(page.getByRole("contentinfo")).toContainText("Ziwa LMS is a FigBud Global platform.");
+  await expect(page.getByRole("contentinfo")).toContainText("Ziwa LMS is a product of FigBud Global.");
 });
 
 test("inner pages render, and unknown addresses are real 404s", async ({ page }) => {
@@ -133,6 +133,68 @@ test("navigation and offline pages follow the Studio's visibility settings", asy
   expect((await page.goto("/ziwa/resources"))?.status()).toBe(200);
   // Offline: not found, and never listed.
   expect((await page.goto("/ziwa/legacy"))?.status()).toBe(404);
+});
+
+test.describe("ZiraHR footer (owner's brief, 7 Nov 2026)", () => {
+  test("its own call to action, tagline and groups, named as a FigBud Global product", async ({ page }) => {
+    await page.goto("/zirahr/about");
+    const footer = page.getByRole("contentinfo");
+    const cta = footer.locator("[data-footer-cta]");
+    await expect(cta.getByRole("heading", { level: 2 })).toHaveText("Ready to make HR feel effortless?");
+    await expect(cta).toContainText("Discover a smarter way to manage your people, payroll and workforce.");
+    await expect(cta.getByRole("link", { name: "Book a Demo" })).toHaveAttribute(
+      "href",
+      "/zirahr/contact?kind=demo_request#enquire",
+    );
+    await expect(footer).toContainText("HR Simplified. Business Amplified.");
+    await expect(footer).not.toContainText("One Vision. Endless Solutions.");
+    for (const name of ["Platform", "Explore", "Company", "Legal & Support"])
+      await expect(footer.locator(`[data-footer-column="${name}"]`)).toBeVisible();
+    await expect(footer.getByRole("link", { name: "Referral programme" })).toHaveAttribute(
+      "href",
+      "/zirahr/refer",
+    );
+    await expect(footer).toContainText("ZiraHR is a product of FigBud Global.");
+    // ZiraHR's own identity, never FigBud Global's logo.
+    await expect(footer.getByRole("img", { name: "FigBud Global" })).toHaveCount(0);
+
+    // Every link in the columns is distinct and leads to a live page. The payroll
+    // calculator is published separately (its own tests switch it on and off).
+    const hrefs = await footer
+      .locator("nav a")
+      .evaluateAll((links) => links.map((a) => a.getAttribute("href") ?? ""));
+    expect(new Set(hrefs).size, "no link repeats").toBe(hrefs.length);
+    for (const href of hrefs.filter((h) => h.startsWith("/zirahr") && !h.includes("payroll-calculator"))) {
+      expect((await page.request.get(href.split("#")[0]!)).status(), href).toBeLessThan(400);
+    }
+    // Cookie settings open the existing preferences.
+    await footer.getByRole("button", { name: "Cookie settings" }).click();
+    await expect(page.getByRole("dialog", { name: "Cookie preferences" })).toBeVisible();
+  });
+
+  test("a page ending with its own call to action doesn't get a second one", async ({ page }) => {
+    await page.goto("/zirahr");
+    await expect(page.locator('main [data-section="call_to_action"]').last()).toBeVisible();
+    await expect(page.locator("[data-footer-cta]")).toBeHidden();
+  });
+
+  test("readable in both themes, on the warm palette", async ({ page }) => {
+    await page.goto("/zirahr/about");
+    for (const theme of ["dark", "light"] as const) {
+      await page.evaluate((t) => {
+        document.documentElement.dataset.theme = t;
+      }, theme);
+      const results = await new AxeBuilder({ page: await themeSettled(page) })
+        .include("footer")
+        .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
+        .analyze();
+      expect(
+        results.violations.map(
+          (v) => `${theme} ${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`,
+        ),
+      ).toEqual([]);
+    }
+  });
 });
 
 test.describe("cookie consent", () => {

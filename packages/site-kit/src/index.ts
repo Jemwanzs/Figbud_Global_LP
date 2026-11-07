@@ -12,6 +12,7 @@ export * from "./blocks";
 export * from "./brand-logo";
 export * from "./campaigns";
 export * from "./consent";
+export * from "./footer-layout";
 export * from "./forms";
 export * from "./phone";
 export * from "./seo";

@@ -48,7 +48,7 @@ Decisions taken, for you to overrule if you prefer:
 | §8 Insights | Not built | Pending |
 | §9 Contact | Contact & Demo | Published |
 | §10 Hover wording | Hover Previews (Platform, About, Contact) | Published |
-| §10 Footer groups | Footer links to the calculator and Refer & earn. The guide's "no invented contact numbers" holds: none added | Published |
+| §10 Footer groups | Redesigned 7 Nov 2026 (P7-FT1): "Ready to make HR feel effortless?" call to action with Book a Demo; "HR Simplified. Business Amplified." with a short description; Platform (overview, payroll calculator, referral programme), Explore (home, book a demo), Company (about, contact) and Legal & Support. Named as a product of FigBud Global in words. The guide's "no invented contact numbers" holds: no contact details or profiles added | Published |
 
 Editing: Websites → ZiraHR → Pages (sections, approval, versions), Hero Design Studio, Navigation & forms → Hover Previews, Payroll Calculator, Pricing, and Marketing for proof and campaigns.
 

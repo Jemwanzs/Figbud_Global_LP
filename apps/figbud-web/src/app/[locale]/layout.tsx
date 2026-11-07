@@ -18,7 +18,13 @@ import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { getDictionary } from "@/i18n/get-dictionary";
 import { getPrivacySettings } from "@/lib/privacy";
-import { getBrands, getCorporateSeo, getLiveCampaigns, getNavPreviews } from "@/lib/products";
+import {
+  getBrands,
+  getCorporateSeo,
+  getFooterSettings,
+  getLiveCampaigns,
+  getNavPreviews,
+} from "@/lib/products";
 import { allowIndexing, apiOrigin, siteOrigin } from "@/lib/site";
 
 import "../globals.css";
@@ -162,7 +168,12 @@ export default async function LocaleLayout({ children, params }: LayoutProps<"/[
               placement="footer"
               className="mx-auto block w-full max-w-[92rem] px-5 pb-section-sm sm:px-8 md:px-10 lg:px-16"
             />
-            <SiteFooter locale={locale} dict={dict} brand={brands.figbud} />
+            <SiteFooter
+              locale={locale}
+              dict={dict}
+              brand={brands.figbud}
+              settings={await getFooterSettings()}
+            />
             <CookieConsent
               settings={privacy}
               labels={dict.consent.labels}

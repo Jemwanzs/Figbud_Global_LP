@@ -575,6 +575,12 @@
 }
 
 /* Cookie consent banner (consent.tsx): rises in once, never moves content. */
+/* The footer's call to action (owner's brief, 7 Nov 2026) steps aside on a
+   page that already ends with its own, so two never stack. */
+body:has(main [data-section="call_to_action"]:last-child) [data-footer-cta] {
+  display: none;
+}
+
 /* Overlays (UI-TH5): one motion for every dialog on the websites. Centred
    dialogs (.fb-overlay) fade and rise; menus (.fb-drawer, with the sliding
    panel marked .fb-drawer-panel) slide in from the reading edge; backdrops

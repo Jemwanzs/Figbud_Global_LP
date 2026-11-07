@@ -12,7 +12,7 @@ use sqlx::PgPool;
 use uuid::Uuid;
 
 use super::blocks::PageDoc;
-use crate::site_settings::{Link, WebsiteSettings};
+use crate::site_settings::{Footer, FooterCta, FooterGroup, Link, WebsiteSettings};
 
 const ACTION: &str = "page.zirahr_guide_drafted";
 
@@ -341,6 +341,112 @@ fn story_sections() -> [Value; 2] {
 const HOME_REDESIGN: &str = "page.zirahr_home_redesigned";
 const LOCAL_ENQUIRIES: &str = "page.zirahr_enquiries_local";
 const HERO_SIGNAL: &str = "page.zirahr_hero_signal";
+const FOOTER: &str = "site.zirahr_footer_redesigned";
+/// The parent company's tagline, which ZiraHR's record carried by mistake.
+const FIGBUD_TAGLINE: &str = "One Vision. Endless Solutions.";
+pub const ZIRAHR_TAGLINE: &str = "HR Simplified. Business Amplified.";
+
+fn link(label: &str, href: &str) -> Link {
+    Link {
+        label: label.into(),
+        href: href.into(),
+    }
+}
+
+/// ZiraHR's footer on the owner's brief of 7 Nov 2026: the call to action, the
+/// tagline and a short product description, and its links in three groups
+/// (the websites add Legal & Support, with the cookie settings, themselves).
+pub fn footer() -> Footer {
+    let demo = "/contact?kind=demo_request#enquire";
+    Footer {
+        tagline: Some(ZIRAHR_TAGLINE.into()),
+        note: Some(
+            "The connected HR platform that brings employee records, leave, payroll, attendance and \
+             performance together in one place."
+                .into(),
+        ),
+        groups: vec![
+            FooterGroup {
+                title: "Platform".into(),
+                links: vec![
+                    link("Platform overview", "/platform"),
+                    link("Payroll calculator", "/payroll-calculator"),
+                    link("Referral programme", "/refer"),
+                ],
+            },
+            FooterGroup {
+                title: "Explore".into(),
+                links: vec![link("Home", "/"), link("Book a demo", demo)],
+            },
+            FooterGroup {
+                title: "Company".into(),
+                links: vec![link("About ZiraHR", "/about"), link("Contact us", "/contact")],
+            },
+        ],
+        cta: FooterCta {
+            show: true,
+            heading: Some("Ready to make HR feel effortless?".into()),
+            body: Some("Discover a smarter way to manage your people, payroll and workforce.".into()),
+            label: Some("Book a Demo".into()),
+            href: Some(demo.into()),
+        },
+        ..Footer::default()
+    }
+}
+
+/// Gives ZiraHR that footer once, while its footer is still the original
+/// single list of links (a footer edited in the Studio is kept), and puts
+/// ZiraHR's own tagline on its record in place of the parent company's.
+pub async fn publish_footer(pool: &PgPool) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let mut tx = pool.begin().await?;
+    let site: Option<(Uuid, Value, Option<String>)> = sqlx::query_as(
+        "SELECT s.id, s.settings, s.tagline FROM sites s WHERE s.slug = 'zirahr' AND NOT EXISTS (
+                SELECT 1 FROM audit_log a WHERE a.site_id = s.id AND a.action = $1)
+            FOR UPDATE",
+    )
+    .bind(FOOTER)
+    .fetch_optional(&mut *tx)
+    .await?;
+    let Some((site_id, settings, tagline)) = site else {
+        return Ok(());
+    };
+    let mut next = WebsiteSettings::from_stored(settings);
+    let untouched =
+        next.footer.groups.is_empty() && next.footer.tagline.is_none() && next.footer_draft.is_none();
+    if untouched {
+        next.footer = footer();
+        let next = next
+            .normalise(false)
+            .map_err(|e| format!("ZiraHR footer: {e:?}"))?;
+        sqlx::query("UPDATE sites SET settings = $2, settings_version = settings_version + 1 WHERE id = $1")
+            .bind(site_id)
+            .bind(serde_json::to_value(&next)?)
+            .execute(&mut *tx)
+            .await?;
+    }
+    let retagged = tagline.as_deref() == Some(FIGBUD_TAGLINE);
+    if retagged {
+        sqlx::query("UPDATE sites SET tagline = $2 WHERE id = $1")
+            .bind(site_id)
+            .bind(ZIRAHR_TAGLINE)
+            .execute(&mut *tx)
+            .await?;
+    }
+    sqlx::query(
+        "INSERT INTO audit_log (id, action, target_type, target_id, detail, site_id)
+         VALUES ($1, $2, 'site', $3, $4, $5)",
+    )
+    .bind(Uuid::now_v7())
+    .bind(FOOTER)
+    .bind(site_id.to_string())
+    .bind(json!({ "footer": untouched, "tagline": retagged, "authorised_by": "owner, 7 Nov 2026" }))
+    .bind(site_id)
+    .execute(&mut *tx)
+    .await?;
+    tx.commit().await?;
+    tracing::info!(footer = untouched, tagline = retagged, "ZiraHR footer");
+    Ok(())
+}
 
 /// The default hero's animated look (UI-HE1, owner's brief of 6 Nov 2026): the
 /// headline split into a line and an accent line, the connected-modules visual

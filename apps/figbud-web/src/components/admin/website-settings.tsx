@@ -26,7 +26,9 @@ const MAX_LINKS = 8;
 /** Normalises what the API sends (missing parts mean the defaults). */
 const toForm = (s: Partial<WebsiteSettings>): WebsiteSettings => ({
   navigation: { mode: s.navigation?.mode ?? "pages", items: s.navigation?.items ?? [] },
-  footer: { note: s.footer?.note ?? "", links: s.footer?.links ?? [] },
+  // Edited on the Footer page; sent back unchanged so saving here never resets it.
+  footer: s.footer ?? { links: [] },
+  ...(s.footer_draft ? { footer_draft: s.footer_draft } : {}),
   enquiries: { open: s.enquiries?.open ?? true, closed_message: s.enquiries?.closed_message ?? "" },
   theme: { brand_section: s.theme?.brand_section ?? "", soft_section: s.theme?.soft_section ?? "" },
   motion: {
@@ -117,13 +119,9 @@ export function WebsiteSettingsForm({
     "min-h-11 w-full rounded-xl border border-line-strong bg-surface px-4 text-text disabled:opacity-60";
 
   /** An editable, reorderable list of links. */
-  const links = (key: "navigation" | "footer", list: SiteLink[], legend: string, field: string) => {
+  const links = (key: "navigation", list: SiteLink[], legend: string, field: string) => {
     const update = (next: SiteLink[]) =>
-      setForm((f) =>
-        key === "navigation"
-          ? { ...f, navigation: { ...f.navigation, items: next } }
-          : { ...f, footer: { ...f.footer, links: next } },
-      );
+      setForm((f) => ({ ...f, navigation: { ...f.navigation, items: next } }));
     const listId = `${uid}-${key}-pages`;
     return (
       <div className="space-y-3">
@@ -439,27 +437,15 @@ export function WebsiteSettingsForm({
         </div>
       </fieldset>
 
-      <fieldset className="space-y-5">
+      <fieldset className="space-y-3">
         <legend className="font-semibold text-text">Footer</legend>
-        <div>
-          <label htmlFor={`${uid}-note`} className="block text-sm font-medium text-text">
-            Footer note
-          </label>
-          <input
-            id={`${uid}-note`}
-            maxLength={200}
-            value={form.footer.note ?? ""}
-            disabled={disabled}
-            placeholder="Defaults to the website's tagline"
-            onChange={(e) => setForm((f) => ({ ...f, footer: { ...f.footer, note: e.target.value } }))}
-            className={cn(inputClass, "mt-2")}
-          />
-          {errorFor("footer.note") && <p className="mt-1.5 text-sm text-danger">{errorFor("footer.note")}</p>}
-        </div>
-        {links("footer", form.footer.links, "Footer links", "footer.links")}
-        <p className="text-sm text-subtle">
-          Without footer links, the footer repeats the menu. FigBud Global&apos;s About, Privacy, Terms and
-          Cookie links are always shown.
+        <p className="rounded-2xl border border-line p-4 text-sm text-muted">
+          The footer&apos;s call to action, tagline, description, link groups, contact details and profiles
+          are set on the{" "}
+          <Link href={`/admin/sites/${slug}/footer`} className="font-medium text-accent-strong underline">
+            Footer
+          </Link>{" "}
+          page, with a draft before publishing.
         </p>
       </fieldset>
 

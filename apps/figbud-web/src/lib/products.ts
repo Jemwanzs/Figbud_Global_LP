@@ -9,6 +9,7 @@ import {
   type PublicProof,
   type PublishedHero,
   type ShowcaseSettings,
+  type SiteFooterSettings,
   type SiteSeo,
   enquiriesOpen,
   resolveNavPreviews,
@@ -132,6 +133,11 @@ export async function getNavPreviews(
 ): Promise<Record<string, NavPreviewContent>> {
   const settings = (await getListedSites())?.find((s) => s.slug === "figbud")?.settings;
   return resolveNavPreviews(settings?.nav_previews, defaults, locale === "en");
+}
+
+/** The corporate footer as published in the Studio (Studio → FigBud Global → Footer). */
+export async function getFooterSettings(): Promise<SiteFooterSettings | undefined> {
+  return (await getListedSites())?.find((s) => s.slug === "figbud")?.settings?.footer;
 }
 
 /**
