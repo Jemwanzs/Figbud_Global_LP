@@ -461,8 +461,9 @@ const en = {
           body: "Your message goes straight to the team responsible for the product you choose.",
         },
         {
-          title: "We confirm by email",
-          body: "You'll receive a reference number so you can follow up at any time.",
+          // Accurate while emails are held (Resend, Q4): the reference shows on screen.
+          title: "You get a reference",
+          body: "A reference number appears as soon as your message is sent, so you can follow up at any time.",
         },
         {
           title: "We tailor the conversation",

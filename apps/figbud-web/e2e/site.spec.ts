@@ -216,6 +216,43 @@ test.describe("footer (owner's brief, 7 Nov 2026)", () => {
   });
 });
 
+test.describe("polish audit (UI-MO9)", () => {
+  test("the contact page promises only what happens, and every select has the same chevron", async ({
+    page,
+  }) => {
+    await page.goto("/en/contact");
+    // Emails are held until Resend is set up (Q4): the reference shows on screen instead.
+    await expect(page.getByText("You get a reference")).toBeVisible();
+    await expect(page.getByText("We confirm by email")).toHaveCount(0);
+    const selects = page.locator("form select");
+    await expect(selects.first()).toBeVisible();
+    const looks = await selects.evaluateAll((els) =>
+      els.map((el) => [
+        getComputedStyle(el).appearance,
+        getComputedStyle(el).backgroundImage.includes("gradient"),
+      ]),
+    );
+    expect(looks.length).toBeGreaterThanOrEqual(2);
+    for (const look of looks) expect(look).toEqual(["none", true]);
+  });
+
+  test("a page ending with its own closing panel meets the footer without an extra gap", async ({ page }) => {
+    const gap = () => page.locator("footer").evaluate((el) => getComputedStyle(el).marginTop);
+    await page.goto("/en");
+    expect(await gap()).toBe("0px");
+    await page.goto("/en/contact");
+    expect(await gap()).not.toBe("0px");
+  });
+
+  test("before the first move, every Our Platforms card fills the slider", async ({ page }) => {
+    await page.goto("/en");
+    const panels = page.locator('#platforms [role="tabpanel"]');
+    await expect(panels.first()).toBeAttached();
+    const heights = await panels.evaluateAll((els) => els.map((el) => (el as HTMLElement).offsetHeight));
+    expect(new Set(heights).size, `${heights}`).toBe(1);
+  });
+});
+
 test.describe("theme and language", () => {
   test("dark by default whatever the device prefers; one button switches and is remembered", async ({
     page,

@@ -575,10 +575,43 @@
 }
 
 /* Cookie consent banner (consent.tsx): rises in once, never moves content. */
+/* Selects styled with fieldClasses (UI-MO9): one theme-aware chevron, inset
+   from the edge like the custom pickers, instead of each browser's own. */
+select.fb-field {
+  appearance: none;
+  padding-inline-end: 2.75rem;
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--text-subtle) 50%),
+    linear-gradient(135deg, var(--text-subtle) 50%, transparent 50%);
+  background-position:
+    calc(100% - 1.4rem) 52%,
+    calc(100% - 1.05rem) 52%;
+  background-size: 0.35rem 0.35rem;
+  background-repeat: no-repeat;
+}
+[dir="rtl"] select.fb-field {
+  background-position:
+    1.05rem 52%,
+    1.4rem 52%;
+}
+
+/* A page that ends on a full-width band meets the footer directly: the band
+   reaches through the page's bottom padding, and the footer adds no gap. */
+[data-page-content] > [data-page-blocks]:last-child > .fb-tone-inverse:last-child::before {
+  bottom: calc(-1 * var(--spacing-section-sm));
+}
+body:has([data-page-content] > [data-page-blocks]:last-child > .fb-tone-inverse:last-child) footer {
+  margin-top: 0;
+}
+
 /* The footer's call to action (owner's brief, 7 Nov 2026) steps aside on a
    page that already ends with its own, so two never stack. */
 body:has(main [data-section="call_to_action"]:last-child) [data-footer-cta] {
   display: none;
+}
+/* The page's own closing panel already gives it room; no extra gap. */
+body:has(main [data-section="call_to_action"]:last-child) footer {
+  margin-top: 0;
 }
 
 /* Overlays (UI-TH5): one motion for every dialog on the websites. Centred

@@ -337,7 +337,10 @@ export default async function SitePage({ params }: PageProps<"/[site]/[[...path]
           }
         />
       )}
-      <div className="mx-auto max-w-[92rem] px-5 py-section-sm sm:px-8 md:px-10 lg:px-16">
+      <div
+        data-page-content=""
+        className="mx-auto max-w-[92rem] px-5 py-section-sm sm:px-8 md:px-10 lg:px-16"
+      >
         <JsonLd data={structured} />
         {path === "" && <CampaignSlot placement="home_hero" className="mb-block block" />}
         <PageBlocks

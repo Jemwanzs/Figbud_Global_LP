@@ -185,6 +185,16 @@ function Prose({ html, text }: { html?: string; text?: string }) {
   return <div className="max-w-3xl space-y-4 leading-relaxed whitespace-pre-line text-muted">{text}</div>;
 }
 
+/**
+ * Columns that fill evenly (UI-MO9): two items sit side by side, and four
+ * never split three and one; other counts keep the usual columns.
+ */
+function evenColumns(count: number, usual: string, four: string) {
+  if (count === 2) return "@xl:grid-cols-2";
+  if (count === 4) return four;
+  return usual;
+}
+
 function Heading({ children, level = 2 }: { children: ReactNode; level?: 1 | 2 }) {
   const Tag = level === 1 ? "h1" : "h2";
   return (
@@ -243,7 +253,8 @@ function Block({
             </div>
           )}
           {highlights.length > 0 && (
-            <ul className="mt-8 flex flex-wrap gap-x-6 gap-y-3 text-sm text-muted">
+            // Two even columns, so four highlights never leave one alone on a line.
+            <ul className="mt-8 grid w-fit gap-x-8 gap-y-3 text-sm text-muted @md:grid-cols-2">
               {highlights.map((item) => (
                 <li key={item} className="flex items-center gap-2">
                   <span className="grid size-5 place-items-center rounded-full bg-product-soft text-product-text">
@@ -284,7 +295,8 @@ function Block({
           {section.intro && <p className="mt-4 max-w-2xl text-muted">{section.intro}</p>}
           <ul
             className={cn(
-              "grid gap-4 @xl:grid-cols-2 @4xl:grid-cols-3",
+              "grid gap-4",
+              evenColumns(section.items.length, "@xl:grid-cols-2 @4xl:grid-cols-3", "@xl:grid-cols-2"),
               (section.heading || section.intro) && "mt-10",
             )}
           >
@@ -304,7 +316,13 @@ function Block({
       return (
         <div>
           {section.heading && <Heading>{section.heading}</Heading>}
-          <ol className={cn("grid gap-4 @3xl:grid-cols-3", section.heading && "mt-10")}>
+          <ol
+            className={cn(
+              "grid gap-4",
+              evenColumns(section.items.length, "@3xl:grid-cols-3", "@3xl:grid-cols-2 @6xl:grid-cols-4"),
+              section.heading && "mt-10",
+            )}
+          >
             {section.items.map((item, i) => (
               <li
                 key={i}
@@ -521,7 +539,7 @@ export function PageBlocks({
   return (
     // Blocks respond to the space they are given (container queries), so the
     // Studio preview and the website lay out the same way at the same width.
-    <div className={cn("@container space-y-block", className)}>
+    <div data-page-blocks="" className={cn("@container space-y-block", className)}>
       {document.sections
         // Live pages never show hidden sections; previews show them dimmed and labelled.
         .filter((section) => mode === "preview" || !section.hidden)

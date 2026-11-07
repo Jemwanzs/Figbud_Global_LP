@@ -494,7 +494,7 @@ Scope: premium, lightweight motion on one shared system; product discovery witho
 | P7-ZC1  | ZiraHR palette (owner, 6 Nov 2026): warm brown, brown and orange, warm orange, white. Warm orange accents and buttons, warm brown as the second colour. The ZiraHR website sits on deep warm brown in the dark theme and white or warm white in the light theme, with brown bands for "brand" sections. Applied once to the published brand profile as a recorded revision (a Studio choice is kept). The official symbol keeps its own colours | ✅ |
 | UI-TH5  | FigBud Global home: contrasting bands for the corporate sections, then forms and overlays (brief section 5) | ✅ Bands: "Our philosophy" and "What we engineer" on the home page, "What we believe" on About. Overlays: one open and close motion and one dimmed backdrop for the cookie prompt, campaign pop-ups and mobile menus. Forms: one field style (`fieldClasses`) with a clear focus ring in the theme's focus colour, red while invalid, on the enquiry, waitlist, referral, pricing, calculator and campaign forms |
 | UI-MO8  | Editorial hero designs (the third style in the brief) for FigBud Global and ZiraHR, alongside the existing default and motion-led designs | ✅ FigBud Global 04 · The FigBud Edition and ZiraHR 04 · People, in Chapters, on one shared `EditorialHero`; in each website's Hero Design Studio, ready to select, preview in both themes and publish with approval |
-| UI-MO9  | Page-by-page polish audit: navigation, Home and About, comparisons, pricing and calculator, testimonials, FAQs, forms, footer, legal, phones | ⬜ |
+| UI-MO9  | Page-by-page polish audit: navigation, Home and About, comparisons, pricing and calculator, testimonials, FAQs, forms, footer, legal, phones | 🟡 First pass (7 Nov 2026) on the live sites, desktop and phone, both themes: fixes for the gaps above footers, even grids, hero highlights, select chevrons, product-site flags, the empty blog's doubled call to action, Our Platforms' first card, and an inaccurate email promise. Next pass: About, legal pages, testimonials and Arabic |
 | UI-PR1  | Products page redesign: product jump links; a spotlight for the first live product with its interactive synthetic preview; equal supporting cards (brand accent line, glow, status, highlights, demo or waitlist and website actions) in a responsive grid ready for future products; all content visible without hover; comparison and future-products sections kept | ✅ |
 | P10-T1  | Trusted By & partner logo management: Studio → Content & Marketing → Trusted By; organisation, relationship, website, description, logo and icon from the corporate media library, order, active switch, website targeting; publishing needs a confirmed relationship, display approval and recorded evidence; public animated logo row | ✅ Built (migration 23, `proof.rs`, Studio, both website types); content ⛔ Q22 |
 | P10-T2  | Customer testimonials: quote, organisation, person and title (only with approval), photo (only with approval), product, industry, country, evidence; maker-checker publication, versions, audit; public cards with product accents | ✅ Built; content: genuine, approved quotes only |
@@ -609,6 +609,16 @@ Scope: a four-page, SaaS-only ZiraHR website from the Enhanced Content & Develop
 
 | Date        | Change                                                                                                   |
 | ----------- | -------------------------------------------------------------------------------------------------------- |
+| 7 Nov 2026 | Polish audit, first pass (UI-MO9). The live sites were reviewed page by page, on desktop and phone, in both themes. Fixes:
+- **Contact page:** it no longer promises an email confirmation, because emails are held until Resend is set up (Q4). It says what happens: a reference number appears as soon as the message is sent.
+- **No empty strips above footers:** a page ending with its own closing panel, or with a full-width band, now meets the footer directly.
+- **Even layouts:**
+  - four steps or features sit two by two (or four across on wide screens), never three and one;
+  - hero highlights sit in two even columns.
+- **Dropdowns:** every select on the forms has the same theme-aware arrow, inset like the country and phone pickers, instead of each browser's own.
+- **Flags on ZiraHR:** the phone picker showed "KE" instead of Kenya's flag on Windows; the product sites now load the same flag face as the corporate site.
+- **Empty blog:** it no longer shows Explore Our Products twice.
+- **Our Platforms:** before the first move, every card fills the slider, with no blank space under a shorter one. |
 | 7 Nov 2026 | Editorial heroes (UI-MO8), the brief's third hero style:
 - **The FigBud Edition (FigBud Global 04):**
   - an oversized "One vision. / Endless solutions." across the page under a drawn hairline;

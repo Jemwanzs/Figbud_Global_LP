@@ -498,7 +498,9 @@ export function PlatformShowcase({
               ref={track}
               className={cn(
                 "fb-slider-track flex gap-[var(--slide-gap)]",
-                scrolling ? "items-stretch" : "items-start",
+                // Until the first move the slider is as tall as the tallest product, so every
+                // card fills it (no blank space under a shorter one); then each takes its own height.
+                scrolling || !moved ? "items-stretch" : "items-start",
               )}
               data-dragging={drag !== null || undefined}
               data-scrub={scrolling || undefined}

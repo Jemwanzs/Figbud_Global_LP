@@ -14,6 +14,7 @@ import {
 import { themeInitScript } from "@figbud/ui";
 import type { Metadata, Viewport } from "next";
 import { Outfit } from "next/font/google";
+import localFont from "next/font/local";
 import { notFound } from "next/navigation";
 import type { CSSProperties } from "react";
 
@@ -38,6 +39,16 @@ import {
 import "../globals.css";
 
 const outfit = Outfit({ subsets: ["latin", "latin-ext"], variable: "--font-outfit", display: "swap" });
+// Country flags for the enquiry form's country and phone selectors on systems
+// without flag emoji (Windows), as on the corporate site. Only the
+// regional-indicator range, fetched only when a flag shows. Twemoji, CC-BY 4.0.
+const flags = localFont({
+  src: "../../../../../node_modules/country-flag-emoji-polyfill/dist/TwemojiCountryFlags.woff2",
+  variable: "--font-flags",
+  display: "swap",
+  preload: false,
+  declarations: [{ prop: "unicode-range", value: "U+1F1E6-1F1FF, U+1F3F4, U+E0062-E007F" }],
+});
 
 /** Products with a design-system accent; others use the FigBud accent plus their published colours. */
 const KNOWN = ["zirahr", "jasiri", "expense_now", "ziwa"];
@@ -121,7 +132,12 @@ export default async function SiteLayout({ children, params }: LayoutProps<"/[si
   } as CSSProperties;
 
   return (
-    <html lang="en" data-theme="dark" suppressHydrationWarning className={outfit.variable}>
+    <html
+      lang="en"
+      data-theme="dark"
+      suppressHydrationWarning
+      className={`${outfit.variable} ${flags.variable}`}
+    >
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>

@@ -197,6 +197,16 @@ test.describe("ZiraHR footer (owner's brief, 7 Nov 2026)", () => {
   });
 });
 
+test("product websites load the flag face for the phone picker (UI-MO9)", async ({ page }) => {
+  await page.goto("/zirahr/contact");
+  // Systems without flag emoji (Windows) showed letters such as "KE" instead of a flag.
+  expect(
+    await page.evaluate(() =>
+      getComputedStyle(document.documentElement).getPropertyValue("--font-flags").trim(),
+    ),
+  ).not.toBe("");
+});
+
 test.describe("cookie consent", () => {
   test.use({ storageState: { cookies: [], origins: [] } });
 

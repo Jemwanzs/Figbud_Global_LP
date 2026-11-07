@@ -104,7 +104,7 @@ async function BlogResults({
   // No articles at all yet: an honest empty state, no filters to play with.
   if (!filtered && articles.data.total === 0) {
     return (
-      <Notice title={copy.emptyTitle} body={copy.emptyBody} icon>
+      <Notice title={copy.emptyTitle} body={copy.emptyBody} icon closing>
         {/* What the blog will cover: the topics already promised on the home page. */}
         <ul className="mt-6 flex flex-wrap gap-2" aria-label={dict.home.company.insightsTitle}>
           {dict.home.company.topics.map((topic) => (
@@ -272,15 +272,18 @@ function Notice({
   title,
   body,
   icon,
+  closing,
   children,
 }: {
   title: string;
   body: string;
   icon?: boolean;
+  /** It ends the page with its own call to action, so the footer doesn't add one. */
+  closing?: boolean;
   children?: React.ReactNode;
 }) {
   return (
-    <div className="max-w-3xl">
+    <div className="max-w-3xl" data-section={closing ? "call_to_action" : undefined}>
       {icon && (
         <span
           aria-hidden

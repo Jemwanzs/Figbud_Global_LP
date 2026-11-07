@@ -6,7 +6,7 @@ import { cn } from "./cn";
  * colour (danger while invalid), and the same height as buttons' tap targets.
  */
 const base =
-  "block min-h-12 w-full rounded-xl border border-line-strong bg-bg/60 px-4 text-base text-text " +
+  "fb-field block min-h-12 w-full rounded-xl border border-line-strong bg-bg/60 px-4 text-base text-text " +
   "placeholder:text-subtle transition-[border-color,box-shadow] duration-200 outline-none " +
   "hover:border-accent/40 focus-visible:border-accent " +
   "focus-visible:shadow-[0_0_0_3px_color-mix(in_oklab,var(--focus)_40%,transparent)] " +
