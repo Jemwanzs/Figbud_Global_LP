@@ -31,8 +31,12 @@ export type StoryMotion = "standard" | "subtle" | "off";
 
 const clamp = (value: number) => Math.min(1, Math.max(0, value));
 
-/** Follows the page's scroll with passive listeners and one write per frame. */
-function useScrollStory(count: number) {
+/**
+ * Follows the page's scroll with passive listeners and one write per frame:
+ * which of `count` steps the pinned stretch is at. Shared by the stories and
+ * the module showcase (pin, progress, complete, release).
+ */
+export function useScrollStory(count: number) {
   const root = useRef<HTMLDivElement>(null);
   const [step, setStep] = useState(0);
   const [onScreen, setOnScreen] = useState(false);
@@ -92,7 +96,19 @@ function useScrollStory(count: number) {
     });
   };
 
-  return { root, step, onScreen, goTo };
+  /** Scrolls just past the pinned stretch (the "skip" control). */
+  const leave = () => {
+    const el = root.current;
+    if (!el) return;
+    const header = document.querySelector("header")?.offsetHeight ?? 64;
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    window.scrollTo({
+      top: el.getBoundingClientRect().bottom + window.scrollY - header,
+      behavior: reduced ? "auto" : "smooth",
+    });
+  };
+
+  return { root, step, onScreen, goTo, leave };
 }
 
 /** The step's words beside (or beneath, on phones) the visual, in one panel that stays in view. */

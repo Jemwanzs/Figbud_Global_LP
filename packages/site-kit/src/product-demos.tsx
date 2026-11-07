@@ -18,9 +18,15 @@ import {
   Users,
   Wallet,
 } from "lucide-react";
-import { type KeyboardEvent, useEffect, useRef, useState } from "react";
+import { type CSSProperties, type KeyboardEvent, useEffect, useRef, useState } from "react";
 
-import { EmployeeJourneyStory, ScatteredToConnectedStory, type StoryMotion } from "./scroll-story";
+import { DemoControl, useAutoDemo } from "./auto-demo";
+import {
+  EmployeeJourneyStory,
+  ScatteredToConnectedStory,
+  type StoryMotion,
+  useScrollStory,
+} from "./scroll-story";
 
 /*
  * Interactive product demonstrations for product website pages (P14-W), chosen
@@ -70,24 +76,6 @@ function useReveal<T extends HTMLElement>() {
   return { ref, state, moving: state !== "idle" };
 }
 
-/** Moves on by itself while in view, until someone chooses a step. */
-function useAutoStep(count: number, ms: number, running: boolean) {
-  const [index, setIndex] = useState(0);
-  const [held, setHeld] = useState(false);
-  useEffect(() => {
-    if (!running || held) return;
-    const id = window.setTimeout(() => setIndex((i) => (i + 1) % count), ms);
-    return () => window.clearTimeout(id);
-  }, [index, held, running, count, ms]);
-  return {
-    index,
-    choose: (i: number) => {
-      setHeld(true);
-      setIndex(i);
-    },
-  };
-}
-
 function Caption({ className }: { className?: string }) {
   return <p className={cn("text-xs text-subtle", className)}>{SYNTHETIC}</p>;
 }
@@ -120,96 +108,122 @@ const MODULES: { name: string; line: string; icon: LucideIcon }[] = [
   { name: "Learning & Development", line: "Skills and growth in the employee journey.", icon: BookOpen },
 ];
 
-/** Eight modules on one line around one record. The lit stretch of the line follows the chosen module. */
+/**
+ * Eight modules around one record (owner's brief, 7 Nov 2026): the showcase
+ * pins once its heading has passed, scrolling moves it through all eight
+ * (the ring fills module by module), and it releases after the eighth;
+ * scrolling back up reverses it. Choosing a module scrolls to it, and "Skip"
+ * leaves the sequence. About a fifth of a screen per module, never a wait.
+ */
 function ConnectedModules() {
-  const { ref, state, moving } = useReveal<HTMLDivElement>();
-  const { index, choose } = useAutoStep(MODULES.length, 3200, moving && state === "seen");
+  const count = MODULES.length;
+  const { root, step: index, goTo, leave } = useScrollStory(count);
   const active = MODULES[index]!;
   const Icon = active.icon;
   const R = 150;
   const point = (i: number) => {
-    const a = (i / MODULES.length) * Math.PI * 2 - Math.PI / 2;
+    const a = (i / count) * Math.PI * 2 - Math.PI / 2;
     return { x: 200 + R * Math.cos(a), y: 200 + R * Math.sin(a) };
   };
   const length = 2 * Math.PI * R;
-  const stretch = length / MODULES.length;
+  // The ring fills as far as the current module.
+  const filled = (length * (index + 1)) / count;
+  const choose = (i: number) => goTo(i);
   return (
     <div
-      ref={ref}
-      data-tone="inverse"
-      data-reveal-state={state}
-      className="fb-demo-stage grid items-center gap-8 overflow-hidden rounded-[var(--radius-panel)] p-5 text-text sm:p-8 @3xl:grid-cols-2"
+      ref={root}
+      data-modules=""
+      data-step={index}
+      style={{ "--story-steps": count, "--story-progress": 0 } as CSSProperties}
+      className="fb-modules relative"
     >
-      <div className="relative mx-auto aspect-square w-full max-w-[26rem]">
-        <svg aria-hidden viewBox="0 0 400 400" className="absolute inset-0 size-full">
-          <circle cx="200" cy="200" r={R} fill="none" stroke="var(--line-strong)" strokeWidth="1.5" />
-          <circle
-            cx="200"
-            cy="200"
-            r={R}
-            fill="none"
-            stroke="var(--product)"
-            strokeWidth="3"
-            strokeLinecap="round"
-            strokeDasharray={`${stretch} ${length - stretch}`}
-            strokeDashoffset={-index * stretch}
-            transform="rotate(-90 200 200)"
-            className="transition-[stroke-dashoffset] duration-700 ease-out motion-reduce:transition-none"
-          />
-        </svg>
-        <div className="absolute inset-[30%] grid place-items-center rounded-full border border-line bg-surface text-center">
-          <p className="px-2 text-xs leading-snug text-muted @lg:text-sm">
-            <span className="block font-semibold text-text">One record</span>
-            per employee
-          </p>
-        </div>
-        <div role="tablist" aria-label="Platform modules" aria-orientation="horizontal">
-          {MODULES.map((module, i) => {
-            const { x, y } = point(i);
-            const NodeIcon = module.icon;
-            const selected = i === index;
-            return (
-              <button
-                key={module.name}
-                type="button"
-                role="tab"
-                id={`demo-module-${i}`}
-                aria-selected={selected}
-                aria-controls="demo-module-panel"
-                aria-label={module.name}
-                tabIndex={selected ? 0 : -1}
-                onClick={() => choose(i)}
-                onKeyDown={(e) => arrows(e, i, MODULES.length, choose)}
-                style={{ left: `${(x / 400) * 100}%`, top: `${(y / 400) * 100}%` }}
-                className={cn(
-                  "absolute grid size-11 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border transition-[color,background-color,border-color,scale] duration-300 @lg:size-12",
-                  selected
-                    ? "scale-110 border-product bg-product text-product-ink"
-                    : "border-line-strong bg-surface text-muted hover:border-product hover:text-text",
-                )}
-              >
-                <NodeIcon aria-hidden className="size-5" />
-              </button>
-            );
-          })}
-        </div>
-      </div>
-      <div
-        id="demo-module-panel"
-        role="tabpanel"
-        aria-labelledby={`demo-module-${index}`}
-        className="min-h-40"
-        key={active.name}
-      >
-        <span
-          aria-hidden
-          className="grid size-12 place-items-center rounded-2xl bg-product-soft text-product-text"
+      <div className="fb-modules-pin sticky top-[var(--story-top,4.5rem)] flex flex-col justify-center py-2 @3xl:py-4">
+        <div
+          data-tone="inverse"
+          className="fb-demo-stage grid items-center gap-4 overflow-hidden rounded-[var(--radius-panel)] p-5 text-text sm:p-8 @3xl:grid-cols-2 @3xl:gap-8"
         >
-          <Icon className="size-6" />
-        </span>
-        <p className="mt-4 font-mono text-sm text-product-text">{`${String(index + 1).padStart(2, "0")} / 08`}</p>
-        <h3 className="mt-1 font-display text-title font-semibold text-text">{active.name}</h3>
-        <p className="mt-2 text-lead text-muted">{active.line}</p>
+          <div className="relative mx-auto aspect-square w-full max-w-[min(16rem,34svh)] @3xl:max-w-[min(26rem,62svh)]">
+            <svg aria-hidden viewBox="0 0 400 400" className="absolute inset-0 size-full">
+              <circle cx="200" cy="200" r={R} fill="none" stroke="var(--line-strong)" strokeWidth="1.5" />
+              <circle
+                cx="200"
+                cy="200"
+                r={R}
+                fill="none"
+                stroke="var(--product)"
+                strokeWidth="3"
+                strokeLinecap="round"
+                strokeDasharray={`${filled} ${length}`}
+                transform="rotate(-90 200 200)"
+                className="transition-[stroke-dasharray] duration-500 ease-out motion-reduce:transition-none"
+              />
+            </svg>
+            <div className="absolute inset-[30%] grid place-items-center rounded-full border border-line bg-surface text-center">
+              <p className="px-2 text-xs leading-snug text-muted @lg:text-sm">
+                <span className="block font-semibold text-text">One record</span>
+                per employee
+              </p>
+            </div>
+            <div role="tablist" aria-label="Platform modules" aria-orientation="horizontal">
+              {MODULES.map((module, i) => {
+                const { x, y } = point(i);
+                const NodeIcon = module.icon;
+                const selected = i === index;
+                return (
+                  <button
+                    key={module.name}
+                    type="button"
+                    role="tab"
+                    id={`demo-module-${i}`}
+                    aria-selected={selected}
+                    aria-controls="demo-module-panel"
+                    aria-label={module.name}
+                    tabIndex={selected ? 0 : -1}
+                    onClick={() => choose(i)}
+                    onKeyDown={(e) => arrows(e, i, count, choose)}
+                    style={{ left: `${(x / 400) * 100}%`, top: `${(y / 400) * 100}%` }}
+                    className={cn(
+                      "absolute grid size-10 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border transition-[color,background-color,border-color,scale] duration-300 @lg:size-12",
+                      selected
+                        ? "scale-110 border-product bg-product text-product-ink shadow-[0_0_0_6px_var(--product-soft)]"
+                        : i < index
+                          ? "border-product/60 bg-product-soft text-product-text"
+                          : "border-line-strong bg-surface text-muted hover:border-product hover:text-text",
+                    )}
+                  >
+                    <NodeIcon aria-hidden className="size-5" />
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <div
+            id="demo-module-panel"
+            role="tabpanel"
+            aria-labelledby={`demo-module-${index}`}
+            className="@3xl:min-h-40"
+          >
+            <div key={active.name} className="fb-demo-unfold">
+              {/* The ring shows the icon too; on phones the space goes to the words. */}
+              <span
+                aria-hidden
+                className="hidden size-12 place-items-center rounded-2xl bg-product-soft text-product-text @3xl:grid"
+              >
+                <Icon className="size-6" />
+              </span>
+              <p className="font-mono text-sm text-product-text @3xl:mt-4">{`${String(index + 1).padStart(2, "0")} / 0${count}`}</p>
+              <h3 className="mt-1 font-display text-title font-semibold text-text">{active.name}</h3>
+              <p className="mt-2 text-lead text-muted">{active.line}</p>
+            </div>
+            <button
+              type="button"
+              onClick={leave}
+              className="fb-modules-skip mt-2 inline-flex min-h-11 items-center rounded-full px-1 text-sm text-muted underline underline-offset-4 hover:text-text focus-visible:ring-2 focus-visible:ring-[var(--focus)] focus-visible:outline-none"
+            >
+              Skip the modules
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -260,11 +274,16 @@ const STAGES = [
 
 /** A run moving along the line: the line fills as far as the chosen stage. */
 function PayRun() {
-  const { ref, state, moving } = useReveal<HTMLDivElement>();
-  const { index, choose } = useAutoStep(STAGES.length, 3600, moving && state === "seen");
+  const demo = useAutoDemo<HTMLDivElement>({ durations: STAGES.map(() => 3000) });
+  const { index, choose } = demo;
   const stage = STAGES[index]!;
   return (
-    <div ref={ref} data-reveal-state={state} className="fb-panel rounded-[var(--radius-panel)] p-5 sm:p-8">
+    <div
+      ref={demo.ref}
+      data-demo={demo.state}
+      className="fb-panel relative rounded-[var(--radius-panel)] p-5 sm:p-8"
+    >
+      <DemoControl state={demo.state} onToggle={demo.toggle} className="absolute end-3 top-3" />
       <div className="relative">
         <span aria-hidden className="absolute inset-x-[10%] top-5 h-0.5 bg-line-strong" />
         <span
@@ -398,15 +417,46 @@ const LINES = [
   },
 ] as const;
 
-/** Choose a line on the payslip; its working unfolds alongside. */
+/** The payslip's rows, top to bottom: gross pay, each deduction with its working, then net pay. */
+const SLIP = [
+  {
+    key: "gross",
+    label: "Gross pay",
+    amount: "150,000.00",
+    title: "Gross pay",
+    steps: [["Monthly earnings before any deduction", "150,000.00"]],
+    total: "150,000.00",
+  },
+  ...LINES,
+  {
+    key: "net",
+    label: "Net pay",
+    amount: "103,618.15",
+    title: "How net pay was worked out",
+    steps: [
+      ["Gross pay", "150,000.00"],
+      ["Less PAYE", "−33,526.85"],
+      ["Less NSSF", "−6,480.00"],
+      ["Less SHIF", "−4,125.00"],
+      ["Less Housing Levy", "−2,250.00"],
+    ],
+    total: "103,618.15",
+  },
+];
+
+/**
+ * The payslip explains itself: gross pay, then each deduction with how it was
+ * worked out, then net pay. PAYE takes longest, having the most to show.
+ * Choosing a line by hand works at any time.
+ */
 function Payslip() {
-  const { ref, state } = useReveal<HTMLDivElement>();
-  const [index, setIndex] = useState(0);
-  const line = LINES[index]!;
+  const demo = useAutoDemo<HTMLDivElement>({ durations: [2200, 4200, 3000, 2600, 2600, 3400] });
+  const { index, choose } = demo;
+  const line = SLIP[index]!;
   return (
     <div
-      ref={ref}
-      data-reveal-state={state}
+      ref={demo.ref}
+      data-demo={demo.state}
       className="grid overflow-hidden rounded-[var(--radius-panel)] border border-line @3xl:grid-cols-2"
     >
       <div className="bg-surface p-5 sm:p-7">
@@ -415,16 +465,13 @@ function Payslip() {
             <p className="font-semibold text-text">Sample employee</p>
             <p className="text-sm text-muted">Payslip · KES</p>
           </div>
-          <FileText aria-hidden className="size-5 text-subtle" />
+          <span className="flex items-center gap-2">
+            <DemoControl state={demo.state} onToggle={demo.toggle} />
+            <FileText aria-hidden className="size-5 text-subtle" />
+          </span>
         </div>
-        <dl className="mt-4 divide-y divide-line border-y border-line text-sm">
-          <div className="flex justify-between py-2.5 font-medium">
-            <dt className="text-text">Gross pay</dt>
-            <dd className="text-text tabular-nums">150,000.00</dd>
-          </div>
-        </dl>
         <p id="demo-slip-label" className="mt-4 text-xs font-medium tracking-[0.12em] text-subtle uppercase">
-          Deductions: choose one
+          Each line, worked out
         </p>
         <div
           role="tablist"
@@ -432,32 +479,37 @@ function Payslip() {
           aria-orientation="vertical"
           className="mt-2 space-y-1"
         >
-          {LINES.map((l, i) => (
-            <button
-              key={l.key}
-              type="button"
-              role="tab"
-              id={`demo-slip-${l.key}`}
-              aria-selected={i === index}
-              aria-controls="demo-slip-panel"
-              tabIndex={i === index ? 0 : -1}
-              onClick={() => setIndex(i)}
-              onKeyDown={(e) => arrows(e, i, LINES.length, setIndex)}
-              className={cn(
-                "flex min-h-11 w-full items-center justify-between gap-3 rounded-xl border px-3 text-sm transition-colors",
-                i === index
-                  ? "border-product bg-product-soft font-medium text-text"
-                  : "border-transparent text-muted hover:bg-surface-2 hover:text-text",
-              )}
-            >
-              <span>{l.label}</span>
-              <span className="tabular-nums">{l.amount}</span>
-            </button>
-          ))}
-        </div>
-        <div className="mt-4 flex items-center justify-between rounded-2xl bg-product-soft p-4">
-          <span className="text-sm font-medium text-text">Net pay</span>
-          <span className="font-display text-xl font-semibold text-text tabular-nums">103,618.15</span>
+          {SLIP.map((l, i) => {
+            const edge = l.key === "gross" || l.key === "net";
+            return (
+              <button
+                key={l.key}
+                type="button"
+                role="tab"
+                id={`demo-slip-${l.key}`}
+                aria-selected={i === index}
+                aria-controls="demo-slip-panel"
+                tabIndex={i === index ? 0 : -1}
+                onClick={() => choose(i)}
+                onKeyDown={(e) => arrows(e, i, SLIP.length, choose)}
+                className={cn(
+                  "flex min-h-11 w-full items-center justify-between gap-3 rounded-xl border px-3 text-sm transition-colors duration-300",
+                  edge && "font-medium",
+                  l.key === "net" && "mt-3 min-h-14 font-display text-base",
+                  i === index
+                    ? "border-product bg-product-soft text-text"
+                    : cn(
+                        "border-transparent hover:bg-surface-2 hover:text-text",
+                        edge ? "text-text" : "text-muted",
+                        l.key === "net" && "bg-product-soft/60",
+                      ),
+                )}
+              >
+                <span>{l.label}</span>
+                <span className="tabular-nums">{l.amount}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
       <div
@@ -612,11 +664,12 @@ const SCREENS = [
 
 /** The employee's view in a phone's web browser: the address bar makes the point, there's no app. */
 function SelfService() {
-  const { ref, state, moving } = useReveal<HTMLDivElement>();
-  const { index, choose } = useAutoStep(SCREENS.length, 3400, moving && state === "seen");
+  const demo = useAutoDemo<HTMLDivElement>({ durations: SCREENS.map(() => 3200) });
+  const { index, choose } = demo;
   const screen = SCREENS[index]!;
   return (
-    <div ref={ref} data-reveal-state={state} className="grid items-center gap-8 @3xl:grid-cols-2">
+    <div ref={demo.ref} data-demo={demo.state} className="relative grid items-center gap-8 @3xl:grid-cols-2">
+      <DemoControl state={demo.state} onToggle={demo.toggle} className="absolute end-0 top-0 z-10" />
       <div className="mx-auto w-full max-w-[19rem] rounded-[2.2rem] border border-line-strong bg-surface-2 p-2.5 shadow-[0_30px_60px_-30px_rgb(0_0_0/0.5)]">
         <div className="overflow-hidden rounded-[1.8rem] border border-line bg-surface">
           <p className="truncate border-b border-line bg-surface-2 px-4 py-2.5 text-center text-xs text-muted">
@@ -775,15 +828,36 @@ const ROUTES = {
   multi: { label: "Multi-stage", steps: ["Line manager", "HR"] },
 } as const;
 
-/** Try the approval yourself: choose a route, approve each step, watch the balance update. */
+/** The walkthrough: the request, single-stage approval, then the multi-stage route step by step. */
+const LEAVE_SCRIPT: { route: keyof typeof ROUTES; approved: number }[] = [
+  { route: "single", approved: 0 },
+  { route: "single", approved: 1 },
+  { route: "multi", approved: 0 },
+  { route: "multi", approved: 1 },
+  { route: "multi", approved: 2 },
+];
+
+/** Approval routes show themselves; choose a route or approve a step to try it yourself. */
 function LeaveFlow() {
-  const [route, setRoute] = useState<keyof typeof ROUTES>("multi");
-  const [approved, setApproved] = useState(0);
+  const demo = useAutoDemo<HTMLDivElement>({ durations: [2200, 2800, 2200, 2400, 3200] });
+  const [own, setOwn] = useState<{ route: keyof typeof ROUTES; approved: number } | null>(null);
+  // While playing, the script decides; once a visitor acts, their choice holds.
+  const current = demo.state === "manual" && own ? own : LEAVE_SCRIPT[demo.index]!;
+  const { route, approved } = current;
+  const setRoute = (next: keyof typeof ROUTES) => {
+    setOwn({ route: next, approved: 0 });
+    demo.choose(LEAVE_SCRIPT.findIndex((s) => s.route === next));
+  };
+  const setApproved = (next: number) => {
+    setOwn({ route, approved: next });
+    const at = LEAVE_SCRIPT.findIndex((s) => s.route === route && s.approved === next);
+    demo.choose(at >= 0 ? at : demo.index);
+  };
   const steps = ROUTES[route].steps;
   const done = approved >= steps.length;
   const balance = done ? 11 : 14;
   return (
-    <div className="grid gap-5 @3xl:grid-cols-12">
+    <div ref={demo.ref} data-demo={demo.state} className="grid gap-5 @3xl:grid-cols-12">
       <div className="fb-panel rounded-[var(--radius-panel)] p-5 sm:p-6 @3xl:col-span-5">
         <p className="truncate rounded-full bg-surface-2 px-3 py-1.5 text-center text-xs text-muted">
           Your company&apos;s ZiraHR, in your browser
@@ -804,7 +878,7 @@ function LeaveFlow() {
         <p className="mt-2 text-xs text-subtle">The weekend and public holidays aren&apos;t counted.</p>
         <div
           className="mt-4 flex items-center justify-between rounded-2xl bg-product-soft p-4"
-          aria-live="polite"
+          aria-live={demo.state === "manual" ? "polite" : "off"}
         >
           <span className="text-sm font-medium text-text">Annual leave balance</span>
           <span
@@ -820,28 +894,28 @@ function LeaveFlow() {
         data-tone="inverse"
         className="fb-demo-stage rounded-[var(--radius-panel)] p-5 text-text sm:p-6 @3xl:col-span-7"
       >
-        <div
-          role="group"
-          aria-label="Approval route"
-          className="inline-flex gap-1 rounded-full border border-line bg-surface p-1"
-        >
-          {(Object.keys(ROUTES) as (keyof typeof ROUTES)[]).map((key) => (
-            <button
-              key={key}
-              type="button"
-              aria-pressed={route === key}
-              onClick={() => {
-                setRoute(key);
-                setApproved(0);
-              }}
-              className={cn(
-                "min-h-11 rounded-full px-4 text-sm transition-colors",
-                route === key ? "bg-product font-medium text-product-ink" : "text-muted hover:text-text",
-              )}
-            >
-              {ROUTES[key].label}
-            </button>
-          ))}
+        <div className="flex items-start justify-between gap-3">
+          <div
+            role="group"
+            aria-label="Approval route"
+            className="inline-flex gap-1 rounded-full border border-line bg-surface p-1"
+          >
+            {(Object.keys(ROUTES) as (keyof typeof ROUTES)[]).map((key) => (
+              <button
+                key={key}
+                type="button"
+                aria-pressed={route === key}
+                onClick={() => setRoute(key)}
+                className={cn(
+                  "min-h-11 rounded-full px-4 text-sm transition-colors",
+                  route === key ? "bg-product font-medium text-product-ink" : "text-muted hover:text-text",
+                )}
+              >
+                {ROUTES[key].label}
+              </button>
+            ))}
+          </div>
+          <DemoControl state={demo.state} onToggle={demo.toggle} />
         </div>
         <ol className="mt-5 space-y-0">
           <li className="flex items-center gap-3 py-2 text-sm text-text">
@@ -886,7 +960,7 @@ function LeaveFlow() {
           ) : (
             <button
               type="button"
-              onClick={() => setApproved((a) => a + 1)}
+              onClick={() => setApproved(approved + 1)}
               className={buttonClasses("product", "md")}
             >
               {`Approve as ${steps[approved]}`}
@@ -921,8 +995,8 @@ const WEEKDAY = ["S", "M", "T", "W", "T", "F", "S"];
 
 /** Who's out, at a glance. Choose someone to see what's counted and who overlaps. */
 function TeamCalendar() {
-  const { ref, state } = useReveal<HTMLDivElement>();
-  const [index, setIndex] = useState(0);
+  const demo = useAutoDemo<HTMLDivElement>({ durations: TEAM.map(() => 3200) });
+  const { index, choose: setIndex } = demo;
   const person = TEAM[index]!;
   const days = Array.from({ length: 31 }, (_, i) => i + 1);
   const left = person.to - person.from + 1 - countedDays(person.from, person.to);
@@ -932,14 +1006,15 @@ function TeamCalendar() {
   const columns = { gridTemplateColumns: "6.5rem repeat(31, minmax(1.45rem, 1fr))" };
   return (
     <div
-      ref={ref}
-      data-reveal-state={state}
+      ref={demo.ref}
+      data-demo={demo.state}
       className="fb-panel overflow-hidden rounded-[var(--radius-panel)]"
     >
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line px-5 py-4">
         <p className="font-semibold text-text">
           Finance team <span className="ms-1 text-sm font-normal text-muted">December · Kenya holidays</span>
         </p>
+        <DemoControl state={demo.state} onToggle={demo.toggle} />
       </div>
       {/* Scrolls sideways on small screens, inside its own frame. */}
       <div className="overflow-x-auto" tabIndex={0} role="region" aria-label="Team calendar, December">
@@ -1001,7 +1076,7 @@ function TeamCalendar() {
         id="demo-cal-panel"
         role="tabpanel"
         aria-labelledby={`demo-cal-${index}`}
-        aria-live="polite"
+        aria-live={demo.state === "manual" ? "polite" : "off"}
         className="grid gap-4 border-t border-line p-5 @3xl:grid-cols-2"
       >
         <p className="text-sm text-text" data-testid="calendar-summary">
@@ -1053,10 +1128,37 @@ const hours = (minutes: number) =>
     : `${minutes / 60}h`;
 
 /** One day's clock-ins: choose how it goes, and see the timesheet, flags and overtime approval follow. */
+type DayChoice = {
+  arrival: keyof typeof ARRIVALS;
+  departure: keyof typeof DEPARTURES;
+  approved: { location: boolean; overtime: boolean };
+};
+/** The walkthrough: an ordinary day, a late start, a clock-in away from the branch, then overtime. */
+const DAY_SCRIPT: DayChoice[] = [
+  { arrival: "on_time", departure: "shift_end", approved: { location: false, overtime: false } },
+  { arrival: "late", departure: "shift_end", approved: { location: false, overtime: false } },
+  { arrival: "away", departure: "shift_end", approved: { location: false, overtime: false } },
+  { arrival: "away", departure: "shift_end", approved: { location: true, overtime: false } },
+  { arrival: "on_time", departure: "late_finish", approved: { location: false, overtime: false } },
+  { arrival: "on_time", departure: "late_finish", approved: { location: false, overtime: true } },
+];
+
 function Attendance() {
-  const [arrival, setArrival] = useState<keyof typeof ARRIVALS>("on_time");
-  const [departure, setDeparture] = useState<keyof typeof DEPARTURES>("shift_end");
-  const [approved, setApproved] = useState({ location: false, overtime: false });
+  const demo = useAutoDemo<HTMLDivElement>({ durations: [2600, 2800, 2400, 2600, 2600, 3200] });
+  const [own, setOwn] = useState<DayChoice | null>(null);
+  const current = demo.state === "manual" && own ? own : DAY_SCRIPT[demo.index]!;
+  const { arrival, departure, approved } = current;
+  // A visitor's own choice holds (and pauses the walkthrough for a while).
+  const take = (next: DayChoice) => {
+    setOwn(next);
+    demo.choose(demo.index);
+  };
+  const setArrival = (key: keyof typeof ARRIVALS) =>
+    take({ ...current, arrival: key, approved: { location: false, overtime: false } });
+  const setDeparture = (key: keyof typeof DEPARTURES) =>
+    take({ ...current, departure: key, approved: { location: false, overtime: false } });
+  const setApproved = (update: (a: DayChoice["approved"]) => DayChoice["approved"]) =>
+    take({ ...current, approved: update(current.approved) });
   const day = ARRIVALS[arrival];
   const out = DEPARTURES[departure].at;
   const worked = out - day.at - SHIFT.lunch;
@@ -1067,10 +1169,6 @@ function Attendance() {
   const flaggedLate = late > SHIFT.grace;
   const needsLocation = !day.onSite && !approved.location;
   const total = WEEK.reduce((sum, [, m]) => sum + m, 0) + regular + (approved.overtime ? overtime : 0);
-  const choose = (update: () => void) => {
-    update();
-    setApproved({ location: false, overtime: false });
-  };
   const segmented = <K extends string>(
     label: string,
     options: Record<K, { label: string }>,
@@ -1097,21 +1195,20 @@ function Attendance() {
     </div>
   );
   return (
-    <div className="grid gap-5 @3xl:grid-cols-12">
+    <div ref={demo.ref} data-demo={demo.state} className="grid gap-5 @3xl:grid-cols-12">
       <div className="fb-panel rounded-[var(--radius-panel)] p-5 sm:p-6 @3xl:col-span-5">
-        <p className="truncate rounded-full bg-surface-2 px-3 py-1.5 text-center text-xs text-muted">
-          Your company&apos;s ZiraHR, in your browser
-        </p>
+        <div className="flex items-center gap-2">
+          <p className="min-w-0 flex-1 truncate rounded-full bg-surface-2 px-3 py-1.5 text-center text-xs text-muted">
+            Your company&apos;s ZiraHR, in your browser
+          </p>
+          <DemoControl state={demo.state} onToggle={demo.toggle} />
+        </div>
         <h3 className="mt-4 font-semibold text-text">Thursday · Day shift, 08:00 to 17:00</h3>
         <p className="text-sm text-muted">Nairobi branch</p>
         <p className="mt-5 text-sm font-medium text-text">How did the day start?</p>
-        <div className="mt-2">
-          {segmented("Clock-in", ARRIVALS, arrival, (k) => choose(() => setArrival(k)))}
-        </div>
+        <div className="mt-2">{segmented("Clock-in", ARRIVALS, arrival, setArrival)}</div>
         <p className="mt-5 text-sm font-medium text-text">And end?</p>
-        <div className="mt-2">
-          {segmented("Clock-out", DEPARTURES, departure, (k) => choose(() => setDeparture(k)))}
-        </div>
+        <div className="mt-2">{segmented("Clock-out", DEPARTURES, departure, setDeparture)}</div>
         <p className="mt-5 text-xs text-subtle">
           Location checks apply where your organisation turns them on. The grace period and overtime rules are
           yours to set.
@@ -1121,7 +1218,11 @@ function Attendance() {
         data-tone="inverse"
         className="fb-demo-stage rounded-[var(--radius-panel)] p-5 text-text sm:p-6 @3xl:col-span-7"
       >
-        <ul className="space-y-2.5 text-sm" aria-live="polite" data-testid="attendance-day">
+        <ul
+          className="space-y-2.5 text-sm"
+          aria-live={demo.state === "manual" ? "polite" : "off"}
+          data-testid="attendance-day"
+        >
           <li className="flex flex-wrap items-start gap-3">
             {day.onSite || approved.location ? (
               <CircleCheck aria-hidden className="size-5 shrink-0 text-product-text" />

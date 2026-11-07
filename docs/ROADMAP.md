@@ -494,6 +494,8 @@ Scope: premium, lightweight motion on one shared system; product discovery witho
 | P7-ZC1  | ZiraHR palette (owner, 6 Nov 2026): warm brown, brown and orange, warm orange, white. Warm orange accents and buttons, warm brown as the second colour. The ZiraHR website sits on deep warm brown in the dark theme and white or warm white in the light theme, with brown bands for "brand" sections. Applied once to the published brand profile as a recorded revision (a Studio choice is kept). The official symbol keeps its own colours | ✅ |
 | UI-TH5  | FigBud Global home: contrasting bands for the corporate sections, then forms and overlays (brief section 5) | ✅ Bands: "Our philosophy" and "What we engineer" on the home page, "What we believe" on About. Overlays: one open and close motion and one dimmed backdrop for the cookie prompt, campaign pop-ups and mobile menus. Forms: one field style (`fieldClasses`) with a clear focus ring in the theme's focus colour, red while invalid, on the enquiry, waitlist, referral, pricing, calculator and campaign forms |
 | UI-MO8  | Editorial hero designs (the third style in the brief) for FigBud Global and ZiraHR, alongside the existing default and motion-led designs | ✅ FigBud Global 04 · The FigBud Edition and ZiraHR 04 · People, in Chapters, on one shared `EditorialHero`; in each website's Hero Design Studio, ready to select, preview in both themes and publish with approval |
+| UI-AD1  | Auto-demo engine (owner's brief, 7 Nov 2026): demonstrations show themselves when most of them is in view. One shared clock, not one timer per demo. They pause off screen and under keyboard focus, hold a visitor's choice for a while before carrying on, stop after two passes, and have a pause/play/replay button. Reduced motion means no movement, and every control still works. Applied to the payslip (gross, PAYE, NSSF, SHIF, Housing Levy, net pay, each worked out), pay run, self-service, team calendar, leave approval (single stage, then multi-stage) and attendance | ✅ |
+| UI-MO11 | Eight-module showcase, pin → progress → complete → release: pinned once its heading passes; scrolling moves through all eight modules (the ring fills as each is reached), releases after the eighth and reverses on the way back; a module can be chosen directly; "Skip the modules"; about a fifth of a screen per module | ✅ |
 | UI-MO10 | Compact scroll architecture (owner's brief, 7 Nov 2026): the scroll stories become one pinned panel whose words and visual change together and reverse together (fragmented, connecting, unified, product outcome), at a third of a screen per step instead of 78% of one with blank buffers; step counter and dots; Our Platforms' runway cut from 70% to 45% of a screen per product | ✅ |
 | UI-MO9  | Page-by-page polish audit: navigation, Home and About, comparisons, pricing and calculator, testimonials, FAQs, forms, footer, legal, phones | 🟡 First pass (7 Nov 2026) on the live sites, desktop and phone, both themes: fixes for the gaps above footers, even grids, hero highlights, select chevrons, product-site flags, the empty blog's doubled call to action, Our Platforms' first card, and an inaccurate email promise. Second pass: About's repeated line, the legal placeholders' contact link, the Arabic footer's alignment. Remaining: testimonials and metrics once real ones are published, and translations of the new footer labels |
 | UI-PR1  | Products page redesign: product jump links; a spotlight for the first live product with its interactive synthetic preview; equal supporting cards (brand accent line, glow, status, highlights, demo or waitlist and website actions) in a responsive grid ready for future products; all content visible without hover; comparison and future-products sections kept | ✅ |
@@ -610,6 +612,28 @@ Scope: a four-page, SaaS-only ZiraHR website from the Enhanced Content & Develop
 
 | Date        | Change                                                                                                   |
 | ----------- | -------------------------------------------------------------------------------------------------------- |
+| 7 Nov 2026 | ZiraHR demonstrations that show themselves (UI-AD1, UI-MO11), on the owner's two briefs:
+- **No hidden controls needed:**
+  - the payslip explains each line in turn: gross pay, PAYE with its bands and relief, NSSF tiers, SHIF, the Housing Levy, and finally net pay;
+  - the pay run moves from Prepare to Report, and self-service cycles its screens;
+  - the team calendar walks through each person, with counted days and overlaps;
+  - leave approval plays single-stage, then multi-stage, with the balance updating;
+  - attendance plays an ordinary day, a late start, a clock-in away from the branch and overtime.
+- **Visitors stay in control:**
+  - any state can be chosen by hand, and that choice holds for a while before the demo carries on;
+  - every demonstration has a pause, play or replay button;
+  - demos pause when off screen or while keyboard focus is inside, and stop after two passes;
+  - announcements to screen readers happen only when the visitor is in control;
+  - with reduced motion nothing moves by itself.
+- **One clock:** a single shared timer drives every demonstration on the page.
+- **Eight connected modules:**
+  - the showcase pins once its heading has passed, and scrolling moves through all eight, with the ring filling module by module;
+  - it releases after the eighth and reverses on the way back;
+  - a module can be chosen directly, and "Skip the modules" leaves the sequence;
+  - it uses about a fifth of a screen per module.
+- **Audit of the rest:**
+  - **unchanged:** the FAQ, payroll calculator, forms, cookie settings and demo booking stay in the visitor's hands, and the rules and outputs demos already explain themselves as they appear;
+  - **already self-running:** the scroll stories and the hero designs. |
 | 7 Nov 2026 | Attendance and shifts demonstration (P4-Z5 complete). On ZiraHR's Platform page, after the leave approval demo, visitors try one synthetic day on the 08:00 to 17:00 shift:
 - **The start:** on time, late, or away from the branch. Away from the branch waits for a supervisor before it counts.
 - **The finish:** at the end of the shift or after a late finish. Overtime waits for a supervisor before it reaches payroll.

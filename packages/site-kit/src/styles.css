@@ -908,6 +908,25 @@ body:has(main [data-section="call_to_action"]:last-child) footer {
     translate: none !important;
   }
 }
+/* The eight-module showcase (7 Nov 2026): pinned while scrolling moves it
+   through every module, about a fifth of a screen each, then released. */
+.fb-modules {
+  height: calc(100svh - var(--story-top, 4.5rem) + (var(--story-steps, 8) - 1) * 22svh);
+}
+.fb-modules-pin {
+  min-height: calc(100svh - var(--story-top, 4.5rem));
+}
+@media (scripting: none) {
+  .fb-modules {
+    height: auto;
+  }
+  .fb-modules-pin {
+    position: static;
+  }
+  .fb-modules-skip {
+    display: none;
+  }
+}
 /* Without JavaScript, the story reads as an ordinary list. */
 @media (scripting: none) {
   .fb-story {

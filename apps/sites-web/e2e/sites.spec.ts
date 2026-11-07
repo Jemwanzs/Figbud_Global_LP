@@ -760,12 +760,125 @@ test.describe("ZiraHR: payroll calculator and demonstrations (P14)", () => {
     ).toBeVisible();
   });
 
+  test("demonstrations show themselves, hold a visitor's choice, pause and replay (auto-demo engine)", async ({
+    page,
+  }) => {
+    test.setTimeout(90_000);
+    await page.goto("/zirahr/platform");
+    const slip = page.locator("[data-demo]").filter({ has: page.locator("#demo-slip-gross") });
+    const tab = (key: string) => page.locator(`#demo-slip-${key}`);
+    await slip.scrollIntoViewIfNeeded();
+    // It starts by itself once in view, and moves from gross pay to PAYE with its working.
+    await expect(slip).toHaveAttribute("data-demo", "playing", { timeout: 5_000 });
+    await expect(tab("paye")).toHaveAttribute("aria-selected", "true", { timeout: 6_000 });
+    await expect(page.locator("#demo-slip-panel")).toContainText("How PAYE was worked out");
+    await expect(tab("nssf")).toHaveAttribute("aria-selected", "true", { timeout: 8_000 });
+
+    // A choice by hand holds; the demonstration doesn't fight it.
+    await tab("shif").click();
+    await expect(slip).toHaveAttribute("data-demo", "manual");
+    await page.waitForTimeout(4_000);
+    await expect(tab("shif")).toHaveAttribute("aria-selected", "true");
+    await expect(page.locator("#demo-slip-panel")).toContainText("150,000.00 at 2.75%");
+
+    // Pause stops it; play carries on.
+    await slip.getByRole("button", { name: "Pause demonstration" }).click();
+    await expect(slip).toHaveAttribute("data-demo", "paused");
+    await page.waitForTimeout(3_500);
+    await expect(tab("shif")).toHaveAttribute("aria-selected", "true");
+    await slip.getByRole("button", { name: "Play demonstration" }).click();
+    // On a phone, the tap leaves most of the payslip below the screen, where it rightly waits.
+    await slip.evaluate((el) => el.scrollIntoView({ block: "center", behavior: "instant" }));
+    await expect(tab("ahl")).toHaveAttribute("aria-selected", "true", { timeout: 6_000 });
+    await expect(tab("net")).toHaveAttribute("aria-selected", "true", { timeout: 6_000 });
+    await expect(page.locator("#demo-slip-panel")).toContainText("103,618.15");
+
+    // Off screen, it pauses.
+    await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
+    await expect(slip).toHaveAttribute("data-demo", "paused", { timeout: 3_000 });
+
+    // Keyboard focus inside holds it still, so nothing changes under a keyboard user.
+    await slip.scrollIntoViewIfNeeded();
+    await tab("gross").focus();
+    await page.keyboard.press("ArrowDown");
+    await expect(tab("paye")).toBeFocused();
+    await page.waitForTimeout(13_000);
+    await expect(tab("paye")).toHaveAttribute("aria-selected", "true");
+  });
+
+  test("with reduced motion, nothing plays by itself and there's nothing to pause", async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.goto("/zirahr/platform");
+    await page.locator("#demo-slip-gross").scrollIntoViewIfNeeded();
+    await page.waitForTimeout(3_000);
+    await expect(page.locator("#demo-slip-gross")).toHaveAttribute("aria-selected", "true");
+    await expect(page.locator('[data-demo="playing"]')).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /Pause demonstration/ })).toHaveCount(0);
+  });
+
+  test("the eight modules: pinned, every module in turn by scrolling, then released (and back)", async ({
+    page,
+  }) => {
+    await page.goto("/zirahr/platform");
+    const showcase = page.locator("[data-modules]");
+    const pin = showcase.locator(".fb-modules-pin");
+    const viewport = page.viewportSize()!.height;
+    // About a fifth of a screen per module after the first, no more.
+    expect((await showcase.boundingBox())!.height).toBeLessThanOrEqual(viewport * (1 + 7 * 0.22) + 2);
+    const at = (fraction: number) =>
+      showcase.evaluate((el, f) => {
+        const header = document.querySelector("header")!.offsetHeight;
+        const top = el.getBoundingClientRect().top + window.scrollY - header;
+        window.scrollTo({
+          top: top + ((el as HTMLElement).offsetHeight - (innerHeight - header)) * f,
+          behavior: "instant",
+        });
+      }, fraction);
+    const tabs = showcase.getByRole("tab");
+    // Measured once the page is interactive (the first module is also the starting state).
+    await at(0.05);
+    await expect
+      .poll(() => showcase.evaluate((el) => (el as HTMLElement).style.getPropertyValue("--story-top")))
+      .not.toBe("");
+    for (let i = 0; i < 8; i++) {
+      await at((i + 0.5) / 8);
+      await expect(showcase).toHaveAttribute("data-step", String(i));
+      await expect(tabs.nth(i)).toHaveAttribute("aria-selected", "true");
+      await expect(showcase).toContainText(`0${i + 1} / 08`);
+      // Pinned below the header the whole way.
+      const header = (await page.getByRole("banner").boundingBox())!;
+      expect(Math.round((await pin.boundingBox())!.y)).toBeGreaterThanOrEqual(
+        Math.floor(header.y + header.height) - 1,
+      );
+    }
+    // Released after the eighth: scrolling on moves it away.
+    await at(1.4);
+    await expect(showcase).toHaveAttribute("data-step", "7");
+    expect((await pin.boundingBox())!.y).toBeLessThan(0);
+    // Back up, it reverses through the modules.
+    await at((5 + 0.5) / 8);
+    await expect(showcase).toHaveAttribute("data-step", "5");
+    await at(0.02);
+    await expect(showcase).toHaveAttribute("data-step", "0");
+
+    // Choosing a module scrolls to it; "Skip the modules" leaves the sequence.
+    await tabs.nth(4).click();
+    await expect(showcase).toHaveAttribute("data-step", "4");
+    await expect(showcase).toContainText("Performance");
+    await showcase.getByRole("button", { name: "Skip the modules" }).click();
+    await expect.poll(async () => (await pin.boundingBox())!.y, { timeout: 5_000 }).toBeLessThan(0);
+    expect(await scan(page)).toEqual([]);
+  });
+
   test("the leave, calendar and outputs demonstrations work, by keyboard too", async ({ page }) => {
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page.goto("/zirahr/platform");
 
-    // Approving each step updates the balance, only at the end.
+    // Approving each step updates the balance, only at the end. (With reduced motion
+    // nothing plays by itself: it rests on the walkthrough's first state, single stage.)
     const balance = page.getByTestId("leave-balance");
+    await expect(balance).toHaveText("14");
+    await page.getByRole("button", { name: "Multi-stage" }).click();
     await expect(balance).toHaveText("14");
     await page.getByRole("button", { name: "Approve as Line manager" }).click();
     await expect(balance).toHaveText("14");
