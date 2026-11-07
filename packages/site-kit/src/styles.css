@@ -36,6 +36,11 @@
   [dir="rtl"] :is(p, h1, h2, h3, li, dt, dd, label, legend) {
     unicode-bidi: plaintext;
   }
+  /* Columns keep one edge: in the footer, an English line (awaiting
+     translation) still lines up on the right with the Arabic ones. */
+  [dir="rtl"] footer :is(p, h2, li) {
+    text-align: right;
+  }
 
   ::selection {
     background: var(--accent);

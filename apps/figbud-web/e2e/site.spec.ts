@@ -236,6 +236,22 @@ test.describe("polish audit (UI-MO9)", () => {
     for (const look of looks) expect(look).toEqual(["none", true]);
   });
 
+  test("in Arabic, the footer's columns keep one right edge, English lines included", async ({ page }) => {
+    await page.goto("/ar/contact");
+    const aligns = await page
+      .locator("footer nav li, footer nav h2")
+      .evaluateAll((els) => [...new Set(els.map((el) => getComputedStyle(el).textAlign))]);
+    expect(aligns).toEqual(["right"]);
+  });
+
+  test("legal pages awaiting counsel's text link the contact form they mention", async ({ page }) => {
+    await page.goto("/en/legal/privacy");
+    await expect(page.locator("main").getByRole("link", { name: "Contact", exact: true })).toHaveAttribute(
+      "href",
+      "/en/contact",
+    );
+  });
+
   test("a page ending with its own closing panel meets the footer without an extra gap", async ({ page }) => {
     const gap = () => page.locator("footer").evaluate((el) => getComputedStyle(el).marginTop);
     await page.goto("/en");

@@ -1,6 +1,6 @@
 import { type Locale, localizePath } from "@figbud/i18n";
 import { Container, buttonClasses } from "@figbud/ui";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ArrowRight } from "lucide-react";
 import Link from "next/link";
 
 import type { Dictionary } from "@/i18n/get-dictionary";
@@ -52,10 +52,17 @@ export function InProgressPage({
       <Container size="wide" className="py-section-sm">
         <p className="max-w-2xl leading-relaxed text-muted">{body ?? copy.body}</p>
         {children}
-        <Link href={localizePath(locale)} className={buttonClasses("secondary", "md", "mt-8")}>
-          <ArrowLeft aria-hidden className="size-4 rtl:rotate-180" />
-          {copy.back}
-        </Link>
+        {/* The holding text points questions to the contact form, so link it. */}
+        <div className="mt-8 flex flex-wrap gap-3">
+          <Link href={localizePath(locale, "/contact")} className={buttonClasses("primary", "md")}>
+            {dict.common.nav.contact}
+            <ArrowRight aria-hidden className="size-4 rtl:rotate-180" />
+          </Link>
+          <Link href={localizePath(locale)} className={buttonClasses("secondary", "md")}>
+            <ArrowLeft aria-hidden className="size-4 rtl:rotate-180" />
+            {copy.back}
+          </Link>
+        </div>
       </Container>
     </>
   );

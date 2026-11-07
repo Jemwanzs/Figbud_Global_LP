@@ -408,7 +408,8 @@ const en = {
     about: {
       title: "About Us",
       description: "FigBud Global builds configurable enterprise software in Kenya, for Africa and beyond.",
-      lead: "Technology should adapt to your business. Not the other way around.",
+      // Not the "Who we are" heading just below it (home.company.title), so nothing repeats.
+      lead: "Built with purpose. Engineered for progress.",
       slogan: "One Vision. Endless Solutions.",
       whoEyebrow: "Who we are",
       beliefEyebrow: "What we believe",
