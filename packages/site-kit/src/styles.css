@@ -426,7 +426,8 @@
   will-change: transform, opacity;
 }
 /* The runway: while its spacer scrolls past, the stage stays in view and
-   the products move. In the server CSS for screens where it may run (match
+   the products move, under half a screen per product (compact since 7 Nov
+   2026, like the scroll stories). In the server CSS for screens where it may run (match
    PIN_QUERY in showcase-scroll.ts), so hydration doesn't shift the page;
    the browser drops it (data-fit="no") where the showcase can't fit, and
    enables it on phones only when the Studio asks and it fits. */
@@ -440,7 +441,7 @@
   }
   .fb-showcase[data-pin]:not([data-fit="no"]) .fb-showcase-runway {
     display: block;
-    height: calc((var(--products) - 1) * 70svh);
+    height: calc((var(--products) - 1) * 45svh);
   }
 }
 @media (prefers-reduced-motion: no-preference) {
@@ -450,7 +451,7 @@
   }
   .fb-showcase[data-pin][data-fit="narrow"] .fb-showcase-runway {
     display: block;
-    height: calc((var(--products) - 1) * 55svh);
+    height: calc((var(--products) - 1) * 40svh);
   }
 }
 /* Rotation progress under the active product tab. */
@@ -876,6 +877,57 @@ body:has(main [data-section="call_to_action"]:last-child) footer {
 }
 /* Scroll stories (UI-MO6): position comes from the stage's own size, and only
    transforms, opacity and stroke offsets change, so nothing lays out on scroll. */
+/* Compact stories (7 Nov 2026): one screen for the panel to settle, then a
+   third of a screen for each further step. The words cross-fade in the
+   direction of travel, so scrolling back up reverses them. */
+.fb-story {
+  height: calc(100svh - var(--story-top, 4.5rem) + (var(--story-steps, 4) - 1) * 34svh);
+}
+.fb-story-pin {
+  min-height: calc(100svh - var(--story-top, 4.5rem));
+}
+.fb-story-step {
+  transition:
+    opacity var(--motion-base) var(--motion-ease-standard),
+    translate var(--motion-slow) var(--motion-ease);
+}
+.fb-story-step[data-place="past"] {
+  opacity: 0;
+  translate: 0 -0.75rem;
+}
+.fb-story-step[data-place="next"] {
+  opacity: 0;
+  translate: 0 0.75rem;
+}
+[data-motion="off"] .fb-story-step {
+  transition: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .fb-story-step {
+    transition: none;
+    translate: none !important;
+  }
+}
+/* Without JavaScript, the story reads as an ordinary list. */
+@media (scripting: none) {
+  .fb-story {
+    height: auto;
+  }
+  .fb-story-pin {
+    position: static;
+  }
+  .fb-story-nav {
+    display: none;
+  }
+  .fb-story-steps {
+    gap: 2rem;
+  }
+  .fb-story-step {
+    grid-area: auto !important;
+    opacity: 1 !important;
+    translate: none !important;
+  }
+}
 .fb-story-stage {
   container-type: size;
 }

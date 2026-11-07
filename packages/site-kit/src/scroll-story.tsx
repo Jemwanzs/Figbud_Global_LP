@@ -14,15 +14,17 @@ import {
 import { type CSSProperties, type ReactNode, useEffect, useRef, useState } from "react";
 
 /*
- * Signature scroll stories (UI-MO6): the page scrolls normally while a sticky
- * product visual follows the step being read. Nothing intercepts the wheel or
- * touch. The steps are ordinary text in the server's HTML, so the story reads
- * without JavaScript, and the visual only ever adds to it.
+ * Signature scroll stories (UI-MO6; made compact on the owner's brief of 7 Nov
+ * 2026). One panel stays in view while the page scrolls: the step's words on
+ * one side, the product visual on the other (stacked on phones), both driven
+ * by the same scroll position, so they always change together and reverse
+ * together. Each step after the first adds about a third of a screen of
+ * scrolling, no more. Nothing intercepts the wheel or touch, and the dots
+ * jump to a step.
  *
- * Two signals drive the visual: the step being read (`data-step`, for state
- * changes with CSS transitions) and progress through the story
- * (`--story-progress`, for lines that follow the scroll). Both are transforms,
- * opacity or stroke offsets, so nothing lays out again while scrolling.
+ * The steps are ordinary text in the server's HTML: without JavaScript they
+ * read as a list (`scripting: none` in the styles). The visual's states are
+ * transforms, opacity or stroke offsets, still with reduced motion.
  */
 
 export type StoryMotion = "standard" | "subtle" | "off";
@@ -30,7 +32,7 @@ export type StoryMotion = "standard" | "subtle" | "off";
 const clamp = (value: number) => Math.min(1, Math.max(0, value));
 
 /** Follows the page's scroll with passive listeners and one write per frame. */
-function useScrollStory() {
+function useScrollStory(count: number) {
   const root = useRef<HTMLDivElement>(null);
   const [step, setStep] = useState(0);
   const [onScreen, setOnScreen] = useState(false);
@@ -38,24 +40,6 @@ function useScrollStory() {
   useEffect(() => {
     const el = root.current;
     if (!el) return;
-    // The line being read: mid-screen beside the visual, lower down beneath it on phones.
-    const wide = window.matchMedia("(min-width: 64rem)");
-    let steps: IntersectionObserver | null = null;
-    const watchSteps = () => {
-      steps?.disconnect();
-      steps = new IntersectionObserver(
-        (entries) => {
-          for (const entry of entries) {
-            if (entry.isIntersecting) setStep(Number((entry.target as HTMLElement).dataset.storyStep));
-          }
-        },
-        { rootMargin: wide.matches ? "-45% 0px -45% 0px" : "-70% 0px -25% 0px" },
-      );
-      el.querySelectorAll("[data-story-step]").forEach((item) => steps?.observe(item));
-    };
-    watchSteps();
-    wide.addEventListener("change", watchSteps);
-
     let frame = 0;
     const measure = () => {
       frame = 0;
@@ -63,8 +47,11 @@ function useScrollStory() {
       const header = document.querySelector("header")?.offsetHeight ?? 64;
       el.style.setProperty("--story-top", `${header}px`);
       const box = el.getBoundingClientRect();
-      const reading = window.innerHeight * (wide.matches ? 0.5 : 0.72);
-      el.style.setProperty("--story-progress", clamp((reading - box.top) / box.height).toFixed(3));
+      const pinned = window.innerHeight - header;
+      // How far through the pinned stretch: 0 as the panel settles, 1 as it leaves.
+      const progress = clamp((header - box.top) / Math.max(1, box.height - pinned));
+      el.style.setProperty("--story-progress", progress.toFixed(3));
+      setStep(Math.min(count - 1, Math.floor(progress * count)));
     };
     const schedule = () => {
       if (!frame) frame = window.requestAnimationFrame(measure);
@@ -84,19 +71,31 @@ function useScrollStory() {
     });
     visibility.observe(el);
     return () => {
-      steps?.disconnect();
       visibility.disconnect();
-      wide.removeEventListener("change", watchSteps);
       window.removeEventListener("scroll", schedule);
       window.removeEventListener("resize", schedule);
       if (frame) window.cancelAnimationFrame(frame);
     };
-  }, []);
+  }, [count]);
 
-  return { root, step, onScreen };
+  /** Scrolls to the middle of a step's stretch (the dots). */
+  const goTo = (i: number) => {
+    const el = root.current;
+    if (!el) return;
+    const header = document.querySelector("header")?.offsetHeight ?? 64;
+    const pinned = window.innerHeight - header;
+    const top = el.getBoundingClientRect().top + window.scrollY - header;
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    window.scrollTo({
+      top: top + (el.offsetHeight - pinned) * ((i + 0.5) / count),
+      behavior: reduced ? "auto" : "smooth",
+    });
+  };
+
+  return { root, step, onScreen, goTo };
 }
 
-/** Text beside (or beneath, on phones) a sticky stage. */
+/** The step's words beside (or beneath, on phones) the visual, in one panel that stays in view. */
 function ScrollStory({
   steps,
   motion,
@@ -108,53 +107,72 @@ function ScrollStory({
   label: string;
   children: (state: { step: number; onScreen: boolean }) => ReactNode;
 }) {
-  const { root, step, onScreen } = useScrollStory();
+  const count = steps.length;
+  const { root, step, onScreen, goTo } = useScrollStory(count);
   return (
     <div
       ref={root}
       data-story={label}
       data-motion={motion}
       data-step={step}
-      style={{ "--story-progress": 0 } as CSSProperties}
-      className="fb-story grid gap-y-6 lg:grid-cols-12 lg:gap-x-12"
+      style={{ "--story-progress": 0, "--story-steps": count } as CSSProperties}
+      className="fb-story relative"
     >
-      <div className="sticky top-[var(--story-top,4.5rem)] z-10 -mx-4 self-start bg-bg px-4 py-2 sm:-mx-6 sm:px-6 lg:order-2 lg:col-span-7 lg:mx-0 lg:bg-transparent lg:px-0 lg:pt-4 lg:pb-0">
-        {/* The steps say all of this in words, so the picture isn't read out. */}
-        <div
-          aria-hidden
-          data-tone="inverse"
-          className="fb-demo-stage fb-story-stage relative h-[40svh] min-h-64 overflow-hidden rounded-[var(--radius-panel)] text-text lg:h-[min(36rem,calc(100svh-8rem))]"
-        >
-          {children({ step, onScreen })}
-        </div>
-        <p className="mt-2 text-xs text-subtle">Illustrative product activity · synthetic data</p>
-      </div>
-      <ol className="lg:order-1 lg:col-span-5">
-        {steps.map((item, i) => (
-          <li
-            key={item.title}
-            data-story-step={i}
-            aria-current={i === step ? "step" : undefined}
-            className="flex min-h-[46svh] flex-col justify-center py-6 lg:min-h-[78svh]"
+      <div className="fb-story-pin sticky top-[var(--story-top,4.5rem)] flex flex-col justify-center gap-4 py-4 lg:grid lg:grid-cols-12 lg:items-center lg:gap-x-12 lg:py-6">
+        <div className="lg:order-2 lg:col-span-7">
+          {/* The steps say all of this in words, so the picture isn't read out. */}
+          <div
+            aria-hidden
+            data-tone="inverse"
+            className="fb-demo-stage fb-story-stage relative h-[min(38svh,22rem)] min-h-56 overflow-hidden rounded-[var(--radius-panel)] text-text lg:h-[min(34rem,calc(100svh-10rem))]"
           >
-            <span
-              className={cn(
-                "mb-3 block h-0.5 w-10 origin-left bg-product transition-transform duration-[var(--motion-base)] rtl:origin-right",
-                i === step ? "scale-x-100" : "scale-x-50",
-              )}
-            />
-            <h3
-              className={cn(
-                "font-display text-title font-semibold transition-colors duration-[var(--motion-base)]",
-                i === step ? "text-text" : "text-muted",
-              )}
-            >
-              {item.title}
-            </h3>
-            <p className="mt-3 max-w-prose text-muted">{item.body}</p>
-          </li>
-        ))}
-      </ol>
+            {children({ step, onScreen })}
+          </div>
+          <p className="mt-2 text-xs text-subtle">Illustrative product activity · synthetic data</p>
+        </div>
+        <div className="lg:order-1 lg:col-span-5">
+          {/* Where the story is: the current step, and a dot for each that jumps to it. */}
+          <div className="fb-story-nav mb-4 flex items-center gap-3">
+            <span className="font-mono text-sm text-product-text tabular-nums">
+              {String(step + 1).padStart(2, "0")} / {String(count).padStart(2, "0")}
+            </span>
+            <span className="flex gap-1.5">
+              {steps.map((item, i) => (
+                <button
+                  key={item.title}
+                  type="button"
+                  aria-label={`Step ${i + 1}: ${item.title}`}
+                  aria-current={i === step ? "step" : undefined}
+                  onClick={() => goTo(i)}
+                  className="grid size-6 place-items-center rounded-full focus-visible:ring-2 focus-visible:ring-[var(--focus)] focus-visible:outline-none"
+                >
+                  <span
+                    className={cn(
+                      "block h-1.5 rounded-full transition-[width,background-color] duration-[var(--motion-base)]",
+                      i === step ? "w-5 bg-product" : "w-1.5 bg-line-strong",
+                    )}
+                  />
+                </button>
+              ))}
+            </span>
+          </div>
+          <ol className="fb-story-steps grid">
+            {steps.map((item, i) => (
+              <li
+                key={item.title}
+                data-story-step={i}
+                data-place={i === step ? "current" : i < step ? "past" : "next"}
+                aria-current={i === step ? "step" : undefined}
+                className="fb-story-step [grid-area:1/1]"
+              >
+                <span className="mb-3 block h-0.5 w-10 bg-product" />
+                <h3 className="font-display text-title font-semibold text-text">{item.title}</h3>
+                <p className="mt-3 max-w-prose text-muted">{item.body}</p>
+              </li>
+            ))}
+          </ol>
+        </div>
+      </div>
     </div>
   );
 }
@@ -210,7 +228,8 @@ function ScatteredStage({ step, onScreen, mark }: { step: number; onScreen: bool
             d={`M${50 + (tool.scattered[0] - 50) * 0.72} ${50 + (tool.scattered[1] - 50) * 0.8} L 50 50`}
             pathLength={1}
             className="fb-story-path"
-            style={{ "--path-start": 0.12 + i * 0.03 } as CSSProperties}
+            // Drawn while "drawing together" is the step (the second quarter of the story).
+            style={{ "--path-start": 0.24 + i * 0.03 } as CSSProperties}
           />
         ))}
       </svg>
@@ -254,7 +273,7 @@ function ScatteredStage({ step, onScreen, mark }: { step: number; onScreen: bool
       {/* One record unfolds where the lines meet. */}
       <div
         data-open={step >= 2}
-        className="fb-story-unfold absolute inset-x-[5%] top-[20%] bottom-[5%] overflow-hidden rounded-2xl border border-line bg-surface p-3 shadow-2xl @lg:p-5"
+        className="fb-story-unfold absolute inset-x-[5%] top-[20%] max-h-[75%] overflow-hidden rounded-2xl border border-line bg-surface p-3 shadow-2xl @lg:p-5"
       >
         <div className="flex items-center gap-3">
           <span className="grid size-8 shrink-0 place-items-center rounded-full bg-product text-product-ink @lg:size-10">

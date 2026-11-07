@@ -589,13 +589,38 @@ test.describe("ZiraHR: payroll calculator and demonstrations (P14)", () => {
     await expect(steps.nth(3)).toContainText("So the work moves by itself.");
     await expect(story.locator('[aria-hidden="true"]').first()).toBeAttached();
 
-    // Scrolling each step to where it's read moves the story on, and the page stays where it was put.
-    for (let i = 0; i < 4; i++) {
-      await steps.nth(i).evaluate((el) => el.scrollIntoView({ block: "center", behavior: "instant" }));
-      const y = await page.evaluate(() => window.scrollY);
+    // Compact (owner's brief, 7 Nov 2026): one screen to settle, about a third of a screen per further step.
+    const viewport = page.viewportSize()!.height;
+    expect((await story.boundingBox())!.height).toBeLessThanOrEqual(viewport * (1 + 3 * 0.34) + 2);
+
+    // Scrolling moves the words and the visual on together, step by step, and back again.
+    const dot = (i: number) => story.getByRole("button", { name: new RegExp(`^Step ${i + 1}:`) });
+    const scrollTo = (fraction: number) =>
+      story.evaluate((el, f) => {
+        const header = document.querySelector("header")!.offsetHeight;
+        const top = el.getBoundingClientRect().top + window.scrollY - header;
+        window.scrollTo({
+          top: top + ((el as HTMLElement).offsetHeight - (innerHeight - header)) * f,
+          behavior: "instant",
+        });
+      }, fraction);
+    for (const [fraction, i] of [
+      [0.1, 0],
+      [0.35, 1],
+      [0.6, 2],
+      [0.9, 3],
+      [0.35, 1],
+      [0.1, 0],
+    ] as const) {
+      await scrollTo(fraction);
       await expect(story).toHaveAttribute("data-step", String(i));
-      expect(Math.abs((await page.evaluate(() => window.scrollY)) - y)).toBeLessThanOrEqual(1);
+      await expect(steps.nth(i)).toHaveAttribute("data-place", "current");
+      await expect(dot(i)).toHaveAttribute("aria-current", "step");
+      await expect(story).toContainText(`0${i + 1} / 04`);
     }
+    // The dots jump to a step.
+    await dot(3).click();
+    await expect(story).toHaveAttribute("data-step", "3");
     expect(
       Number(await story.evaluate((el) => el.style.getPropertyValue("--story-progress"))),
     ).toBeGreaterThan(0.5);
@@ -613,9 +638,8 @@ test.describe("ZiraHR: payroll calculator and demonstrations (P14)", () => {
     await expect.poll(() => lastEntry.evaluate((el) => getComputedStyle(el).opacity)).toBe("1");
 
     const journey = page.locator('[data-story="employee-journey"]');
-    await journey
-      .locator('[data-story-step="3"]')
-      .evaluate((el) => el.scrollIntoView({ block: "center", behavior: "instant" }));
+    await journey.scrollIntoViewIfNeeded();
+    await journey.getByRole("button", { name: /^Step 4:/ }).click();
     await expect(journey).toHaveAttribute("data-step", "3");
     await expect(journey.locator('[data-place="now"]')).toContainText("103,618.15");
 
@@ -679,10 +703,13 @@ test.describe("ZiraHR: payroll calculator and demonstrations (P14)", () => {
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page.goto("/zirahr/platform");
     const story = page.locator('[data-story="scattered-to-connected"]');
-    await story
-      .locator('[data-story-step="2"]')
-      .evaluate((el) => el.scrollIntoView({ block: "center", behavior: "instant" }));
+    await story.scrollIntoViewIfNeeded();
+    await story.getByRole("button", { name: /^Step 3:/ }).click();
     await expect(story).toHaveAttribute("data-step", "2");
+    // The words change without moving, too.
+    expect(
+      await story.locator('[data-story-step="2"]').evaluate((el) => getComputedStyle(el).transitionProperty),
+    ).toBe("none");
     const duration = await story
       .locator(".fb-story-unfold")
       .evaluate((el) => getComputedStyle(el).transitionProperty);
