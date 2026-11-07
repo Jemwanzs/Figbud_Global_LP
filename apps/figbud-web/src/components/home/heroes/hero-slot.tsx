@@ -6,6 +6,7 @@ import type { Dictionary } from "@/i18n/get-dictionary";
 
 import { Hero } from "../hero";
 import { CinematicHero } from "./cinematic-hero";
+import { EditionHero } from "./edition-hero";
 import { UniverseHero } from "./universe-hero";
 
 /**
@@ -33,5 +34,6 @@ export function HeroSlot({
       />
     );
   if (hero?.design === "universe") return <UniverseHero {...props} config={hero.config} />;
+  if (hero?.design === "edition") return <EditionHero {...props} config={hero.config} />;
   return <Hero {...props} config={hero?.design === "ecosystem" ? hero.config : undefined} />;
 }

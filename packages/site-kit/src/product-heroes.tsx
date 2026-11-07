@@ -4,6 +4,7 @@ import { cn } from "@figbud/ui";
 import type { CSSProperties, ReactNode } from "react";
 
 import type { BrandProfile } from "./brand";
+import { EditorialHero } from "./editorial-hero";
 import { ProductIdentity } from "./brand-logo";
 import type { ProductSlug } from "@figbud/brand";
 import {
@@ -617,10 +618,190 @@ function JourneyHero(props: ProductHeroProps) {
   );
 }
 
+/* ------------------------------------------------------------ 04 Chapters (UI-MO8) */
+
+/** A sheet's frame: a small title row, then its body. Synthetic content only. */
+function Sheet({ title, tag, children }: { title: string; tag: string; children: ReactNode }) {
+  return (
+    <div className="flex size-full flex-col p-5 sm:p-7">
+      <div className="flex items-center justify-between gap-3 border-b border-line pb-3">
+        <p className="font-display text-base font-semibold text-text sm:text-lg">{title}</p>
+        <span className="rounded-full bg-product-soft px-2.5 py-1 text-[0.7rem] font-medium text-product-text">
+          {tag}
+        </span>
+      </div>
+      <div className="mt-4 flex-1 text-sm">{children}</div>
+    </div>
+  );
+}
+
+function Row({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
+  return (
+    <div
+      className={cn(
+        "flex justify-between gap-4 py-1.5",
+        strong && "border-t border-line pt-2.5 font-semibold",
+      )}
+    >
+      <span className={strong ? "text-text" : "text-muted"}>{label}</span>
+      <span className="text-text tabular-nums">{value}</span>
+    </div>
+  );
+}
+
+function Meter({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="py-1.5">
+      <div className="flex justify-between text-muted">
+        <span>{label}</span>
+        <span className="text-text tabular-nums">{value}%</span>
+      </div>
+      <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-surface-3">
+        <span className="block h-full rounded-full bg-product" style={{ width: `${value}%` }} />
+      </div>
+    </div>
+  );
+}
+
+const CHAPTERS: { key: string; title: string; meta: string; sheet: ReactNode }[] = [
+  {
+    key: "core",
+    title: "Core HR",
+    meta: "One record from offer to exit",
+    sheet: (
+      <Sheet title="Employee record" tag="Core HR">
+        <div className="flex items-center gap-3">
+          <span className="grid size-11 place-items-center rounded-full bg-product text-sm font-semibold text-product-ink">
+            AW
+          </span>
+          <div>
+            <p className="font-medium text-text">Amani Wanjiru</p>
+            <p className="text-muted">Operations · Nairobi branch</p>
+          </div>
+        </div>
+        <div className="mt-4">
+          <Row label="Contract" value="Permanent" />
+          <Row label="Reports to" value="Brian Otieno" />
+          <Row label="Documents" value="6 of 6 on file" />
+        </div>
+      </Sheet>
+    ),
+  },
+  {
+    key: "payroll",
+    title: "Payroll",
+    meta: "Statutory rules you can see",
+    sheet: (
+      <Sheet title="Payslip preview" tag="Payroll">
+        <Row label="Gross pay" value="KES 150,000.00" />
+        <Row label="NSSF" value="− 6,480.00" />
+        <Row label="SHIF" value="− 4,125.00" />
+        <Row label="Housing levy" value="− 2,250.00" />
+        <Row label="PAYE" value="− 33,526.85" />
+        <Row label="Net pay" value="KES 103,618.15" strong />
+      </Sheet>
+    ),
+  },
+  {
+    key: "leave",
+    title: "Leave",
+    meta: "Requests that find their approvers",
+    sheet: (
+      <Sheet title="Leave request" tag="Leave">
+        <Row label="Annual leave" value="5 days" />
+        <Row label="Balance after" value="9 days" />
+        <ol className="mt-3 space-y-2">
+          {["Line manager · approved", "HR · approved", "Payroll · notified"].map((step) => (
+            <li key={step} className="flex items-center gap-2 text-muted">
+              <span aria-hidden className="size-2 rounded-full bg-product" />
+              {step}
+            </li>
+          ))}
+        </ol>
+      </Sheet>
+    ),
+  },
+  {
+    key: "attendance",
+    title: "Attendance",
+    meta: "Shifts and time across branches",
+    sheet: (
+      <Sheet title="This week" tag="Attendance">
+        <div className="grid grid-cols-5 gap-2 text-center">
+          {["Mon", "Tue", "Wed", "Thu", "Fri"].map((day, i) => (
+            <div key={day} className="rounded-xl border border-line py-2.5">
+              <p className="text-[0.7rem] text-subtle">{day}</p>
+              <p className={cn("mt-1 font-semibold", i === 3 ? "text-muted" : "text-text")}>
+                {i === 3 ? "Leave" : "8h"}
+              </p>
+            </div>
+          ))}
+        </div>
+        <div className="mt-4">
+          <Row label="Clock-ins on time" value="4 of 4" />
+          <Row label="Overtime to approve" value="2.5h" />
+        </div>
+      </Sheet>
+    ),
+  },
+  {
+    key: "performance",
+    title: "Performance",
+    meta: "Goals and reviews in one place",
+    sheet: (
+      <Sheet title="Quarter goals" tag="Performance">
+        <Meter label="Customer onboarding time" value={80} />
+        <Meter label="Branch audit readiness" value={65} />
+        <Meter label="Team training plan" value={90} />
+      </Sheet>
+    ),
+  },
+];
+
+/**
+ * Variant 04 · People, in Chapters (UI-MO8): the editorial hero. ZiraHR's
+ * modules as a numbered index beside layered sheets of one synthetic
+ * employee's records, each sheet coming forward with its chapter.
+ */
+function ChaptersHero({ slug, name, brand, config, demoHref, featuresHref }: ProductHeroProps) {
+  const text = copy(config, {
+    eyebrow: "HR Simplified. Business Amplified.",
+    headline: "Your people, in chapters.",
+    accent: "One story, one platform.",
+    lead: "Records, payroll, leave, attendance and performance as one connected story, so every change reaches everything it touches.",
+  });
+  return (
+    <EditorialHero
+      id={`hero-${slug}-title`}
+      design="chapters"
+      product={slug}
+      config={config}
+      identity={
+        <ProductIdentity
+          slug={slug as ProductSlug}
+          brand={brand}
+          name={name}
+          maxWidth={150}
+          nameClassName="text-base font-semibold text-text"
+        />
+      }
+      eyebrow={text.eyebrow}
+      headline={text.headline}
+      accent={text.accent}
+      lead={text.lead}
+      actions={<Actions config={config} demoHref={demoHref} featuresHref={featuresHref} />}
+      chapters={CHAPTERS}
+      indexLabel={`${name} modules`}
+      note={SYNTHETIC}
+    />
+  );
+}
+
 export const PRODUCT_HERO_DESIGNS: Partial<Record<HeroDesign, (props: ProductHeroProps) => ReactNode>> = {
   workforce: WorkforceHero,
   payroll: PayrollHero,
   journey: JourneyHero,
+  chapters: ChaptersHero,
 };
 
 /** A product website's hero for a published (or previewed) variant, or null when its design isn't a product design. */

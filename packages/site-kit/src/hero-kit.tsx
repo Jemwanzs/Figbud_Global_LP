@@ -9,7 +9,8 @@ import { useEffect, useRef, useState } from "react";
  * object, and the Studio's preview renders the very components websites do.
  */
 
-export type HeroDesign = "ecosystem" | "cinematic" | "universe" | "workforce" | "payroll" | "journey";
+export type HeroDesign =
+  "ecosystem" | "cinematic" | "universe" | "edition" | "workforce" | "payroll" | "journey" | "chapters";
 
 export interface HeroConfig {
   eyebrow?: string | null;
@@ -77,6 +78,12 @@ export const HERO_DESIGNS: Record<HeroDesign, { name: string; summary: string; f
     summary: "Product panels unfold in perspective, connect, and settle into an interactive showcase.",
     fields: [...TEXT, ...CTA, ...LOOK],
   },
+  edition: {
+    name: "The FigBud Edition",
+    summary:
+      "Editorial: an oversized headline, a numbered index of the platforms and layered product sheets.",
+    fields: [...TEXT, ...CTA, "motion", "speed", "height"],
+  },
   workforce: {
     name: "Your Workforce, Connected",
     summary: "HR and payroll messaging with an interactive dashboard preview.",
@@ -91,6 +98,11 @@ export const HERO_DESIGNS: Record<HeroDesign, { name: string; summary: string; f
     name: "The Employee Journey",
     summary: "Layered lifecycle cards: recruit, onboard, manage, grow, exit.",
     fields: [...TEXT, ...CTA, ...LOOK],
+  },
+  chapters: {
+    name: "People, in Chapters",
+    summary: "Editorial: an oversized headline, a numbered index of the modules and layered record sheets.",
+    fields: [...TEXT, ...CTA, "motion", "speed", "height"],
   },
 };
 

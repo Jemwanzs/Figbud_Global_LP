@@ -778,6 +778,36 @@ body:has(main [data-section="call_to_action"]:last-child) [data-footer-cta] {
       0 0 26px 6px var(--product);
   }
 }
+/* Editorial hero (UI-MO8): hairlines draw in, the sheets rise once in turn,
+   and the current chapter's line fills until the next. Still with reduced
+   motion (the current chapter's line is simply full). */
+@media (prefers-reduced-motion: no-preference) {
+  .fb-ed[data-moving] .fb-ed-rule {
+    animation: fb-ed-draw 1.1s var(--motion-ease) both;
+  }
+  .fb-ed[data-moving] .fb-ed-sheet {
+    animation: fb-ed-rise var(--motion-slow) var(--motion-ease) backwards;
+  }
+  .fb-ed-progress {
+    animation: fb-ed-fill calc(4.5s * var(--ed-pace, 1)) linear both;
+  }
+}
+@keyframes fb-ed-draw {
+  from {
+    transform: scaleX(0);
+  }
+}
+@keyframes fb-ed-rise {
+  from {
+    opacity: 0;
+    translate: 0 1.5rem;
+  }
+}
+@keyframes fb-ed-fill {
+  from {
+    transform: scaleX(0);
+  }
+}
 /* Coming Soon (P15): a soft product glow and slow rings around the mark. */
 .fb-soon-glow {
   background:

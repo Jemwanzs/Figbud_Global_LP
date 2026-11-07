@@ -3578,8 +3578,8 @@ function pricingRoutes(path, req, body, user, send) {
 // Mirrors services/api/src/heroes.rs: each website's own hero collection,
 // drafts, approval, exactly one published variant, versions and rollback.
 const HERO_DESIGNS = {
-  figbud: ["ecosystem", "cinematic", "universe"],
-  zirahr: ["workforce", "payroll", "journey"],
+  figbud: ["ecosystem", "cinematic", "universe", "edition"],
+  zirahr: ["workforce", "payroll", "journey", "chapters"],
 };
 const HERO_NAMES = {
   ecosystem: "Connected Ecosystem",
@@ -3588,6 +3588,8 @@ const HERO_NAMES = {
   workforce: "Your Workforce, Connected",
   payroll: "Payroll in Motion",
   journey: "The Employee Journey",
+  edition: "The FigBud Edition",
+  chapters: "People, in Chapters",
 };
 const HERO_DEFAULT = {
   motion: true,

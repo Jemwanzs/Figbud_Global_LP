@@ -122,7 +122,7 @@ async fn heroes_publish_one_variant_with_approval_and_roll_back() {
         .iter()
         .map(|d| d["key"].as_str().unwrap())
         .collect();
-    assert_eq!(designs, ["workforce", "payroll", "journey"]);
+    assert_eq!(designs, ["workforce", "payroll", "journey", "chapters"]);
     let mut draft = read["draft"].clone();
 
     // A FigBud design or an unsafe link is refused.
@@ -242,4 +242,100 @@ async fn heroes_publish_one_variant_with_approval_and_roll_back() {
         .await;
     assert_eq!(ziwa["designs"], json!([]));
     assert_eq!(t.save("ziwa", &editor, &draft).await.0, StatusCode::CONFLICT);
+}
+
+#[tokio::test]
+async fn a_design_added_later_is_offered_once_in_a_saved_draft() {
+    let Some(pool) = database().await else { return };
+    let site: Uuid = sqlx::query_scalar("SELECT id FROM sites WHERE slug = 'figbud'")
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    let before: Option<(Value, i32)> =
+        sqlx::query_as("SELECT draft, draft_version FROM site_heroes WHERE site_id = $1")
+            .bind(site)
+            .fetch_optional(&pool)
+            .await
+            .unwrap();
+    let forget = || {
+        sqlx::query("DELETE FROM audit_log WHERE site_id = $1 AND action = 'hero.edition_added'").bind(site)
+    };
+    let store = |draft: Value| {
+        sqlx::query(
+            "INSERT INTO site_heroes (site_id, draft) VALUES ($1, $2)
+             ON CONFLICT (site_id) DO UPDATE SET draft = EXCLUDED.draft",
+        )
+        .bind(site)
+        .bind(draft)
+    };
+    let variants = |draft: &Value| -> Vec<(String, String, String)> {
+        draft["variants"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|v| {
+                (
+                    v["id"].as_str().unwrap().to_owned(),
+                    v["design"].as_str().unwrap().to_owned(),
+                    v["name"].as_str().unwrap().to_owned(),
+                )
+            })
+            .collect()
+    };
+    let draft = || async {
+        sqlx::query_scalar::<_, Value>("SELECT draft FROM site_heroes WHERE site_id = $1")
+            .bind(site)
+            .fetch_one(&pool)
+            .await
+            .unwrap()
+    };
+
+    // A draft saved before the editorial design existed, with the third
+    // variant duplicated and the original v3 removed by an editor.
+    let old = json!({ "variants": [
+        { "id": "v1", "design": "ecosystem", "name": "01 · Connected Ecosystem" },
+        { "id": "v2", "design": "cinematic", "name": "02 · Beyond the Ordinary" },
+        { "id": "v4", "design": "universe", "name": "Universe copy" },
+    ], "selected": "v2" });
+    store(old.clone()).execute(&pool).await.unwrap();
+    forget().execute(&pool).await.unwrap();
+    figbud_api::heroes::offer_added_designs(&pool).await.unwrap();
+    let now = draft().await;
+    let list = variants(&now);
+    assert_eq!(list.len(), 4);
+    assert_eq!(
+        list[3],
+        (
+            "v3".to_owned(),
+            "edition".to_owned(),
+            "04 · The FigBud Edition".to_owned()
+        ),
+        "the first free id, at the end"
+    );
+    assert_eq!(now["selected"], "v2", "nothing is selected for the editor");
+
+    // Once only: removed afterwards, it stays removed.
+    store(old).execute(&pool).await.unwrap();
+    figbud_api::heroes::offer_added_designs(&pool).await.unwrap();
+    assert_eq!(variants(&draft().await).len(), 3);
+
+    // Leave the shared database as it was.
+    match before {
+        Some((draft, version)) => {
+            sqlx::query("UPDATE site_heroes SET draft = $2, draft_version = $3 WHERE site_id = $1")
+                .bind(site)
+                .bind(draft)
+                .bind(version)
+                .execute(&pool)
+                .await
+                .unwrap();
+        }
+        None => {
+            sqlx::query("DELETE FROM site_heroes WHERE site_id = $1")
+                .bind(site)
+                .execute(&pool)
+                .await
+                .unwrap();
+        }
+    }
 }

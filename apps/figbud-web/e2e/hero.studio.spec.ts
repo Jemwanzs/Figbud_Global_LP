@@ -63,6 +63,9 @@ test("exact previews render each design's real hero, in light and dark, without 
     ["zirahr", "v1", "HR Simplified."],
     ["zirahr", "v2", "Payroll"],
     ["zirahr", "v3", "Every stage of work,"],
+    // The editorial designs (UI-MO8).
+    ["figbud", "v4", "One vision."],
+    ["zirahr", "v4", "Your people, in chapters."],
   ];
   for (const [slug, id, headline] of expected) {
     for (const theme of ["light", "dark"] as const) {
@@ -81,6 +84,18 @@ test("exact previews render each design's real hero, in light and dark, without 
   await expect(page.getByText("Illustrative product activity · synthetic data")).toBeVisible();
   await page.getByRole("tab", { name: "Approve" }).click();
   await expect(page.getByRole("tabpanel", { name: "Approve" })).toContainText("Approved in sequence");
+
+  // Editorial heroes: choosing a chapter brings its sheet forward, and the index stays put.
+  await page.goto("/admin/hero-preview/zirahr/v4?theme=light");
+  const index = page.getByRole("list", { name: "ZiraHR modules" });
+  await expect(index.getByRole("button")).toHaveCount(5);
+  await index.getByRole("button", { name: /Payroll/ }).click();
+  await expect(index.getByRole("button", { name: /Payroll/ })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator('[data-sheet="payroll"]')).toHaveAttribute("data-current", "true");
+  await expect(page.getByText("Illustrative product activity · synthetic data")).toBeVisible();
+  await page.goto("/admin/hero-preview/figbud/v4?theme=dark");
+  await expect(page.locator('[data-hero="edition"] [data-sheet="zirahr"]')).toBeAttached();
+  await expect(page.locator('[data-hero="edition"]')).toContainText("HR Simplified. Business Amplified.");
 });
 
 test("ZiraHR: edit, select, approve and publish one hero, then roll back", async ({ page, request }) => {
@@ -92,7 +107,7 @@ test("ZiraHR: edit, select, approve and publish one hero, then roll back", async
   await page.goto("/admin/sites/zirahr");
   await page.getByRole("link", { name: "Hero Design Studio" }).click();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("ZiraHR: Hero Design Studio");
-  await expect(page.locator("[data-variant]")).toHaveCount(3);
+  await expect(page.locator("[data-variant]")).toHaveCount(4);
   if (!before)
     await expect(page.getByText("Nothing published · the website keeps its current hero")).toBeVisible();
 

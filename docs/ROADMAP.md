@@ -493,7 +493,7 @@ Scope: premium, lightweight motion on one shared system; product discovery witho
 | P7-FT1  | Footer redesign for FigBud Global and ZiraHR (owner's brief, 7 Nov 2026). One shared `FooterLayout`:<br>• a call to action on a contrasting panel, left out on pages that already end with their own;<br>• a logo column with tagline, description, contact details and verified profiles;<br>• up to three titled link groups plus a fixed Legal & Support column with the cookie settings;<br>• a compact bottom bar.<br>Managed in Studio → a website → Footer, with a draft before publishing. ZiraHR's content was applied once as real settings | ✅ |
 | P7-ZC1  | ZiraHR palette (owner, 6 Nov 2026): warm brown, brown and orange, warm orange, white. Warm orange accents and buttons, warm brown as the second colour. The ZiraHR website sits on deep warm brown in the dark theme and white or warm white in the light theme, with brown bands for "brand" sections. Applied once to the published brand profile as a recorded revision (a Studio choice is kept). The official symbol keeps its own colours | ✅ |
 | UI-TH5  | FigBud Global home: contrasting bands for the corporate sections, then forms and overlays (brief section 5) | ✅ Bands: "Our philosophy" and "What we engineer" on the home page, "What we believe" on About. Overlays: one open and close motion and one dimmed backdrop for the cookie prompt, campaign pop-ups and mobile menus. Forms: one field style (`fieldClasses`) with a clear focus ring in the theme's focus colour, red while invalid, on the enquiry, waitlist, referral, pricing, calculator and campaign forms |
-| UI-MO8  | Editorial hero designs (the third style in the brief) for FigBud Global and ZiraHR, alongside the existing default and motion-led designs | ⬜ |
+| UI-MO8  | Editorial hero designs (the third style in the brief) for FigBud Global and ZiraHR, alongside the existing default and motion-led designs | ✅ FigBud Global 04 · The FigBud Edition and ZiraHR 04 · People, in Chapters, on one shared `EditorialHero`; in each website's Hero Design Studio, ready to select, preview in both themes and publish with approval |
 | UI-MO9  | Page-by-page polish audit: navigation, Home and About, comparisons, pricing and calculator, testimonials, FAQs, forms, footer, legal, phones | ⬜ |
 | UI-PR1  | Products page redesign: product jump links; a spotlight for the first live product with its interactive synthetic preview; equal supporting cards (brand accent line, glow, status, highlights, demo or waitlist and website actions) in a responsive grid ready for future products; all content visible without hover; comparison and future-products sections kept | ✅ |
 | P10-T1  | Trusted By & partner logo management: Studio → Content & Marketing → Trusted By; organisation, relationship, website, description, logo and icon from the corporate media library, order, active switch, website targeting; publishing needs a confirmed relationship, display approval and recorded evidence; public animated logo row | ✅ Built (migration 23, `proof.rs`, Studio, both website types); content ⛔ Q22 |
@@ -609,6 +609,18 @@ Scope: a four-page, SaaS-only ZiraHR website from the Enhanced Content & Develop
 
 | Date        | Change                                                                                                   |
 | ----------- | -------------------------------------------------------------------------------------------------------- |
+| 7 Nov 2026 | Editorial heroes (UI-MO8), the brief's third hero style:
+- **The FigBud Edition (FigBud Global 04):**
+  - an oversized "One vision. / Endless solutions." across the page under a drawn hairline;
+  - a numbered index of the platforms;
+  - layered product sheets with each platform's approved category, tagline, summary, highlights and status.
+- **People, in Chapters (ZiraHR 04):**
+  - ZiraHR's modules as chapters beside layered sheets of one synthetic employee's records (record, payslip, leave, attendance, goals);
+  - labelled as illustrative;
+  - the payslip matches the website's own calculator.
+- **Motion:** the sheets change places as the index moves on, or when a visitor chooses a chapter. Hovering or focusing the index holds it. It pauses off screen and stays still with reduced motion, and the headline appears at once.
+- **In the Studio:** both are added to each website's Hero Design Studio as a new variant, ready to preview in light and dark and to publish with approval. Nothing live changed.
+- **Fixes:** two checks from the previous push were judged too early on CI (a focus ring mid-transition; lazy images below the fold). They now wait for the right end state. |
 | 7 Nov 2026 | Footer redesign for FigBud Global and ZiraHR (P7-FT1), on the owner's brief:
 - **Call to action panel:** above the footer, on a contrasting surface that flips with the theme. On FigBud Global it reads "Big ideas deserve brilliant technology." with Explore Our Products. On ZiraHR it reads "Ready to make HR feel effortless?" with Book a Demo. Pages that already end with their own call to action (FigBud Global's home and About, most ZiraHR pages) don't show a second one.
 - **Compact layout:** the logo with its tagline ("One Vision. Endless Solutions." / "HR Simplified. Business Amplified."), a short description, then titled columns and a slim bottom bar. The old footer's empty space and scattered links are gone.

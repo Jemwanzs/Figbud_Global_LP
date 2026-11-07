@@ -275,7 +275,10 @@ test.describe("theme and language", () => {
     );
     // Scrolling starts lazy images on the way; once they're in, the page above the
     // band is settled (Safari's engine doesn't anchor the scroll position meanwhile).
-    await page.waitForFunction(() => [...document.images].every((img) => img.complete));
+    await page.waitForFunction(() => {
+      const band = document.querySelector("#philosophy-title")!.getBoundingClientRect().top;
+      return [...document.images].every((img) => img.complete || img.getBoundingClientRect().top > band);
+    });
     await page.evaluate(() => new Promise((done) => requestAnimationFrame(() => done(undefined))));
     const y = await page.evaluate(() => window.scrollY);
     // Clicked from inside the page, as a visitor's click is (Playwright's own click
@@ -531,8 +534,12 @@ test.describe("contact form", () => {
     await expect(name).toHaveAttribute("aria-invalid", "true");
     await name.focus();
     // While invalid, the ring turns to the danger colour (once the browser restyles it).
-    await expect.poll(ring).not.toBe(focusRing);
-    expect(await ring()).toMatch(/ 0px 0px 0px 3px$/);
+    await expect
+      .poll(async () => {
+        const now = await ring();
+        return now !== focusRing && / 0px 0px 0px 3px$/.test(now);
+      })
+      .toBe(true);
   });
 
   test("submits once with an idempotency key and shows the reference", async ({ page }) => {

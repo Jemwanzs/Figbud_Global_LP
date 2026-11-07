@@ -22,9 +22,14 @@ Last updated: 31 Oct 2026.
 | FigBud Global | 01 | Connected Ecosystem | The production hero, registered as is: headline, CTAs, the ecosystem visualisation, approved logos and statuses, current motion |
 | FigBud Global | 02 | Beyond the Ordinary | Cinematic: dimensional blocks built in CSS 3D with themed light surfaces, a FigBud token resting on the top step, a slow light sweep, and pointer parallax at different depths |
 | FigBud Global | 03 | The FigBud Universe | A short presentation: identity, then product panels unfolding in perspective, connections drawing, settling into an interactive showcase (choosing a panel brings it forward with its details). A swipeable row on phones |
+| FigBud Global | 04 | The FigBud Edition | Editorial (UI-MO8): an oversized headline across the page under a drawn hairline, a numbered index of the platforms, and layered product sheets (name, category, tagline, summary, highlights and status, all from the registry and approved copy). The index moves on by itself until a visitor chooses a chapter |
 | ZiraHR | 01 | Your Workforce, Connected | "HR Simplified. Business Amplified." with an interactive dashboard preview: headcount, payroll status, leave, people by department, statutory compliance, floating leave and approval cards |
 | ZiraHR | 02 | Payroll in Motion | An illustrative payroll run: Prepare → Validate → Approve → Disburse → Report. The stages are selectable, figures ease between them, and compliance indicators light up |
 | ZiraHR | 03 | The Employee Journey | Layered lifecycle cards in perspective: Recruit → Onboard → Manage → Grow → Exit. Selectable stages (tabs with arrow keys), auto-advancing until chosen |
+
+| ZiraHR | 04 | People, in Chapters | Editorial (UI-MO8): the same editorial composition with ZiraHR's modules (Core HR, Payroll, Leave, Attendance, Performance) as chapters beside layered sheets of one synthetic employee's records. The payslip matches the website's own payroll calculator for KES 150,000 |
+
+The editorial designs share `EditorialHero` (`packages/site-kit/src/editorial-hero.tsx`). The headline renders at once (LCP); only the hairlines and sheets move (transforms and opacity), paused off screen and still with reduced motion. Chapters are buttons (`aria-pressed`), and hovering or focusing the index holds it. Websites that saved a draft before these designs existed were offered them once, as a new last variant (`heroes::offer_added_designs`); nothing was selected or published, and removing the variant keeps it removed.
 
 The ZiraHR journey describes confirmed scope only:
 - **Recruit:** a new starter's record created from the offer.

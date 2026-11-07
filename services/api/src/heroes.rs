@@ -36,8 +36,15 @@ use crate::{
 
 /// Each website's hero collection, in order (the first is the default).
 pub const DESIGNS: &[(&str, &[&str])] = &[
-    ("figbud", &["ecosystem", "cinematic", "universe"]),
-    ("zirahr", &["workforce", "payroll", "journey"]),
+    ("figbud", &["ecosystem", "cinematic", "universe", "edition"]),
+    ("zirahr", &["workforce", "payroll", "journey", "chapters"]),
+];
+
+/// Designs added to a collection after websites had saved drafts (UI-MO8,
+/// 7 Nov 2026), with the audit action that records each was offered once.
+const ADDED: &[(&str, &str, &str)] = &[
+    ("figbud", "edition", "hero.edition_added"),
+    ("zirahr", "chapters", "hero.chapters_added"),
 ];
 
 pub fn designs_for(slug: &str) -> &'static [&'static str] {
@@ -193,6 +200,8 @@ pub fn design_name(design: &str) -> &'static str {
         "workforce" => "Your Workforce, Connected",
         "payroll" => "Payroll in Motion",
         "journey" => "The Employee Journey",
+        "edition" => "The FigBud Edition",
+        "chapters" => "People, in Chapters",
         _ => "Hero",
     }
 }
@@ -357,6 +366,66 @@ async fn load(pool: &PgPool, site_id: Uuid) -> Result<Option<Row>, sqlx::Error> 
     .bind(site_id)
     .fetch_optional(pool)
     .await
+}
+
+/// Offers each newly added design once in a draft saved before it existed:
+/// a new variant at the end of the collection, with the design's approved
+/// copy. Nothing is selected or published, and a variant an editor removes
+/// afterwards stays removed.
+pub async fn offer_added_designs(pool: &PgPool) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    for (slug, design, action) in ADDED {
+        let mut tx = pool.begin().await?;
+        let row: Option<(Uuid, Value)> = sqlx::query_as(
+            "SELECT h.site_id, h.draft FROM site_heroes h JOIN sites s ON s.id = h.site_id
+              WHERE s.slug = $1 AND NOT EXISTS (
+                    SELECT 1 FROM audit_log a WHERE a.site_id = s.id AND a.action = $2)
+                FOR UPDATE OF h",
+        )
+        .bind(slug)
+        .bind(action)
+        .fetch_optional(&mut *tx)
+        .await?;
+        // No saved draft: the collection's starting draft already has it.
+        let Some((site_id, draft)) = row else { continue };
+        let mut draft: HeroDraft = serde_json::from_value(draft)?;
+        let added =
+            !draft.variants.iter().any(|v| v.design == *design) && draft.variants.len() < MAX_VARIANTS;
+        if added {
+            let id = (1..)
+                .map(|n| format!("v{n}"))
+                .find(|id| draft.variants.iter().all(|v| &v.id != id))
+                .unwrap_or_default();
+            let number = draft.variants.len() + 1;
+            draft.variants.push(Variant {
+                id,
+                design: (*design).to_owned(),
+                name: format!("{number:02} · {}", design_name(design)),
+                config: HeroConfig::default(),
+            });
+            sqlx::query(
+                "UPDATE site_heroes SET draft = $2, draft_version = draft_version + 1, draft_updated_at = now()
+                  WHERE site_id = $1",
+            )
+            .bind(site_id)
+            .bind(serde_json::to_value(&draft)?)
+            .execute(&mut *tx)
+            .await?;
+        }
+        sqlx::query(
+            "INSERT INTO audit_log (id, action, target_type, target_id, detail, site_id)
+             VALUES ($1, $2, 'site', $3, $4, $5)",
+        )
+        .bind(Uuid::now_v7())
+        .bind(action)
+        .bind(site_id.to_string())
+        .bind(json!({ "design": design, "added": added }))
+        .bind(site_id)
+        .execute(&mut *tx)
+        .await?;
+        tx.commit().await?;
+        tracing::info!(slug, design, added, "hero design offered");
+    }
+    Ok(())
 }
 
 fn decode(value: Value) -> Result<HeroDraft, ApiError> {
@@ -738,7 +807,7 @@ mod tests {
     fn each_website_starts_with_its_own_collection() {
         let figbud = HeroDraft::starting("figbud");
         let designs: Vec<_> = figbud.variants.iter().map(|v| v.design.as_str()).collect();
-        assert_eq!(designs, ["ecosystem", "cinematic", "universe"]);
+        assert_eq!(designs, ["ecosystem", "cinematic", "universe", "edition"]);
         assert_eq!(figbud.selected, "v1");
         assert_eq!(figbud.variants[0].name, "01 · Connected Ecosystem");
         let zirahr = HeroDraft::starting("zirahr");
