@@ -223,17 +223,18 @@ test("Studio: Our Platforms controls, saved with the website's settings", async 
   await page.goto("/admin/sites/figbud/website");
   // Different text on each attempt (a retry finds the last attempt's save), repeated until the
   // form is ready to notice it.
-  const note = `Engineered in Nairobi ${testInfo.retry}`;
+  const band = page.getByLabel("Soft band (light mode)", { exact: true });
+  const colour = `#fdf9f${testInfo.retry}`;
   const save = page.getByRole("button", { name: "Save settings" });
   await expect(async () => {
-    await page.getByLabel("Footer note").fill("");
-    await page.getByLabel("Footer note").fill(note);
+    await band.fill("");
+    await band.fill(colour);
     await expect(save).toBeEnabled({ timeout: 1_000 });
   }).toPass();
   await save.click();
   await expect(page.getByRole("status").filter({ hasText: "Saved." })).toBeVisible();
   expect((await listed()).intensity).toBe("subtle");
-  await page.getByLabel("Footer note").fill("");
+  await band.fill("");
   await page.getByRole("button", { name: "Save settings" }).click();
   await expect(page.getByRole("status").filter({ hasText: "Saved." })).toBeVisible();
 
