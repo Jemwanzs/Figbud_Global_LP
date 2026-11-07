@@ -72,6 +72,10 @@ export interface WebsiteSettings {
   footer: SiteFooterSettings;
   /** The footer being edited in the Studio (only the Studio ever receives it). */
   footer_draft?: SiteFooterSettings | null;
+  /** FigBud Global's home page section themes (Studio → Section themes), as published. */
+  section_themes?: Partial<Record<string, "follow" | "inverse">>;
+  /** Saved in the Studio, not published. */
+  section_themes_draft?: Partial<Record<string, "follow" | "inverse">> | null;
   enquiries: { open: boolean; closed_message?: string | null };
   /** Section band colours (P7-E1); unset means the design system's neutral bands. */
   theme?: SiteTheme;

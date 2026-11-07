@@ -304,22 +304,27 @@ test.describe("theme and language", () => {
     await expect(html).toHaveAttribute("data-theme", "dark");
   });
 
-  test("the home page's contrasting bands take the other theme and flip with the switch (UI-TH5)", async ({
+  test("the home page alternates dark and light bands, opposite the hero first, and flips with the switch (UI-TH6)", async ({
     page,
   }) => {
     await page.goto("/en");
-    const bands = page.locator('main section[data-tone="inverse"]');
-    await expect(bands).toHaveCount(2);
+    // Every major section is a band; Trusted By shares Our Platforms' band.
+    const bands = page.locator("main [data-band]:not([data-band-shared])");
+    const order = await bands.evaluateAll((els) => els.map((el) => el.getAttribute("data-band")));
+    expect(order.length).toBeGreaterThanOrEqual(6);
+    expect(order[0], "Our Platforms is opposite the hero").toBe("inverse");
+    for (let i = 1; i < order.length; i++) expect(order[i], `band ${i}`).not.toBe(order[i - 1]);
     const lightness = (el: ReturnType<typeof bands.first>) =>
       el.evaluate((node) => {
         const [r, g, b] = getComputedStyle(node).backgroundColor.match(/\d+/g)!.map(Number);
         return (r! + g! + b!) / 3;
       });
-    const body = page.locator("body");
-    // Dark page, light bands.
-    expect(await lightness(bands.first())).toBeGreaterThan(128);
-    expect(await lightness(bands.last())).toBeGreaterThan(128);
-    expect(await lightness(body)).toBeLessThan(128);
+    const platforms = page.locator("#platforms");
+    const philosophy = page.locator("section[aria-labelledby=philosophy-title]");
+    // Dark page: a dark hero, a light Our Platforms, a dark philosophy band.
+    expect(await lightness(page.locator("body"))).toBeLessThan(128);
+    expect(await lightness(platforms)).toBeGreaterThan(128);
+    expect(await lightness(philosophy)).toBeLessThan(128);
     // Images and fonts settled first, so only the theme switch could move the page.
     await page.waitForLoadState("networkidle");
     await page.evaluate(() => document.fonts.ready.then(() => undefined));
@@ -342,9 +347,9 @@ test.describe("theme and language", () => {
         .evaluate((button) => (button as HTMLButtonElement).click());
       await expect(page.locator("html")).toHaveAttribute("data-theme", "light", { timeout: 1_000 });
     }).toPass();
-    // Light page, dark bands, once the shared colour transition ends; same scroll position.
-    await expect.poll(() => lightness(bands.first()), { timeout: 2_000 }).toBeLessThan(128);
-    expect(await lightness(bands.last())).toBeLessThan(128);
+    // Light page: every band flips together, once the shared colour transition ends; same scroll position.
+    await expect.poll(() => lightness(platforms), { timeout: 2_000 }).toBeLessThan(128);
+    await expect.poll(() => lightness(philosophy), { timeout: 2_000 }).toBeGreaterThan(128);
     expect(Math.abs((await page.evaluate(() => window.scrollY)) - y)).toBeLessThanOrEqual(1);
   });
 

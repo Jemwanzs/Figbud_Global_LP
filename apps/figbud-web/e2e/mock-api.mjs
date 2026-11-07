@@ -4483,7 +4483,29 @@ function siteSettingsRoutes(slug, req, body, user, send) {
   next.nav_previews = { enabled: true, items: [], ...next.nav_previews };
   next.nav_previews_draft ??= null;
   next.footer_draft ??= null;
+  next.section_themes ??= {};
+  next.section_themes_draft ??= null;
   const fields = [];
+  // Home page section themes (site_settings.rs check_section_themes).
+  const homeSections = ["platforms", "philosophy", "africa", "engineer", "proof", "company", "closing"];
+  for (const themes of [next.section_themes, next.section_themes_draft].filter(Boolean)) {
+    const entries = Object.entries(themes);
+    if (!entries.length) continue;
+    if (site.kind !== "corporate")
+      fields.push({
+        field: "section_themes",
+        code: "corporate",
+        message: "Section themes are for FigBud Global's home page.",
+      });
+    else if (
+      entries.some(([key, tone]) => !homeSections.includes(key) || !["follow", "inverse"].includes(tone))
+    )
+      fields.push({
+        field: "section_themes",
+        code: "unknown",
+        message: "Choose a section of the home page.",
+      });
+  }
   // Hover previews (site_settings.rs check_nav_previews).
   for (const previews of [next.nav_previews, next.nav_previews_draft]) {
     for (const item of previews?.items ?? []) {

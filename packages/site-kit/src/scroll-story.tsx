@@ -32,6 +32,21 @@ export type StoryMotion = "standard" | "subtle" | "off";
 const clamp = (value: number) => Math.min(1, Math.max(0, value));
 
 /**
+ * Where the pinned panel rests and how far the page scrolls while it does.
+ * The panel is as tall as its content and rests centred in the space below
+ * the website's header (never above it); the spacer after it (`[data-runway]`)
+ * is the scrolling the steps need, so it releases right after the last one.
+ */
+function geometry(el: HTMLElement) {
+  // Clear of the website's header, which takes two rows on phones.
+  const header = document.querySelector("header")?.offsetHeight ?? 64;
+  const pin = (el.firstElementChild as HTMLElement | null)?.offsetHeight ?? 0;
+  const top = Math.max(header, Math.round((window.innerHeight + header - pin) / 2));
+  const travel = Math.max(1, el.querySelector<HTMLElement>("[data-runway]")?.offsetHeight ?? 0);
+  return { top, travel };
+}
+
+/**
  * Follows the page's scroll with passive listeners and one write per frame:
  * which of `count` steps the pinned stretch is at. Shared by the stories and
  * the module showcase (pin, progress, complete, release).
@@ -47,13 +62,10 @@ export function useScrollStory(count: number) {
     let frame = 0;
     const measure = () => {
       frame = 0;
-      // Clear of the website's header, which takes two rows on phones.
-      const header = document.querySelector("header")?.offsetHeight ?? 64;
-      el.style.setProperty("--story-top", `${header}px`);
-      const box = el.getBoundingClientRect();
-      const pinned = window.innerHeight - header;
+      const { top, travel } = geometry(el);
+      el.style.setProperty("--story-top", `${top}px`);
       // How far through the pinned stretch: 0 as the panel settles, 1 as it leaves.
-      const progress = clamp((header - box.top) / Math.max(1, box.height - pinned));
+      const progress = clamp((top - el.getBoundingClientRect().top) / travel);
       el.style.setProperty("--story-progress", progress.toFixed(3));
       setStep(Math.min(count - 1, Math.floor(progress * count)));
     };
@@ -86,12 +98,10 @@ export function useScrollStory(count: number) {
   const goTo = (i: number) => {
     const el = root.current;
     if (!el) return;
-    const header = document.querySelector("header")?.offsetHeight ?? 64;
-    const pinned = window.innerHeight - header;
-    const top = el.getBoundingClientRect().top + window.scrollY - header;
+    const { top, travel } = geometry(el);
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     window.scrollTo({
-      top: top + (el.offsetHeight - pinned) * ((i + 0.5) / count),
+      top: el.getBoundingClientRect().top + window.scrollY - top + travel * ((i + 0.5) / count),
       behavior: reduced ? "auto" : "smooth",
     });
   };
@@ -134,7 +144,7 @@ function ScrollStory({
       style={{ "--story-progress": 0, "--story-steps": count } as CSSProperties}
       className="fb-story relative"
     >
-      <div className="fb-story-pin sticky top-[var(--story-top,4.5rem)] flex flex-col justify-center gap-4 py-4 lg:grid lg:grid-cols-12 lg:items-center lg:gap-x-12 lg:py-6">
+      <div className="fb-story-pin sticky top-[var(--story-top,4.5rem)] flex flex-col gap-4 py-4 lg:grid lg:grid-cols-12 lg:items-center lg:gap-x-12 lg:py-6">
         <div className="lg:order-2 lg:col-span-7">
           {/* The steps say all of this in words, so the picture isn't read out. */}
           <div
@@ -189,6 +199,8 @@ function ScrollStory({
           </ol>
         </div>
       </div>
+      {/* The scrolling the steps need: the panel stays pinned over it, then lets go. */}
+      <div aria-hidden data-runway="" className="fb-story-runway" />
     </div>
   );
 }

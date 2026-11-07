@@ -4,6 +4,10 @@ import { randomBytes } from "node:crypto";
 import { type Page, expect, test } from "@playwright/test";
 import { themeSettled } from "./theme-settled";
 
+// The Studio tests below save the same settings documents, so they take turns
+// (each save is checked against the version it read).
+test.describe.configure({ mode: "serial" });
+
 // Navigation, footer & forms per website (P7-E2). In the mock API, Jasiri LMS
 // isn't taking enquiries (a fixture); the Studio test edits Ziwa LMS's menu.
 
@@ -176,4 +180,63 @@ test("Studio: the footer is drafted, checked and published (owner's brief, 7 Nov
   await page.getByLabel("Contact email (optional)").fill("");
   await page.getByRole("button", { name: "Publish" }).click();
   await expect(page.getByRole("status")).toContainText("Published.");
+});
+
+test("Studio: home page section themes, previewed in both themes, drafted and published (UI-TH6)", async ({
+  page,
+  request,
+}, testInfo) => {
+  // Shared mock data: edit it from one project only. What's published here matches the automatic
+  // alternation, so other tests reading the home page never see a change.
+  test.skip(testInfo.project.name !== "desktop", "edited from the desktop project");
+  test.setTimeout(90_000);
+  const published = async () =>
+    (
+      (await (await request.get("http://localhost:3199/v1/sites")).json()) as {
+        slug: string;
+        settings: { section_themes?: Record<string, string> };
+      }[]
+    ).find((s) => s.slug === "figbud")!.settings.section_themes ?? {};
+  await signInAsOwner(page);
+  await page.goto("/admin/sites/figbud");
+  await page.getByRole("link", { name: "Section themes" }).click();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Section themes");
+  const dark = page.locator('[data-strip="dark"] li');
+  const light = page.locator('[data-strip="light"] li');
+  // The hero follows each visitor's theme; Our Platforms is opposite; then they alternate.
+  await expect(dark.nth(0)).toHaveAttribute("data-band-dark", "true");
+  await expect(dark.nth(1)).not.toHaveAttribute("data-band-dark", "true");
+  await expect(light.nth(1)).toHaveAttribute("data-band-dark", "true");
+
+  // A draft visitors don't see: the preview follows it at once.
+  await page.getByLabel(/^Our philosophy/).selectOption("inverse");
+  await expect(dark.nth(2)).not.toHaveAttribute("data-band-dark", "true");
+  await page.getByRole("button", { name: "Save draft" }).click();
+  await expect(page.getByRole("status")).toContainText(
+    "Draft saved. Visitors still see the published themes.",
+  );
+  expect((await published()).philosophy).toBeUndefined();
+
+  // Publish a choice: the closing band, pinned to the tone it has now.
+  await page.getByLabel(/^Our philosophy/).selectOption("auto");
+  const closing = page.getByLabel(/^Closing call to action/);
+  const now = (await page.locator("label", { hasText: "Closing call to action" }).textContent())!;
+  const tone = now.includes("opposite") ? "inverse" : "follow";
+  await closing.selectOption(tone);
+  await page.getByRole("button", { name: "Publish" }).click();
+  await expect(page.getByRole("status")).toContainText("Published. The home page shows this now.");
+  expect((await published()).closing).toBe(tone);
+  const home = await page.context().newPage();
+  await home.goto("/en");
+  await expect(home.locator('section[aria-labelledby="final-cta-title"]')).toHaveAttribute("data-band", tone);
+  const results = await new AxeBuilder({ page: await themeSettled(page) })
+    .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
+    .analyze();
+  expect(results.violations.map((v) => v.id)).toEqual([]);
+
+  // Back to automatic for other tests.
+  await closing.selectOption("auto");
+  await page.getByRole("button", { name: "Publish" }).click();
+  await expect(page.getByRole("status")).toContainText("Published.");
+  expect((await published()).closing).toBeUndefined();
 });

@@ -494,6 +494,8 @@ Scope: premium, lightweight motion on one shared system; product discovery witho
 | P7-ZC1  | ZiraHR palette (owner, 6 Nov 2026): warm brown, brown and orange, warm orange, white. Warm orange accents and buttons, warm brown as the second colour. The ZiraHR website sits on deep warm brown in the dark theme and white or warm white in the light theme, with brown bands for "brand" sections. Applied once to the published brand profile as a recorded revision (a Studio choice is kept). The official symbol keeps its own colours | ✅ |
 | UI-TH5  | FigBud Global home: contrasting bands for the corporate sections, then forms and overlays (brief section 5) | ✅ Bands: "Our philosophy" and "What we engineer" on the home page, "What we believe" on About. Overlays: one open and close motion and one dimmed backdrop for the cookie prompt, campaign pop-ups and mobile menus. Forms: one field style (`fieldClasses`) with a clear focus ring in the theme's focus colour, red while invalid, on the enquiry, waitlist, referral, pricing, calculator and campaign forms |
 | UI-MO8  | Editorial hero designs (the third style in the brief) for FigBud Global and ZiraHR, alongside the existing default and motion-led designs | ✅ FigBud Global 04 · The FigBud Edition and ZiraHR 04 · People, in Chapters, on one shared `EditorialHero`; in each website's Hero Design Studio, ready to select, preview in both themes and publish with approval |
+| UI-TH6  | FigBud Global alternating section themes (owner's brief, 8 Nov 2026): the hero follows the global theme, Our Platforms takes the opposite, and every major section alternates after it, counting only the sections on the page; switching theme flips them all together, keeping scroll position and demo state. Studio → FigBud Global → Section themes: automatic, follow or opposite per section, previewed for both global themes, draft then publish. Product colours follow the band they sit in | ✅ · "approved custom theme" not offered: no approved palettes beyond the two themes |
+| UI-MO12 | Compact pinned sections: the scroll stories and the eight-module showcase pin a content-height panel straight under their heading (no blank band), centred below the header while pinned, over a spacer sized to their steps, releasing right after the last | ✅ |
 | UI-AD1  | Auto-demo engine (owner's brief, 7 Nov 2026): demonstrations show themselves when most of them is in view. One shared clock, not one timer per demo. They pause off screen and under keyboard focus, hold a visitor's choice for a while before carrying on, stop after two passes, and have a pause/play/replay button. Reduced motion means no movement, and every control still works. Applied to the payslip (gross, PAYE, NSSF, SHIF, Housing Levy, net pay, each worked out), pay run, self-service, team calendar, leave approval (single stage, then multi-stage) and attendance | ✅ |
 | UI-MO11 | Eight-module showcase, pin → progress → complete → release: pinned once its heading passes; scrolling moves through all eight modules (the ring fills as each is reached), releases after the eighth and reverses on the way back; a module can be chosen directly; "Skip the modules"; about a fifth of a screen per module | ✅ |
 | UI-MO10 | Compact scroll architecture (owner's brief, 7 Nov 2026): the scroll stories become one pinned panel whose words and visual change together and reverse together (fragmented, connecting, unified, product outcome), at a third of a screen per step instead of 78% of one with blank buffers; step counter and dots; Our Platforms' runway cut from 70% to 45% of a screen per product | ✅ |
@@ -612,6 +614,20 @@ Scope: a four-page, SaaS-only ZiraHR website from the Enhanced Content & Develop
 
 | Date        | Change                                                                                                   |
 | ----------- | -------------------------------------------------------------------------------------------------------- |
+| 8 Nov 2026 | Alternating section themes on FigBud Global (UI-TH6) and the blank space before pinned sections (UI-MO12), on the owner's two briefs:
+- **Bands:**
+  - the hero follows each visitor's theme, Our Platforms takes the opposite, and the sections after it alternate: philosophy, Africa, engineering, customer proof (once published), company, closing panel;
+  - when proof isn't published it's skipped, so two neighbours never share a band;
+  - Trusted By shares Our Platforms' band, and the footer keeps its own look;
+  - switching theme flips every band together, in place.
+- **In the Studio:**
+  - Websites → FigBud Global → Section themes sets each section to automatic, follow or opposite;
+  - a strip previews the page's bands for dark-theme and light-theme visitors;
+  - changes are drafted, then published.
+- **Fix found by the contrast checks:** a product's colours inside a contrasting band (ZiraHR's orange in Our Platforms) kept the page's colours. They now follow the band, for every product.
+- **No blank band before pinned sections:**
+  - on ZiraHR, the eight modules and "One employee, one record, start to finish" left a screen-high gap under their headings, because the pinned panel was a full screen tall with its content centred;
+  - the panel is now its content's height, straight under the heading, centred below the header while pinned, over a spacer exactly as long as its steps need, and released right after the last step. |
 | 7 Nov 2026 | ZiraHR demonstrations that show themselves (UI-AD1, UI-MO11), on the owner's two briefs:
 - **No hidden controls needed:**
   - the payslip explains each line in turn: gross pay, PAYE with its bands and relief, NSSF tiers, SHIF, the Housing Levy, and finally net pay;

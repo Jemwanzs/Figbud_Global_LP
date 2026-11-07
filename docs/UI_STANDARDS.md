@@ -129,9 +129,10 @@ Motion explains and guides. It never decorates for its own sake, and content nev
     - Set `aria-live` only while `state === "manual"`, so automatic changes aren't announced.
     - Auto-demonstrate walkthroughs and illustrative dashboards only. Forms, calculators, consent, bookings and anything with real consequences stay user-controlled.
     - Use pin → progress → complete → release (`useScrollStory`) only where scrolling through states adds meaning, never for ordinary content.
+  - Section bands (UI-TH6): FigBud Global's home page sections get their tone from `sectionTones` (site-kit `section-themes.ts`) and `bandProps`. The hero follows the global theme, Our Platforms is opposite, then they alternate, counting only sections on the page. A new major section joins `HOME_SECTIONS` (API `site_settings.rs` too) and takes a `tone` prop. Never hard-code `data-tone` on a home section.
   - Form fields (UI-TH5): style every text field, select and number input with `fieldClasses()` from `@figbud/ui`, adding only spacing, width or type settings. It brings the 48px height, theme-aware surface, `aria-invalid` red border and a 3px focus ring in `--focus` (`--danger` while invalid). Never remove a focus style without replacing it.
   - Scroll stories (`ScrollStory` in `scroll-story.tsx`, UI-MO6; compact since 7 Nov 2026): one pinned panel holds the step's words and the visual (stacked on phones), both driven by the same scroll position, so they change and reverse together.
-    - **Scroll length:** one screen to settle, plus 34svh per further step (`.fb-story` in site-kit styles). Never a tall block per step.
+    - **Scroll length:** the pinned panel is its content's height, straight under its heading, centred below the header while pinned. A spacer after it (`[data-runway]`: 34svh per further step for stories, 22svh per module) is the only extra scrolling, so it releases right after the last step. Never a full-screen panel or a tall block per step.
     - **Words:** cross-fade in the direction of travel; a step counter and dots jump to a step.
     - **State:** `data-step` carries state for CSS transitions, and `--story-progress` (0 to 1 over the pinned stretch) carries position for lines.
     - **Without JavaScript:** the steps read as an ordinary list (`scripting: none`).

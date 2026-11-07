@@ -3,13 +3,15 @@ import {
   type BrandProfile,
   ProofMetrics,
   type PublicProof,
+  type BandTone,
   type ShowcaseSettings,
   Testimonials,
   TrustedBy,
+  bandProps,
   orderBySlug,
 } from "@figbud/site-kit";
 import { type Locale, localeInfo, localizePath } from "@figbud/i18n";
-import { Container, Eyebrow, Reveal, RevealGroup, buttonClasses, revealOrder } from "@figbud/ui";
+import { Container, Eyebrow, Reveal, RevealGroup, buttonClasses, cn, revealOrder } from "@figbud/ui";
 import { ArrowRight, Calculator, Cable, ChartSpline, ShieldCheck, Workflow } from "lucide-react";
 import Link from "next/link";
 
@@ -20,7 +22,13 @@ import { AfricaMap } from "./africa-map";
 import { PlatformShowcase } from "./platform-showcase";
 import { WorkflowDemo } from "./workflow-demo";
 
-type SectionProps = { locale: Locale; dict: Dictionary };
+/**
+ * Each major section sits on its own band: following the global theme or its
+ * opposite (UI-TH6, set by the page from `sectionTones`), with its own
+ * background so neighbouring bands meet cleanly.
+ */
+type SectionProps = { locale: Locale; dict: Dictionary; tone?: BandTone };
+const BAND = "bg-bg text-text";
 
 function SectionHeading({
   id,
@@ -53,6 +61,7 @@ export function PlatformsSection({
   brands,
   rotation,
   showcase,
+  tone,
 }: SectionProps & {
   products: Product[];
   brands: Record<string, BrandProfile | null>;
@@ -63,7 +72,12 @@ export function PlatformsSection({
 }) {
   const platforms = dict.home.platforms;
   return (
-    <section id="platforms" aria-labelledby="platforms-title" className="relative pt-section-sm pb-section">
+    <section
+      id="platforms"
+      aria-labelledby="platforms-title"
+      {...bandProps(tone)}
+      className={cn("relative py-section", BAND)}
+    >
       <Container size="wide">
         <SectionHeading
           id="platforms-title"
@@ -88,14 +102,13 @@ export function PlatformsSection({
   );
 }
 
-export function PhilosophySection({ dict }: SectionProps) {
+export function PhilosophySection({ dict, tone }: SectionProps) {
   const philosophy = dict.home.philosophy;
   return (
-    // Contrasting band (UI-TH5): the other theme's colours, flipping with the global switch.
     <section
       aria-labelledby="philosophy-title"
-      data-tone="inverse"
-      className="relative overflow-x-clip bg-bg py-section text-text"
+      {...bandProps(tone)}
+      className={cn("relative overflow-x-clip py-section", BAND)}
     >
       <Container>
         <SectionHeading id="philosophy-title" eyebrow={philosophy.eyebrow} title={philosophy.title} />
@@ -140,10 +153,15 @@ export function AfricaSection({
   dict,
   products,
   brands,
+  tone,
 }: SectionProps & { products: Product[]; brands: Record<string, BrandProfile | null> }) {
   const africa = dict.home.africa;
   return (
-    <section aria-labelledby="africa-title" className="relative overflow-hidden py-section">
+    <section
+      aria-labelledby="africa-title"
+      {...bandProps(tone)}
+      className={cn("relative overflow-hidden py-section", BAND)}
+    >
       <div
         aria-hidden
         className="pointer-events-none absolute end-[-15%] top-1/2 -z-10 h-[46rem] w-[46rem] -translate-y-1/2 rounded-full bg-[radial-gradient(closest-side,var(--glow),transparent)] opacity-60"
@@ -197,14 +215,13 @@ const capabilityIcons = {
   analytics: ChartSpline,
 } as const;
 
-export function EngineerSection({ dict }: SectionProps) {
+export function EngineerSection({ dict, tone }: SectionProps) {
   const engineer = dict.home.engineer;
   return (
-    // The second contrasting band, so the page alternates as it scrolls.
     <section
       aria-labelledby="engineer-title"
-      data-tone="inverse"
-      className="relative overflow-x-clip bg-bg py-section text-text"
+      {...bandProps(tone)}
+      className={cn("relative overflow-x-clip py-section", BAND)}
     >
       <Container size="wide" className="grid gap-14 lg:grid-cols-12 lg:gap-16">
         <div className="lg:col-span-5">
@@ -258,21 +275,25 @@ export function EngineerSection({ dict }: SectionProps) {
 }
 
 /** Trusted By logos (Studio → Content & Marketing); nothing renders until one is published. */
-export function TrustedBySection({ dict, proof }: SectionProps & { proof: PublicProof }) {
+export function TrustedBySection({ dict, proof, tone }: SectionProps & { proof: PublicProof }) {
+  if (!proof.organizations.length) return null;
   return (
-    <TrustedBy
-      organizations={proof.organizations}
-      labels={dict.home.proof.trustedBy}
-      className="border-t border-line pt-section-sm pb-section-sm"
-    />
+    // On Our Platforms' band: the logos belong with the platforms.
+    <div {...bandProps(tone)} data-band-shared="platforms" className={BAND}>
+      <TrustedBy
+        organizations={proof.organizations}
+        labels={dict.home.proof.trustedBy}
+        className="border-t border-line pt-section-sm pb-section-sm"
+      />
+    </div>
   );
 }
 
 /** Verified metrics and testimonials; each renders only when something is published. */
-export function CustomerProofSection({ locale, dict, proof }: SectionProps & { proof: PublicProof }) {
+export function CustomerProofSection({ locale, dict, proof, tone }: SectionProps & { proof: PublicProof }) {
   if (!proof.metrics.length && !proof.testimonials.length) return null;
   return (
-    <div className="border-t border-line py-section">
+    <div {...bandProps(tone)} className={cn("py-section", BAND)}>
       <Container size="wide" className="space-y-section">
         <ProofMetrics
           metrics={proof.metrics}
@@ -285,10 +306,10 @@ export function CustomerProofSection({ locale, dict, proof }: SectionProps & { p
   );
 }
 
-export function CompanySection({ locale, dict }: SectionProps) {
+export function CompanySection({ locale, dict, tone }: SectionProps) {
   const company = dict.home.company;
   return (
-    <section aria-labelledby="company-title" className="relative border-t border-line py-section">
+    <section aria-labelledby="company-title" {...bandProps(tone)} className={cn("relative py-section", BAND)}>
       <Container size="wide" className="grid gap-16 lg:grid-cols-12 lg:gap-12">
         <Reveal className="lg:col-span-7">
           <Eyebrow>{company.eyebrow}</Eyebrow>
@@ -347,11 +368,16 @@ export function CompanySection({ locale, dict }: SectionProps) {
   );
 }
 
-export function FinalCtaSection({ locale, dict }: SectionProps) {
+export function FinalCtaSection({ locale, dict, tone }: SectionProps) {
   const cta = dict.home.finalCta;
   return (
     // Marked as the page's own call to action, so the footer doesn't add a second one.
-    <section aria-labelledby="final-cta-title" data-section="call_to_action" className="pb-section">
+    <section
+      aria-labelledby="final-cta-title"
+      data-section="call_to_action"
+      {...bandProps(tone)}
+      className={cn("py-section", BAND)}
+    >
       <Container size="wide">
         <Reveal className="relative isolate overflow-hidden rounded-[2rem] border border-line bg-surface px-6 py-12 text-center sm:px-12 sm:py-16 lg:py-20">
           <div aria-hidden className="absolute inset-0 -z-10">

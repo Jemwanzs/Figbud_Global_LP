@@ -2,6 +2,7 @@ import { buttonClasses } from "@figbud/ui";
 import {
   Calculator,
   FileStack,
+  Contrast,
   GalleryHorizontal,
   Images,
   Palette,
@@ -98,6 +99,15 @@ async function Site({ params }: Pick<PageProps<"/admin/sites/[slug]">, "params">
           <Link href={`/admin/sites/${site.slug}/platforms`} className={buttonClasses("secondary", "md")}>
             <GalleryHorizontal aria-hidden className="size-4" />
             Our Platforms
+          </Link>
+        )}
+        {site.kind === "corporate" && (
+          <Link
+            href={`/admin/sites/${site.slug}/section-themes`}
+            className={buttonClasses("secondary", "md")}
+          >
+            <Contrast aria-hidden className="size-4" />
+            Section themes
           </Link>
         )}
         {site.slug === "zirahr" && (

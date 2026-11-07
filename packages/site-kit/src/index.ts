@@ -15,6 +15,7 @@ export * from "./consent";
 export * from "./footer-layout";
 export * from "./forms";
 export * from "./phone";
+export * from "./section-themes";
 export * from "./seo";
 export * from "./cross-site";
 export * from "./language-switcher";

@@ -29,6 +29,9 @@ const toForm = (s: Partial<WebsiteSettings>): WebsiteSettings => ({
   // Edited on the Footer page; sent back unchanged so saving here never resets it.
   footer: s.footer ?? { links: [] },
   ...(s.footer_draft ? { footer_draft: s.footer_draft } : {}),
+  // Edited on the Section themes page; likewise.
+  ...(s.section_themes ? { section_themes: s.section_themes } : {}),
+  ...(s.section_themes_draft ? { section_themes_draft: s.section_themes_draft } : {}),
   enquiries: { open: s.enquiries?.open ?? true, closed_message: s.enquiries?.closed_message ?? "" },
   theme: { brand_section: s.theme?.brand_section ?? "", soft_section: s.theme?.soft_section ?? "" },
   motion: {

@@ -880,11 +880,8 @@ body:has(main [data-section="call_to_action"]:last-child) footer {
 /* Compact stories (7 Nov 2026): one screen for the panel to settle, then a
    third of a screen for each further step. The words cross-fade in the
    direction of travel, so scrolling back up reverses them. */
-.fb-story {
-  height: calc(100svh - var(--story-top, 4.5rem) + (var(--story-steps, 4) - 1) * 34svh);
-}
-.fb-story-pin {
-  min-height: calc(100svh - var(--story-top, 4.5rem));
+.fb-story-runway {
+  height: calc((var(--story-steps, 4) - 1) * 34svh);
 }
 .fb-story-step {
   transition:
@@ -910,15 +907,12 @@ body:has(main [data-section="call_to_action"]:last-child) footer {
 }
 /* The eight-module showcase (7 Nov 2026): pinned while scrolling moves it
    through every module, about a fifth of a screen each, then released. */
-.fb-modules {
-  height: calc(100svh - var(--story-top, 4.5rem) + (var(--story-steps, 8) - 1) * 22svh);
-}
-.fb-modules-pin {
-  min-height: calc(100svh - var(--story-top, 4.5rem));
+.fb-modules-runway {
+  height: calc((var(--story-steps, 8) - 1) * 22svh);
 }
 @media (scripting: none) {
-  .fb-modules {
-    height: auto;
+  .fb-modules-runway {
+    display: none;
   }
   .fb-modules-pin {
     position: static;
@@ -929,8 +923,8 @@ body:has(main [data-section="call_to_action"]:last-child) footer {
 }
 /* Without JavaScript, the story reads as an ordinary list. */
 @media (scripting: none) {
-  .fb-story {
-    height: auto;
+  .fb-story-runway {
+    display: none;
   }
   .fb-story-pin {
     position: static;

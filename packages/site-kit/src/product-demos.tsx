@@ -137,7 +137,7 @@ function ConnectedModules() {
       style={{ "--story-steps": count, "--story-progress": 0 } as CSSProperties}
       className="fb-modules relative"
     >
-      <div className="fb-modules-pin sticky top-[var(--story-top,4.5rem)] flex flex-col justify-center py-2 @3xl:py-4">
+      <div className="fb-modules-pin sticky top-[var(--story-top,4.5rem)] py-2 @3xl:py-4">
         <div
           data-tone="inverse"
           className="fb-demo-stage grid items-center gap-4 overflow-hidden rounded-[var(--radius-panel)] p-5 text-text sm:p-8 @3xl:grid-cols-2 @3xl:gap-8"
@@ -225,6 +225,8 @@ function ConnectedModules() {
           </div>
         </div>
       </div>
+      {/* The scrolling the eight modules need: pinned over it, then released. */}
+      <div aria-hidden data-runway="" className="fb-modules-runway" />
     </div>
   );
 }

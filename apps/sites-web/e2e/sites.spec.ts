@@ -411,6 +411,23 @@ test("a product website shows its own hover previews, never FigBud Global's word
   await expect(page).toHaveURL(/\/ziwa\/platform$/);
 });
 
+/**
+ * Scrolls a pinned section (story or module showcase) to a fraction of its
+ * pinned stretch, from its own geometry: where the panel rests (`--story-top`)
+ * and the spacer it's pinned over (`[data-runway]`).
+ */
+const scrollToFraction = (el: Element, fraction: number) => {
+  const section = el as HTMLElement;
+  const header = document.querySelector("header")!.offsetHeight;
+  const pin = (section.firstElementChild as HTMLElement).offsetHeight;
+  const top = Math.max(header, Math.round((innerHeight + header - pin) / 2));
+  const travel = section.querySelector<HTMLElement>("[data-runway]")!.offsetHeight;
+  window.scrollTo({
+    top: section.getBoundingClientRect().top + window.scrollY - top + travel * fraction,
+    behavior: "instant",
+  });
+};
+
 /** Accessibility violations on the page, by rule and element. */
 const axe = async (page: Page) =>
   (
@@ -585,6 +602,10 @@ test.describe("ZiraHR: payroll calculator and demonstrations (P14)", () => {
     const story = page.locator('[data-story="scattered-to-connected"]');
     const steps = story.locator("[data-story-step]");
     await expect(steps).toHaveCount(4);
+    // Right under its heading and introduction: no blank band before the panel.
+    const lead = page.locator("section").filter({ has: story }).locator("p").first();
+    const leadBox = (await lead.boundingBox())!;
+    expect((await story.boundingBox())!.y - (leadBox.y + leadBox.height)).toBeLessThanOrEqual(64);
     // All the words are there at once, in order, whatever the visual is doing.
     await expect(steps.nth(3)).toContainText("So the work moves by itself.");
     await expect(story.locator('[aria-hidden="true"]').first()).toBeAttached();
@@ -595,15 +616,7 @@ test.describe("ZiraHR: payroll calculator and demonstrations (P14)", () => {
 
     // Scrolling moves the words and the visual on together, step by step, and back again.
     const dot = (i: number) => story.getByRole("button", { name: new RegExp(`^Step ${i + 1}:`) });
-    const scrollTo = (fraction: number) =>
-      story.evaluate((el, f) => {
-        const header = document.querySelector("header")!.offsetHeight;
-        const top = el.getBoundingClientRect().top + window.scrollY - header;
-        window.scrollTo({
-          top: top + ((el as HTMLElement).offsetHeight - (innerHeight - header)) * f,
-          behavior: "instant",
-        });
-      }, fraction);
+    const scrollTo = (fraction: number) => story.evaluate(scrollToFraction, fraction);
     for (const [fraction, i] of [
       [0.1, 0],
       [0.35, 1],
@@ -822,18 +835,15 @@ test.describe("ZiraHR: payroll calculator and demonstrations (P14)", () => {
     await page.goto("/zirahr/platform");
     const showcase = page.locator("[data-modules]");
     const pin = showcase.locator(".fb-modules-pin");
+    // Right under its heading and introduction: no blank band before the showcase.
+    const intro = page.locator("section").filter({ has: showcase }).locator("p").first();
+    const gap =
+      (await pin.boundingBox())!.y - ((await intro.boundingBox())!.y + (await intro.boundingBox())!.height);
+    expect(gap).toBeLessThanOrEqual(64);
     const viewport = page.viewportSize()!.height;
     // About a fifth of a screen per module after the first, no more.
     expect((await showcase.boundingBox())!.height).toBeLessThanOrEqual(viewport * (1 + 7 * 0.22) + 2);
-    const at = (fraction: number) =>
-      showcase.evaluate((el, f) => {
-        const header = document.querySelector("header")!.offsetHeight;
-        const top = el.getBoundingClientRect().top + window.scrollY - header;
-        window.scrollTo({
-          top: top + ((el as HTMLElement).offsetHeight - (innerHeight - header)) * f,
-          behavior: "instant",
-        });
-      }, fraction);
+    const at = (fraction: number) => showcase.evaluate(scrollToFraction, fraction);
     const tabs = showcase.getByRole("tab");
     // Measured once the page is interactive (the first module is also the starting state).
     await at(0.05);

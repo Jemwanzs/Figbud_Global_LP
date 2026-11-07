@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
-import { CampaignSlot, JsonLd, websiteLd } from "@figbud/site-kit";
+import { CampaignSlot, type HomeSection, JsonLd, sectionTones, websiteLd } from "@figbud/site-kit";
 
 import { HeroSlot } from "@/components/home/heroes/hero-slot";
 import {
@@ -25,6 +25,7 @@ import {
   getShowcase,
   getProof,
   getPublicProducts,
+  getSectionThemes,
 } from "@/lib/products";
 import { pageMetadata, siteOrigin } from "@/lib/site";
 
@@ -39,7 +40,7 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
   const { locale } = await params;
   if (!isLocale(locale)) notFound();
   const dict = await getDictionary(locale);
-  const [products, mapProducts, brands, rotation, showcase, proof, hero] = await Promise.all([
+  const [products, mapProducts, brands, rotation, showcase, proof, hero, themes] = await Promise.all([
     getPublicProducts(),
     getMapProducts(),
     getBrands(),
@@ -47,7 +48,20 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
     getShowcase(),
     getProof(),
     getHero(),
+    getSectionThemes(),
   ]);
+  // Alternating bands (UI-TH6): the hero follows the global theme, Our Platforms
+  // takes the opposite, and the sections on the page alternate from there.
+  const present: HomeSection[] = [
+    "platforms",
+    "philosophy",
+    "africa",
+    "engineer",
+    ...(proof.metrics.length || proof.testimonials.length ? (["proof"] as const) : []),
+    "company",
+    "closing",
+  ];
+  const tone = sectionTones(present, themes);
 
   return (
     <>
@@ -62,6 +76,7 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
       {/* Each boundary hydrates as its own task, keeping the main thread responsive. */}
       <Suspense>
         <PlatformsSection
+          tone={tone.platforms}
           locale={locale}
           dict={dict}
           products={products}
@@ -71,25 +86,31 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
         />
       </Suspense>
       <Suspense>
-        <TrustedBySection locale={locale} dict={dict} proof={proof} />
+        <TrustedBySection tone={tone.platforms} locale={locale} dict={dict} proof={proof} />
       </Suspense>
       <Suspense>
-        <PhilosophySection locale={locale} dict={dict} />
+        <PhilosophySection tone={tone.philosophy} locale={locale} dict={dict} />
       </Suspense>
       <Suspense>
-        <AfricaSection locale={locale} dict={dict} products={mapProducts} brands={brands} />
+        <AfricaSection
+          tone={tone.africa}
+          locale={locale}
+          dict={dict}
+          products={mapProducts}
+          brands={brands}
+        />
       </Suspense>
       <Suspense>
-        <EngineerSection locale={locale} dict={dict} />
+        <EngineerSection tone={tone.engineer} locale={locale} dict={dict} />
       </Suspense>
       <Suspense>
-        <CustomerProofSection locale={locale} dict={dict} proof={proof} />
+        <CustomerProofSection tone={tone.proof} locale={locale} dict={dict} proof={proof} />
       </Suspense>
       <Suspense>
-        <CompanySection locale={locale} dict={dict} />
+        <CompanySection tone={tone.company} locale={locale} dict={dict} />
       </Suspense>
       <Suspense>
-        <FinalCtaSection locale={locale} dict={dict} />
+        <FinalCtaSection tone={tone.closing} locale={locale} dict={dict} />
       </Suspense>
     </>
   );

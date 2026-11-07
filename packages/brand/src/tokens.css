@@ -176,6 +176,42 @@
 [data-theme="light"] [data-theme="dark"] [data-product="ziwa"] {
   --product-text: #fb7a1a;
 }
+/* A product inside a contrasting band (UI-TH6: Our Platforms on the corporate
+   home page) takes the band's colours: the light-background text on a light
+   band over a dark page, the dark-background text on a dark band over a light
+   page; inside two bands, the page's own again. */
+[data-theme="dark"] [data-tone="inverse"] [data-product="zirahr"],
+[data-theme="light"] [data-tone="inverse"] [data-tone="inverse"] [data-product="zirahr"] {
+  --product-text: #9a4a12;
+}
+[data-theme="light"] [data-tone="inverse"] [data-product="zirahr"],
+[data-theme="dark"] [data-tone="inverse"] [data-tone="inverse"] [data-product="zirahr"] {
+  --product-text: #ffa95e;
+}
+[data-theme="dark"] [data-tone="inverse"] [data-product="jasiri"],
+[data-theme="light"] [data-tone="inverse"] [data-tone="inverse"] [data-product="jasiri"] {
+  --product-text: #15803d;
+}
+[data-theme="light"] [data-tone="inverse"] [data-product="jasiri"],
+[data-theme="dark"] [data-tone="inverse"] [data-tone="inverse"] [data-product="jasiri"] {
+  --product-text: #4ade80;
+}
+[data-theme="dark"] [data-tone="inverse"] [data-product="ziwa"],
+[data-theme="light"] [data-tone="inverse"] [data-tone="inverse"] [data-product="ziwa"] {
+  --product-text: #a8480c;
+}
+[data-theme="light"] [data-tone="inverse"] [data-product="ziwa"],
+[data-theme="dark"] [data-tone="inverse"] [data-tone="inverse"] [data-product="ziwa"] {
+  --product-text: #fb7a1a;
+}
+[data-theme="dark"] [data-tone="inverse"] [data-product="expense_now"],
+[data-theme="light"] [data-tone="inverse"] [data-tone="inverse"] [data-product="expense_now"] {
+  --product-text: #a84f00;
+}
+[data-theme="light"] [data-tone="inverse"] [data-product="expense_now"],
+[data-theme="dark"] [data-tone="inverse"] [data-tone="inverse"] [data-product="expense_now"] {
+  --product-text: #ff8a1f;
+}
 
 @theme inline {
   --color-bg: var(--bg);

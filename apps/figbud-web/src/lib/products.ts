@@ -8,6 +8,7 @@ import {
   type NavPreviewContent,
   type PublicProof,
   type PublishedHero,
+  type SectionThemes,
   type ShowcaseSettings,
   type SiteFooterSettings,
   type SiteSeo,
@@ -133,6 +134,12 @@ export async function getNavPreviews(
 ): Promise<Record<string, NavPreviewContent>> {
   const settings = (await getListedSites())?.find((s) => s.slug === "figbud")?.settings;
   return resolveNavPreviews(settings?.nav_previews, defaults, locale === "en");
+}
+
+/** The home page's section themes as published in the Studio (Studio → FigBud Global → Section themes). */
+export async function getSectionThemes(): Promise<SectionThemes> {
+  const themes = (await getListedSites())?.find((s) => s.slug === "figbud")?.settings?.section_themes;
+  return (themes ?? {}) as SectionThemes;
 }
 
 /** The corporate footer as published in the Studio (Studio → FigBud Global → Footer). */

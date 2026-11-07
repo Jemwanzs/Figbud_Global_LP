@@ -14,6 +14,8 @@ use axum::{
     response::IntoResponse,
     routing::get,
 };
+use std::collections::BTreeMap;
+
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -538,6 +540,53 @@ pub struct WebsiteSettings {
     pub nav_previews_draft: Option<NavPreviews>,
     /// The footer being edited in the Studio; likewise never sent.
     pub footer_draft: Option<Footer>,
+    /// FigBud Global's home page section themes (owner's brief, 8 Nov 2026): a
+    /// section listed here follows or inverts the global theme; any other
+    /// alternates automatically. The hero always follows.
+    pub section_themes: BTreeMap<String, SectionTone>,
+    /// Saved in the Studio but not published.
+    pub section_themes_draft: Option<BTreeMap<String, SectionTone>>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum SectionTone {
+    Follow,
+    Inverse,
+}
+
+/// Must match `HOME_SECTIONS` in `packages/site-kit/src/section-themes.ts`.
+const HOME_SECTIONS: [&str; 7] = [
+    "platforms",
+    "philosophy",
+    "africa",
+    "engineer",
+    "proof",
+    "company",
+    "closing",
+];
+
+fn check_section_themes(
+    errors: &mut Vec<FieldError>,
+    themes: &BTreeMap<String, SectionTone>,
+    corporate: bool,
+) {
+    if themes.is_empty() {
+        return;
+    }
+    if !corporate {
+        errors.push(FieldError {
+            field: "section_themes",
+            code: "corporate",
+            message: "Section themes are for FigBud Global's home page.",
+        });
+    } else if themes.keys().any(|k| !HOME_SECTIONS.contains(&k.as_str())) {
+        errors.push(FieldError {
+            field: "section_themes",
+            code: "unknown",
+            message: "Choose a section of the home page.",
+        });
+    }
 }
 
 /// Body and muted text colours of the light theme (packages/brand/src/tokens.css).
@@ -634,6 +683,10 @@ impl WebsiteSettings {
             });
         }
         check_footer(&mut e, &mut self.footer);
+        check_section_themes(&mut e, &self.section_themes, corporate);
+        if let Some(draft) = &self.section_themes_draft {
+            check_section_themes(&mut e, draft, corporate);
+        }
         if let Some(draft) = &mut self.footer_draft {
             check_footer(&mut e, draft);
         }
@@ -700,6 +753,7 @@ impl WebsiteSettings {
             "motion": self.motion,
             "showcase": self.showcase,
             "nav_previews": self.nav_previews,
+            "section_themes": self.section_themes,
         })
     }
 }
@@ -922,6 +976,28 @@ mod tests {
         assert!(settings.clone().normalise(false).is_ok());
         let errors = settings.normalise(true).unwrap_err();
         assert_eq!(errors[0].field, "enquiries.open");
+    }
+
+    #[test]
+    fn section_themes_are_for_the_corporate_home_page_and_drafts_stay_private() {
+        let settings = WebsiteSettings::from_stored(json!({
+            "section_themes": { "platforms": "inverse", "company": "follow" },
+            "section_themes_draft": { "africa": "follow" },
+        }))
+        .normalise(true)
+        .unwrap();
+        let public = settings.public();
+        assert_eq!(public["section_themes"]["platforms"], "inverse");
+        assert!(public.get("section_themes_draft").is_none());
+        assert!(!public.to_string().contains("africa"));
+
+        let unknown = WebsiteSettings::from_stored(json!({ "section_themes": { "hero": "inverse" } }));
+        assert_eq!(unknown.normalise(true).unwrap_err()[0].field, "section_themes");
+        let product = WebsiteSettings::from_stored(json!({ "section_themes_draft": { "africa": "follow" } }));
+        assert_eq!(product.normalise(false).unwrap_err()[0].code, "corporate");
+        // Anything else than follow or inverse isn't a theme: stored settings fall back to the defaults.
+        let odd = WebsiteSettings::from_stored(json!({ "section_themes": { "africa": "purple" } }));
+        assert!(odd.section_themes.is_empty());
     }
 
     #[test]
