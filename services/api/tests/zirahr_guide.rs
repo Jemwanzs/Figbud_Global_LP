@@ -595,6 +595,9 @@ async fn the_attendance_demonstration_joins_the_platform_page_once() {
     let Some(pool) = database().await else { return };
     let _turn = ZIRAHR.lock().await;
     import::run(&pool).await.unwrap();
+    // The Platform page exists once the guide is drafted and launched, whatever ran before.
+    zirahr_guide::run(&pool).await.unwrap();
+    zirahr_guide::launch(&pool).await.unwrap();
     let site: Uuid = sqlx::query_scalar("SELECT id FROM sites WHERE slug = 'zirahr'")
         .fetch_one(&pool)
         .await
