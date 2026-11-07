@@ -316,7 +316,7 @@ Items marked **Blocking** stop the listed tasks; everything else proceeds with t
 | P4-Z2   | Platform and Modules pages (Employee 360, payroll, leave, attendance, performance, collaboration, analytics, ESS) — each a distinct interactive experience | ✅ Studio-built Platform page: module catalogue and demonstrations (P14-W1) |
 | P4-Z3   | Kenya payroll engine: rules-based, effective-dated, unit-tested against signed-off cases      |  ✅ Built as P14-C1 (engine) and P14-C2 (dated rules, checked 5 Nov 2026, Q24 closed) |
 | P4-Z4   | Payroll calculator page (Kenya default; other countries disabled until validated)             |  ✅ Built and published as P14-C3 |
-| P4-Z5   | Leave approval journey animation; attendance location-and-shift demo                           | 🔄 Leave approval and team calendar done (P14-W1); attendance demo not built |
+| P4-Z5   | Leave approval journey animation; attendance location-and-shift demo                           |  ✅ Leave approval and team calendar (P14-W1); attendance and shifts demonstration added to the Platform page (7 Nov 2026) |
 | P4-Z6   | Solutions, Resources, Pricing, Company, Book a Demo                                            |  ↪ Superseded by the approved four-page structure (P14-W2): Home, Platform, About, Contact & Demo, plus the payroll calculator and Refer & earn. ZiraHR pricing has no approved figures yet (Pricing Studio, P11) |
 | **Jasiri LMS** |  |  |
 | P4-J1   | Homepage — Lending is complex. Your technology shouldn't be.                                   | ⬜ |
@@ -610,6 +610,12 @@ Scope: a four-page, SaaS-only ZiraHR website from the Enhanced Content & Develop
 
 | Date        | Change                                                                                                   |
 | ----------- | -------------------------------------------------------------------------------------------------------- |
+| 7 Nov 2026 | Attendance and shifts demonstration (P4-Z5 complete). On ZiraHR's Platform page, after the leave approval demo, visitors try one synthetic day on the 08:00 to 17:00 shift:
+- **The start:** on time, late, or away from the branch. Away from the branch waits for a supervisor before it counts.
+- **The finish:** at the end of the shift or after a late finish. Overtime waits for a supervisor before it reaches payroll.
+- **The timesheet:** the week's figures update as the day changes.
+- **Scope:** it stays within what the content guide confirms. Location checks apply "where your organisation turns them on", and the grace period and overtime rules are the organisation's to set. It's labelled as illustrative.
+- **How it got there:** added once as a new version of the page (a later Studio removal is kept), and available as a demonstration in the Studio's page builder. |
 | 7 Nov 2026 | Progress baseline and roadmap reconciliation:
 - **Baseline:** `npm run roadmap:progress` computes each workstream's completion from this roadmap and writes `docs/PROGRESS.md`. Each row is one deliverable: ✅ counts 1, 🔄 or 🟡 counts 0.5, and ⬜ or ⛔ count 0; on hold and superseded rows are left out. The script records which rows belong to FigBud Global, ZiraHR and the Admin Studio.
 - **Stale rows corrected:**

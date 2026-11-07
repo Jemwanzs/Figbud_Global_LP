@@ -1986,6 +1986,7 @@ seedPublishedPage("zirahr", "platform", "Platform", {
     { id: "zp-story", type: "demo", demo: "scattered_to_connected", heading: "From scattered to connected." },
     { id: "zp-path", type: "demo", demo: "employee_journey", heading: "One employee, start to finish." },
     { id: "zp-cal", type: "demo", demo: "team_calendar", heading: "See who's out." },
+    { id: "zp-att", type: "demo", demo: "attendance", heading: "The hours, counted for you." },
     { id: "zp-leave", type: "demo", demo: "leave_flow", heading: "Time off, without the back-and-forth." },
     { id: "zp-out", type: "demo", demo: "outputs", heading: "What a finished run gives you." },
   ],

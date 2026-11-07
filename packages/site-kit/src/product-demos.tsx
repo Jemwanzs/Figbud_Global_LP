@@ -41,6 +41,7 @@ export type DemoKind =
   | "outputs"
   | "leave_flow"
   | "team_calendar"
+  | "attendance"
   | "scattered_to_connected"
   | "employee_journey";
 
@@ -1025,6 +1026,208 @@ function TeamCalendar() {
   );
 }
 
+/* Attendance and shifts (P4-Z5): one synthetic day on the 08:00 to 17:00 day
+   shift, within the guide's confirmed scope: browser clock-ins with a location
+   check where it's turned on, late arrivals after a grace period, and overtime
+   a supervisor approves before it reaches payroll. */
+const SHIFT = { start: 8 * 60, end: 17 * 60, grace: 10, lunch: 60 };
+const ARRIVALS = {
+  on_time: { label: "On time", at: 7 * 60 + 58, onSite: true },
+  late: { label: "Late", at: 8 * 60 + 41, onSite: true },
+  away: { label: "Away from the branch", at: 8 * 60 + 5, onSite: false },
+} as const;
+const DEPARTURES = {
+  shift_end: { label: "At the end of the shift", at: 17 * 60 + 2 },
+  late_finish: { label: "After a late finish", at: 19 * 60 + 4 },
+} as const;
+const WEEK = [
+  ["Mon", 480],
+  ["Tue", 480],
+  ["Wed", 450],
+] as const;
+const clock = (minutes: number) =>
+  `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
+const hours = (minutes: number) =>
+  minutes % 60
+    ? `${Math.floor(minutes / 60)}h ${String(minutes % 60).padStart(2, "0")}m`
+    : `${minutes / 60}h`;
+
+/** One day's clock-ins: choose how it goes, and see the timesheet, flags and overtime approval follow. */
+function Attendance() {
+  const [arrival, setArrival] = useState<keyof typeof ARRIVALS>("on_time");
+  const [departure, setDeparture] = useState<keyof typeof DEPARTURES>("shift_end");
+  const [approved, setApproved] = useState({ location: false, overtime: false });
+  const day = ARRIVALS[arrival];
+  const out = DEPARTURES[departure].at;
+  const worked = out - day.at - SHIFT.lunch;
+  const regular = Math.min(worked, SHIFT.end - SHIFT.start - SHIFT.lunch);
+  // Overtime counts in whole quarter hours, as most organisations set it.
+  const overtime = Math.floor(Math.max(0, worked - regular) / 15) * 15;
+  const late = Math.max(0, day.at - SHIFT.start);
+  const flaggedLate = late > SHIFT.grace;
+  const needsLocation = !day.onSite && !approved.location;
+  const total = WEEK.reduce((sum, [, m]) => sum + m, 0) + regular + (approved.overtime ? overtime : 0);
+  const choose = (update: () => void) => {
+    update();
+    setApproved({ location: false, overtime: false });
+  };
+  const segmented = <K extends string>(
+    label: string,
+    options: Record<K, { label: string }>,
+    value: K,
+    onChange: (key: K) => void,
+  ) => (
+    <div role="group" aria-label={label} className="flex flex-wrap gap-1.5">
+      {(Object.keys(options) as K[]).map((key) => (
+        <button
+          key={key}
+          type="button"
+          aria-pressed={value === key}
+          onClick={() => onChange(key)}
+          className={cn(
+            "min-h-11 rounded-full border px-3.5 text-sm transition-colors",
+            value === key
+              ? "border-product bg-product font-medium text-product-ink"
+              : "border-line text-muted hover:text-text",
+          )}
+        >
+          {options[key].label}
+        </button>
+      ))}
+    </div>
+  );
+  return (
+    <div className="grid gap-5 @3xl:grid-cols-12">
+      <div className="fb-panel rounded-[var(--radius-panel)] p-5 sm:p-6 @3xl:col-span-5">
+        <p className="truncate rounded-full bg-surface-2 px-3 py-1.5 text-center text-xs text-muted">
+          Your company&apos;s ZiraHR, in your browser
+        </p>
+        <h3 className="mt-4 font-semibold text-text">Thursday · Day shift, 08:00 to 17:00</h3>
+        <p className="text-sm text-muted">Nairobi branch</p>
+        <p className="mt-5 text-sm font-medium text-text">How did the day start?</p>
+        <div className="mt-2">
+          {segmented("Clock-in", ARRIVALS, arrival, (k) => choose(() => setArrival(k)))}
+        </div>
+        <p className="mt-5 text-sm font-medium text-text">And end?</p>
+        <div className="mt-2">
+          {segmented("Clock-out", DEPARTURES, departure, (k) => choose(() => setDeparture(k)))}
+        </div>
+        <p className="mt-5 text-xs text-subtle">
+          Location checks apply where your organisation turns them on. The grace period and overtime rules are
+          yours to set.
+        </p>
+      </div>
+      <div
+        data-tone="inverse"
+        className="fb-demo-stage rounded-[var(--radius-panel)] p-5 text-text sm:p-6 @3xl:col-span-7"
+      >
+        <ul className="space-y-2.5 text-sm" aria-live="polite" data-testid="attendance-day">
+          <li className="flex flex-wrap items-start gap-3">
+            {day.onSite || approved.location ? (
+              <CircleCheck aria-hidden className="size-5 shrink-0 text-product-text" />
+            ) : (
+              <CircleDashed aria-hidden className="size-5 shrink-0 text-text" />
+            )}
+            <span className="min-w-0 flex-1 basis-56">
+              <span className="block text-text">{`Clocked in ${clock(day.at)}`}</span>
+              <span className="block text-muted">
+                {day.onSite
+                  ? "Location check: inside the branch's area."
+                  : approved.location
+                    ? "Outside the branch's area: approved by the supervisor."
+                    : "Outside the branch's area: waiting for the supervisor."}
+              </span>
+            </span>
+            {needsLocation && (
+              <button
+                type="button"
+                onClick={() => setApproved((a) => ({ ...a, location: true }))}
+                className={buttonClasses("product", "md", "ms-8 shrink-0 @xl:ms-0")}
+              >
+                Approve as supervisor
+              </button>
+            )}
+          </li>
+          <li className="flex flex-wrap items-start gap-3">
+            {flaggedLate ? (
+              <CircleDashed aria-hidden className="size-5 shrink-0 text-text" />
+            ) : (
+              <CircleCheck aria-hidden className="size-5 shrink-0 text-product-text" />
+            )}
+            <span className="min-w-0 flex-1 basis-56">
+              <span className="block text-text">{flaggedLate ? `${late} minutes late` : "On time"}</span>
+              <span className="block text-muted">
+                {flaggedLate
+                  ? `After the ${SHIFT.grace}-minute grace period: noted on the timesheet and in late-arrival insights.`
+                  : `Within the ${SHIFT.grace}-minute grace period.`}
+              </span>
+            </span>
+          </li>
+          <li className="flex flex-wrap items-start gap-3">
+            {overtime && !approved.overtime ? (
+              <CircleDashed aria-hidden className="size-5 shrink-0 text-text" />
+            ) : (
+              <CircleCheck aria-hidden className="size-5 shrink-0 text-product-text" />
+            )}
+            <span className="min-w-0 flex-1 basis-56">
+              <span className="block text-text">{`Clocked out ${clock(out)}`}</span>
+              <span className="block text-muted">
+                {!overtime
+                  ? "Shift complete."
+                  : approved.overtime
+                    ? `${hours(overtime)} overtime approved: sent to the November pay run.`
+                    : `${hours(overtime)} overtime: waiting for the supervisor before it reaches payroll.`}
+              </span>
+            </span>
+            {overtime > 0 && !approved.overtime && (
+              <button
+                type="button"
+                onClick={() => setApproved((a) => ({ ...a, overtime: true }))}
+                className={buttonClasses("product", "md", "ms-8 shrink-0 @xl:ms-0")}
+              >
+                Approve overtime
+              </button>
+            )}
+          </li>
+        </ul>
+        <div className="mt-5 rounded-2xl border border-line">
+          <p className="border-b border-line px-4 py-2.5 text-xs text-muted">This week&apos;s timesheet</p>
+          <dl className="grid grid-cols-5 text-center text-sm">
+            {WEEK.map(([name, minutes]) => (
+              <div key={name} className="px-1 py-3">
+                <dt className="text-xs text-subtle">{name}</dt>
+                <dd className="mt-1 font-medium text-text tabular-nums">{hours(minutes)}</dd>
+              </div>
+            ))}
+            <div className="bg-product-soft px-1 py-3">
+              <dt className="text-xs text-product-text">Thu</dt>
+              <dd className="mt-1 font-medium text-text tabular-nums" data-testid="attendance-today">
+                {needsLocation ? "Pending" : hours(regular)}
+                {overtime > 0 && (
+                  <span className="block text-[0.7rem] font-normal text-muted">
+                    {approved.overtime ? `+${hours(overtime)} OT` : "OT pending"}
+                  </span>
+                )}
+              </dd>
+            </div>
+            <div className="px-1 py-3">
+              <dt className="text-xs text-subtle">Fri</dt>
+              <dd className="mt-1 text-muted">–</dd>
+            </div>
+          </dl>
+          <p className="border-t border-line px-4 py-2.5 text-end text-sm text-text">
+            {"Week so far "}
+            <strong className="tabular-nums" data-testid="attendance-week">
+              {hours(needsLocation ? total - regular : total)}
+            </strong>
+          </p>
+        </div>
+        <Caption className="mt-4" />
+      </div>
+    </div>
+  );
+}
+
 export function ProductDemo({
   demo,
   motion,
@@ -1052,6 +1255,8 @@ export function ProductDemo({
       return <LeaveFlow />;
     case "team_calendar":
       return <TeamCalendar />;
+    case "attendance":
+      return <Attendance />;
     case "scattered_to_connected":
       return <ScatteredToConnectedStory motion={motion} mark={mark} />;
     case "employee_journey":

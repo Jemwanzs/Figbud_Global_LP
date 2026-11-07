@@ -156,6 +156,7 @@ fn platform() -> Value {
             { "id": id(), "type": "demo", "demo": "leave_flow",
               "heading": "Time off, without the back-and-forth.",
               "intro": "Requests follow single- or multi-stage approval routes, and balances update when they're approved. Try it." },
+            attendance_demo(),
             { "id": id(), "type": "demo", "demo": "outputs",
               "heading": "What a finished run gives you.",
               "intro": "Lock completed payroll, generate reports and review costs. Employees get what's theirs in self-service." },
@@ -342,6 +343,105 @@ const HOME_REDESIGN: &str = "page.zirahr_home_redesigned";
 const LOCAL_ENQUIRIES: &str = "page.zirahr_enquiries_local";
 const HERO_SIGNAL: &str = "page.zirahr_hero_signal";
 const FOOTER: &str = "site.zirahr_footer_redesigned";
+const ATTENDANCE: &str = "page.zirahr_attendance_demo";
+
+/// The attendance demonstration (P4-Z5), within the guide's confirmed scope:
+/// browser clock-ins with a location check where configured, late arrivals,
+/// and supervisor-approved overtime with payroll handoff.
+fn attendance_demo() -> Value {
+    json!({ "id": id(), "type": "demo", "demo": "attendance",
+        "heading": "The hours, counted for you.",
+        "intro": "Clock in from a browser, with a location check where you turn it on. Late arrivals are noted after your grace period, and overtime waits for a supervisor before it reaches payroll. Try it." })
+}
+
+/// Adds the attendance demonstration to the live Platform page once, after the
+/// leave approval demonstration, as a new numbered version (in the draft too).
+/// A page that already has one, or was restyled without the leave demo, is
+/// given it at the end of its demonstrations' run, before the closing panel.
+pub async fn publish_attendance_demo(pool: &PgPool) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let mut tx = pool.begin().await?;
+    let site: Option<Uuid> = sqlx::query_scalar(
+        "SELECT s.id FROM sites s WHERE s.slug = 'zirahr' AND NOT EXISTS (
+                SELECT 1 FROM audit_log a WHERE a.site_id = s.id AND a.action = $1)
+            FOR UPDATE",
+    )
+    .bind(ATTENDANCE)
+    .fetch_optional(&mut *tx)
+    .await?;
+    let Some(site_id) = site else { return Ok(()) };
+    let page: Option<(Uuid, Value, Option<Value>)> = sqlx::query_as(
+        "SELECT id, draft, published FROM pages WHERE site_id = $1 AND path = 'platform' AND archived_at IS NULL FOR UPDATE",
+    )
+    .bind(site_id)
+    .fetch_optional(&mut *tx)
+    .await?;
+    let add = |doc: &mut Value| -> bool {
+        let Some(sections) = doc["sections"].as_array_mut() else {
+            return false;
+        };
+        if sections.iter().any(|s| s["demo"] == "attendance") {
+            return false;
+        }
+        let at = sections
+            .iter()
+            .position(|s| s["demo"] == "leave_flow")
+            .map(|i| i + 1)
+            .or_else(|| sections.iter().position(|s| s["type"] == "call_to_action"))
+            .unwrap_or(sections.len());
+        sections.insert(at, attendance_demo());
+        true
+    };
+    let mut changed = false;
+    if let Some((page_id, mut draft, Some(mut published))) = page
+        && add(&mut published)
+    {
+        add(&mut draft);
+        for doc in [&published, &draft] {
+            let parsed: PageDoc = serde_json::from_value(doc.clone())?;
+            parsed
+                .validate()
+                .map_err(|e| format!("ZiraHR Platform page: {e:?}"))?;
+        }
+        let revision = Uuid::now_v7();
+        sqlx::query(
+            "INSERT INTO page_revisions (id, page_id, number, document, note, state, decided_at)
+             SELECT $1, $2, COALESCE(max(number), 0) + 1, $3, $4, 'published', now()
+               FROM page_revisions WHERE page_id = $2",
+        )
+        .bind(revision)
+        .bind(page_id)
+        .bind(&published)
+        .bind("Attendance demonstration added (roadmap P4-Z5), 7 Nov 2026")
+        .execute(&mut *tx)
+        .await?;
+        sqlx::query(
+            "UPDATE pages SET draft = $2, published = $3, published_revision = $4, published_at = now(),
+                    draft_version = draft_version + 1
+              WHERE id = $1",
+        )
+        .bind(page_id)
+        .bind(&draft)
+        .bind(&published)
+        .bind(revision)
+        .execute(&mut *tx)
+        .await?;
+        changed = true;
+    }
+    sqlx::query(
+        "INSERT INTO audit_log (id, action, target_type, target_id, detail, site_id)
+         VALUES ($1, $2, 'site', $3, $4, $5)",
+    )
+    .bind(Uuid::now_v7())
+    .bind(ATTENDANCE)
+    .bind(site_id.to_string())
+    .bind(json!({ "changed": changed, "roadmap": "P4-Z5" }))
+    .bind(site_id)
+    .execute(&mut *tx)
+    .await?;
+    tx.commit().await?;
+    tracing::info!(changed, "ZiraHR attendance demonstration");
+    Ok(())
+}
 /// The parent company's tagline, which ZiraHR's record carried by mistake.
 const FIGBUD_TAGLINE: &str = "One Vision. Endless Solutions.";
 pub const ZIRAHR_TAGLINE: &str = "HR Simplified. Business Amplified.";

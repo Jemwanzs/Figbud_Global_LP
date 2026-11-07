@@ -717,6 +717,49 @@ test.describe("ZiraHR: payroll calculator and demonstrations (P14)", () => {
     await expect(story.locator('.fb-story-unfold[data-open="true"]')).toBeVisible();
   });
 
+  test("the attendance demonstration: location check, late arrival and overtime approval (P4-Z5)", async ({
+    page,
+  }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.goto("/zirahr/platform");
+    const day = page.getByTestId("attendance-day");
+    const week = page.getByTestId("attendance-week");
+    const today = page.getByTestId("attendance-today");
+    await day.scrollIntoViewIfNeeded();
+    // Mon 8h + Tue 8h + Wed 7h 30m, then today's 8h on time.
+    await expect(day).toContainText("Location check: inside the branch's area.");
+    await expect(week).toHaveText("31h 30m");
+
+    await page.getByRole("group", { name: "Clock-in" }).getByRole("button", { name: "Late" }).click();
+    await expect(day).toContainText("41 minutes late");
+    await expect(today).toContainText("7h 21m");
+
+    // Away from the branch: the day waits for the supervisor, then counts.
+    await page
+      .getByRole("group", { name: "Clock-in" })
+      .getByRole("button", { name: "Away from the branch" })
+      .click();
+    await expect(today).toContainText("Pending");
+    await page.getByRole("button", { name: "Approve as supervisor" }).click();
+    await expect(day).toContainText("approved by the supervisor");
+    await expect(today).toContainText("7h 57m");
+
+    // A late finish: overtime reaches payroll only once approved.
+    await page.getByRole("group", { name: "Clock-in" }).getByRole("button", { name: "On time" }).click();
+    await page
+      .getByRole("group", { name: "Clock-out" })
+      .getByRole("button", { name: "After a late finish" })
+      .click();
+    await expect(day).toContainText("2h overtime: waiting for the supervisor");
+    await expect(week).toHaveText("31h 30m");
+    await page.getByRole("button", { name: "Approve overtime" }).click();
+    await expect(day).toContainText("sent to the November pay run");
+    await expect(week).toHaveText("33h 30m");
+    await expect(
+      page.getByText("Location checks apply where your organisation turns them on."),
+    ).toBeVisible();
+  });
+
   test("the leave, calendar and outputs demonstrations work, by keyboard too", async ({ page }) => {
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page.goto("/zirahr/platform");

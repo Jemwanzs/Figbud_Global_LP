@@ -589,3 +589,93 @@ async fn the_footer_is_redesigned_once_and_keeps_later_edits() {
     )
     .await;
 }
+
+#[tokio::test]
+async fn the_attendance_demonstration_joins_the_platform_page_once() {
+    let Some(pool) = database().await else { return };
+    let _turn = ZIRAHR.lock().await;
+    import::run(&pool).await.unwrap();
+    let site: Uuid = sqlx::query_scalar("SELECT id FROM sites WHERE slug = 'zirahr'")
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    let before: Option<(Value, Option<Value>)> =
+        sqlx::query_as("SELECT draft, published FROM pages WHERE site_id = $1 AND path = 'platform'")
+            .bind(site)
+            .fetch_optional(&pool)
+            .await
+            .unwrap();
+    let plain = json!({ "sections": [
+        { "id": "h", "type": "hero", "heading": "The platform" },
+        { "id": "l", "type": "demo", "demo": "leave_flow" },
+        { "id": "o", "type": "demo", "demo": "outputs" },
+        { "id": "c", "type": "call_to_action", "heading": "See it", "cta": { "label": "Book a demo", "href": "/enquire" } },
+    ] });
+    let reset = |doc: Value| {
+        let pool = pool.clone();
+        async move {
+            sqlx::query(
+                "DELETE FROM audit_log WHERE site_id = $1 AND action = 'page.zirahr_attendance_demo'",
+            )
+            .bind(site)
+            .execute(&pool)
+            .await
+            .unwrap();
+            sqlx::query(
+                "UPDATE pages SET draft = $2, published = $2 WHERE site_id = $1 AND path = 'platform'",
+            )
+            .bind(site)
+            .bind(doc)
+            .execute(&pool)
+            .await
+            .unwrap();
+        }
+    };
+    let demos = || async {
+        let doc: Value =
+            sqlx::query_scalar("SELECT published FROM pages WHERE site_id = $1 AND path = 'platform'")
+                .bind(site)
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+        doc["sections"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|s| {
+                s["demo"]
+                    .as_str()
+                    .unwrap_or(s["type"].as_str().unwrap())
+                    .to_owned()
+            })
+            .collect::<Vec<_>>()
+    };
+
+    reset(plain.clone()).await;
+    zirahr_guide::publish_attendance_demo(&pool).await.unwrap();
+    assert_eq!(
+        demos().await,
+        ["hero", "leave_flow", "attendance", "outputs", "call_to_action"]
+    );
+
+    // Once only: removed in the Studio afterwards, it stays removed.
+    sqlx::query("UPDATE pages SET draft = $2, published = $2 WHERE site_id = $1 AND path = 'platform'")
+        .bind(site)
+        .bind(&plain)
+        .execute(&pool)
+        .await
+        .unwrap();
+    zirahr_guide::publish_attendance_demo(&pool).await.unwrap();
+    assert_eq!(demos().await, ["hero", "leave_flow", "outputs", "call_to_action"]);
+
+    // Leave the shared database as it was.
+    if let Some((draft, published)) = before {
+        sqlx::query("UPDATE pages SET draft = $2, published = $3 WHERE site_id = $1 AND path = 'platform'")
+            .bind(site)
+            .bind(draft)
+            .bind(published)
+            .execute(&pool)
+            .await
+            .unwrap();
+    }
+}

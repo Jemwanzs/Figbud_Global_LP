@@ -887,6 +887,7 @@ export function BlockForm({
               <option value="outputs">What comes out of a run</option>
               <option value="leave_flow">Leave request and approval</option>
               <option value="team_calendar">Team calendar</option>
+              <option value="attendance">Attendance and shifts (try it)</option>
               <option value="scattered_to_connected">Scroll story: scattered tools to one platform</option>
               <option value="employee_journey">Scroll story: one employee&apos;s journey</option>
             </select>

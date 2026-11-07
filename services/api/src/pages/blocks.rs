@@ -172,6 +172,8 @@ pub enum DemoKind {
     Outputs,
     LeaveFlow,
     TeamCalendar,
+    /// One day's clock-ins, location check, late arrival and overtime approval (P4-Z5).
+    Attendance,
     ScatteredToConnected,
     EmployeeJourney,
 }
