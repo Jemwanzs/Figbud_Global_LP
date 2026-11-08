@@ -310,6 +310,8 @@ test.describe("theme and language", () => {
     await page.goto("/en");
     // Every major section is a band; Trusted By shares Our Platforms' band.
     const bands = page.locator("main [data-band]:not([data-band-shared])");
+    // The sections stream in after the first paint.
+    await expect.poll(() => bands.count()).toBeGreaterThanOrEqual(6);
     const order = await bands.evaluateAll((els) => els.map((el) => el.getAttribute("data-band")));
     expect(order.length).toBeGreaterThanOrEqual(6);
     expect(order[0], "Our Platforms is opposite the hero").toBe("inverse");
@@ -729,4 +731,33 @@ test("the corporate site shares a 1200 × 630 image on Open Graph and X", async 
     expect(image.status()).toBe(200);
     expect(image.headers()["content-type"]).toBe("image/png");
   }
+});
+
+test("our philosophy: outlined numbers that follow the scroll, with dots beside the heading", async ({
+  page,
+}) => {
+  await page.goto("/en");
+  const section = page.locator("section").filter({ has: page.locator("#philosophy-title") });
+  const rows = section.locator("ol > li");
+  await expect(section.locator(".fb-outline-num")).toHaveText(["01", "02", "03"]);
+  // Centred again until the page above has settled (images and maps load as it scrolls).
+  for (const i of [0, 2, 1]) {
+    await expect(async () => {
+      await rows.nth(i).evaluate((el) => {
+        const box = el.getBoundingClientRect();
+        window.scrollBy({ top: box.top + box.height / 2 - innerHeight / 2, behavior: "instant" });
+      });
+      await expect(rows.nth(i)).toHaveAttribute("data-current", { timeout: 1_000 });
+    }).toPass();
+  }
+  // Green numbers (FigBud Global's accent), not a product's colour.
+  const [stroke, accent] = await section
+    .locator(".fb-outline-num")
+    .first()
+    .evaluate((el) => [
+      getComputedStyle(el).getPropertyValue("--num-stroke").trim(),
+      getComputedStyle(el).getPropertyValue("--accent").trim(),
+    ]);
+  expect(stroke).toBe(accent);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(0);
 });

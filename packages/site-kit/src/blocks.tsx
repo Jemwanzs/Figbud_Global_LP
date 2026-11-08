@@ -1,11 +1,12 @@
 import { buttonClasses, cn } from "@figbud/ui";
-import { ArrowRight, Check } from "lucide-react";
+import { ArrowRight, Check, Monitor, MonitorSmartphone, Smartphone, Tablet } from "lucide-react";
 import { type ReactNode, Suspense } from "react";
 
 import { type DemoKind, ModuleCatalogue, type ModuleItem, ProductDemo } from "./product-demos";
 import { enquiryFormCopy, type EnquiryProduct } from "./enquiry";
 import { EnquiryForm } from "./enquiry-form";
 import { HeroSignal } from "./hero-signal";
+import { NumberedStory } from "./numbered-story";
 import { ReferralForm } from "./referral-form";
 
 /** The website's own mark, for demonstrations that show it (the scroll story's hub). */
@@ -56,6 +57,12 @@ export type PageSection = Base &
         secondary?: PageCta | null;
         visual?: "connected_modules" | null;
         highlights?: string[];
+        /** The visual's modules, in order (catalogue keys); all eight when empty. */
+        modules?: string[];
+        /** How much the visual moves by itself. */
+        motion?: StoryMotion;
+        /** Employee Self-Service, highlighted under the hero. */
+        ess?: { heading: string; body: string } | null;
       }
     | { type: "text"; heading?: string | null; body?: string; body_html?: string }
     | {
@@ -64,7 +71,17 @@ export type PageSection = Base &
         intro?: string | null;
         items: { title: string; body: string }[];
       }
-    | { type: "steps"; heading?: string | null; items: { title: string; body: string }[] }
+    | {
+        type: "steps";
+        heading?: string | null;
+        items: { title: string; body: string }[];
+        /** Cards (the default), or numbered storytelling (8 Nov 2026). */
+        style?: "cards" | "story";
+        intro?: string | null;
+        /** The dot pattern beside a story. */
+        dots?: boolean;
+        motion?: StoryMotion;
+      }
     | { type: "stats"; heading?: string | null; items: { value: string; label: string }[]; source: string }
     | {
         type: "faq";
@@ -269,12 +286,15 @@ function Block({
       );
       if (!section.visual) return words;
       return (
-        <div className="fb-hero-signal relative isolate grid items-center gap-10 @5xl:grid-cols-12 @5xl:gap-8">
-          <div className="@5xl:col-span-6">{words}</div>
-          <div className="@container @5xl:col-span-6">
-            <HeroSignal />
+        <>
+          <div className="fb-hero-signal relative isolate grid items-center gap-10 @5xl:grid-cols-12 @5xl:gap-8">
+            <div className="@5xl:col-span-6">{words}</div>
+            <div className="@container @5xl:col-span-6">
+              <HeroSignal modules={section.modules} motion={section.motion ?? "standard"} />
+            </div>
           </div>
-        </div>
+          {section.ess && <SelfServiceHighlight {...section.ess} />}
+        </>
       );
     }
     case "text":
@@ -313,6 +333,20 @@ function Block({
         </div>
       );
     case "steps":
+      if (section.style === "story")
+        return (
+          <div>
+            {section.heading && <Heading>{section.heading}</Heading>}
+            {section.intro && <p className="mt-4 max-w-2xl text-muted">{section.intro}</p>}
+            <div className={section.heading || section.intro ? "mt-10" : undefined}>
+              <NumberedStory
+                items={section.items}
+                dots={!!section.dots}
+                motion={section.motion ?? "standard"}
+              />
+            </div>
+          </div>
+        );
       return (
         <div>
           {section.heading && <Heading>{section.heading}</Heading>}
@@ -572,5 +606,45 @@ export function PageBlocks({
           </section>
         ))}
     </div>
+  );
+}
+
+/**
+ * Employee Self-Service under the hero (owner's brief, 8 Nov 2026): across
+ * every module, in a web browser on any device. Never presented as an app to
+ * download.
+ */
+function SelfServiceHighlight({ heading, body }: { heading: string; body: string }) {
+  return (
+    <aside
+      aria-labelledby="hero-ess"
+      data-ess=""
+      className="mt-10 grid gap-5 rounded-[var(--radius-panel)] border border-line bg-surface/70 p-5 backdrop-blur @3xl:grid-cols-[auto_minmax(0,1fr)_auto] @3xl:items-center @3xl:gap-8 @3xl:p-6"
+    >
+      <span className="grid size-12 place-items-center rounded-2xl bg-product text-product-ink">
+        <MonitorSmartphone aria-hidden className="size-6" />
+      </span>
+      <div className="min-w-0">
+        <h2 id="hero-ess" className="font-display text-xl font-semibold text-text">
+          {heading}
+        </h2>
+        <p className="mt-1.5 max-w-3xl text-muted">{body}</p>
+      </div>
+      <ul className="flex flex-wrap gap-2 text-sm text-muted" aria-label="Works in the browser on">
+        {[
+          { icon: Monitor, label: "Desktop" },
+          { icon: Tablet, label: "Tablet" },
+          { icon: Smartphone, label: "Phone browser" },
+        ].map(({ icon: Icon, label }) => (
+          <li
+            key={label}
+            className="inline-flex items-center gap-1.5 rounded-full border border-line px-3 py-1.5 whitespace-nowrap"
+          >
+            <Icon aria-hidden className="size-4 text-product-text" />
+            {label}
+          </li>
+        ))}
+      </ul>
+    </aside>
   );
 }

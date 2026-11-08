@@ -69,6 +69,15 @@ pub enum Block {
         /// Short benefits under the buttons, each with a tick.
         #[serde(default, skip_serializing_if = "Vec::is_empty")]
         highlights: Vec<String>,
+        /// The visual's modules in order, from `ZIRAHR_MODULE_KEYS`; all eight when empty.
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        modules: Vec<String>,
+        /// How much the visual moves by itself.
+        #[serde(default, skip_serializing_if = "DemoMotion::is_standard")]
+        motion: DemoMotion,
+        /// Employee Self-Service, highlighted under the hero (8 Nov 2026).
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        ess: Option<Highlight>,
     },
     Text {
         #[serde(default)]
@@ -87,6 +96,16 @@ pub enum Block {
         #[serde(default)]
         heading: Option<String>,
         items: Vec<Step>,
+        /// Cards, or numbered storytelling with outlined numbers (8 Nov 2026).
+        #[serde(default, skip_serializing_if = "StepsStyle::is_cards")]
+        style: StepsStyle,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        intro: Option<String>,
+        /// The dot pattern beside a story.
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        dots: bool,
+        #[serde(default, skip_serializing_if = "DemoMotion::is_standard")]
+        motion: DemoMotion,
     },
     Stats {
         #[serde(default)]
@@ -192,6 +211,43 @@ pub enum DemoMotion {
 impl DemoMotion {
     fn is_standard(&self) -> bool {
         *self == Self::Standard
+    }
+}
+
+/// ZiraHR's eight core modules, in their approved order; the same keys as the
+/// website's catalogue (`packages/site-kit/src/zirahr-modules.ts`).
+pub const ZIRAHR_MODULE_KEYS: [&str; 8] = [
+    "core_hr",
+    "payroll",
+    "leave",
+    "attendance",
+    "performance",
+    "teams",
+    "recruitment",
+    "learning",
+];
+
+/// A short highlight: a heading and a sentence or two.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct Highlight {
+    pub heading: String,
+    pub body: String,
+}
+
+/// How a steps block looks.
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum StepsStyle {
+    #[default]
+    Cards,
+    /// Outlined numbers, each row current in turn as the page scrolls.
+    Story,
+}
+
+impl StepsStyle {
+    fn is_cards(&self) -> bool {
+        *self == Self::Cards
     }
 }
 
@@ -390,6 +446,8 @@ impl PageDoc {
                     primary,
                     secondary,
                     highlights,
+                    modules,
+                    ess,
                     ..
                 } => {
                     c.optional("sections", eyebrow, 60, "Eyebrows can be up to 60 characters.");
@@ -403,6 +461,30 @@ impl PageDoc {
                     c.optional("sections", lead, 400, "Lead text can be up to 400 characters.");
                     for cta in primary.iter().chain(secondary.iter()) {
                         c.cta(cta);
+                    }
+                    let unique: std::collections::HashSet<&String> = modules.iter().collect();
+                    if modules.iter().any(|m| !ZIRAHR_MODULE_KEYS.contains(&m.as_str()))
+                        || unique.len() != modules.len()
+                        || (1..3).contains(&modules.len())
+                    {
+                        c.push(
+                            "sections",
+                            "Choose at least three of the eight modules for the hero, each once (or leave it to show all eight).",
+                        );
+                    }
+                    if let Some(ess) = ess {
+                        c.text(
+                            "sections",
+                            &ess.heading,
+                            90,
+                            "Self-service headings need 1–90 characters.",
+                        );
+                        c.text(
+                            "sections",
+                            &ess.body,
+                            300,
+                            "Self-service text needs 1–300 characters.",
+                        );
                     }
                 }
                 Block::Text { heading, body } => {
@@ -442,9 +524,24 @@ impl PageDoc {
                         );
                     }
                 }
-                Block::Steps { heading, items } => {
+                Block::Steps {
+                    heading,
+                    items,
+                    style,
+                    intro,
+                    ..
+                } => {
                     c.optional("sections", heading, 120, "Headings can be up to 120 characters.");
+                    c.optional(
+                        "sections",
+                        intro,
+                        400,
+                        "Introductions can be up to 400 characters.",
+                    );
                     c.count(items, 12);
+                    if *style == StepsStyle::Story && items.len() > 8 {
+                        c.push("sections", "A numbered story can have up to eight steps.");
+                    }
                     for item in items {
                         c.text("sections", &item.title, 80, "Step titles need 1–80 characters.");
                         c.text(
@@ -714,5 +811,53 @@ mod tests {
         )
         .unwrap();
         assert!(page.validate().is_err(), "duplicate section ids");
+    }
+
+    #[test]
+    fn the_hero_takes_three_to_eight_known_modules_and_a_self_service_highlight() {
+        let hero = |extra: Value| {
+            let mut section =
+                json!({ "id": "h", "type": "hero", "heading": "Hi", "visual": "connected_modules" });
+            section
+                .as_object_mut()
+                .unwrap()
+                .extend(extra.as_object().unwrap().clone());
+            doc(json!([section])).unwrap().validate()
+        };
+        assert!(hero(json!({})).is_ok(), "all eight when none are chosen");
+        assert!(hero(json!({ "modules": ["payroll", "leave", "learning"], "motion": "subtle" })).is_ok());
+        assert!(
+            hero(json!({ "modules": ["payroll", "leave"] })).is_err(),
+            "at least three"
+        );
+        assert!(
+            hero(json!({ "modules": ["payroll", "leave", "leave"] })).is_err(),
+            "each once"
+        );
+        assert!(
+            hero(json!({ "modules": ["payroll", "leave", "mobile_app"] })).is_err(),
+            "only the eight"
+        );
+        assert!(hero(json!({ "ess": { "heading": "Your team.", "body": "In any browser." } })).is_ok());
+        assert!(hero(json!({ "ess": { "heading": "", "body": "x" } })).is_err());
+    }
+
+    #[test]
+    fn steps_can_be_a_numbered_story_of_up_to_eight() {
+        let step = json!({ "title": "One", "body": "Words." });
+        let steps = |style: &str, n: usize| {
+            doc(json!([{ "id": "s", "type": "steps", "style": style, "dots": true,
+                         "items": vec![step.clone(); n] }]))
+            .unwrap()
+            .validate()
+        };
+        assert!(steps("story", 6).is_ok());
+        assert!(steps("story", 9).is_err());
+        assert!(steps("cards", 9).is_ok());
+        // Cards stay the default, and the new fields are left out unless set.
+        let plain = doc(json!([{ "id": "s", "type": "steps", "items": [step] }])).unwrap();
+        let rendered = plain.render(false);
+        assert!(rendered["sections"][0].get("style").is_none());
+        assert!(rendered["sections"][0].get("dots").is_none());
     }
 }

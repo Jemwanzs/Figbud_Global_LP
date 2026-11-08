@@ -13,6 +13,8 @@ import {
 } from "lucide-react";
 import { type CSSProperties, type ReactNode, useEffect, useRef, useState } from "react";
 
+import { ZIRAHR_MODULES } from "./zirahr-modules";
+
 /*
  * Signature scroll stories (UI-MO6; made compact on the owner's brief of 7 Nov
  * 2026). One panel stays in view while the page scrolls: the step's words on
@@ -214,7 +216,8 @@ const TOOLS: { name: string; note: string; icon: LucideIcon; scattered: [number,
   { name: "Who approved this?", note: "Team chat", icon: MessageCircle, scattered: [80, 54, -5] },
   { name: "Who's out on Friday?", note: "Wall calendar", icon: CalendarDays, scattered: [47, 84, 3] },
 ];
-const MODULES = ["Core HR", "Payroll", "Leave", "Attendance", "Performance"];
+// The five scattered tools settle as the first five modules of the shared catalogue.
+const MODULES = ZIRAHR_MODULES.slice(0, 5).map((m) => m.label);
 const PAY_STAGES = ["Draft", "Validated", "Approved", "Locked"];
 const TRAIL = [
   ["Inputs validated", "HR"],

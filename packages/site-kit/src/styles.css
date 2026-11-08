@@ -782,6 +782,18 @@ body:has(main [data-section="call_to_action"]:last-child) footer {
   stroke-width: 2.4;
   opacity: 0.18;
 }
+/* All eight modules (8 Nov 2026): cards glide to their next place and fade in
+   or out off the line; with reduced motion they move at once when chosen. */
+.fb-signal-track {
+  transition:
+    transform 900ms var(--motion-ease),
+    opacity 520ms var(--motion-ease-standard);
+}
+@media (prefers-reduced-motion: reduce) {
+  .fb-signal-track {
+    transition: none;
+  }
+}
 .fb-signal-node-on {
   box-shadow:
     0 0 0 6px var(--product-soft),
@@ -1078,4 +1090,64 @@ body:has(main [data-section="call_to_action"]:last-child) footer {
    colour bleeds through: deep navy on light pages, white on dark pages. */
 .fb-panel[data-inverse] {
   background: var(--surface);
+}
+
+/* Numbered storytelling (owner's brief, 8 Nov 2026): thin outlined numbers that
+   fill softly while current and draw in once; dots that light around the
+   current step and drift a little with it. The website's accents by default
+   (ZiraHR's oranges); FigBud Global sets its green and blue. Without
+   JavaScript, or with reduced motion or motion "off", everything shows at rest. */
+:where(.fb-outline-num, .fb-dots) {
+  --num-stroke: var(--product-text);
+  --dot-from: var(--product);
+  --dot-to: var(--product-text);
+}
+/* FigBud Global's own accents: green numbers, green-to-blue dots. */
+.fb-accent-numbers :is(.fb-outline-num, .fb-dots) {
+  --num-stroke: var(--accent);
+  --dot-from: var(--accent);
+  --dot-to: var(--accent-2);
+}
+.fb-outline-num text {
+  fill: transparent;
+  stroke: var(--num-stroke);
+  stroke-width: 1.25px;
+  vector-effect: non-scaling-stroke;
+  transition:
+    fill var(--motion-base) var(--motion-ease-standard),
+    stroke-width var(--motion-base) var(--motion-ease-standard);
+}
+.fb-outline-num[data-current] text {
+  fill: color-mix(in srgb, var(--num-stroke) 16%, transparent);
+  stroke-width: 1.75px;
+}
+.fb-dot {
+  transition: opacity 600ms var(--motion-ease-standard);
+}
+@media (scripting: enabled) and (prefers-reduced-motion: no-preference) {
+  [data-numbered]:not([data-motion="off"]) .fb-numbered-row:not([data-seen]) .fb-outline-num {
+    clip-path: inset(0 100% 0 0);
+  }
+  [data-numbered]:not([data-motion="off"]) .fb-numbered-row .fb-outline-num {
+    transition: clip-path 700ms var(--motion-ease);
+  }
+  [data-numbered]:not([data-motion="off"]) .fb-numbered-row:not([data-seen]) .fb-numbered-words {
+    opacity: 0;
+    translate: 0 var(--motion-distance);
+  }
+  [data-numbered]:not([data-motion="off"]) .fb-numbered-words {
+    transition:
+      opacity var(--motion-slow) var(--motion-ease),
+      translate var(--motion-slow) var(--motion-ease);
+  }
+  .fb-dots[data-motion="standard"] > g {
+    translate: 0 calc(var(--dot-step) * -1.5px);
+    transition: translate 900ms var(--motion-ease);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fb-outline-num text,
+  .fb-dot {
+    transition: none;
+  }
 }

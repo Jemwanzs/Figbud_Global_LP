@@ -57,6 +57,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     if let Err(err) = figbud_api::pages::zirahr_guide::publish_attendance_demo(&pool).await {
         tracing::warn!(error = %err, "ZiraHR attendance demonstration failed");
     }
+    if let Err(err) = figbud_api::pages::zirahr_guide::publish_hero_modules(&pool).await {
+        tracing::warn!(error = %err, "ZiraHR hero modules failed");
+    }
     if let Err(err) = figbud_api::heroes::offer_added_designs(&pool).await {
         tracing::warn!(error = %err, "hero designs failed");
     }

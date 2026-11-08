@@ -42,6 +42,8 @@ All tables use UUID keys, foreign keys, check constraints and indexes for their 
 
 **Pages (Phase C, delivered 25 Oct 2026).** `pages` (one row per page and website: address, title, order, working draft, published document, archive flag) and `page_revisions` (submissions and version history). A page document is a list of sections, each a typed block from the approved library:
 - **Blocks:** hero, text (Markdown), feature grid, steps, figures, questions and call to action.
+  - **Hero with the connected-modules visual (8 Nov 2026):** tick the ZiraHR modules to show (at least three) and order them, or leave all eight; choose the animation (standard, subtle, or off, when visitors choose with the dots); switch on the Employee Self-Service highlight and edit its heading and words. Module names and descriptions come from the shared catalogue, as on the Platform page's showcase. The API refuses unknown or repeated modules.
+  - **Steps:** cards, or a numbered story (outlined numbers, each step current as visitors scroll) with an optional introduction, a dot pattern and an animation setting. A story has up to eight steps.
 - **Validation (`services/api/src/pages/blocks.rs`):** the API validates every block. It refuses unknown block types and fields, and allows only site paths or https links. Figures need a stated source, so unverified numbers aren't published. Markdown goes through the article sanitiser.
 - **Templates (`services/api/src/pages/templates.rs`, 28 Oct 2026):**
   - **Every website:** blank, home, platform overview, features, integrations, resources, and contact.

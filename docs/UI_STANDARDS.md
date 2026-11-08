@@ -129,6 +129,12 @@ Motion explains and guides. It never decorates for its own sake, and content nev
     - Set `aria-live` only while `state === "manual"`, so automatic changes aren't announced.
     - Auto-demonstrate walkthroughs and illustrative dashboards only. Forms, calculators, consent, bookings and anything with real consequences stay user-controlled.
     - Use pin → progress → complete → release (`useScrollStory`) only where scrolling through states adds meaning, never for ordinary content.
+  - Numbered storytelling (UI-NS1):
+    - Use `OutlineNumber`, `DotMatrix` and `useCurrentRow` from site-kit (`numbered-story.tsx`), or the steps block's "story" style. Don't hand-draw outlined numbers.
+    - The current row is the one crossing the middle of the screen; rows are content height, nothing pins.
+    - Numbers and dots are `aria-hidden` and never take a pointer. Dots sit beside headings or steps, never behind words, and are left out on narrow screens.
+    - Colours come from `--num-stroke`, `--dot-from` and `--dot-to`: the product's accents by default, and FigBud Global's green and blue under `.fb-accent-numbers`.
+  - ZiraHR modules: list them from `ZIRAHR_MODULES` (site-kit `zirahr-modules.ts`), never a local array. The API's `ZIRAHR_MODULE_KEYS` must match it.
   - Studio (P7-UX3–UX5):
     - **Palette:** the Studio's own palette is set on its `<html>` (`data-studio`, tokens in `tokens.css`). Use the semantic tokens, never fixed colours. `bg-action` / `text-action-ink` is the primary button (warm orange in both themes); `text-accent` is orange as text.
     - **Previews:** a website preview inside the Studio sets its own `data-theme`, or sits inside `data-site-preview`, so it keeps the website's colours. Put `data-site-preview` on a wrapper, not on the element carrying `data-site`.

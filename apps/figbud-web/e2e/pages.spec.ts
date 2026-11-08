@@ -332,3 +332,47 @@ test("the performance budget flags a heavy page and stops it being submitted", a
   await expect(page.getByRole("button", { name: "Submit for publishing" })).toBeDisabled();
   await expect(page.getByText("Make the page lighter first (see Performance)")).toBeVisible();
 });
+
+test("the hero's modules visual: choose and order the modules, highlight self-service, see it in the preview", async ({
+  page,
+}) => {
+  await signInAsOwner(page);
+  await newSite(page);
+  await page.getByRole("link", { name: "Pages" }).click();
+  await page.getByLabel("Page title").fill("Home");
+  await page.getByLabel("Address").fill("");
+  await page.getByRole("button", { name: "Create page" }).click();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Home");
+  await page.getByRole("list", { name: "Sections" }).getByRole("button", { name: /^Hero/ }).click();
+  await page.getByLabel("Visual").selectOption("connected_modules");
+
+  // All eight by default; at least three stay ticked.
+  const modules = page.getByRole("group", { name: "Modules in the visual" });
+  await expect(modules.getByRole("checkbox", { checked: true })).toHaveCount(8);
+  for (const name of [
+    "Performance Management",
+    "Teams & Collaboration",
+    "Recruitment",
+    "Learning & Development",
+    "Time & Attendance",
+  ]) {
+    await modules.getByRole("checkbox", { name }).uncheck();
+  }
+  await expect(modules.getByRole("checkbox", { checked: true })).toHaveCount(3);
+  await expect(modules.getByRole("checkbox", { name: "Leave Management" })).toBeDisabled();
+  // Order: Leave moves up above Payroll.
+  await modules.getByRole("button", { name: "Up Leave Management" }).click();
+  await expect(modules.getByRole("listitem").nth(1)).toContainText("Leave Management");
+
+  // Self-service, with its suggested words, shows under the hero in the preview.
+  await page.getByRole("checkbox", { name: "Highlight Employee Self-Service under the hero" }).check();
+  await expect(page.getByLabel("Self-service heading")).toHaveValue(
+    "Your team. Their HR. One simple portal.",
+  );
+  const preview = page.getByRole("region", { name: "Live preview" });
+  await expect(
+    preview.getByRole("complementary", { name: "Your team. Their HR. One simple portal." }),
+  ).toBeVisible();
+  await expect(preview.locator("[data-hero-modules]")).toHaveAttribute("data-hero-modules", "3");
+  await expect(preview.getByRole("button", { name: "Show Leave Management" })).toBeVisible();
+});

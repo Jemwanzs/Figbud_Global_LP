@@ -1950,6 +1950,10 @@ seedPublishedPage("zirahr", "platform", "Platform", {
       accent: "Everything connected.",
       visual: "connected_modules",
       highlights: ["Many branches, one view", "Self-service in any browser"],
+      ess: {
+        heading: "Your team. Their HR. One simple portal.",
+        body: "Payslips, leave requests and personal details in a web browser on any device. No app to install.",
+      },
     },
     {
       id: "zp-modules",
@@ -1989,6 +1993,21 @@ seedPublishedPage("zirahr", "platform", "Platform", {
     { id: "zp-att", type: "demo", demo: "attendance", heading: "The hours, counted for you." },
     { id: "zp-leave", type: "demo", demo: "leave_flow", heading: "Time off, without the back-and-forth." },
     { id: "zp-out", type: "demo", demo: "outputs", heading: "What a finished run gives you." },
+    {
+      id: "zp-numbered",
+      type: "steps",
+      style: "story",
+      dots: true,
+      heading: "Made for the way real teams work.",
+      items: [
+        { title: "Every rate, in the open.", body: "Statutory rules as dated settings you can see." },
+        { title: "Nothing moves without sign-off.", body: "Review and approval before a run locks." },
+        { title: "Your people, all connected.", body: "One record, and a team around it." },
+        { title: "From recruitment to growth.", body: "From vacancy to first day, then learning." },
+        { title: "More power to your people.", body: "Self-service in any web browser." },
+        { title: "Decisions backed by data.", body: "Dashboards and reports with role-based access." },
+      ],
+    },
   ],
 });
 seedPublishedPage("zirahr", "contact", "Contact & Demo", {

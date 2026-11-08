@@ -3,19 +3,15 @@
 import { buttonClasses, cn } from "@figbud/ui";
 import {
   BarChart3,
-  BookOpen,
   Check,
   CircleCheck,
   CircleDashed,
   Clock,
   FileText,
   type LucideIcon,
-  Palmtree,
   Receipt,
   Target,
   UserRound,
-  UserSearch,
-  Users,
   Wallet,
 } from "lucide-react";
 import { type CSSProperties, type KeyboardEvent, useEffect, useRef, useState } from "react";
@@ -27,6 +23,7 @@ import {
   type StoryMotion,
   useScrollStory,
 } from "./scroll-story";
+import { ZIRAHR_MODULES } from "./zirahr-modules";
 
 /*
  * Interactive product demonstrations for product website pages (P14-W), chosen
@@ -97,16 +94,8 @@ function arrows(event: KeyboardEvent, index: number, count: number, choose: (i: 
   list?.querySelectorAll<HTMLElement>('[role="tab"]')[next]?.focus();
 }
 
-const MODULES: { name: string; line: string; icon: LucideIcon }[] = [
-  { name: "Core HR", line: "Every record, contract and milestone in one place.", icon: UserRound },
-  { name: "Leave", line: "Requests, approvals and balances without the back-and-forth.", icon: Palmtree },
-  { name: "Payroll", line: "From earnings and deductions to approvals and reports.", icon: Wallet },
-  { name: "Time & Attendance", line: "Working time, shifts and overtime, clearly.", icon: Clock },
-  { name: "Performance", line: "Goals, feedback and progress, connected.", icon: Target },
-  { name: "Teams & Collaboration", line: "A shared home for work, updates and approvals.", icon: Users },
-  { name: "Recruitment", line: "From first application to first day.", icon: UserSearch },
-  { name: "Learning & Development", line: "Skills and growth in the employee journey.", icon: BookOpen },
-];
+// The approved eight, from the shared catalogue (also the hero's).
+const MODULES = ZIRAHR_MODULES;
 
 /**
  * Eight modules around one record (owner's brief, 7 Nov 2026): the showcase

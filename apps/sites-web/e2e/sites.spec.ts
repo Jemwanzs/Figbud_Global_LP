@@ -959,7 +959,8 @@ test.describe("ZiraHR: payroll calculator and demonstrations (P14)", () => {
     await ring.first().focus();
     await page.keyboard.press("ArrowRight");
     await expect(ring.nth(1)).toBeFocused();
-    await expect(page.locator("#demo-module-panel")).toContainText("Leave");
+    // The approved order (owner's brief, 8 Nov 2026): Core HR, then Payroll.
+    await expect(page.locator("#demo-module-panel")).toContainText("Payroll");
 
     // Stages, payslip lines and self-service screens.
     await page
@@ -985,5 +986,130 @@ test.describe("ZiraHR: payroll calculator and demonstrations (P14)", () => {
     expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(
       0,
     );
+  });
+});
+
+test.describe("ZiraHR hero: all eight modules and self-service (owner's brief, 8 Nov 2026)", () => {
+  test("every module takes its turn by itself, five at a time, and can be chosen or paused", async ({
+    page,
+  }) => {
+    await page.goto("/zirahr/platform");
+    const hero = page.locator("[data-hero-modules]");
+    await expect(hero).toHaveAttribute("data-hero-modules", "8");
+    const cards = hero.locator("[data-module]");
+    await expect(cards).toHaveCount(8);
+    // Five places on the line on wide screens (three on phones), never all eight squeezed in.
+    const places = page.viewportSize()!.width < 640 ? 3 : 5;
+    await expect(hero.locator("[data-module][data-shown]")).toHaveCount(places);
+    // Moves on without a click, once it's on screen (below the words on phones).
+    await hero.scrollIntoViewIfNeeded();
+    const first = await hero.getAttribute("data-current");
+    await expect(hero).not.toHaveAttribute("data-current", first!, { timeout: 8_000 });
+    // Every module can be shown: the dot names it, and its card comes onto the line, lit.
+    for (const [i, name] of ["Core HR & Employee 360", "Recruitment", "Learning & Development"].entries()) {
+      const dot = page.getByRole("button", { name: `Show ${name}` });
+      await dot.click();
+      await expect(dot).toHaveAttribute("aria-pressed", "true");
+      const key = ["core_hr", "recruitment", "learning"][i]!;
+      await expect(hero.locator(`[data-module="${key}"]`)).toHaveAttribute("data-shown");
+      await expect(hero.locator(`[data-module="${key}"] [data-on]`)).toHaveCount(1);
+    }
+    // Pause holds it still.
+    await page.getByRole("button", { name: "Show Payroll & Statutory Compliance" }).click();
+    await expect(hero.getByRole("button", { name: "Pause demonstration" })).toBeVisible({ timeout: 15_000 });
+    await hero.getByRole("button", { name: "Pause demonstration" }).click();
+    const held = await hero.getAttribute("data-current");
+    await page.waitForTimeout(3_500);
+    await expect(hero).toHaveAttribute("data-current", held!);
+    // Nothing spills sideways.
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(
+      0,
+    );
+  });
+
+  test("Employee Self-Service is highlighted as a browser portal, never an app download", async ({
+    page,
+  }) => {
+    await page.goto("/zirahr/platform");
+    const ess = page.getByRole("complementary", { name: "Your team. Their HR. One simple portal." });
+    await expect(ess).toBeVisible();
+    await expect(ess.getByRole("list", { name: "Works in the browser on" })).toContainText("Phone browser");
+    await expect(ess).not.toContainText(/app store|google play|download the app/i);
+  });
+
+  test("with reduced motion, the modules don't move by themselves, but the dots still choose", async ({
+    page,
+  }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.goto("/zirahr/platform");
+    const hero = page.locator("[data-hero-modules]");
+    await page.waitForTimeout(3_500);
+    await expect(hero).toHaveAttribute("data-current", "0");
+    await expect(hero.getByRole("button", { name: /Pause demonstration/ })).toHaveCount(0);
+    await page.getByRole("button", { name: "Show Teams & Collaboration" }).click();
+    await expect(hero).toHaveAttribute("data-current", "5");
+  });
+});
+
+test.describe("numbered storytelling (owner's brief, 8 Nov 2026)", () => {
+  test("outlined numbers follow the scroll both ways; numbers and dots are decoration only", async ({
+    page,
+  }) => {
+    await page.goto("/zirahr/platform");
+    const story = page.locator("[data-numbered]");
+    const rows = story.locator(".fb-numbered-row");
+    await expect(rows).toHaveCount(6);
+    await expect(story.locator(".fb-outline-num")).toHaveText(["01", "02", "03", "04", "05", "06"]);
+    await expect(story.locator(".fb-outline-num").first()).toHaveAttribute("aria-hidden", "true");
+    // The row nearest the middle of the screen is current, going down and coming back up.
+    const centre = (i: number) =>
+      rows.nth(i).evaluate((el) => {
+        const box = el.getBoundingClientRect();
+        window.scrollBy({ top: box.top + box.height / 2 - innerHeight / 2, behavior: "instant" });
+      });
+    for (const i of [0, 2, 4, 5, 3, 1]) {
+      // Centred again until the page above has settled.
+      await expect(async () => {
+        await centre(i);
+        await expect(rows.nth(i)).toHaveAttribute("data-current", { timeout: 1_000 });
+      }).toPass();
+      await expect(story.locator(".fb-numbered-row[data-current]")).toHaveCount(1);
+    }
+    // Words show once their row has been reached; nothing waits behind a scroll.
+    await expect(rows.nth(5).locator("h3")).toBeVisible();
+    // The dots never take a pointer (wide screens only).
+    const dots = story.locator("svg.fb-dots");
+    if (await dots.isVisible()) {
+      expect(await dots.evaluate((el) => getComputedStyle(el).pointerEvents)).toBe("none");
+      await expect(dots).toHaveAttribute("aria-hidden", "true");
+    }
+    // Rows are as tall as their words: no tall blank containers.
+    for (const i of [0, 5]) expect((await rows.nth(i).boundingBox())!.height).toBeLessThan(260);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(
+      0,
+    );
+  });
+
+  test("readable in both themes, and switching keeps the current step", async ({ page }) => {
+    await page.goto("/zirahr/platform");
+    const story = page.locator("[data-numbered]");
+    const row = story.locator(".fb-numbered-row").nth(2);
+    await row.evaluate((el) => {
+      const box = el.getBoundingClientRect();
+      window.scrollBy({ top: box.top + box.height / 2 - innerHeight / 2, behavior: "instant" });
+    });
+    await expect(row).toHaveAttribute("data-current");
+    const scan = async () =>
+      (
+        await new AxeBuilder({ page: await themeSettled(page) })
+          .include("[data-numbered]")
+          .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
+          .analyze()
+      ).violations.map((v) => v.id);
+    expect(await scan()).toEqual([]);
+    // Clicked where it is: a pointer click would first scroll the header back into view on phones.
+    await page.getByRole("button", { name: /Switch to (light|dark) theme/ }).dispatchEvent("click");
+    await expect(row).toHaveAttribute("data-current");
+    expect(await scan()).toEqual([]);
   });
 });

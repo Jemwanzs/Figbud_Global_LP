@@ -19,6 +19,7 @@ import type { Dictionary } from "@/i18n/get-dictionary";
 import { routes } from "@/lib/site";
 
 import { AfricaMap } from "./africa-map";
+import { PhilosophySteps } from "./philosophy-steps";
 import { PlatformShowcase } from "./platform-showcase";
 import { WorkflowDemo } from "./workflow-demo";
 
@@ -111,38 +112,12 @@ export function PhilosophySection({ dict, tone }: SectionProps) {
       className={cn("relative overflow-x-clip py-section", BAND)}
     >
       <Container>
-        <SectionHeading id="philosophy-title" eyebrow={philosophy.eyebrow} title={philosophy.title} />
-        <ol className="mt-stack">
-          {philosophy.items.map((item, i) => (
-            <li key={item.title} className="relative border-t border-line last:border-b">
-              {/* Each row reveals on its own as it scrolls in: accent line, number,
-                  title, then description. Number, title and description share a
-                  baseline on wider screens. */}
-              <RevealGroup className="grid gap-2.5 py-6 sm:py-7 md:grid-cols-12 md:items-baseline md:gap-x-8 md:gap-y-0 md:py-8">
-                <span
-                  aria-hidden
-                  style={revealOrder(0)}
-                  className="fb-reveal-line absolute start-0 -top-px h-px w-2/5 bg-gradient-to-r from-accent/80 to-transparent rtl:bg-gradient-to-l"
-                />
-                <span className="fb-reveal-roll font-mono text-sm text-accent md:col-span-1">
-                  <span style={revealOrder(1)}>0{i + 1}</span>
-                </span>
-                <h3
-                  style={revealOrder(2, { x: "calc(var(--motion-distance-lg) * -1)", y: "0px" })}
-                  className="fb-reveal-item font-display text-title font-medium text-text md:col-span-4"
-                >
-                  {item.title}
-                </h3>
-                <p
-                  style={revealOrder(3, { x: "calc(var(--motion-distance) * -1)", y: "0px" })}
-                  className="fb-reveal-item max-w-prose leading-7 text-muted md:col-span-7 md:text-[1.0625rem]"
-                >
-                  {item.body}
-                </p>
-              </RevealGroup>
-            </li>
-          ))}
-        </ol>
+        <PhilosophySteps
+          heading={
+            <SectionHeading id="philosophy-title" eyebrow={philosophy.eyebrow} title={philosophy.title} />
+          }
+          items={philosophy.items}
+        />
       </Container>
     </section>
   );

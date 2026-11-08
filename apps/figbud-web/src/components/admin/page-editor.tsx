@@ -7,6 +7,7 @@ import {
   type PageSection,
   type SectionTone,
   type SiteTheme,
+  ZIRAHR_MODULES,
   siteThemeStyle,
 } from "@figbud/site-kit";
 import { buttonClasses, cn } from "@figbud/ui";
@@ -649,6 +650,70 @@ export function BlockForm({
               <option value="connected_modules">Connected modules, lit by a signal line (animated)</option>
             </select>
           </label>
+          {section.visual === "connected_modules" && (
+            <>
+              <HeroModules
+                value={section.modules ?? []}
+                disabled={p.disabled}
+                onChange={(modules) => onChange({ ...section, modules })}
+              />
+              <label className="block text-sm font-medium text-text">
+                Animation
+                <select
+                  value={section.motion ?? "standard"}
+                  disabled={p.disabled}
+                  onChange={(e) =>
+                    onChange({ ...section, motion: e.target.value as "standard" | "subtle" | "off" })
+                  }
+                  className="mt-1.5 min-h-11 w-full rounded-xl border border-line-strong bg-surface px-3 text-text"
+                >
+                  <option value="standard">Standard: the next module every few seconds</option>
+                  <option value="subtle">Subtle: slower</option>
+                  <option value="off">Off: it rests; visitors choose with the dots</option>
+                </select>
+              </label>
+              <label className="flex items-center gap-3 text-sm font-medium text-text">
+                <input
+                  type="checkbox"
+                  checked={!!section.ess}
+                  disabled={p.disabled}
+                  onChange={(e) =>
+                    onChange({
+                      ...section,
+                      ess: e.target.checked
+                        ? {
+                            heading: "Your team. Their HR. One simple portal.",
+                            body: "Employees get secure access to payslips, leave requests, personal details and other permitted self-service, in a web browser on any desktop, tablet or phone. No app to install.",
+                          }
+                        : null,
+                    })
+                  }
+                  className="size-5 accent-[var(--action,var(--accent))]"
+                />
+                Highlight Employee Self-Service under the hero
+              </label>
+              {section.ess && (
+                <div className="grid gap-3 border-s-2 border-line ps-4">
+                  <TextField
+                    label="Self-service heading"
+                    value={section.ess.heading}
+                    max={90}
+                    {...p}
+                    onChange={(v) => onChange({ ...section, ess: { ...section.ess!, heading: v } })}
+                  />
+                  <TextField
+                    label="Self-service text"
+                    value={section.ess.body}
+                    max={300}
+                    multiline
+                    hint="A web portal in any browser. Don't describe it as an app to download."
+                    {...p}
+                    onChange={(v) => onChange({ ...section, ess: { ...section.ess!, body: v } })}
+                  />
+                </div>
+              )}
+            </>
+          )}
           <TextField
             label="Highlights (optional, one per line, up to four)"
             value={(section.highlights ?? []).join("\n")}
@@ -946,6 +1011,49 @@ export function BlockForm({
     case "steps":
       return (
         <div className="grid gap-3">
+          <label className="block text-sm font-medium text-text">
+            Style
+            <select
+              value={section.style ?? "cards"}
+              disabled={p.disabled}
+              onChange={(e) => onChange({ ...section, style: e.target.value as "cards" | "story" })}
+              className="mt-1.5 min-h-11 w-full rounded-xl border border-line-strong bg-surface px-3 text-text"
+            >
+              <option value="cards">Cards side by side</option>
+              <option value="story">
+                Numbered story: outlined numbers, each step current as visitors scroll
+              </option>
+            </select>
+          </label>
+          {section.style === "story" && (
+            <>
+              <label className="flex items-center gap-3 text-sm font-medium text-text">
+                <input
+                  type="checkbox"
+                  checked={!!section.dots}
+                  disabled={p.disabled}
+                  onChange={(e) => onChange({ ...section, dots: e.target.checked })}
+                  className="size-5 accent-[var(--action,var(--accent))]"
+                />
+                Dot pattern beside the steps (wide screens)
+              </label>
+              <label className="block text-sm font-medium text-text">
+                Animation
+                <select
+                  value={section.motion ?? "standard"}
+                  disabled={p.disabled}
+                  onChange={(e) =>
+                    onChange({ ...section, motion: e.target.value as "standard" | "subtle" | "off" })
+                  }
+                  className="mt-1.5 min-h-11 w-full rounded-xl border border-line-strong bg-surface px-3 text-text"
+                >
+                  <option value="standard">Standard: numbers draw in, the dots drift</option>
+                  <option value="subtle">Subtle: no drift</option>
+                  <option value="off">Off: nothing moves; the current step still stands out</option>
+                </select>
+              </label>
+            </>
+          )}
           <TextField
             label="Heading (optional)"
             value={section.heading}
@@ -953,6 +1061,15 @@ export function BlockForm({
             {...p}
             onChange={(v) => onChange({ ...section, heading: v })}
           />
+          {section.style === "story" && (
+            <TextField
+              label="Introduction (optional)"
+              value={section.intro}
+              max={400}
+              {...p}
+              onChange={(v) => onChange({ ...section, intro: v })}
+            />
+          )}
           <Items
             items={section.items}
             noun="Step"
@@ -2238,4 +2355,80 @@ function VisibilitySwitch({
 function initialAnswer(data: PageDetail, sectionId: string, index: number): string | undefined {
   const section = data.page.draft.sections.find((s) => s.id === sectionId);
   return section?.type === "faq" ? section.items[index]?.answer : undefined;
+}
+
+/**
+ * The hero visual's modules (owner's brief, 8 Nov 2026): tick the ones to show
+ * (at least three) and put them in order. All eight, in the approved order, is
+ * the default and is saved as "all", so new modules would join automatically.
+ */
+function HeroModules({
+  value,
+  disabled,
+  onChange,
+}: {
+  value: string[];
+  disabled?: boolean;
+  onChange: (modules: string[]) => void;
+}) {
+  const all = ZIRAHR_MODULES.map((m) => m.key as string);
+  const chosen = value.length ? value.filter((k) => all.includes(k)) : all;
+  const rows = [...chosen, ...all.filter((k) => !chosen.includes(k))];
+  const set = (next: string[]) => onChange(next.join() === all.join() ? [] : next);
+  const move = (key: string, by: -1 | 1) => {
+    const next = [...chosen];
+    const at = next.indexOf(key);
+    [next[at], next[at + by]] = [next[at + by]!, next[at]!];
+    set(next);
+  };
+  return (
+    <fieldset className="grid gap-2">
+      <legend className="text-sm font-medium text-text">Modules in the visual</legend>
+      <p className="text-sm text-subtle">
+        Tick at least three and put them in order. Names and descriptions come from the module catalogue, the
+        same as the Platform page&apos;s showcase.
+      </p>
+      <ol className="divide-y divide-line rounded-xl border border-line">
+        {rows.map((key) => {
+          const entry = ZIRAHR_MODULES.find((m) => m.key === key)!;
+          const on = chosen.includes(key);
+          const at = chosen.indexOf(key);
+          return (
+            <li key={key} className="flex items-center gap-3 px-3 py-2">
+              <label className="flex min-w-0 flex-1 items-center gap-3 text-sm text-text">
+                <input
+                  type="checkbox"
+                  checked={on}
+                  disabled={disabled || (on && chosen.length <= 3)}
+                  onChange={() => set(on ? chosen.filter((k) => k !== key) : [...chosen, key])}
+                  className="size-5 accent-[var(--action,var(--accent))]"
+                />
+                <span className="truncate">{entry.name}</span>
+              </label>
+              {on && (
+                <span className="flex shrink-0 gap-1">
+                  <button
+                    type="button"
+                    disabled={disabled || at === 0}
+                    onClick={() => move(key, -1)}
+                    className="min-h-9 rounded-lg px-2 text-sm text-muted hover:bg-surface-2 disabled:opacity-40"
+                  >
+                    Up<span className="sr-only"> {entry.name}</span>
+                  </button>
+                  <button
+                    type="button"
+                    disabled={disabled || at === chosen.length - 1}
+                    onClick={() => move(key, 1)}
+                    className="min-h-9 rounded-lg px-2 text-sm text-muted hover:bg-surface-2 disabled:opacity-40"
+                  >
+                    Down<span className="sr-only"> {entry.name}</span>
+                  </button>
+                </span>
+              )}
+            </li>
+          );
+        })}
+      </ol>
+    </fieldset>
+  );
 }

@@ -28,3 +28,5 @@ export * from "./hero-kit";
 export * from "./product-heroes";
 export * from "./product-header";
 export * from "./use-dismiss";
+export * from "./zirahr-modules";
+export * from "./numbered-story";

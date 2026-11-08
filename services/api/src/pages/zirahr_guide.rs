@@ -30,11 +30,11 @@ fn demo_cta() -> Value {
 fn home() -> Value {
     json!({
         "seo_title": "ZiraHR · HR Simplified. Business Amplified.",
-        "seo_description": "ZiraHR is cloud HR and payroll software: employee records, leave, payroll, attendance and performance in one connected platform, with self-service in any web browser.",
+        "seo_description": NEW_HOME_SEO,
         "sections": [
             hero_signal(json!({ "id": id(), "type": "hero", "eyebrow": "HR Simplified. Business Amplified.",
               "heading": "Your people. Your payroll. One smarter way to work.",
-              "lead": "Meet ZiraHR: the connected HR platform that brings employee records, leave, payroll, attendance and performance together, so your team can spend less time chasing processes and more time moving forward.",
+              "lead": NEW_LEAD,
               "primary": demo_cta(),
               "secondary": { "label": "Calculate my pay", "href": "/payroll-calculator" } })),
             { "id": id(), "type": "demo", "demo": "scattered_to_connected", "tone": "inverse",
@@ -55,17 +55,7 @@ fn home() -> Value {
             { "id": id(), "type": "demo", "demo": "employee_journey",
               "heading": "One employee, one record, start to finish.",
               "intro": "Follow someone from their application to their next goal, without anything typed twice." },
-            { "id": id(), "type": "feature_grid", "tone": "inverse",
-              "heading": "Made for the way real teams work.",
-              "intro": "Whether you run one office or several branches, ZiraHR gives HR, managers and employees the right information at the right moment.",
-              "items": [
-                  { "title": "Many branches, one view", "body": "Built for multiple branches, departments and operating regions." },
-                  { "title": "Approvals that follow you", "body": "Configurable single- and multi-stage approvals that follow your organisation." },
-                  { "title": "Connected workflows", "body": "Payroll, leave and attendance work from the same records." },
-                  { "title": "Self-service in a browser", "body": "On phone, tablet or desktop, with no app to install." },
-                  { "title": "Answers, not exports", "body": "Actionable dashboards, reports and role-based access." },
-                  { "title": "Statutory rules you can see", "body": "Dated Kenyan rules for NSSF, SHIF, the Housing Levy and PAYE." },
-              ] },
+            numbered_story(),
             { "id": id(), "type": "call_to_action", "heading": "Know the numbers before payday.",
               "body": "Explore a transparent Kenyan payroll estimate in either direction, gross to net or net to gross, with every step visible.",
               "cta": { "label": "Calculate my pay", "href": "/payroll-calculator" } },
@@ -95,7 +85,7 @@ fn module(title: &str, headline: &str, body: &str, bullets: &[&str], availabilit
 fn platform() -> Value {
     json!({
         "seo_title": "The ZiraHR platform: HR, payroll, leave and attendance",
-        "seo_description": "Explore ZiraHR's modules: Core HR, payroll with statutory rules, leave, time and attendance, performance and employee self-service in your browser.",
+        "seo_description": NEW_PLATFORM_SEO,
         "sections": [
             { "id": id(), "type": "hero", "eyebrow": "The platform",
               "heading": "Everything your people operations run on.",
@@ -339,6 +329,51 @@ fn story_sections() -> [Value; 2] {
     ]
 }
 
+/// The hero's introduction before and after the owner's brief of 8 Nov 2026
+/// (all eight modules, not five), and the search descriptions likewise.
+const OLD_LEAD: &str = "Meet ZiraHR: the connected HR platform that brings employee records, leave, payroll, attendance and performance together, so your team can spend less time chasing processes and more time moving forward.";
+const NEW_LEAD: &str = "Meet ZiraHR — the cloud-based platform connecting your people, payroll, recruitment, learning, collaboration and everyday HR workflows. From hiring to payday and beyond, everything works together in one smarter workspace.";
+const OLD_HOME_SEO: &str = "ZiraHR is cloud HR and payroll software: employee records, leave, payroll, attendance and performance in one connected platform, with self-service in any web browser.";
+const NEW_HOME_SEO: &str = "Cloud HR and payroll software: Core HR, payroll, leave, attendance, performance, teams, recruitment and learning, with self-service in any web browser.";
+const OLD_PLATFORM_SEO: &str = "Explore ZiraHR's modules: Core HR, payroll with statutory rules, leave, time and attendance, performance and employee self-service in your browser.";
+const NEW_PLATFORM_SEO: &str = "ZiraHR's eight modules: Core HR, payroll with statutory rules, leave, attendance, performance, teams, recruitment and learning, plus self-service in your browser.";
+const HERO_MODULES: &str = "page.zirahr_hero_modules";
+
+/// Employee Self-Service under the hero (owner's brief, 8 Nov 2026): a web
+/// portal, never a native app.
+fn self_service() -> Value {
+    json!({
+        "heading": "Your team. Their HR. One simple portal.",
+        "body": "Employees get secure access to payslips, leave requests, personal details and other permitted self-service, in a web browser on any desktop, tablet or phone. No app to install."
+    })
+}
+
+/// The home page's numbered story (owner's brief, 8 Nov 2026), in place of the
+/// "Made for the way real teams work" cards: the same heading, six steps.
+fn numbered_story() -> Value {
+    json!({ "id": id(), "type": "steps", "style": "story", "dots": true, "tone": "inverse",
+      "heading": "Made for the way real teams work.",
+      "intro": "Whether you run one office or several branches, ZiraHR gives HR, managers and employees the right information at the right moment.",
+      "items": [
+          { "title": "Every rate, in the open.", "body": "NSSF, SHIF, the Housing Levy and PAYE are dated settings you can see, so each run uses the rules that applied at the time and every payslip shows its working." },
+          { "title": "Nothing moves without sign-off.", "body": "Guided payroll cycles go through review and role-based approval before they lock, with comments, flags and an audit trail at every step." },
+          { "title": "Your people, all connected.", "body": "Core HR keeps each employee's record, documents and history in one place, and Teams & Collaboration keeps work, updates and approvals moving around it." },
+          { "title": "From recruitment to growth.", "body": "Move from vacancy to shortlist to first day in one hiring flow, then give training, skills and development plans a clear place in each employee's journey." },
+          { "title": "More power to your people.", "body": "Self-service in any web browser, at a desk or on a phone: payslips, P9 forms, leave requests, documents and personal details, with no app to install." },
+          { "title": "Decisions backed by data.", "body": "Dashboards and reports for HR, finance and managers, with role-based access, so everyone sees the numbers they need and nothing they shouldn't." },
+      ] })
+}
+
+/// The seeded cards that the numbered story replaces, recognised by their titles.
+const SEEDED_FEATURES: [&str; 6] = [
+    "Many branches, one view",
+    "Approvals that follow you",
+    "Connected workflows",
+    "Self-service in a browser",
+    "Answers, not exports",
+    "Statutory rules you can see",
+];
+
 const HOME_REDESIGN: &str = "page.zirahr_home_redesigned";
 const LOCAL_ENQUIRIES: &str = "page.zirahr_enquiries_local";
 const HERO_SIGNAL: &str = "page.zirahr_hero_signal";
@@ -560,6 +595,7 @@ fn hero_signal(mut hero: Value) -> Value {
         hero["accent"] = json!("One smarter way to work.");
     }
     hero["visual"] = json!("connected_modules");
+    hero["ess"] = self_service();
     hero["highlights"] = json!([
         "Many branches, one view",
         "Approvals that follow you",
@@ -1078,6 +1114,130 @@ pub async fn launch(pool: &PgPool) -> Result<(), Box<dyn std::error::Error + Sen
     .await?;
     tx.commit().await?;
     tracing::info!(pages = ?published, left_as_edited = ?skipped, "ZiraHR website published");
+    Ok(())
+}
+
+/// The owner's brief of 8 Nov 2026, once: the home hero speaks for all eight
+/// modules (new introduction) and highlights Employee Self-Service; the "Made
+/// for the way real teams work" cards become the numbered story; the home and
+/// Platform search descriptions name every module. Only text still as first
+/// seeded is changed, so edits made in the Studio are kept; each page changed
+/// gets a new numbered version (published and draft alike).
+pub async fn publish_hero_modules(pool: &PgPool) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let mut tx = pool.begin().await?;
+    let site: Option<Uuid> = sqlx::query_scalar(
+        "SELECT s.id FROM sites s WHERE s.slug = 'zirahr' AND NOT EXISTS (
+                SELECT 1 FROM audit_log a WHERE a.site_id = s.id AND a.action = $1)
+            FOR UPDATE",
+    )
+    .bind(HERO_MODULES)
+    .fetch_optional(&mut *tx)
+    .await?;
+    let Some(site_id) = site else { return Ok(()) };
+
+    let home = |doc: &mut Value| {
+        if doc["seo_description"] == OLD_HOME_SEO {
+            doc["seo_description"] = json!(NEW_HOME_SEO);
+        }
+        let Some(sections) = doc["sections"].as_array_mut() else {
+            return;
+        };
+        for section in sections.iter_mut() {
+            if section["type"] == "hero" && section["visual"] == "connected_modules" {
+                if section["lead"] == OLD_LEAD {
+                    section["lead"] = json!(NEW_LEAD);
+                }
+                if section["ess"].is_null() {
+                    section["ess"] = self_service();
+                }
+            }
+            let seeded = section["type"] == "feature_grid"
+                && section["items"].as_array().is_some_and(|items| {
+                    items.len() == SEEDED_FEATURES.len()
+                        && items
+                            .iter()
+                            .zip(SEEDED_FEATURES)
+                            .all(|(item, title)| item["title"] == title)
+                });
+            if seeded {
+                // Same place, id and visibility; the numbered story instead of the cards.
+                let mut story = numbered_story();
+                story["id"] = section["id"].clone();
+                if section["hidden"] == true {
+                    story["hidden"] = json!(true);
+                }
+                *section = story;
+            }
+        }
+    };
+    let platform = |doc: &mut Value| {
+        if doc["seo_description"] == OLD_PLATFORM_SEO {
+            doc["seo_description"] = json!(NEW_PLATFORM_SEO);
+        }
+    };
+    let mut changed = Vec::new();
+    for (path, change) in [("", &home as &dyn Fn(&mut Value)), ("platform", &platform)] {
+        let page: Option<(Uuid, Value, Option<Value>)> = sqlx::query_as(
+            "SELECT id, draft, published FROM pages
+              WHERE site_id = $1 AND path = $2 AND archived_at IS NULL FOR UPDATE",
+        )
+        .bind(site_id)
+        .bind(path)
+        .fetch_optional(&mut *tx)
+        .await?;
+        let Some((page_id, mut draft, Some(mut published))) = page else {
+            continue;
+        };
+        let before = (published.clone(), draft.clone());
+        change(&mut published);
+        change(&mut draft);
+        if (published.clone(), draft.clone()) == before {
+            continue;
+        }
+        for doc in [&published, &draft] {
+            let parsed: PageDoc = serde_json::from_value(doc.clone())?;
+            parsed
+                .validate()
+                .map_err(|e| format!("ZiraHR {path} page: {e:?}"))?;
+        }
+        let revision = Uuid::now_v7();
+        sqlx::query(
+            "INSERT INTO page_revisions (id, page_id, number, document, note, state, decided_at)
+             SELECT $1, $2, COALESCE(max(number), 0) + 1, $3, $4, 'published', now()
+               FROM page_revisions WHERE page_id = $2",
+        )
+        .bind(revision)
+        .bind(page_id)
+        .bind(&published)
+        .bind("On the owner's brief, 8 Nov 2026: all eight modules, self-service and the numbered story")
+        .execute(&mut *tx)
+        .await?;
+        sqlx::query(
+            "UPDATE pages SET draft = $2, published = $3, published_revision = $4, published_at = now(),
+                    draft_version = draft_version + 1
+              WHERE id = $1",
+        )
+        .bind(page_id)
+        .bind(&draft)
+        .bind(&published)
+        .bind(revision)
+        .execute(&mut *tx)
+        .await?;
+        changed.push(if path.is_empty() { "home" } else { path });
+    }
+    sqlx::query(
+        "INSERT INTO audit_log (id, action, target_type, target_id, detail, site_id)
+         VALUES ($1, $2, 'site', $3, $4, $5)",
+    )
+    .bind(Uuid::now_v7())
+    .bind(HERO_MODULES)
+    .bind(site_id.to_string())
+    .bind(json!({ "pages": changed, "authorised_by": "owner, 8 Nov 2026" }))
+    .bind(site_id)
+    .execute(&mut *tx)
+    .await?;
+    tx.commit().await?;
+    tracing::info!(pages = ?changed, "ZiraHR hero: all eight modules and self-service");
     Ok(())
 }
 

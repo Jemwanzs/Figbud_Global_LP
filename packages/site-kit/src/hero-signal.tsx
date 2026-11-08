@@ -1,124 +1,199 @@
 "use client";
 
 import { cn } from "@figbud/ui";
-import { CalendarCheck, Clock, type LucideIcon, Target, UserRound, Wallet } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { type CSSProperties, useEffect, useRef, useState } from "react";
+
+import { DemoControl, useAutoDemo } from "./auto-demo";
+import { ziraModules } from "./zirahr-modules";
 
 /*
- * The hero's "connected modules" visual (UI-HE1): five module cards rising like
- * steps, and a signal line that draws beneath them and lights each card in turn.
- * Decorative (the words beside it carry the message), so it's hidden from
- * assistive technology. Transforms, opacity and stroke offsets only; it pauses
- * off screen, and with reduced motion it rests settled on the first card.
+ * The hero's "connected modules" visual (UI-HE1; all eight modules on the
+ * owner's brief of 8 Nov 2026). Module cards sit on a rising signal line; the
+ * middle card is lit. With more modules than places, the cards travel along
+ * the line: each step the next module enters at the top, the others move
+ * down a place and the last one fades out at the bottom, so every module gets
+ * its turn in the light. Five places (three on narrow stages). The picture is
+ * decorative (the words beside it carry the message); the dots beneath name
+ * each module and choose it, beside the pause control. It moves on the shared
+ * demonstration clock: only on screen, never under keyboard focus, two passes
+ * and then it rests; with reduced motion it doesn't move by itself.
  */
 
-const CARDS: { name: string; note: string; icon: LucideIcon }[] = [
-  { name: "Core HR", note: "Employee 360", icon: UserRound },
-  { name: "Payroll", note: "Statutory ready", icon: Wallet },
-  { name: "Leave", note: "Approvals", icon: CalendarCheck },
-  { name: "Attendance", note: "Time and shifts", icon: Clock },
-  { name: "Performance", note: "Goals and reviews", icon: Target },
-];
+type Point = [number, number];
 
-// Where each card's node sits on the line (percent of the stage), rising left to right.
-const NODES: [number, number][] = [
-  [10, 80],
-  [30, 70],
-  [50, 63],
-  [70, 50],
-  [90, 40],
-];
+// Where each place's node sits on the line (percent of the stage), rising left to right.
+const PLACES: Record<3 | 5, Point[]> = {
+  5: [
+    [10, 80],
+    [30, 70],
+    [50, 63],
+    [70, 50],
+    [90, 40],
+  ],
+  3: [
+    [18, 76],
+    [50, 63],
+    [82, 44],
+  ],
+};
+// Off the line: where the next card waits (top right) and where the last one leaves (bottom left).
+const ENTER: Point = [106, 28];
+const LEAVE: Point = [-6, 92];
 const LINE =
   "M0 88 C 6 86, 8 81, 10 80 S 22 73, 30 70 S 44 64, 50 63 S 63 55, 70 50 S 84 42, 90 40 S 97 34, 100 30";
 
-export function HeroSignal() {
-  const root = useRef<HTMLDivElement>(null);
-  const [active, setActive] = useState(0);
-  const [moving, setMoving] = useState(false);
+export type HeroMotion = "standard" | "subtle" | "off";
 
+/** Where module `i` stands when `current` is lit: a place on the line, or waiting/leaving off it. */
+function placeOf(i: number, current: number, count: number, places: number) {
+  if (count <= places) return { place: i, shown: true };
+  const mid = Math.floor(places / 2);
+  const ahead = (((i - current) % count) + count) % count;
+  if (ahead <= places - 1 - mid) return { place: mid + ahead, shown: true };
+  if (ahead >= count - mid) return { place: mid - (count - ahead), shown: true };
+  // Off the line: the ones next in line wait at the top, the one that just left stays at the bottom.
+  const toEnter = ahead - (places - mid);
+  const sinceLeft = count - mid - 1 - ahead;
+  return { place: toEnter <= sinceLeft ? "enter" : "leave", shown: false } as const;
+}
+
+export function HeroSignal({
+  modules: keys,
+  motion = "standard",
+}: {
+  /** Catalogue keys in order (from the Studio); all eight when empty. Keys, not modules: icons can't cross to the client. */
+  modules?: readonly string[] | null;
+  motion?: HeroMotion;
+}) {
+  const stage = useRef<HTMLDivElement>(null);
+  const [places, setPlaces] = useState<3 | 5>(5);
+  const modules = ziraModules(keys);
+  const count = modules.length;
+  const demo = useAutoDemo<HTMLDivElement>({
+    durations: modules.map(() => (motion === "subtle" ? 4200 : 2800)),
+    // "Off" in the Studio: it rests on the first module, the dots still choose.
+    passes: motion === "off" ? 0 : 2,
+  });
+  const current = demo.index;
+  const static_ = count <= places;
+  const lit = static_ ? current : Math.floor(places / 2);
+
+  // Three places when the stage is narrow, so the cards stay readable.
   useEffect(() => {
-    const el = root.current;
-    if (!el || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    let timer = 0;
-    const tick = () => {
-      setActive((i) => (i + 1) % CARDS.length);
-      timer = window.setTimeout(tick, 2400);
-    };
-    // Only while it's on screen.
-    const visibility = new IntersectionObserver(([entry]) => {
-      window.clearTimeout(timer);
-      if (entry?.isIntersecting) {
-        setMoving(true);
-        timer = window.setTimeout(tick, 2400);
-      }
+    const el = stage.current;
+    if (!el) return;
+    const observer = new ResizeObserver(([entry]) => {
+      if (entry) setPlaces(entry.contentRect.width < 440 ? 3 : 5);
     });
-    visibility.observe(el);
-    return () => {
-      visibility.disconnect();
-      window.clearTimeout(timer);
-    };
+    observer.observe(el);
+    return () => observer.disconnect();
   }, []);
 
+  const nodes = PLACES[places];
   return (
-    <div
-      ref={root}
-      aria-hidden
-      data-moving={moving || undefined}
-      className="fb-signal relative aspect-[5/3] w-full"
-    >
-      <svg
-        viewBox="0 0 100 100"
-        preserveAspectRatio="none"
-        className="absolute inset-0 size-full overflow-visible"
+    <div ref={demo.ref} data-hero-modules={count} data-current={current}>
+      <div
+        ref={stage}
+        aria-hidden
+        data-moving={demo.state === "playing" || undefined}
+        className="fb-signal relative aspect-[5/3] w-full"
+        style={{ "--card-w": places === 3 ? "26%" : "17%" } as CSSProperties}
       >
-        <path d={LINE} pathLength={1} className="fb-signal-glow" />
-        <path d={LINE} pathLength={1} className="fb-signal-line" />
-      </svg>
-      {NODES.map(([x, y], i) => (
-        <span
-          key={i}
-          style={{ left: `${x}%`, top: `${y}%`, animationDelay: `${0.5 + i * 0.22}s` }}
-          className={cn(
-            "fb-signal-node absolute size-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-product",
-            i === active && "fb-signal-node-on",
-          )}
-        />
-      ))}
-      {CARDS.map((card, i) => {
-        const Icon = card.icon;
-        const [x, y] = NODES[i]!;
-        const on = i === active;
-        return (
-          <div
-            key={card.name}
-            style={{ left: `${x}%`, top: `${y - 9}%`, animationDelay: `${0.35 + i * 0.12}s` }}
-            className="fb-signal-card absolute w-[17%] -translate-x-1/2 -translate-y-full"
-          >
+        <svg
+          viewBox="0 0 100 100"
+          preserveAspectRatio="none"
+          className="absolute inset-0 size-full overflow-visible"
+        >
+          <path d={LINE} pathLength={1} className="fb-signal-glow" />
+          <path d={LINE} pathLength={1} className="fb-signal-line" />
+        </svg>
+        {nodes.map(([x, y], i) => (
+          <span
+            key={`${places}-${i}`}
+            style={{ left: `${x}%`, top: `${y}%`, animationDelay: `${0.5 + i * 0.22}s` }}
+            className={cn(
+              "fb-signal-node absolute size-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-product",
+              i === lit && "fb-signal-node-on",
+            )}
+          />
+        ))}
+        {modules.map((module, i) => {
+          const Icon = module.icon;
+          const { place, shown } = placeOf(i, current, count, places);
+          const [x, y] = place === "enter" ? ENTER : place === "leave" ? LEAVE : nodes[place]!;
+          const on = shown && (static_ ? i === current : place === lit);
+          return (
+            // The wrapper is the stage's size, so its translate is in stage percent; it carries the movement.
             <div
-              data-on={on || undefined}
+              key={module.key}
+              data-module={module.key}
+              data-shown={shown || undefined}
+              style={{ transform: `translate(${x}%, ${y - 9}%)` }}
               className={cn(
-                "flex flex-col items-center gap-1.5 rounded-2xl border px-1.5 py-2.5 text-center backdrop-blur-md transition-[transform,background-color,border-color,box-shadow] duration-[var(--motion-slow)] ease-[var(--motion-ease)] @lg:px-2 @lg:py-4",
-                on
-                  ? "-translate-y-1.5 border-product/70 bg-product-soft shadow-[0_18px_40px_-16px_var(--product)]"
-                  : "border-line-strong bg-surface/70",
+                "fb-signal-track pointer-events-none absolute inset-0",
+                shown ? "opacity-100" : "opacity-0",
               )}
+            >
+              <div
+                style={{ animationDelay: `${0.35 + Math.min(i, 4) * 0.12}s` }}
+                className="fb-signal-card absolute top-0 left-0 w-[var(--card-w)] -translate-x-1/2 -translate-y-full"
+              >
+                <div
+                  data-on={on || undefined}
+                  className={cn(
+                    "flex flex-col items-center gap-1.5 rounded-2xl border px-1.5 py-2.5 text-center backdrop-blur-md transition-[transform,background-color,border-color,box-shadow] duration-[var(--motion-slow)] ease-[var(--motion-ease)] @lg:px-2 @lg:py-4",
+                    on
+                      ? "-translate-y-1.5 border-product/70 bg-product-soft shadow-[0_18px_40px_-16px_var(--product)]"
+                      : "border-line-strong bg-surface/70",
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "grid size-7 place-items-center rounded-xl @lg:size-10",
+                      on ? "bg-product text-product-ink" : "bg-surface-2 text-product-text",
+                    )}
+                  >
+                    <Icon className="size-3.5 @lg:size-5" />
+                  </span>
+                  <span className="text-[0.62rem] leading-tight font-semibold text-text @lg:text-sm">
+                    {module.label}
+                  </span>
+                  <span className="hidden text-[0.7rem] leading-tight text-muted @2xl:block">
+                    {module.note}
+                  </span>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* There's more than fits: which module is lit, a dot for each that shows it, and pause. */}
+      <div className="mt-3 flex flex-wrap items-center justify-end gap-x-3 gap-y-1">
+        <span className="text-xs text-subtle tabular-nums" aria-hidden>
+          {`${current + 1} of ${count} modules`}
+        </span>
+        <span className="flex">
+          {modules.map((module, i) => (
+            <button
+              key={module.key}
+              type="button"
+              aria-label={`Show ${module.name}`}
+              aria-pressed={i === current}
+              onClick={() => demo.choose(i)}
+              className="grid size-6 place-items-center rounded-full focus-visible:ring-2 focus-visible:ring-[var(--focus)] focus-visible:outline-none"
             >
               <span
                 className={cn(
-                  "grid size-7 place-items-center rounded-xl @lg:size-10",
-                  on ? "bg-product text-product-ink" : "bg-surface-2 text-product-text",
+                  "block h-1.5 rounded-full transition-[width,background-color] duration-[var(--motion-base)]",
+                  i === current ? "w-4 bg-product" : "w-1.5 bg-line-strong",
                 )}
-              >
-                <Icon className="size-3.5 @lg:size-5" />
-              </span>
-              <span className="text-[0.62rem] leading-tight font-semibold text-text @lg:text-sm">
-                {card.name}
-              </span>
-              <span className="hidden text-[0.7rem] leading-tight text-muted @2xl:block">{card.note}</span>
-            </div>
-          </div>
-        );
-      })}
+              />
+            </button>
+          ))}
+        </span>
+        {motion !== "off" && <DemoControl state={demo.state} onToggle={demo.toggle} className="size-8" />}
+      </div>
     </div>
   );
 }

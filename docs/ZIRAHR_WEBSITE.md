@@ -11,6 +11,7 @@ Last updated: 5 Nov 2026.
 | Website delivery | Renderer (`apps/sites-web`) built but not deployed | Deployed as its own Railway service on the owner's approval (DEPLOYMENT.md) | Renderer e2e | Real domain, then indexing on |
 | Pages | Home only | Home (rewritten as alternating bands, 5 Nov 2026), Platform, About, Contact & Demo and Refer & earn, all published. The earlier Home is in its version history | API validation of every page; guard test for banned claims; go-live and redesign integration tests; live checks | |
 | Navigation | Pages or chosen links | Four primary pages. Calculator and Refer & earn are utility pages, linked from the footer | Renderer e2e | |
+| Hero | Five module cards | All eight modules ride the hero's signal line in turn, five at a time, from the shared catalogue (`packages/site-kit/src/zirahr-modules.ts`); Employee Self-Service highlighted under the hero as a browser portal (8 Nov 2026) | e2e: every module shown, choose, pause, reduced motion, phones | |
 | Module catalogue | Six feature cards on Home | **Module catalogue** block: all eight modules, one open at a time | e2e, axe in both themes | |
 | Demonstrations | Three hero designs | **Product demonstration** block, eleven kinds: connected modules, pay run, payslip, payroll rules, self-service, what a run gives you, leave approval, team calendar, attendance and shifts (location check where configured, late arrival, supervisor-approved overtime), and two scroll stories. Original art direction, synthetic and labelled | e2e with keyboard, axe in both themes | |
 | Heroes | Three designs, one published (P12) | Unchanged | Hero e2e | Choose and publish one |
@@ -38,7 +39,7 @@ Decisions taken, for you to overrule if you prefer:
 
 | Guide section | Where it lives | State |
 | --- | --- | --- |
-| §2 Home: hero, platform overview, why ZiraHR, closing | Home, rewritten 5 Nov 2026 as alternating bands: hero, scattered-to-connected story, modules, payslip, pay run, self-service, employee journey, why ZiraHR, calculator, questions, closing call | Published |
+| §2 Home: hero, platform overview, why ZiraHR, closing | Home, rewritten 5 Nov 2026 as alternating bands: hero (all eight modules and the self-service highlight since 8 Nov 2026), scattered-to-connected story, modules, payslip, pay run, self-service, employee journey, why ZiraHR (a six-step numbered story since 8 Nov 2026), calculator, questions, closing call | Published |
 | §2 Trust strip | **Left out:** its sector list and "teams that mean business" need customer evidence. The Trusted By section appears when approved records exist | Pending Q22 |
 | §3 Eight modules | Platform: Module catalogue | Published |
 | §4 Employee Self-Service | Platform: self-service, leave and calendar demos | Published |
@@ -91,4 +92,4 @@ Checked against the brief's list. Existing tests cover each item, so nothing was
 
 ## 6. Design direction
 
-The supplied samples informed ideas only: a line-by-line payslip, payroll rates as visible settings, a stepped pay run, modules around one record, outputs from a run, a request moving through approvers, and a team calendar. No layouts, artwork, wording or colours were copied. ZiraHR uses its own palette (warm orange and warm brown on white or deep brown, since 6 Nov 2026; cyan before), Outfit, and a "signal line" motif instead of the sample's orange dot-matrix art.
+The supplied samples informed ideas only: a line-by-line payslip, payroll rates as visible settings, a stepped pay run, modules around one record, outputs from a run, a request moving through approvers, and a team calendar. No layouts, artwork, wording or colours were copied. ZiraHR uses its own palette (warm orange and warm brown on white or deep brown, since 6 Nov 2026; cyan before), Outfit, and a "signal line" motif instead of the sample's orange dot-matrix art. On the owner's brief of 8 Nov 2026 a light dot pattern joined the numbered storytelling: a generated grid in ZiraHR's own orange-to-brown accents, beside the steps, never behind words. No artwork, layout or wording was copied from the reference shown.

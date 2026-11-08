@@ -682,3 +682,142 @@ async fn the_attendance_demonstration_joins_the_platform_page_once() {
             .unwrap();
     }
 }
+
+#[tokio::test]
+async fn the_hero_names_all_eight_modules_once_and_keeps_edits() {
+    let Some(pool) = database().await else { return };
+    let _turn = ZIRAHR.lock().await;
+    import::run(&pool).await.unwrap();
+    // Home and Platform exist once the guide is drafted and launched, whatever ran before.
+    zirahr_guide::run(&pool).await.unwrap();
+    zirahr_guide::launch(&pool).await.unwrap();
+    let site: Uuid = sqlx::query_scalar("SELECT id FROM sites WHERE slug = 'zirahr'")
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    let saved: Vec<(String, Value, Option<Value>)> = sqlx::query_as(
+        "SELECT path, draft, published FROM pages WHERE site_id = $1 AND path IN ('', 'platform')",
+    )
+    .bind(site)
+    .fetch_all(&pool)
+    .await
+    .unwrap();
+
+    let old_lead = "Meet ZiraHR: the connected HR platform that brings employee records, leave, payroll, attendance and performance together, so your team can spend less time chasing processes and more time moving forward.";
+    let feature = |title: &str| json!({ "title": title, "body": "Words." });
+    let home = |lead: &str| {
+        json!({
+            "seo_description": "ZiraHR is cloud HR and payroll software: employee records, leave, payroll, attendance and performance in one connected platform, with self-service in any web browser.",
+            "sections": [
+                { "id": "h", "type": "hero", "heading": "Your people. Your payroll.", "lead": lead, "visual": "connected_modules" },
+                { "id": "g", "type": "feature_grid", "tone": "inverse", "heading": "Made for the way real teams work.",
+                  "items": [feature("Many branches, one view"), feature("Approvals that follow you"),
+                            feature("Connected workflows"), feature("Self-service in a browser"),
+                            feature("Answers, not exports"), feature("Statutory rules you can see")] },
+                { "id": "t", "type": "text", "body": "Words." },
+            ]
+        })
+    };
+    let platform = json!({
+        "seo_description": "Explore ZiraHR's modules: Core HR, payroll with statutory rules, leave, time and attendance, performance and employee self-service in your browser.",
+        "sections": [{ "id": "h", "type": "hero", "heading": "The platform" }],
+    });
+    let reset = |home: Value| {
+        let pool = pool.clone();
+        let platform = platform.clone();
+        async move {
+            sqlx::query("DELETE FROM audit_log WHERE site_id = $1 AND action = 'page.zirahr_hero_modules'")
+                .bind(site)
+                .execute(&pool)
+                .await
+                .unwrap();
+            for (path, doc) in [("", home), ("platform", platform)] {
+                sqlx::query("UPDATE pages SET draft = $3, published = $3 WHERE site_id = $1 AND path = $2")
+                    .bind(site)
+                    .bind(path)
+                    .bind(doc)
+                    .execute(&pool)
+                    .await
+                    .unwrap();
+            }
+        }
+    };
+    let read = |path: &'static str| {
+        let pool = pool.clone();
+        async move {
+            let (draft, published): (Value, Value) =
+                sqlx::query_as("SELECT draft, published FROM pages WHERE site_id = $1 AND path = $2")
+                    .bind(site)
+                    .bind(path)
+                    .fetch_one(&pool)
+                    .await
+                    .unwrap();
+            (draft, published)
+        }
+    };
+
+    reset(home(old_lead)).await;
+    zirahr_guide::publish_hero_modules(&pool).await.unwrap();
+    let (draft, published) = read("").await;
+    for doc in [&draft, &published] {
+        let hero = &doc["sections"][0];
+        assert!(
+            hero["lead"]
+                .as_str()
+                .unwrap()
+                .contains("recruitment, learning, collaboration")
+        );
+        assert_eq!(hero["ess"]["heading"], "Your team. Their HR. One simple portal.");
+        assert!(!hero["ess"]["body"].as_str().unwrap().contains("app store"));
+        let story = &doc["sections"][1];
+        assert_eq!(story["type"], "steps");
+        assert_eq!(story["style"], "story");
+        assert_eq!(story["id"], "g", "same place and id as the cards it replaces");
+        assert_eq!(story["items"].as_array().unwrap().len(), 6);
+        assert_eq!(
+            doc["sections"][2]["type"], "text",
+            "the rest of the page is untouched"
+        );
+        assert!(
+            doc["seo_description"]
+                .as_str()
+                .unwrap()
+                .contains("recruitment and learning")
+        );
+    }
+    assert!(
+        read("platform").await.1["seo_description"]
+            .as_str()
+            .unwrap()
+            .contains("eight modules")
+    );
+
+    // Text edited in the Studio stays as it was; only what's still as seeded changes.
+    reset(home("Our own introduction.")).await;
+    zirahr_guide::publish_hero_modules(&pool).await.unwrap();
+    let published = read("").await.1;
+    assert_eq!(published["sections"][0]["lead"], "Our own introduction.");
+    assert!(published["sections"][0]["ess"].is_object());
+
+    // Once only: put back afterwards, it stays put back.
+    sqlx::query("UPDATE pages SET draft = $2, published = $2 WHERE site_id = $1 AND path = ''")
+        .bind(site)
+        .bind(home(old_lead))
+        .execute(&pool)
+        .await
+        .unwrap();
+    zirahr_guide::publish_hero_modules(&pool).await.unwrap();
+    assert_eq!(read("").await.1["sections"][0]["lead"], old_lead);
+
+    // Leave the shared database as it was.
+    for (path, draft, published) in saved {
+        sqlx::query("UPDATE pages SET draft = $3, published = $4 WHERE site_id = $1 AND path = $2")
+            .bind(site)
+            .bind(path)
+            .bind(draft)
+            .bind(published)
+            .execute(&pool)
+            .await
+            .unwrap();
+    }
+}
