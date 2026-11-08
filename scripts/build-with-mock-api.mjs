@@ -2,7 +2,8 @@
 // include registry data (product statuses, published logos) exactly as a
 // production build does against the real API. Used by CI before e2e tests.
 //
-//   node scripts/build-with-mock-api.mjs
+//   node scripts/build-with-mock-api.mjs            (every website)
+//   node scripts/build-with-mock-api.mjs sites-web  (one workspace, e.g. for Lighthouse)
 import { spawn } from "node:child_process";
 
 const PORT = 3199;
@@ -53,7 +54,8 @@ let code = 1;
 try {
   await ready();
   code = await new Promise((resolve) => {
-    const build = spawn("npm", ["run", "build"], {
+    const only = process.argv[2];
+    const build = spawn("npm", ["run", "build", ...(only ? ["-w", only] : [])], {
       env: { ...process.env, API_INTERNAL_URL: `http://localhost:${PORT}` },
       stdio: "inherit",
       shell: true,
