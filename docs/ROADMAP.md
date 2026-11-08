@@ -298,7 +298,7 @@ Items marked **Blocking** stop the listed tasks; everything else proceeds with t
 | P3-09  | Cookie Policy: preference controls and factual cookie list live (P7-PC1); policy text as a Studio draft, shown above the cookie list once approved | ✅ Controls · ⛔ Q5 text |
 | P3-10  | Products page: product comparison and "future products" slot                          | ✅ |
 | P3-11  | Breadcrumbs (BreadcrumbList schema) on inner pages                                     | ✅ |
-| P3-12  | Site search (pages + articles)                                                         | ⬜ |
+| P3-12  | Site search (pages + articles): a search button in the header opens `/search`. Pages and products come from the same dictionaries and registry as the pages, in the visitor's language; articles come from the blog's full-text search. Every word must match, ignoring case and accents, and title matches rank first. Pages still in progress (privacy, terms) are left out. Results are never indexed, and no results says so with next steps | ✅ |
 | P3-13  | Swahili translation review → publish `sw` locale                                       | ⛔ Q6 |
 | P3-14  | French, Arabic, Chinese review → publish                                               | ⛔ Q6 |
 
@@ -619,6 +619,15 @@ Scope: a four-page, SaaS-only ZiraHR website from the Enhanced Content & Develop
 
 | Date        | Change                                                                                                   |
 | ----------- | -------------------------------------------------------------------------------------------------------- |
+| 8 Nov 2026 | Site search on FigBud Global (P3-12) and Lighthouse budgets for ZiraHR in CI (P4-14):
+- **Search:**
+  - a search button beside the theme switch opens a search page listing matching pages and products, and matching articles;
+  - pages and products are searched in the visitor's language, from the same words the pages show, ignoring case and accents;
+  - articles use the blog's existing search;
+  - the results page isn't indexed, and the phone header still fits.
+- **Lighthouse for ZiraHR:**
+  - a new CI job builds the product-site renderer against the test API and audits Home, Platform and Contact on mobile, three runs each, with the corporate site's budgets;
+  - accessibility, best practices and SEO score 100 on all three pages, with no layout shift. |
 | 8 Nov 2026 | All eight ZiraHR modules in the hero, self-service, and numbered storytelling (UI-HE2, UI-NS1), on the owner's two briefs:
 - **Hero:**
   - the visual showed five modules, so cards now ride the line five at a time and every module takes its turn: Core HR & Employee 360, Payroll & Statutory Compliance, Leave, Time & Attendance, Performance, Teams & Collaboration, Recruitment, and Learning & Development;

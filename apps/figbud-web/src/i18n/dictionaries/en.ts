@@ -64,6 +64,22 @@ const en = {
       coming_soon: "Coming soon",
       planned: "Planned",
     },
+    // Site search (P3-12).
+    search: {
+      open: "Search",
+      title: "Search",
+      lead: "Find pages, products and articles across FigBud Global.",
+      label: "Search FigBud Global",
+      placeholder: "Search pages, products and insights…",
+      button: "Search",
+      resultsFor: 'Results for "{q}"',
+      pages: "Pages and products",
+      articles: "Articles",
+      noneTitle: "Nothing found",
+      noneBody: "Try other words, or browse our products and insights.",
+      hint: "Search for a product, a topic or a page.",
+      external: "opens the product website",
+    },
     theme: { toLight: "Switch to light theme", toDark: "Switch to dark theme" },
     language: {
       label: "Language",

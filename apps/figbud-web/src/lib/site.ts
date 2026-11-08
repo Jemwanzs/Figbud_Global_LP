@@ -82,6 +82,7 @@ export const routes = {
   privacy: "/legal/privacy",
   terms: "/legal/terms",
   cookies: "/legal/cookies",
+  search: "/search",
 } as const;
 
 /** Paths listed in the sitemap. Pages still in progress stay out until published. */

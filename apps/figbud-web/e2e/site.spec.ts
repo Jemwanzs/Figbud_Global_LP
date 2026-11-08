@@ -761,3 +761,32 @@ test("our philosophy: outlined numbers that follow the scroll, with dots beside 
   expect(stroke).toBe(accent);
   expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(0);
 });
+
+test("site search finds pages, products and articles from the header, and isn't indexed (P3-12)", async ({
+  page,
+}) => {
+  await page.goto("/en/about");
+  await page.getByRole("banner").getByRole("link", { name: "Search", exact: true }).click();
+  await expect(page).toHaveURL(/\/en\/search$/);
+  await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", /noindex/);
+  const box = page.getByRole("searchbox", { name: "Search FigBud Global" });
+  await box.fill("payroll");
+  await box.press("Enter");
+  await expect(page).toHaveURL(/\/en\/search\?q=payroll$/);
+  const pages = page.getByRole("region", { name: "Pages and products" });
+  await expect(pages.getByRole("link", { name: /^ZiraHR/ })).toBeVisible();
+  const articles = page.getByRole("region", { name: "Articles" });
+  await expect(articles.getByRole("link").first()).toHaveAttribute("href", /\/en\/blog\//);
+  // Accents and case don't matter; every word must match.
+  await page.goto("/en/search?q=CONTACT");
+  await expect(
+    page.getByRole("region", { name: "Pages and products" }).getByRole("link", { name: /^Contact/ }),
+  ).toBeVisible();
+  // Nothing found: said plainly, with somewhere to go next.
+  await page.goto("/en/search?q=zzzz-nothing");
+  await expect(page.getByRole("heading", { name: "Nothing found" })).toBeVisible();
+  await expect(page.getByRole("link", { name: /Explore/ }).first()).toBeVisible();
+  // The header still fits a phone with the search button in it.
+  await page.setViewportSize({ width: 360, height: 780 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(0);
+});

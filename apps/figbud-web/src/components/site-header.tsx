@@ -3,7 +3,7 @@
 import { publicProducts } from "@figbud/brand";
 import { LOCALE_COOKIE, type Locale, localeInfo, localizePath, locales, stripLocale } from "@figbud/i18n";
 import { FigBudWordmark, InverseTheme, StatusBadge, ThemeToggle, buttonClasses, cn } from "@figbud/ui";
-import { ArrowRight, ArrowUpRight, ChevronDown, Menu, X } from "lucide-react";
+import { ArrowRight, ArrowUpRight, ChevronDown, Menu, Search, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
@@ -119,6 +119,14 @@ export function SiteHeader({ locale, common, products, brands, previews = {} }: 
             labels={common.language}
             className="hidden md:block"
           />
+          <Link
+            href={localizePath(locale, routes.search)}
+            aria-label={common.search.open}
+            title={common.search.open}
+            className="inline-flex size-9 shrink-0 items-center justify-center rounded-full border border-line bg-surface/60 text-muted transition-colors duration-200 hover:border-line-strong hover:bg-surface-2 hover:text-text focus-visible:ring-2 focus-visible:ring-[var(--focus)] focus-visible:outline-none"
+          >
+            <Search aria-hidden className="size-[1.125rem]" />
+          </Link>
           <ThemeToggle labels={common.theme} />
           <Link
             href={localizePath(locale, routes.contact)}

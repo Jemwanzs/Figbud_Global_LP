@@ -12,6 +12,7 @@ const ROUTES = [
   "/en/about",
   "/en/blog",
   "/en/blog/effective-dated-payroll",
+  "/en/search?q=payroll",
   "/en/legal/privacy",
   "/en/does-not-exist",
   "/ar",
