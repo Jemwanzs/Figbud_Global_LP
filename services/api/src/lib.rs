@@ -16,6 +16,7 @@ pub mod email;
 pub mod enquiry;
 pub mod error;
 pub mod heroes;
+pub mod locales;
 pub mod media;
 pub mod pages;
 pub mod payroll;

@@ -378,3 +378,34 @@ test("Studio: the Studio's own appearance is drafted, checked, published, applie
   await page.reload();
   await expect(page.locator("style[data-studio-appearance]")).toHaveCount(0);
 });
+
+test("Studio: a language is published only with a recorded review, and can go back to draft (P7-G2)", async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop", "edited from the desktop project");
+  test.setTimeout(60_000);
+  await signInAsOwner(page);
+  await page.goto("/admin/settings/languages");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Languages");
+  const fr = page.locator('[data-locale="fr"]');
+  await expect(fr).toContainText("Draft · not indexed");
+  await expect(fr).toContainText(/\d+ of \d+ texts translated/);
+  // No review recorded: Publish waits.
+  await expect(fr.getByRole("button", { name: "Publish" })).toBeDisabled();
+  await fr.getByLabel("Reviewed by").fill("Native reviewer (test)");
+  await fr.getByLabel("Review date").fill("2026-11-10");
+  await fr.getByLabel("Where the review is kept").fill("Signed review sheet (test)");
+  await fr.getByRole("button", { name: "Publish" }).click();
+  await expect(fr.getByRole("status")).toContainText("is published");
+  await expect(fr).toContainText("Published · indexed");
+  const results = await new AxeBuilder({ page: await themeSettled(page) })
+    .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
+    .analyze();
+  expect(
+    results.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`),
+  ).toEqual([]);
+  // Back to draft, for other tests.
+  page.once("dialog", (d) => d.accept());
+  await fr.getByRole("button", { name: "Back to draft" }).click();
+  await expect(fr).toContainText("Draft · not indexed");
+});

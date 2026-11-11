@@ -1,9 +1,10 @@
-import { indexableLocales, localeInfo, localizePath } from "@figbud/i18n";
+import { localeInfo, localizePath } from "@figbud/i18n";
 import type { MetadataRoute } from "next";
 
 import { LEGAL_PATHS } from "@/components/legal-page";
 import { getArticles, getPublishedSlugs } from "@/lib/cms";
 import { getCorporatePage } from "@/lib/corporate-pages";
+import { publishedLocales } from "@/lib/locales";
 import { allowIndexing, publishedPaths, routes, siteOrigin } from "@/lib/site";
 
 /**
@@ -13,6 +14,8 @@ import { allowIndexing, publishedPaths, routes, siteOrigin } from "@/lib/site";
  */
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   if (!allowIndexing) return [];
+  // The languages published in Settings & Security → Languages (P7-G2).
+  const indexableLocales = await publishedLocales();
 
   // Legal pages join once their reviewed text is published from the Studio.
   const legal = await Promise.all(

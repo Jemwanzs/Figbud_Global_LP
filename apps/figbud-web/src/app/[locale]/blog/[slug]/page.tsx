@@ -10,7 +10,8 @@ import { Breadcrumbs } from "@/components/breadcrumbs";
 import { type Article, getArticle, getPublishedSlugs } from "@/lib/cms";
 import { fill, formatDate } from "@/lib/format";
 import { resolvePage } from "@/lib/page";
-import { pageMetadata, routes, siteOrigin } from "@/lib/site";
+import { localizedMetadata } from "@/lib/locales";
+import { routes, siteOrigin } from "@/lib/site";
 
 /**
  * Unknown slugs wait for the complete render instead of streaming a generic
@@ -38,7 +39,7 @@ export async function generateMetadata({ params }: PageProps<"/[locale]/blog/[sl
     return { title: dict.pages.blog.title, robots: { index: false, follow: true } };
   }
   const article = result.data;
-  const base = pageMetadata({
+  const base = await localizedMetadata({
     locale,
     path: `${routes.blog}/${slug}`,
     title: article.seo_title,

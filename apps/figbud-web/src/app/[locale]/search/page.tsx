@@ -13,12 +13,13 @@ import { fill } from "@/lib/format";
 import { resolvePage } from "@/lib/page";
 import { getPublicProducts } from "@/lib/products";
 import { searchEntries, siteEntries } from "@/lib/site-search";
-import { pageMetadata, routes } from "@/lib/site";
+import { localizedMetadata } from "@/lib/locales";
+import { routes } from "@/lib/site";
 
 // Search results are never indexed: they repeat pages that are.
 export async function generateMetadata({ params }: PageProps<"/[locale]/search">): Promise<Metadata> {
   const { locale, dict } = await resolvePage(params);
-  return pageMetadata({
+  return await localizedMetadata({
     locale,
     path: routes.search,
     title: dict.common.search.title,

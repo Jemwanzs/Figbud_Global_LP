@@ -8,12 +8,18 @@ import { Breadcrumbs } from "@/components/breadcrumbs";
 import { PageHeader } from "@/components/page-header";
 import { resolvePage } from "@/lib/page";
 import { getClosedEnquiries } from "@/lib/products";
-import { apiOrigin, pageMetadata, routes } from "@/lib/site";
+import { localizedMetadata } from "@/lib/locales";
+import { apiOrigin, routes } from "@/lib/site";
 
 export async function generateMetadata({ params }: PageProps<"/[locale]/contact">): Promise<Metadata> {
   const { locale, dict } = await resolvePage(params);
   const page = dict.pages.contact;
-  return pageMetadata({ locale, path: routes.contact, title: page.title, description: page.description });
+  return await localizedMetadata({
+    locale,
+    path: routes.contact,
+    title: page.title,
+    description: page.description,
+  });
 }
 
 export default async function ContactPage({ params }: PageProps<"/[locale]/contact">) {

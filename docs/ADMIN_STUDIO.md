@@ -244,6 +244,15 @@ Websites → a website → Navigation & forms → **Hover Previews**.
 - **Defaults:** FigBud Global starts with its approved wording, and empty fields keep it. Product websites start with none, so a link shows nothing until its own headline is written. Studio edits apply to English pages; other languages keep their own wording.
 - **Where it runs:** `NavPreview` in `@figbud/site-kit`, used by the corporate header and the product renderer. Stored as `nav_previews` in the website's settings.
 
+## Languages (P7-G2, 12 Nov 2026)
+
+Settings & Security → **Languages**: Kiswahili, French, Arabic and Chinese for FigBud Global (English is always published).
+
+- **Coverage:** how many of the English texts each translation covers, with examples still shown in English (worked out from the dictionaries in `apps/figbud-web/src/i18n`).
+- **Review record:** who reviewed it, the date, where the review is kept, and a note.
+- **Publish:** owners only, and only with a recorded review (the API and a database check both refuse otherwise). A published language is indexed and listed in the sitemap and `hreflang`; **Back to draft** takes it out again. Drafts can still be read, fall back to English where untranslated, and carry `noindex`.
+- **Where it runs:** `locale_reviews` (migration 33), `services/api/src/locales.rs` (`GET /v1/locales`, `GET`/`POST /v1/admin/locales…`, audited as `locale.published`, `locale.unpublished`, `locale.review_recorded`). The corporate site reads the published list through `publishedLocales()` (`apps/figbud-web/src/lib/locales.ts`), cached for minutes; without the API it uses the languages published in code (English).
+
 ## Appearance & themes: the Studio's own colours (UI-AP1, 12 Nov 2026)
 
 Settings & Security → **Appearance & themes**. This changes the Admin Studio only; websites have their own themes (Colours & themes, below).

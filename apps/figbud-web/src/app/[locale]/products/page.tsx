@@ -12,12 +12,18 @@ import { ProductCard, ProductSpotlight } from "@/components/products/product-car
 import { JsonLd, ProductIdentity, organizationLd, softwareApplicationLd } from "@figbud/site-kit";
 import { getBrands, getPublicProducts } from "@/lib/products";
 import { resolvePage } from "@/lib/page";
-import { enquiryHref, pageMetadata, productLink, routes, siteOrigin } from "@/lib/site";
+import { localizedMetadata } from "@/lib/locales";
+import { enquiryHref, productLink, routes, siteOrigin } from "@/lib/site";
 
 export async function generateMetadata({ params }: PageProps<"/[locale]/products">): Promise<Metadata> {
   const { locale, dict } = await resolvePage(params);
   const page = dict.pages.products;
-  return pageMetadata({ locale, path: routes.products, title: page.title, description: page.description });
+  return await localizedMetadata({
+    locale,
+    path: routes.products,
+    title: page.title,
+    description: page.description,
+  });
 }
 
 export default async function ProductsPage({ params }: PageProps<"/[locale]/products">) {

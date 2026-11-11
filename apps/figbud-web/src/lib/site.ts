@@ -92,27 +92,33 @@ export const publishedPaths: string[] = [routes.home, routes.products, routes.ab
  * Canonical, hreflang and robots metadata for a locale-agnostic path.
  * Draft locales and unpublished pages are rendered but never indexed.
  */
+export interface PageMetadataInput {
+  locale: Locale;
+  path: string;
+  title?: string;
+  description: string;
+  published?: boolean;
+  /** Published languages (Settings & Security → Languages); else those published in code. */
+  languages?: readonly Locale[];
+}
+
 export function pageMetadata({
   locale,
   path,
   title,
   description,
   published = true,
-}: {
-  locale: Locale;
-  path: string;
-  title?: string;
-  description: string;
-  published?: boolean;
-}): Metadata {
-  const indexable = allowIndexing && published && isIndexable(locale);
+  languages,
+}: PageMetadataInput): Metadata {
+  const indexable =
+    allowIndexing && published && (languages ? languages.includes(locale) : isIndexable(locale));
   const url = `${siteOrigin}${localizePath(locale, path)}`;
   return {
     ...(title ? { title } : {}),
     description,
     alternates: {
       canonical: url,
-      languages: published ? hreflangAlternates(siteOrigin, path) : undefined,
+      languages: published ? hreflangAlternates(siteOrigin, path, languages) : undefined,
     },
     openGraph: {
       url,

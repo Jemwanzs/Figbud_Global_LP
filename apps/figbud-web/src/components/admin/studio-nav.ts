@@ -145,6 +145,8 @@ export function studioNav(
         { href: "/admin/settings/privacy", label: "Privacy" },
         // The Studio's own colours (owner's brief, 12 Nov 2026).
         { href: "/admin/settings/appearance", label: "Appearance & themes" },
+        // Which translations are published (P7-G2).
+        { href: "/admin/settings/languages", label: "Languages" },
       ],
     },
   ].filter((group) => group.href || group.links.length) as NavGroup[];

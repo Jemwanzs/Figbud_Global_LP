@@ -63,4 +63,20 @@ describe("pageMetadata", () => {
       index: false,
     });
   });
+
+  it("follows the languages published in the Studio (P7-G2)", async () => {
+    const { pageMetadata } = await loadSite({
+      NEXT_PUBLIC_ALLOW_INDEXING: "true",
+      NEXT_PUBLIC_SITE_URL: "https://figbud.example",
+    });
+    const sw = pageMetadata({ locale: "sw", path: "/", description: "d", languages: ["en", "sw"] });
+    expect(sw.robots).toEqual({ index: true, follow: true });
+    expect(sw.alternates?.languages).toMatchObject({
+      sw: "https://figbud.example/sw",
+      en: "https://figbud.example/en",
+    });
+    const fr = pageMetadata({ locale: "fr", path: "/", description: "d", languages: ["en", "sw"] });
+    expect(fr.robots).toMatchObject({ index: false });
+    expect(Object.keys(fr.alternates?.languages ?? {})).not.toContain("fr");
+  });
 });

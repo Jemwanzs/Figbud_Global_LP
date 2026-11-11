@@ -2917,6 +2917,56 @@ function publicProof(slug) {
     metrics: live.filter((i) => i.kind === "metric").map(proofPublicDoc),
   };
 }
+// Localisation workflow (locales.rs): owners publish a language with a recorded review.
+const localeReviews = ["sw", "fr", "ar", "zh"].map((code) => ({
+  code,
+  status: "draft",
+  reviewer: "",
+  reviewed_on: null,
+  evidence: "",
+  note: "",
+  version: 1,
+  updated_at: new Date().toISOString(),
+}));
+function localeRoutes(path, req, body, user, send) {
+  const read = () => send(200, { locales: clone(localeReviews), can_edit: user.role === "owner" });
+  if (path === "locales" && req.method === "GET") return read();
+  const row = localeReviews.find((l) => `locales/${l.code}` === path);
+  if (!row) return send(404, { error: { code: "not_found", message: "Not found." } });
+  if (user.role !== "owner")
+    return send(403, { error: { code: "forbidden", message: "You don't have permission to do that." } });
+  if (body.version !== row.version)
+    return send(409, {
+      error: {
+        code: "conflict",
+        message: "Someone changed this language after you opened it. Reload to see the latest.",
+      },
+    });
+  const fields = [];
+  const reviewer = String(body.reviewer ?? "").trim();
+  const evidence = String(body.evidence ?? "").trim();
+  if (body.status === "published") {
+    if (!reviewer)
+      fields.push({ field: "reviewer", code: "required", message: "Name who reviewed the translation." });
+    if (!body.reviewed_on)
+      fields.push({ field: "reviewed_on", code: "required", message: "Give the date of the review." });
+    if (!evidence)
+      fields.push({ field: "evidence", code: "required", message: "Record where the review is kept." });
+  }
+  if (fields.length)
+    return send(422, { error: { code: "validation", message: "Some fields need attention.", fields } });
+  Object.assign(row, {
+    status: body.status,
+    reviewer,
+    reviewed_on: body.reviewed_on || null,
+    evidence,
+    note: String(body.note ?? "").trim(),
+    version: row.version + 1,
+    updated_at: new Date().toISOString(),
+  });
+  return read();
+}
+
 // The Studio's own appearance (studio_appearance.rs): owners publish; the
 // mock checks formats and button text (the API checks every contrast).
 const studioAppearance = { appearance: {}, draft: null, history: [], version: 1 };
@@ -5822,6 +5872,7 @@ function admin(req, res, url, body, send, raw) {
     return campaignRoutes(path, req, body, user, send);
   if (path === "proof" || path.startsWith("proof/")) return proofRoutes(path, req, body, user, send);
   if (path === "studio-appearance") return studioAppearanceRoutes(req, body, user, send);
+  if (path === "locales" || path.startsWith("locales/")) return localeRoutes(path, req, body, user, send);
   const payrollPath = /^sites\/([a-z0-9_-]+)\/payroll-calculator(?:\/([a-z_]+))?$/.exec(path);
   if (payrollPath) {
     if (payrollPath[1] !== "zirahr")
@@ -5967,6 +6018,11 @@ createServer(async (req, res) => {
           },
         });
   }
+  // Published languages (locales.rs): English always, plus those an owner published.
+  if (url.pathname === "/v1/locales")
+    return send(200, {
+      published: ["en", ...localeReviews.filter((l) => l.status === "published").map((l) => l.code)],
+    });
   if (url.pathname === "/v1/quotes/shared") {
     const token = String(req.headers["x-quote-token"] ?? "");
     const q = token.length === 64 ? [...quotes.values()].find((x) => x.token === token) : null;

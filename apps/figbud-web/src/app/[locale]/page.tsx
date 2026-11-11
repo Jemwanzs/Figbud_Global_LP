@@ -27,13 +27,14 @@ import {
   getPublicProducts,
   getSectionThemes,
 } from "@/lib/products";
-import { pageMetadata, siteOrigin } from "@/lib/site";
+import { localizedMetadata } from "@/lib/locales";
+import { siteOrigin } from "@/lib/site";
 
 export async function generateMetadata({ params }: PageProps<"/[locale]">): Promise<Metadata> {
   const { locale } = await params;
   if (!isLocale(locale)) return {};
   const dict = await getDictionary(locale);
-  return pageMetadata({ locale, path: "/", description: dict.meta.description });
+  return await localizedMetadata({ locale, path: "/", description: dict.meta.description });
 }
 
 export default async function HomePage({ params }: PageProps<"/[locale]">) {

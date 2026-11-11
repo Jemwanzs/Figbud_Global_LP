@@ -46,6 +46,11 @@ export function isIndexable(locale: Locale): boolean {
 
 export const indexableLocales = locales.filter(isIndexable);
 
+/** Known locales from a list, once each, in the usual order. */
+export function pageLocales(codes: readonly string[]): Locale[] {
+  return locales.filter((l) => codes.includes(l));
+}
+
 /** Prefixes a locale-agnostic path (`/about`) with a locale (`/sw/about`). */
 export function localizePath(locale: Locale, path = "/"): string {
   const clean = path === "/" || path === "" ? "" : path.startsWith("/") ? path : `/${path}`;
@@ -66,9 +71,13 @@ export function stripLocale(pathname: string): string {
  * Builds `alternates.languages` for Next.js metadata: only reviewed locales,
  * plus `x-default` pointing to the default locale.
  */
-export function hreflangAlternates(origin: string, path = "/"): Record<string, string> {
+export function hreflangAlternates(
+  origin: string,
+  path = "/",
+  published: readonly Locale[] = indexableLocales,
+): Record<string, string> {
   const languages: Record<string, string> = {};
-  for (const locale of indexableLocales) {
+  for (const locale of published) {
     languages[localeInfo[locale].tag] = `${origin}${localizePath(locale, path)}`;
   }
   languages["x-default"] = `${origin}${localizePath(defaultLocale, path)}`;

@@ -13,7 +13,8 @@ import { getCorporatePage, localizedHrefs } from "@/lib/corporate-pages";
 import { fill } from "@/lib/format";
 import { resolvePage } from "@/lib/page";
 import { getBrands, getPublicProducts } from "@/lib/products";
-import { pageMetadata, productLink, routes } from "@/lib/site";
+import { localizedMetadata } from "@/lib/locales";
+import { productLink, routes } from "@/lib/site";
 
 const ENGINEER_ICONS = {
   workflow: Workflow,
@@ -27,7 +28,7 @@ export async function generateMetadata({ params }: PageProps<"/[locale]/about">)
   const { locale, dict } = await resolvePage(params);
   const page = dict.pages.about;
   const studio = await getCorporatePage("about");
-  return pageMetadata({
+  return await localizedMetadata({
     locale,
     path: routes.about,
     title: studio?.seo_title || page.title,

@@ -6,7 +6,7 @@ import type { ReactNode } from "react";
 
 import type { Dictionary } from "@/i18n/get-dictionary";
 import { getCorporatePage, localizedHrefs } from "@/lib/corporate-pages";
-import { pageMetadata } from "@/lib/site";
+import { localizedMetadata } from "@/lib/locales";
 
 import { Breadcrumbs } from "./breadcrumbs";
 import { InProgressPage } from "./in-progress-page";
@@ -26,7 +26,7 @@ export async function legalMetadata(
   copy: { title: string; description: string },
 ): Promise<Metadata> {
   const studio = await getCorporatePage(path);
-  return pageMetadata({
+  return await localizedMetadata({
     locale,
     path: `/${path}`,
     title: studio?.seo_title || copy.title,

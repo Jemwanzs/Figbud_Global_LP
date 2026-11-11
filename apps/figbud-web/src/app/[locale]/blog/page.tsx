@@ -12,7 +12,8 @@ import type { Dictionary } from "@/i18n/get-dictionary";
 import { getArticles, getCategories } from "@/lib/cms";
 import { fill } from "@/lib/format";
 import { resolvePage } from "@/lib/page";
-import { pageMetadata, routes } from "@/lib/site";
+import { localizedMetadata } from "@/lib/locales";
+import { routes } from "@/lib/site";
 
 const PER_PAGE = 12;
 
@@ -21,7 +22,7 @@ export async function generateMetadata({ params }: PageProps<"/[locale]/blog">):
   const { locale, dict } = await resolvePage(params);
   const page = dict.pages.blog;
   const latest = await getArticles({ locale, perPage: 1 });
-  return pageMetadata({
+  return await localizedMetadata({
     locale,
     path: routes.blog,
     title: page.title,
