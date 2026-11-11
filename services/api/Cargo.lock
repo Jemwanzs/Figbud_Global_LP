@@ -853,7 +853,7 @@ dependencies = [
  "phonenumber",
  "pulldown-cmark",
  "qrcode",
- "rand 0.9.5",
+ "rand 0.10.3",
  "reqwest",
  "resvg",
  "rust_decimal",
