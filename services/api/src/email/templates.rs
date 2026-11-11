@@ -1,7 +1,8 @@
 //! Transactional email templates. All visitor-supplied values are HTML-escaped
 //! before they are placed into markup.
 
-use crate::enquiry::{Enquiry, EnquiryKind, Product};
+use super::acknowledgement_text;
+use crate::enquiry::Enquiry;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RenderedEmail {
@@ -147,80 +148,69 @@ pub fn team_notification(enquiry: &Enquiry, reference: &str) -> RenderedEmail {
     }
 }
 
-pub fn visitor_acknowledgement(enquiry: &Enquiry, reference: &str) -> RenderedEmail {
-    let product = enquiry.product.display_name();
+/// The visitor's acknowledgement, in `language` (a published language code,
+/// else English: see `acknowledgement_text`).
+pub fn visitor_acknowledgement(enquiry: &Enquiry, reference: &str, language: &str) -> RenderedEmail {
+    let words = acknowledgement_text::text(language);
     let first_name = enquiry.name.split_whitespace().next().unwrap_or(&enquiry.name);
-
-    let (subject, headline, next_steps) = match (enquiry.kind, enquiry.product) {
-        (EnquiryKind::Referral, _) => (
-            format!("Thanks for your {product} referral"),
-            "Thanks for the introduction".to_owned(),
-            format!(
-                "Our team will review it and reach out to the business you introduced. You earn once the deal has closed. Quote your reference to follow it with the {product} team."
-            ),
-        ),
-        (EnquiryKind::Waitlist, _) => (
-            format!("You're on the {product} waitlist"),
-            format!("You're on the {product} waitlist"),
-            format!(
-                "We'll let you know as soon as {product} opens to early customers. There's nothing else you need to do for now."
-            ),
-        ),
-        (EnquiryKind::EarlyAccess, _) => (
-            format!("Your {product} early-access request"),
-            "We've received your early-access request".to_owned(),
-            "Our team reviews early-access requests in batches and will contact you about next steps."
-                .to_owned(),
-        ),
-        (EnquiryKind::DemoRequest, _) => (
-            format!("Your {product} demo request"),
-            format!("Thanks for your interest in {product}"),
-            "A member of our team will contact you to arrange a demo at a time that suits you.".to_owned(),
-        ),
-        (EnquiryKind::Partnership, _) => (
-            "Your partnership enquiry with FigBud Global".to_owned(),
-            "Thanks for reaching out about partnering with us".to_owned(),
-            "The right person on our team will review your enquiry and get back to you.".to_owned(),
-        ),
-        (EnquiryKind::Sales | EnquiryKind::Contact, Product::Figbud) => (
-            "We've received your message".to_owned(),
-            "Thanks for getting in touch".to_owned(),
-            "A member of our team will review your message and get back to you.".to_owned(),
-        ),
-        (EnquiryKind::Sales | EnquiryKind::Contact, _) => (
-            format!("We've received your {product} enquiry"),
-            "Thanks for getting in touch".to_owned(),
-            format!("A member of the {product} team will review your message and get back to you."),
-        ),
-    };
+    let [subject, headline, next_steps] = words.for_enquiry(enquiry.kind, enquiry.product);
+    let greeting = |name: &str| words.greeting.replace("{name}", name);
+    // Our wording, escaped, around the reference in bold.
+    let reference_html = words
+        .reference
+        .split("{reference}")
+        .map(escape_html)
+        .collect::<Vec<_>>()
+        .join(&format!(
+            r#"<strong style="color:#0f172a;font-family:ui-monospace,Menlo,monospace">{}</strong>"#,
+            escape_html(reference)
+        ));
 
     let body = format!(
         r#"<h1 style="margin:0 0 16px;font-size:22px;color:#0f172a">{}</h1>
-<p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#334155">Hi {},</p>
 <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#334155">{}</p>
-<p style="margin:0 0 24px;font-size:14px;line-height:1.6;color:#475569">Your reference is <strong style="color:#0f172a;font-family:ui-monospace,Menlo,monospace">{}</strong>. Quote it if you need to follow up.</p>
-<p style="margin:0;font-size:13px;line-height:1.6;color:#64748b">If you didn't submit this request, you can safely ignore this email.</p>"#,
+<p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#334155">{}</p>
+<p style="margin:0 0 24px;font-size:14px;line-height:1.6;color:#475569">{}</p>
+<p style="margin:0;font-size:13px;line-height:1.6;color:#64748b">{}</p>"#,
         escape_html(&headline),
-        escape_html(first_name),
+        escape_html(&greeting(first_name)),
         escape_html(&next_steps),
-        escape_html(reference),
+        reference_html,
+        escape_html(words.ignore),
     );
 
     let text = format!(
-        "{headline}\n\nHi {first_name},\n\n{next_steps}\n\nYour reference is {reference}.\n\nIf you didn't submit this request, you can safely ignore this email.\n\nFigBud Global"
+        "{headline}
+
+{}
+
+{next_steps}
+
+{}
+
+{}
+
+FigBud Global",
+        greeting(first_name),
+        words.reference.replace("{reference}", reference),
+        words.ignore,
     );
 
     RenderedEmail {
         template: "visitor_acknowledgement",
         subject,
-        html: layout(&body),
+        html: layout_in(&body, words.lang, words.dir),
         text,
     }
 }
 
 fn layout(body: &str) -> String {
+    layout_in(body, "en", "ltr")
+}
+
+fn layout_in(body: &str, lang: &str, dir: &str) -> String {
     format!(
-        r#"<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>FigBud Global</title></head>
+        r#"<!doctype html><html lang="{lang}" dir="{dir}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>FigBud Global</title></head>
 <body style="margin:0;padding:0;background:#f1f5f9;font-family:Outfit,'Segoe UI',Helvetica,Arial,sans-serif">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9;padding:32px 16px"><tr><td align="center">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px">
@@ -249,6 +239,7 @@ pub fn escape_html(raw: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::enquiry::{EnquiryKind, Product};
 
     fn enquiry(kind: EnquiryKind, product: Product) -> Enquiry {
         Enquiry {
@@ -287,10 +278,31 @@ mod tests {
         let email = visitor_acknowledgement(
             &enquiry(EnquiryKind::Waitlist, Product::ExpenseNow),
             "FBG-2610-ABCDEF",
+            "en",
         );
         assert_eq!(email.subject, "You're on the Expense Now waitlist");
         assert!(email.html.contains("Hi Baraka,"));
         assert!(email.text.contains("FBG-2610-ABCDEF"));
+    }
+
+    #[test]
+    fn acknowledgements_speak_the_published_language_and_escape_input() {
+        let e = enquiry(EnquiryKind::DemoRequest, Product::Zirahr);
+        let sw = visitor_acknowledgement(&e, "FBG-2610-ABCDEF", "sw");
+        assert_eq!(sw.subject, "Ombi lako la onyesho la ZiraHR");
+        assert!(sw.html.contains(r#"<html lang="sw" dir="ltr">"#));
+        assert!(sw.text.contains("FBG-2610-ABCDEF"));
+        let ar = visitor_acknowledgement(&e, "FBG-2610-ABCDEF", "ar");
+        assert!(ar.html.contains(r#"dir="rtl""#));
+        assert!(ar.html.contains("ZiraHR"), "product names stay as they are");
+        // Visitor input is escaped in every language; an unknown code is English.
+        assert!(!ar.html.contains("<script>"));
+        assert_eq!(
+            visitor_acknowledgement(&e, "X", "de").subject,
+            "Your ZiraHR demo request"
+        );
+        let en = visitor_acknowledgement(&e, "FBG<1>", "en");
+        assert!(en.html.contains("FBG&lt;1&gt;") && !en.html.contains("FBG<1>"));
     }
 
     #[test]

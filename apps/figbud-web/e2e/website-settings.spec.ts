@@ -390,6 +390,9 @@ test("Studio: a language is published only with a recorded review, and can go ba
   const fr = page.locator('[data-locale="fr"]');
   await expect(fr).toContainText("Draft · not indexed");
   await expect(fr).toContainText(/\d+ of \d+ texts translated/);
+  // Its acknowledgement emails are there to review too (P5-12).
+  await fr.getByText(/Acknowledgement emails to review/).click();
+  await expect(fr.getByText("Votre demande de démonstration de ZiraHR")).toBeVisible();
   // No review recorded: Publish waits.
   await expect(fr.getByRole("button", { name: "Publish" })).toBeDisabled();
   await fr.getByLabel("Reviewed by").fill("Native reviewer (test)");

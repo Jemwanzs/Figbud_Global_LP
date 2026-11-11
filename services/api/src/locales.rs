@@ -41,6 +41,7 @@ pub fn router() -> Router<SharedState> {
         .route("/v1/locales", get(public))
         .route("/v1/admin/locales", get(read))
         .route("/v1/admin/locales/{code}", post(update))
+        .route("/v1/admin/locales/{code}/emails", get(emails))
 }
 
 /// Published languages, for the websites (English is always published).
@@ -73,6 +74,48 @@ async fn read(
     Ok(Json(
         json!({ "locales": reviews, "can_edit": session.user.role == Role::Owner }),
     ))
+}
+
+/// The acknowledgement emails in a language (P5-12), for its reviewer: one
+/// per kind of enquiry, with a sample name and reference.
+async fn emails(session: AdminSession, Path(code): Path<String>) -> Result<impl IntoResponse, ApiError> {
+    use crate::enquiry::{Enquiry, EnquiryKind, Product};
+    session.require(Role::Viewer)?;
+    if !matches!(code.as_str(), "sw" | "fr" | "ar" | "zh") {
+        return Err(ApiError::NotFound);
+    }
+    let samples = [
+        (EnquiryKind::DemoRequest, Product::Zirahr),
+        (EnquiryKind::Waitlist, Product::ExpenseNow),
+        (EnquiryKind::EarlyAccess, Product::Ziwa),
+        (EnquiryKind::Contact, Product::Figbud),
+        (EnquiryKind::Contact, Product::Zirahr),
+        (EnquiryKind::Partnership, Product::Figbud),
+        (EnquiryKind::Referral, Product::Zirahr),
+    ];
+    let emails: Vec<_> = samples
+        .into_iter()
+        .map(|(kind, product)| {
+            let enquiry = Enquiry {
+                kind,
+                product,
+                name: "Amina Otieno".into(),
+                email: "amina@example.com".into(),
+                company: None,
+                job_title: None,
+                phone: None,
+                phone_secondary: None,
+                country: None,
+                company_size: None,
+                message: None,
+                locale: code.clone(),
+                source_path: None,
+            };
+            let email = crate::email::templates::visitor_acknowledgement(&enquiry, "FBG-2611-SAMPLE", &code);
+            json!({ "kind": kind.label(), "product": product.display_name(), "subject": email.subject, "text": email.text })
+        })
+        .collect();
+    Ok(Json(json!({ "emails": emails })))
 }
 
 #[derive(Deserialize)]

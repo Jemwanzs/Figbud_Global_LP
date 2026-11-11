@@ -1,6 +1,7 @@
 //! Transactional email: rendering, recipient routing, provider delivery and a
 //! durable outbox so that delivery is retryable and never duplicates enquiries.
 
+pub mod acknowledgement_text;
 pub mod outbox;
 pub mod templates;
 

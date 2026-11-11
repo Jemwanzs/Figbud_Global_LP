@@ -250,6 +250,7 @@ Settings & Security → **Languages**: Kiswahili, French, Arabic and Chinese for
 
 - **Coverage:** how many of the English texts each translation covers, with examples still shown in English (worked out from the dictionaries in `apps/figbud-web/src/i18n`).
 - **Review record:** who reviewed it, the date, where the review is kept, and a note.
+- **Acknowledgement emails (P5-12):** each language's draft acknowledgement emails (one per kind of enquiry) are listed for the same reviewer. Once the language is published, visitors who write in it receive them; until then, English. Wording in `services/api/src/email/acknowledgement_text.rs`.
 - **Publish:** owners only, and only with a recorded review (the API and a database check both refuse otherwise). A published language is indexed and listed in the sitemap and `hreflang`; **Back to draft** takes it out again. Drafts can still be read, fall back to English where untranslated, and carry `noindex`.
 - **Where it runs:** `locale_reviews` (migration 33), `services/api/src/locales.rs` (`GET /v1/locales`, `GET`/`POST /v1/admin/locales…`, audited as `locale.published`, `locale.unpublished`, `locale.review_recorded`). The corporate site reads the published list through `publishedLocales()` (`apps/figbud-web/src/lib/locales.ts`), cached for minutes; without the API it uses the languages published in code (English).
 

@@ -163,6 +163,20 @@ async fn a_language_is_published_only_by_an_owner_with_a_recorded_review() {
         .0,
         StatusCode::NOT_FOUND
     );
+    // The reviewer sees the draft acknowledgement emails too (P5-12).
+    let (status, emails) = call(&app, "GET", "/v1/admin/locales/fr/emails", Some(&reviewer), None).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(
+        emails["emails"][0]["subject"],
+        "Votre demande de démonstration de ZiraHR"
+    );
+    assert_eq!(emails["emails"].as_array().unwrap().len(), 7);
+    assert_eq!(
+        call(&app, "GET", "/v1/admin/locales/en/emails", Some(&reviewer), None)
+            .await
+            .0,
+        StatusCode::NOT_FOUND
+    );
     let actions: Vec<String> = sqlx::query_scalar(
         "SELECT action FROM audit_log WHERE target_type = 'locale' AND target_id = 'fr' ORDER BY created_at",
     )

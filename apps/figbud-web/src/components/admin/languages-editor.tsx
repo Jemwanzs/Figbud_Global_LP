@@ -29,15 +29,32 @@ export interface LanguagesAdmin {
 
 type Coverage = Record<Code, { translated: number; total: number; missing: string[] }>;
 
+/** A language's acknowledgement emails, one per kind of enquiry (services/api/src/locales.rs). */
+export type LanguageEmails = { kind: string; product: string; subject: string; text: string }[];
+
 /**
  * Settings & Security → Languages (P7-G2): each translation's coverage, its
  * review record, and the owner's publish switch (services/api/src/locales.rs).
  */
-export function LanguagesEditor({ data, coverage }: { data: LanguagesAdmin; coverage: Coverage }) {
+export function LanguagesEditor({
+  data,
+  coverage,
+  emails,
+}: {
+  data: LanguagesAdmin;
+  coverage: Coverage;
+  emails: Partial<Record<string, LanguageEmails>>;
+}) {
   return (
     <ul className="mt-8 grid gap-5">
       {data.locales.map((l) => (
-        <LanguageRow key={l.code} review={l} coverage={coverage[l.code]} canEdit={data.can_edit} />
+        <LanguageRow
+          key={l.code}
+          review={l}
+          coverage={coverage[l.code]}
+          emails={emails[l.code] ?? []}
+          canEdit={data.can_edit}
+        />
       ))}
     </ul>
   );
@@ -46,10 +63,12 @@ export function LanguagesEditor({ data, coverage }: { data: LanguagesAdmin; cove
 function LanguageRow({
   review,
   coverage,
+  emails,
   canEdit,
 }: {
   review: LocaleReview;
   coverage: Coverage[Code];
+  emails: LanguageEmails;
   canEdit: boolean;
 }) {
   const router = useRouter();
@@ -171,6 +190,27 @@ function LanguageRow({
           </p>
         )}
       </div>
+      {emails.length > 0 && (
+        <details className="mt-4 rounded-xl border border-line p-3">
+          <summary className="cursor-pointer text-sm font-medium text-text">
+            {`Acknowledgement emails to review (${emails.length})`}
+          </summary>
+          <p className="mt-2 text-xs text-subtle">
+            Sent to visitors who write in this language once it&apos;s published; English until then.
+          </p>
+          <ul className="mt-3 grid gap-3">
+            {emails.map((e) => (
+              <li key={`${e.kind}${e.product}`} className="rounded-lg bg-surface-2 p-3">
+                <p className="text-xs text-subtle">{`${e.kind} · ${e.product}`}</p>
+                <div lang={info.tag} dir={info.dir}>
+                  <p className="mt-1 text-sm font-medium text-text">{e.subject}</p>
+                  <p className="mt-1 text-sm whitespace-pre-line text-muted">{e.text}</p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
       <fieldset className="mt-5 grid gap-4 sm:grid-cols-2" aria-labelledby={`${uid}-name`}>
         {input("reviewer", "Reviewed by", { hint: "The native-speaker reviewer", max: 120 })}
         {input("reviewed_on", "Review date", { type: "date" })}

@@ -311,7 +311,15 @@ async fn create_enquiry(
         outbox::enqueue(&mut tx, id, &team, Some(&enquiry.email), &notification).await?;
 
         if email_config.send_acknowledgements {
-            let acknowledgement = templates::visitor_acknowledgement(&enquiry, &reference);
+            // In the visitor's language once it's published with a review (P5-12); else English.
+            let published: bool = sqlx::query_scalar(
+                "SELECT EXISTS (SELECT 1 FROM locale_reviews WHERE code = $1 AND status = 'published')",
+            )
+            .bind(&enquiry.locale)
+            .fetch_one(&mut *tx)
+            .await?;
+            let language = if published { enquiry.locale.as_str() } else { "en" };
+            let acknowledgement = templates::visitor_acknowledgement(&enquiry, &reference, language);
             let to = [enquiry.email.clone()];
             outbox::enqueue(
                 &mut tx,

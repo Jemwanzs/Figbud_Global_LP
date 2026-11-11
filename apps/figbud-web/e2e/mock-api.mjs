@@ -2931,6 +2931,20 @@ const localeReviews = ["sw", "fr", "ar", "zh"].map((code) => ({
 function localeRoutes(path, req, body, user, send) {
   const read = () => send(200, { locales: clone(localeReviews), can_edit: user.role === "owner" });
   if (path === "locales" && req.method === "GET") return read();
+  // The acknowledgement emails for a language's reviewer (locales.rs emails): a short sample.
+  const emails = /^locales\/(sw|fr|ar|zh)\/emails$/.exec(path);
+  if (emails)
+    return send(200, {
+      emails: [
+        {
+          kind: "Demo request",
+          product: "ZiraHR",
+          subject:
+            emails[1] === "fr" ? "Votre demande de démonstration de ZiraHR" : "Draft acknowledgement (test)",
+          text: "Sample acknowledgement text (test).",
+        },
+      ],
+    });
   const row = localeReviews.find((l) => `locales/${l.code}` === path);
   if (!row) return send(404, { error: { code: "not_found", message: "Not found." } });
   if (user.role !== "owner")
