@@ -125,12 +125,14 @@
    Ziwa LMS orange with yellow and brown (final identity approved 29 Oct 2026). */
 /* ZiraHR (owner, 6 Nov 2026): warm orange, warm brown, white. The official
    symbol keeps its own colours. */
+/* ZiraHR (owner's brief, 11 Nov 2026): Signature Orange, Muted Bronze, Deep
+   Charcoal on orange, a lighter orange as text on dark surfaces. */
 [data-product="zirahr"] {
-  --product: #f5913e;
-  --product-2: #8b4a1f;
-  --product-ink: #1f1006;
-  --product-text: #ffa95e;
-  --product-soft: rgb(245 145 62 / 0.14);
+  --product: #f7933a;
+  --product-2: #b98b61;
+  --product-ink: #292625;
+  --product-text: #f9a65c;
+  --product-soft: rgb(247 147 58 / 0.14);
 }
 [data-product="jasiri"] {
   --product: #22c55e;
@@ -157,7 +159,7 @@
 }
 [data-theme="light"] [data-product="zirahr"],
 [data-theme="light"][data-product="zirahr"] {
-  --product-text: #9a4a12;
+  --product-text: #9a4f17;
 }
 [data-theme="light"] [data-product="jasiri"],
 [data-theme="light"][data-product="jasiri"] {
@@ -174,7 +176,7 @@
 /* A dark surface on a light page (InverseTheme: navigation dropdowns) keeps
    the dark-background product colours. */
 [data-theme="light"] [data-theme="dark"] [data-product="zirahr"] {
-  --product-text: #ffa95e;
+  --product-text: #f9a65c;
 }
 [data-theme="light"] [data-theme="dark"] [data-product="jasiri"] {
   --product-text: #4ade80;
@@ -191,11 +193,11 @@
    page; inside two bands, the page's own again. */
 [data-theme="dark"] [data-tone="inverse"] [data-product="zirahr"],
 [data-theme="light"] [data-tone="inverse"] [data-tone="inverse"] [data-product="zirahr"] {
-  --product-text: #9a4a12;
+  --product-text: #9a4f17;
 }
 [data-theme="light"] [data-tone="inverse"] [data-product="zirahr"],
 [data-theme="dark"] [data-tone="inverse"] [data-tone="inverse"] [data-product="zirahr"] {
-  --product-text: #ffa95e;
+  --product-text: #f9a65c;
 }
 [data-theme="dark"] [data-tone="inverse"] [data-product="jasiri"],
 [data-theme="light"] [data-tone="inverse"] [data-tone="inverse"] [data-product="jasiri"] {
@@ -314,13 +316,13 @@
 [data-theme="dark"][data-product="zirahr"] [data-tone="inverse"],
 [data-theme="light"] [data-product="zirahr"] [data-tone="inverse"] [data-tone="inverse"],
 [data-theme="light"][data-product="zirahr"] [data-tone="inverse"] [data-tone="inverse"] {
-  --product-text: #9a4a12;
+  --product-text: #9a4f17;
 }
 [data-theme="light"] [data-product="zirahr"] [data-tone="inverse"],
 [data-theme="light"][data-product="zirahr"] [data-tone="inverse"],
 [data-theme="dark"] [data-product="zirahr"] [data-tone="inverse"] [data-tone="inverse"],
 [data-theme="dark"][data-product="zirahr"] [data-tone="inverse"] [data-tone="inverse"] {
-  --product-text: #ffa95e;
+  --product-text: #f9a65c;
 }
 [data-theme="dark"] [data-product="jasiri"] [data-tone="inverse"],
 [data-theme="dark"][data-product="jasiri"] [data-tone="inverse"],
@@ -360,63 +362,92 @@
 }
 
 /*
- * The ZiraHR website's own surfaces (owner, 6 Nov 2026): deep warm brown in
- * the dark theme, white and warm white in the light theme, warm orange
- * accents. Scoped to the website (`data-site` on its <body>), so ZiraHR cards
- * on FigBud Global pages keep the parent surfaces. Contrasting bands and
- * opposite-theme surfaces inside it take the other warm set, as elsewhere.
+ * The ZiraHR website's own surfaces (owner's brief, 11 Nov 2026: warm
+ * neutrals, charcoal surfaces, intentional orange). Dark: Deep Charcoal
+ * #292625 and Charcoal Mocha #38302D, Cream #FFF5E6 text. Light: Warm Ivory
+ * #F9F5EF and Cream #FFF5E6 cards, Deep Charcoal text, a deeper taupe for
+ * secondary text (Warm Taupe #78675E itself falls below 4.5:1 on the darker
+ * cards). Signature Orange #F7933A fills buttons and active states, with Deep
+ * Charcoal on it; as text on light surfaces it's a deeper #9A4F17. Muted
+ * Bronze #B98B61 is for illustrations. Gradients (`--grad-*`, the dark-mode
+ * gradients brief of 11 Nov 2026): charcoal to mocha with bronze and orange
+ * light on dark surfaces; ivory, cream and champagne on light ones. They swap
+ * with the theme like every token, and only ZiraHR defines them. Scoped to the
+ * website (`data-site` on its <body>), so ZiraHR cards on FigBud Global pages
+ * keep the parent surfaces; contrasting bands take the other set.
  */
 [data-theme="dark"] [data-site="zirahr"],
 [data-site="zirahr"] [data-theme="dark"],
 [data-theme="light"] [data-site="zirahr"] [data-tone="inverse"],
 [data-theme="dark"] [data-site="zirahr"] [data-tone="inverse"] [data-tone="inverse"] {
   color-scheme: dark;
-  --bg: #140c07;
-  --bg-elevated: #1b110a;
-  --surface: #22160d;
-  --surface-2: #2c1c11;
-  --surface-3: #3a2617;
-  --line: rgb(253 216 186 / 0.12);
-  --line-strong: rgb(253 216 186 / 0.22);
-  --text: #fff8f1;
-  --text-muted: #ecdccb;
-  --text-subtle: #c9ad94;
-  --accent: #f5913e;
-  --accent-strong: #ffa95e;
-  --accent-ink: #1f1006;
-  --accent-soft: rgb(245 145 62 / 0.14);
-  --accent-2: #e0a872;
+  --bg: #292625;
+  --bg-elevated: #2f2a28;
+  --surface: #38302d;
+  --surface-2: #433934;
+  --surface-3: #4f433d;
+  --line: rgb(255 245 230 / 0.12);
+  --line-strong: rgb(255 245 230 / 0.22);
+  --text: #fff5e6;
+  --text-muted: #d8c9b8;
+  --text-subtle: #c9b6a3;
+  --accent: #f7933a;
+  --accent-strong: #f9a65c;
+  --accent-ink: #292625;
+  --accent-soft: rgb(247 147 58 / 0.14);
+  --accent-2: #b98b61;
   --accent-3: #ffcf99;
-  --glow: rgb(245 145 62 / 0.24);
-  --focus: #ffa95e;
-  --product-text: #ffa95e;
-  --shadow-elevated: 0 1px 0 rgb(255 240 225 / 0.04) inset, 0 24px 60px -24px rgb(0 0 0 / 0.7);
+  --action: #f7933a;
+  --action-strong: #f9a65c;
+  --action-ink: #292625;
+  --glow: rgb(247 147 58 / 0.24);
+  --focus: #f9a65c;
+  --product-text: #f9a65c;
+  /* The parent's red is under 4.5:1 on Charcoal Mocha's deeper cards. */
+  --danger: #fca5a5;
+  --shadow-elevated: 0 1px 0 rgb(255 245 230 / 0.04) inset, 0 24px 60px -24px rgb(0 0 0 / 0.7);
+  --grad-hero: linear-gradient(125deg, #292625 5%, #38302d 54%, #6b4229 100%);
+  --grad-band: radial-gradient(ellipse at 80% 20%, #765037 0%, #38302d 45%, #292625 100%);
+  --grad-demo: radial-gradient(ellipse at 80% 20%, #765037 0%, #38302d 45%, #292625 100%);
+  --grad-cta: linear-gradient(140deg, #292625 15%, #4b342a 65%, #87502b 100%);
+  --grad-glow: radial-gradient(closest-side, rgb(247 147 58 / 0.22), rgb(185 139 97 / 0.08) 60%, transparent);
+  /* On a gradient's lighter end, secondary text stays above 4.5:1. */
+  --text-on-grad: #eadfd2;
 }
 [data-theme="light"] [data-site="zirahr"],
 [data-site="zirahr"] [data-theme="light"],
 [data-theme="dark"] [data-site="zirahr"] [data-tone="inverse"],
 [data-theme="light"] [data-site="zirahr"] [data-tone="inverse"] [data-tone="inverse"] {
   color-scheme: light;
-  --bg: #fffdfa;
-  --bg-elevated: #ffffff;
-  --surface: #ffffff;
-  --surface-2: #fbf3ea;
-  --surface-3: #f3e3d2;
-  --line: rgb(92 51 23 / 0.1);
-  --line-strong: rgb(92 51 23 / 0.18);
-  --text: #2b1a0e;
-  --text-muted: #5c4331;
-  --text-subtle: #6e5442;
-  --accent: #b4540f;
-  --accent-strong: #94440b;
+  --bg: #f9f5ef;
+  --bg-elevated: #fffbf6;
+  --surface: #fff5e6;
+  --surface-2: #f3e8d8;
+  --surface-3: #e9dac6;
+  --line: rgb(41 38 37 / 0.1);
+  --line-strong: rgb(41 38 37 / 0.18);
+  --text: #292625;
+  --text-muted: #6a5a51;
+  --text-subtle: #6a5a51;
+  --accent: #9a4f17;
+  --accent-strong: #8f4a14;
   --accent-ink: #ffffff;
-  --accent-soft: rgb(217 110 30 / 0.09);
-  --accent-2: #7a4019;
-  --accent-3: #e07b28;
-  --glow: rgb(234 128 44 / 0.2);
-  --focus: #c2600f;
-  --product-text: #9a4a12;
-  --shadow-elevated: 0 1px 2px rgb(43 26 14 / 0.06), 0 24px 48px -28px rgb(43 26 14 / 0.25);
+  --accent-soft: rgb(247 147 58 / 0.12);
+  --accent-2: #7a5537;
+  --accent-3: #c4651f;
+  --action: #f7933a;
+  --action-strong: #ee8424;
+  --action-ink: #292625;
+  --glow: rgb(247 147 58 / 0.2);
+  --focus: #b05a1c;
+  --product-text: #9a4f17;
+  --shadow-elevated: 0 1px 2px rgb(41 38 37 / 0.06), 0 24px 48px -28px rgb(41 38 37 / 0.25);
+  --grad-hero: linear-gradient(125deg, #f9f5ef 5%, #fff5e6 54%, #f1dcc2 100%);
+  --grad-band: radial-gradient(ellipse at 80% 20%, #f6e3cc 0%, #fff5e6 45%, #f9f5ef 100%);
+  --grad-demo: radial-gradient(ellipse at 80% 20%, #f6e3cc 0%, #fff5e6 45%, #f9f5ef 100%);
+  --grad-cta: linear-gradient(140deg, #f9f5ef 15%, #f6e6d3 65%, #f1dcc2 100%);
+  --grad-glow: radial-gradient(closest-side, rgb(247 147 58 / 0.18), rgb(185 139 97 / 0.06) 60%, transparent);
+  --text-on-grad: #6a5a51;
 }
 
 /*

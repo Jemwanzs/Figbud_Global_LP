@@ -715,7 +715,40 @@ body:has(main [data-section="call_to_action"]:last-child) footer {
   inset-block: 0;
   inset-inline: -100vmax;
   z-index: -1;
-  background: var(--bg);
+  /* A website's band gradient (ZiraHR), else its plain background. */
+  background: var(--grad-band, var(--bg));
+}
+
+/* Gradients (ZiraHR's dark-mode gradients brief, 11 Nov 2026), from the
+   website's `--grad-*` tokens: they follow the theme and the alternating
+   bands like any colour, and websites without them look exactly as before.
+   The hero's gradient reaches from the header across the full width. */
+[data-page-blocks] > section[data-section="hero"]:first-child {
+  position: relative;
+  isolation: isolate;
+}
+[data-page-blocks] > section[data-section="hero"]:first-child::before {
+  content: "";
+  position: absolute;
+  inset-inline: -100vmax;
+  top: calc(-1 * var(--spacing-section-sm));
+  bottom: calc(-0.5 * var(--spacing-block));
+  z-index: -1;
+  background: var(--grad-hero, none);
+  /* It fades into the page below, so the hero never ends on a hard edge. */
+  mask-image: linear-gradient(to bottom, black 65%, transparent);
+  pointer-events: none;
+}
+.fb-cta-panel {
+  background: var(--grad-cta, var(--surface));
+}
+[data-footer-cta] .fb-cta-panel {
+  background: var(--grad-cta, var(--bg));
+}
+/* Secondary text stays readable on a gradient's lighter end (ZiraHR, the
+   website that defines gradients). */
+[data-site="zirahr"] :is(.fb-cta-panel, .fb-tone-inverse, .fb-demo-stage) {
+  --text-muted: var(--text-on-grad);
 }
 /* A showcase panel on its own surface: rounded, with depth suited to it. */
 .fb-surface {
@@ -745,7 +778,11 @@ body:has(main [data-section="call_to_action"]:last-child) footer {
 
 /* Product demonstrations (P14-W): one dark, softly lit stage, whatever the page's theme. */
 .fb-demo-stage {
-  background: radial-gradient(90% 70% at 15% 0%, var(--product-soft), transparent 70%), var(--bg-elevated);
+  background: var(
+    --grad-demo,
+    radial-gradient(90% 70% at 15% 0%, var(--product-soft), transparent 70%),
+    var(--bg-elevated)
+  );
   border: 1px solid var(--line);
 }
 .fb-demo-unfold {
@@ -764,8 +801,19 @@ body:has(main [data-section="call_to_action"]:last-child) footer {
   position: absolute;
   inset: -12% -8% -12% 35%;
   z-index: -1;
-  background: radial-gradient(55% 60% at 60% 50%, var(--product-soft), transparent 70%);
+  background: var(--grad-glow, radial-gradient(55% 60% at 60% 50%, var(--product-soft), transparent 70%));
   pointer-events: none;
+}
+/* The glow drifts very slowly; still with reduced motion. */
+@media (prefers-reduced-motion: no-preference) {
+  .fb-hero-signal::before {
+    animation: fb-glow-drift 18s ease-in-out infinite alternate;
+  }
+}
+@keyframes fb-glow-drift {
+  to {
+    transform: translate(-4%, 3%) scale(1.06);
+  }
 }
 .fb-signal-line,
 .fb-signal-glow {

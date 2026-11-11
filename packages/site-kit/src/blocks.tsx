@@ -416,7 +416,7 @@ function Block({
       );
     case "call_to_action":
       return (
-        <div className="relative overflow-hidden rounded-[var(--radius-panel)] border border-line bg-surface p-8 @2xl:p-12">
+        <div className="fb-cta-panel relative overflow-hidden rounded-[var(--radius-panel)] border border-line bg-surface p-8 @2xl:p-12">
           <div
             aria-hidden
             className="pointer-events-none absolute end-[-10%] -top-24 h-64 w-64 rounded-full bg-[radial-gradient(closest-side,var(--product-soft),transparent)]"

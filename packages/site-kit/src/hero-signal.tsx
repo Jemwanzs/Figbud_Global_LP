@@ -214,6 +214,7 @@ export function HeroSignal({
                           : "start-1/2 -translate-x-1/2 rtl:translate-x-1/2",
                     )}
                   >
+                    <span className="block font-semibold text-product-text">{module.name}</span>
                     {message(i)}
                   </span>
                 )}
@@ -253,9 +254,17 @@ export function HeroSignal({
         </span>
         {motion !== "off" && <DemoControl state={demo.state} onToggle={demo.toggle} className="size-8" />}
       </div>
-      {/* For a module off the line, its message reads here; screen readers hear it on the dot. */}
-      <p aria-hidden className="mt-1 min-h-5 text-end text-xs text-muted">
-        {tip !== null && placeOf(tip, current, count, places).shown === false ? message(tip) : ""}
+      {/* For a module off the line, its message reads here (screen readers hear it on the
+          dot). On narrow stages, where there's no hover, it shows the lit module's
+          message as the journey plays. */}
+      <p aria-hidden data-hero-caption="" className="mt-1 min-h-10 text-end text-xs text-muted @lg:min-h-5">
+        {tip !== null
+          ? placeOf(tip, current, count, places).shown === false
+            ? message(tip)
+            : ""
+          : places === 3
+            ? `${modules[current]!.label}: ${message(current)}`
+            : ""}
       </p>
     </div>
   );

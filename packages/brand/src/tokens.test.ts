@@ -149,10 +149,11 @@ describe.each([
     },
   );
 
-  it("status colours, kept from the parent palette, are readable on the warm surfaces", () => {
+  it("status colours (the parent's, unless the website sets its own) are readable on the warm surfaces", () => {
     for (const role of ["success", "warning", "danger"]) {
       for (const surface of surfaces) {
-        expect(contrast(parent[role]!, theme[surface]!), `${role} on ${surface}`).toBeGreaterThanOrEqual(4.5);
+        const colour = theme[role] ?? parent[role]!;
+        expect(contrast(colour, theme[surface]!), `${role} on ${surface}`).toBeGreaterThanOrEqual(4.5);
       }
     }
   });
@@ -218,4 +219,43 @@ describe.each([
   it("focus rings stand out from the page", () => {
     expect(contrast(theme.focus!, theme.bg!)).toBeGreaterThanOrEqual(3);
   });
+});
+
+// ZiraHR's Signature Orange buttons and gradients (owner's briefs, 11 Nov 2026):
+// Deep Charcoal on orange, and body and secondary text readable on every
+// colour stop of every gradient, in both themes.
+function gradientStops(selector: string): Record<string, string[]> {
+  const start = css.indexOf(selector);
+  const body = css.slice(css.indexOf("{", start), css.indexOf("\n}", start));
+  return Object.fromEntries(
+    [...body.matchAll(/--(grad-(?:hero|band|demo|cta)):\s*([^;]+);/g)].map((m) => [
+      m[1],
+      [...m[2]!.matchAll(/#[0-9a-f]{6}/gi)].map((c) => c[0]),
+    ]),
+  );
+}
+
+describe.each([
+  ["dark", warmDark, '[data-theme="dark"] [data-site="zirahr"],'],
+  ["light", warmLight, '[data-theme="light"] [data-site="zirahr"],'],
+] as const)("ZiraHR buttons and gradients, %s theme", (_name, theme, selector) => {
+  it("button text is readable on Signature Orange and its hover", () => {
+    expect(theme.action).toBe("#f7933a");
+    expect(contrast(theme["action-ink"]!, theme.action!)).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(theme["action-ink"]!, theme["action-strong"]!)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it.each(["grad-hero", "grad-band", "grad-demo", "grad-cta"])(
+    "%s keeps text readable at every stop",
+    (name) => {
+      const stops = gradientStops(selector)[name]!;
+      expect(stops.length).toBeGreaterThanOrEqual(2);
+      for (const stop of stops) {
+        expect(contrast(theme.text!, stop), `text on ${stop}`).toBeGreaterThanOrEqual(4.5);
+        expect(contrast(theme["text-on-grad"]!, stop), `secondary text on ${stop}`).toBeGreaterThanOrEqual(
+          4.5,
+        );
+      }
+    },
+  );
 });

@@ -79,8 +79,9 @@ impl BrandConfig {
         let (primary, secondary, accent) = match slug {
             // The FigBud Global parent palette: emerald, electric blue, violet.
             "figbud" => ("#22c55e", "#3b82f6", "#a855f7"),
-            // ZiraHR (owner, 6 Nov 2026): warm orange, warm brown, light warm orange.
-            "zirahr" => ("#f5913e", "#8b4a1f", "#ffa95e"),
+            // ZiraHR (owner's brief, 11 Nov 2026): Signature Orange, Muted Bronze,
+            // and the lighter orange used as text on dark surfaces.
+            "zirahr" => ("#f7933a", "#b98b61", "#f9a65c"),
             "jasiri" => ("#22c55e", "#7c3aed", "#4ade80"),
             // The Expense Now palette: primary orange, brand brown, accent yellow.
             "expense_now" => ("#ff7a00", "#4e2d17", "#ffc107"),

@@ -433,7 +433,11 @@ async fn seeded_official_logos_are_published_and_proposals_stay_in_draft() {
     set_zirahr("#22d3ee").execute(&s.pool).await.unwrap();
     clear_zirahr().execute(&s.pool).await.unwrap();
     brand::seed::run(&s.pool).await.unwrap();
-    assert_eq!(zirahr_colours().await, "#f5913e", "the old cyan is upgraded");
+    assert_eq!(
+        zirahr_colours().await,
+        "#f7933a",
+        "the old cyan is upgraded (to today's palette)"
+    );
     let noted: bool = sqlx::query_scalar(
         "SELECT EXISTS (SELECT 1 FROM brand_revisions r JOIN sites s ON s.id = r.site_id
           WHERE s.slug = 'zirahr' AND r.note LIKE 'ZiraHR palette%' AND r.state = 'published')",
@@ -450,9 +454,37 @@ async fn seeded_official_logos_are_published_and_proposals_stay_in_draft() {
         "#123456",
         "a palette chosen in the Studio is kept"
     );
+    // Signature Orange (owner's brief, 11 Nov 2026) replaces the warm orange once,
+    // and a palette chosen in the Studio is kept here too.
+    let set_warm = |primary: &'static str| {
+        sqlx::query(
+            "UPDATE site_brands SET published = jsonb_set(published, '{colors}',
+                    jsonb_build_object('primary', $1::text, 'secondary', '#8b4a1f', 'accent', '#ffa95e'))
+              WHERE site_id = (SELECT id FROM sites WHERE slug = 'zirahr')",
+        )
+        .bind(primary)
+    };
+    let clear_signature = || {
+        sqlx::query(
+            "DELETE FROM audit_log WHERE action = 'brand.zirahr_signature_palette'
+                AND site_id = (SELECT id FROM sites WHERE slug = 'zirahr')",
+        )
+    };
+    set_warm("#f5913e").execute(&s.pool).await.unwrap();
+    clear_signature().execute(&s.pool).await.unwrap();
+    brand::seed::run(&s.pool).await.unwrap();
+    assert_eq!(zirahr_colours().await, "#f7933a", "the warm orange is upgraded");
+    set_warm("#123456").execute(&s.pool).await.unwrap();
+    clear_signature().execute(&s.pool).await.unwrap();
+    brand::seed::run(&s.pool).await.unwrap();
+    assert_eq!(
+        zirahr_colours().await,
+        "#123456",
+        "a palette chosen in the Studio is kept"
+    );
     sqlx::query(
         "UPDATE site_brands SET published = jsonb_set(published, '{colors}',
-                '{\"primary\":\"#f5913e\",\"secondary\":\"#8b4a1f\",\"accent\":\"#ffa95e\"}')
+                '{\"primary\":\"#f7933a\",\"secondary\":\"#b98b61\",\"accent\":\"#f9a65c\"}')
           WHERE site_id = (SELECT id FROM sites WHERE slug = 'zirahr')",
     )
     .execute(&s.pool)

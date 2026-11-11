@@ -117,12 +117,26 @@ Product accent tokens (`packages/brand/src/tokens.css`) now follow each product'
 | Product | Accent | Second | Text on dark | Text on light |
 | ------- | ------ | ------ | ------------ | ------------- |
 | FigBud Global (parent palette, 28 Oct 2026) | #22C55E emerald (navy text on it) | #3B82F6 electric blue | #22C55E | #15803D |
-| ZiraHR (owner, 6 Nov 2026) | #F5913E warm orange (deep brown #1F1006 text on it) | #8B4A1F warm brown | #FFA95E | #9A4A12 |
+| ZiraHR (owner, 11 Nov 2026) | #F7933A Signature Orange (Deep Charcoal #292625 text on it) | #B98B61 Muted Bronze | #F9A65C | #9A4F17 |
 | Jasiri LMS | #22C55E green | #7C3AED purple | #4ADE80 | #15803D |
 | Expense Now | #FF7A00 orange | #FFC107 yellow | #FF8A1F | #A84F00 |
 | Ziwa LMS (final, 29 Oct 2026) | #FB7A1A orange (deep brown #2B1609 text on it) | #FFC642 yellow | #FB7A1A | #A8480C |
 
-ZiraHR's website also has its own surfaces (owner, 6 Nov 2026: warm brown, brown and orange, warm orange, white). In the dark theme, the pages sit on deep warm brown (#140C07 to #3A2617) with warm white text. In the light theme, they sit on white and warm white (#FFFDFA, #FBF3EA) with brown text (#2B1A0E). Buttons and links use warm orange, with #B4540F and white text in the light theme. "Brand" sections use warm brown #5C3317, and "soft" sections use warm white #FFF7EE. These are scoped to the ZiraHR website (`data-site="zirahr"` on its `<body>`, and on Studio previews), so ZiraHR cards on FigBud Global pages keep the parent surfaces with ZiraHR's orange accent. `tokens.test.ts` checks every text, accent, status and focus colour on these surfaces in both themes. The official ZiraHR symbol keeps its own cyan: no logo file was recoloured.
+ZiraHR's website has its own palette (owner's briefs, 11 Nov 2026), scoped to the ZiraHR website (`data-site="zirahr"` on its `<body>`, and on Studio previews), so ZiraHR cards on FigBud Global pages keep the parent surfaces with ZiraHR's orange accent:
+
+| Colour | Hex | Used for |
+| --- | --- | --- |
+| Deep Charcoal | #292625 | Dark-theme background; light-theme headings and body text; text on orange |
+| Charcoal Mocha | #38302D | Dark-theme cards and raised surfaces (#433934 and #4F433D deeper) |
+| Cream | #FFF5E6 | Dark-theme text; light-theme cards |
+| Warm Ivory | #F9F5EF | Light-theme background |
+| Warm Taupe | #78675E | Decorative and large text only: at 4.45:1 on the deeper light cards it isn't used for body text, which takes #6A5A51 |
+| Muted Bronze | #B98B61 | Illustrations, secondary brand colour |
+| Signature Orange | #F7933A | Buttons, active and selected states, progress, the journey line (never as small text on light surfaces: 2.1:1) |
+| Orange as text | #F9A65C dark / #9A4F17 light | Links, labels and accents written in orange |
+| Gradient tones | #6B4229, #765037, #4B342A, #87502B | Dark-mode gradient stops |
+
+Gradients are tokens on the same scope (`--grad-hero`, `--grad-band`, `--grad-demo`, `--grad-cta`, `--grad-glow`): charcoal to mocha with bronze and orange light in the dark theme, warm ivory, cream and champagne (#F6E3CC, #F1DCC2) in the light theme. They swap with the theme and the alternating bands, and websites that don't define them look as before. On a gradient's lighter end, secondary text uses `--text-on-grad` (#EADFD2 dark, #6A5A51 light). The dark theme's danger red is #FCA5A5, since the parent's red is under 4.5:1 on the deeper cards. `tokens.test.ts` checks every text, accent, status, button and focus colour on these surfaces, and text on every gradient stop, in both themes. The official ZiraHR symbol keeps its own cyan: no logo file was recoloured. The "brand" and "soft" section colours are set per website in the Studio (Navigation & forms → Theme).
 
 Ziwa's brand profile stores orange, yellow and tan as primary, secondary and accent; brown is its wordmark and button-text colour. Orange #FB7A1A is 2.5:1 on the light theme, so light pages use the darker #A8480C for orange text.
 

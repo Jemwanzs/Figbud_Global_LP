@@ -144,6 +144,7 @@ Motion explains and guides. It never decorates for its own sake, and content nev
   - Guided sections (UI-MT1):
     - Pinning is for one section at a time, on wide screens only, over a runway sized to its steps, with a skip.
     - Phones get auto-play on the shared demonstration clock instead, so scroll-driven and timed progression never compete.
+  - Website gradients (UI-GR1): a website's gradients are `--grad-hero`, `--grad-band`, `--grad-demo`, `--grad-cta` and `--grad-glow` on its theme blocks; components use `var(--grad-x, <the plain surface>)` so websites without them don't change. Check text against every stop (tokens.test.ts).
   - ZiraHR modules: list them from `ZIRAHR_MODULES` (site-kit `zirahr-modules.ts`), never a local array. The API's `ZIRAHR_MODULE_KEYS` must match it.
   - Studio (P7-UX3–UX5):
     - **Palette:** the Studio's own palette is set on its `<html>` (`data-studio`, tokens in `tokens.css`). Use the semantic tokens, never fixed colours. `bg-action` / `text-action-ink` is the primary button (warm orange in both themes); `text-accent` is orange as text.

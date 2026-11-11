@@ -481,7 +481,7 @@ struct Palette {
     note: &'static str,
 }
 
-const PALETTES: [Palette; 2] = [
+const PALETTES: [Palette; 3] = [
     // Amber and copper, before the FigBud Global parent palette of 28 Oct 2026.
     Palette {
         slug: "figbud",
@@ -495,6 +495,13 @@ const PALETTES: [Palette; 2] = [
         old: ["#22d3ee", "#0891b2", "#11e6ff"],
         marker: "brand.zirahr_palette_seeded",
         note: "ZiraHR palette on the owner's brief of 6 Nov 2026: warm orange, warm brown, white",
+    },
+    // Warm orange and brown, before Signature Orange (owner's brief, 11 Nov 2026).
+    Palette {
+        slug: "zirahr",
+        old: ["#f5913e", "#8b4a1f", "#ffa95e"],
+        marker: "brand.zirahr_signature_palette",
+        note: "ZiraHR Signature Orange #F7933A and Muted Bronze, on the owner's brief of 11 Nov 2026",
     },
 ];
 

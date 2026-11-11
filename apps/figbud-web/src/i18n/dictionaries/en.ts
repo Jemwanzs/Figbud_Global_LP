@@ -141,7 +141,7 @@ const en = {
   },
   home: {
     hero: {
-      eyebrow: "From vision to value, we deliver",
+      eyebrow: "One Vision. Endless Solutions.",
       titleLead: "Built for complexity.",
       titleAccent: "Designed for progress.",
       lead: "Enterprise technology that moves business forward. Configurable. Reliable. Ready to scale.",

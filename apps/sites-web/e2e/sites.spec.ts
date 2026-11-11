@@ -671,10 +671,15 @@ test.describe("ZiraHR: payroll calculator and demonstrations (P14)", () => {
     const band = page.locator('section[data-tone="inverse"]').first();
     const stage = band.locator(".fb-demo-stage, [data-tone='inverse']").first();
     // The band paints its colour from a layer behind it; a stage paints its own.
+    // Either may be a gradient (ZiraHR, 11 Nov 2026): then its first colour stop.
     const background = (el: typeof band) =>
       el.evaluate((node) => {
-        const own = getComputedStyle(node).backgroundColor;
-        return own === "rgba(0, 0, 0, 0)" ? getComputedStyle(node, "::before").backgroundColor : own;
+        const paint = (style: CSSStyleDeclaration) =>
+          style.backgroundColor !== "rgba(0, 0, 0, 0)"
+            ? style.backgroundColor
+            : (/rgba?\([^)]*\)/.exec(style.backgroundImage)?.[0] ?? style.backgroundColor);
+        const own = paint(getComputedStyle(node));
+        return own === "rgba(0, 0, 0, 0)" ? paint(getComputedStyle(node, "::before")) : own;
       });
     const lightness = (rgb: string) => {
       const [r, g, b] = rgb.match(/\d+/g)!.map(Number);
@@ -1175,7 +1180,8 @@ test.describe("hero module messages (owner's brief, 11 Nov 2026)", () => {
     const card = hero.locator('[data-module="payroll"] [data-card]');
     await card.hover();
     const tip = hero.locator('[data-hero-tip="payroll"]');
-    await expect(tip).toHaveText("Payday without the headaches. Now that's smart!");
+    await expect(tip).toContainText("Payroll & Statutory Compliance");
+    await expect(tip).toContainText("Payday without the headaches. Now that's smart!");
     const held = await hero.getAttribute("data-current");
     await page.waitForTimeout(3_500);
     await expect(hero).toHaveAttribute("data-current", held!);
@@ -1201,6 +1207,16 @@ test.describe("hero module messages (owner's brief, 11 Nov 2026)", () => {
     }).toPass({ timeout: 20_000 });
     await page.keyboard.press("Escape");
     await expect(page.locator("[data-hero-tip]")).toHaveCount(0);
+  });
+
+  test("on phones, the lit module's message shows as the journey plays", async ({ page }) => {
+    test.skip(page.viewportSize()!.width >= 640, "narrow stages");
+    await page.goto("/zirahr/platform");
+    const hero = page.locator("[data-hero-modules]");
+    await hero.scrollIntoViewIfNeeded();
+    const caption = hero.locator("[data-hero-caption]");
+    await expect(caption).toContainText("Core HR: Your people, their records.");
+    await expect(caption).not.toContainText("Core HR:", { timeout: 8_000 });
   });
 
   test("a tap shows a card's message on touch screens", async ({ page, isMobile }) => {

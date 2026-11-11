@@ -671,7 +671,7 @@ const brands = new Map(); // site slug -> profile
 
 const BRAND_DEFAULTS = {
   figbud: ["#22c55e", "#3b82f6", "#a855f7"],
-  zirahr: ["#f5913e", "#8b4a1f", "#ffa95e"],
+  zirahr: ["#f7933a", "#b98b61", "#f9a65c"],
   jasiri: ["#22c55e", "#7c3aed", "#4ade80"],
   expense_now: ["#ff7a00", "#4e2d17", "#ffc107"],
   ziwa: ["#fb7a1a", "#ffc642", "#d4a97a"],

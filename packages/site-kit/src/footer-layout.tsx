@@ -151,7 +151,7 @@ export function FooterLayout({
             <section
               data-tone="inverse"
               aria-labelledby="footer-cta-title"
-              className="relative isolate grid items-center gap-6 overflow-hidden rounded-[var(--radius-panel)] border border-line bg-bg px-6 py-9 text-text shadow-[var(--shadow-elevated)] sm:px-10 sm:py-10 lg:grid-cols-[1fr_auto] lg:gap-10 lg:px-14"
+              className="fb-cta-panel relative isolate grid items-center gap-6 overflow-hidden rounded-[var(--radius-panel)] border border-line bg-bg px-6 py-9 text-text shadow-[var(--shadow-elevated)] sm:px-10 sm:py-10 lg:grid-cols-[1fr_auto] lg:gap-10 lg:px-14"
             >
               <div
                 aria-hidden
