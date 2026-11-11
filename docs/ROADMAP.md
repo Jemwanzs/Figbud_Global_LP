@@ -336,7 +336,7 @@ Items marked **Blocking** stop the listed tasks; everything else proceeds with t
 | P4-11   | Product-intent SEO content (HR/payroll; loan management; expense management)                    | ⬜ |
 | P4-12   | Product accents and logos confirmed                                                             | ⛔ Q7 |
 | P4-13   | Real sanitised screenshots where available                                                      | ⛔ Q9 |
-| P4-14   | Per-site e2e in CI ✅ (ZiraHR, 5 browser projects); Lighthouse budgets per site | 🔄 In progress |
+| P4-14   | Per-site e2e in CI ✅ (ZiraHR, 5 browser projects); Lighthouse budgets per site ✅: ZiraHR's Home, Platform and Contact pages are audited in CI on mobile (built against the test API) with the corporate site's budgets. First CI run (8 Nov 2026): performance 92–93, accessibility, best practices and SEO 100 on all three | ✅ |
 
 ### Phase 5 — Integrations & administration 🔄
 
@@ -627,7 +627,8 @@ Scope: a four-page, SaaS-only ZiraHR website from the Enhanced Content & Develop
   - the results page isn't indexed, and the phone header still fits.
 - **Lighthouse for ZiraHR:**
   - a new CI job builds the product-site renderer against the test API and audits Home, Platform and Contact on mobile, three runs each, with the corporate site's budgets;
-  - accessibility, best practices and SEO score 100 on all three pages, with no layout shift. |
+  - in CI: performance 92–93, and accessibility, best practices and SEO 100 on all three pages, with no layout shift (a busy local machine had shown 81–90);
+  - CI's GitHub actions moved to their current versions (Node 20 is being retired on GitHub's runners). |
 | 8 Nov 2026 | All eight ZiraHR modules in the hero, self-service, and numbered storytelling (UI-HE2, UI-NS1), on the owner's two briefs:
 - **Hero:**
   - the visual showed five modules, so cards now ride the line five at a time and every module takes its turn: Core HR & Employee 360, Payroll & Statutory Compliance, Leave, Time & Attendance, Performance, Teams & Collaboration, Recruitment, and Learning & Development;
