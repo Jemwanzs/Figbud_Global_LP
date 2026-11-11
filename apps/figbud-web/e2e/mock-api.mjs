@@ -3422,17 +3422,82 @@ const pricingState = (slug) => {
     });
   return pricingBooks.get(slug);
 };
+// Quoted services (custom quotes, one-offs quoted on scope) are public without a price (engine.rs public_view).
+const quotedItem = (i) =>
+  i.method === "custom_quote" || (i.billing === "one_off" && i.one_off_mode === "scoped");
 const publicBook = (book) => {
-  const items = book.items.filter(
-    (i) =>
-      i.public &&
-      i.active &&
-      i.availability === "available" &&
-      i.method !== "custom_quote" &&
-      (i.rate || i.tiers.length),
-  );
+  const items = book.items
+    .filter(
+      (i) =>
+        i.public && i.active && i.availability === "available" && (quotedItem(i) || i.rate || i.tiers.length),
+    )
+    .map((i) => (quotedItem(i) ? { ...i, rate: null, tiers: [], minimum_charge: null, cycle_terms: [] } : i));
   return { ...book, fx_rates: [], fx_source: "", models: [], terms: "", plans: [], items };
 };
+// A published, visible price book on Jasiri LMS for the public pricing tests:
+// synthetic names and figures, never real prices.
+{
+  const book = startingBook("jasiri");
+  book.cycles = book.cycles.map((c) =>
+    c.key === "annual" ? { ...c, discount: { kind: "percent", value: "10" } } : c,
+  );
+  book.items = [
+    pricingItem("core", "Core module (test)", {
+      rate: "100",
+      public: true,
+      description: "Synthetic test module.",
+    }),
+    pricingItem("reports", "Reports module (test)", {
+      rate: "2000",
+      method: "flat",
+      unit_label: "organisation",
+      public: true,
+    }),
+    pricingItem("seats", "Extra seats (test)", {
+      category: "add_on",
+      method: "per_user",
+      unit_label: "users",
+      rate: "50",
+      public: true,
+    }),
+    pricingItem("setup", "Set-up (test)", {
+      category: "implementation",
+      method: "flat",
+      unit_label: "project",
+      billing: "one_off",
+      rate: "30000",
+      discountable: false,
+      public: true,
+    }),
+    pricingItem("training", "Training (test)", {
+      category: "implementation",
+      method: "per_participant",
+      unit_label: "participants",
+      billing: "one_off",
+      rate: "1500",
+      discountable: false,
+      public: true,
+    }),
+    pricingItem("integration", "Custom integration (test)", {
+      category: "integration",
+      method: "custom_quote",
+      unit_label: "integration",
+      billing: "one_off",
+      public: true,
+    }),
+    pricingItem("hidden", "Private module (test)", { rate: "999", public: false }),
+  ];
+  pricingBooks.set("jasiri", {
+    draft: clone(book),
+    draft_version: 1,
+    published: clone(book),
+    published_number: 1,
+    public_visible: true,
+    review: null,
+    versions: [],
+    effective_from: null,
+  });
+}
 const quoteView = (q) => ({
   id: q.id,
   reference: q.reference,

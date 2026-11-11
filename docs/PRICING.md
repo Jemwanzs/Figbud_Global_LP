@@ -2,7 +2,7 @@
 
 How FigBud prices its products in the Pricing Studio (Admin Studio → Websites → a product → **Pricing**). Every rule below is what the calculation engine does: `services/api/src/pricing/engine.rs`, with its tests. If you change one, change the other in the same commit.
 
-Last updated: 31 Oct 2026.
+Last updated: 12 Nov 2026.
 
 ## 1. Principles
 
@@ -49,7 +49,7 @@ One per product website, in its **base currency** (KES for ZiraHR). It has a wor
 | Active, public | Whether it can be used at all, and whether it may be shown publicly |
 
 **ZiraHR's catalogue.** It's reconciled with the confirmed product scope (BRAND_ASSETS / ZiraHR site).
-- **Available:** Core HR (Employee 360), Payroll & compliance, Leave, Time & attendance, Performance, Employee self-service, and Reporting & analytics.
+- **Available:** Core HR (Employee 360), Payroll & compliance, Leave, Time & attendance, Performance, Employee self-service, Reporting & analytics, and (12 Nov 2026, the owner's eight modules) Teams & collaboration and Learning & development. ZiraHR's existing price book received those two once, in its draft, unpriced and not public (`pricing::add_modules`, audited as `pricing.modules_added`).
 - **Planned (not confirmed for ZiraHR yet):** Mobile app, Digital salary payments, and the AI assistant. Recruitment and Salary advances moved to available for new price books after the owner confirmed the modules on 5 Nov 2026; a price book that already exists keeps its own setting, changed in the Pricing Studio.
 - **One-off groups:**
   - A. Platform setup;
@@ -175,7 +175,12 @@ There are two separate controls:
    - The comparison shows what changed against the published version (added, removed and changed items, old → new rate, settings).
 2. **Show pricing on the website:** a reviewer switch, **off by default**, and only possible once a version is published.
    - **Off:** the product's `/pricing` page invites visitors to request a quote and isn't indexed. Calculators and approved quotations keep working.
-   - **On:** only items that are published, active, available, priced and marked public are shown, as cards plus an estimate calculator. Plans show only when all their modules are public. Internal terms, exchange rates and models never appear.
+   - **On:** only items that are published, active, available and marked public are shown. Priced items show their price; services quoted per customer (custom quotes, one-offs quoted on scope) show as "Request a quote", with any internal rate removed, and stay out of the totals. Plans show only when all their modules are public. Internal terms, exchange rates and models never appear.
+   - **The page (12 Nov 2026), in three steps:**
+     1. **Choose your modules:** recurring core and add-on items, each with an on/off switch, its description and price.
+     2. **Configure your subscription:** the company headcount, each chosen module's own employees, users or other units, and the billing cycle (with its discount).
+     3. **Add optional services:** set-up, training, integrations, migration, support and other items, each marked one-off or recurring, with a quantity where it's per participant, session, day and so on.
+   - A live estimate (the same engine) lists the selection and its quantities, the subscription, discount, one-off charges, tax and totals, with **Request a quote** and **Book a demo**. It's a sticky panel on wide screens and a compact bar that opens into the summary on phones. `PublicPricing` in `@figbud/site-kit` (`public-pricing.tsx`).
 
 **Restore into draft:** copies an earlier version into the draft, which then needs approval again. It never changes quotations.
 

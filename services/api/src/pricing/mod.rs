@@ -1142,3 +1142,63 @@ async fn shared_quote(
         Json(q.customer_view(&product)),
     ))
 }
+
+/// Audit marker for `add_modules`.
+const MODULES_ADDED: &str = "pricing.modules_added";
+
+/// The owner's eight ZiraHR modules (12 Nov 2026): a price book saved before
+/// Teams & collaboration and Learning & development existed gets them once,
+/// in its draft, unpriced and not public, so nothing changes for customers
+/// until they're priced and approved. One that an editor removes afterwards
+/// stays removed.
+pub async fn add_modules(pool: &PgPool) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let mut tx = pool.begin().await?;
+    let row: Option<(Uuid, Value)> = sqlx::query_as(
+        "SELECT b.site_id, b.draft FROM pricing_books b JOIN sites s ON s.id = b.site_id
+          WHERE s.slug = 'zirahr' AND NOT EXISTS (
+                SELECT 1 FROM audit_log a WHERE a.site_id = s.id AND a.action = $1)
+            FOR UPDATE OF b",
+    )
+    .bind(MODULES_ADDED)
+    .fetch_optional(&mut *tx)
+    .await?;
+    let Some((site_id, draft)) = row else {
+        return Ok(());
+    };
+    let Ok(mut book) = serde_json::from_value::<engine::PriceBook>(draft) else {
+        return Ok(());
+    };
+    let starting = engine::zirahr_starting_book();
+    let mut added = Vec::new();
+    for id in ["teams", "learning"] {
+        if book.items.iter().any(|i| i.id == id) {
+            continue;
+        }
+        if let Some(item) = starting.items.iter().find(|i| i.id == id) {
+            book.items.push(item.clone());
+            added.push(id);
+        }
+    }
+    if !added.is_empty() {
+        sqlx::query(
+            "UPDATE pricing_books SET draft = $2, draft_version = draft_version + 1, draft_updated_at = now()
+              WHERE site_id = $1",
+        )
+        .bind(site_id)
+        .bind(serde_json::to_value(&book)?)
+        .execute(&mut *tx)
+        .await?;
+    }
+    sqlx::query(
+        "INSERT INTO audit_log (id, action, target_type, target_id, detail, site_id)
+         VALUES ($1, $2, 'pricing', 'draft', $3, $4)",
+    )
+    .bind(Uuid::now_v7())
+    .bind(MODULES_ADDED)
+    .bind(json!({ "added": added, "note": "Unpriced and not public until set in the Pricing Studio" }))
+    .bind(site_id)
+    .execute(&mut *tx)
+    .await?;
+    tx.commit().await?;
+    Ok(())
+}

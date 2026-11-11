@@ -150,14 +150,15 @@ async function PricingPage({
       {book ? (
         <>
           <p className="mt-4 max-w-2xl text-lead text-muted">
-            Choose modules and your number of employees for an estimate. Implementation, integrations and
-            support are quoted for your organisation.
+            Three steps to an estimate: choose your modules, set your headcount and billing, and add the
+            services you need. Your quotation confirms the figures.
           </p>
           <div className="mt-stack">
             <PublicPricing
               book={book}
               endpoint={pageHref(site.slug, ownDomain, "pricing-calculate")}
               quoteHref={enquire}
+              demoHref={enquiryHref({ ...site, cta: "demo" }, { ownDomain, pages })}
             />
           </div>
         </>

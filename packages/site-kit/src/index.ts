@@ -24,6 +24,7 @@ export * from "./product-glyph";
 export * from "./privacy";
 export * from "./proof";
 export * from "./pricing";
+export * from "./public-pricing";
 export * from "./editorial-hero";
 export * from "./hero-kit";
 export * from "./product-heroes";

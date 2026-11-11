@@ -409,6 +409,62 @@ test("pricing stays off the website until switched on: a request-a-quote page in
   await expect(page.getByRole("radiogroup", { name: "Billing cycle" })).toHaveCount(0);
 });
 
+test("public pricing in three steps: modules, configuration, optional services, with a live estimate", async ({
+  page,
+  isMobile,
+}) => {
+  // Owner's brief, 12 Nov 2026. Jasiri LMS has a synthetic published, visible price book in the mock API.
+  await page.goto("/jasiri/pricing");
+  for (const step of ["Choose your modules", "Configure your subscription", "Add optional services"])
+    await expect(page.getByRole("heading", { name: step })).toBeVisible();
+  await expect(page.getByText("Pick your modules. We'll do the math.")).toBeVisible();
+  // Only public items; quoted services show without a price.
+  await expect(page.getByText("Private module (test)")).toHaveCount(0);
+  await expect(page.locator('[data-service="integration"]')).toContainText("Request a quote");
+
+  const summary = isMobile
+    ? page.locator("#pricing-summary-compact")
+    : page.getByRole("complementary", { name: "Your quotation" });
+  // On phones the summary is a compact bar that opens over the page and closes again.
+  const show = async () => {
+    if (!isMobile) return;
+    await page.getByRole("button", { name: /View summary/ }).click();
+    await expect(page.getByRole("button", { name: /Hide summary/ })).toHaveAttribute("aria-expanded", "true");
+  };
+  const hide = async () => {
+    if (isMobile) await page.getByRole("button", { name: /Hide summary/ }).click();
+  };
+  // Two core modules start on: 50 employees × 100, plus a flat 2,000 a month.
+  await show();
+  await expect(summary.getByText("KES 7,000.00").first()).toBeVisible({ timeout: 15_000 });
+  await hide();
+  // A module counts its own employees.
+  await page.getByLabel("Core module (test): employees").fill("20");
+  await show();
+  await expect(summary.getByText("KES 4,000.00").first()).toBeVisible();
+  await hide();
+  // Optional services: one-off charges apart from the subscription, quotes out of the totals.
+  await page.getByRole("switch", { name: "Training (test)" }).click();
+  await page.getByLabel("Number of participants").fill("4");
+  await page.getByRole("switch", { name: "Custom integration (test)" }).click();
+  // Annual billing with its discount.
+  await page
+    .getByRole("radiogroup", { name: "Billing cycle" })
+    .getByRole("radio", { name: /Annual/ })
+    .click();
+  await show();
+  await expect(summary.getByText("One-off · charged once")).toBeVisible();
+  await expect(summary.getByText("KES 6,000.00").first()).toBeVisible();
+  await expect(summary.getByText("Not included in the totals")).toBeVisible();
+  await expect(summary.getByText("Subscription · per year")).toBeVisible();
+  await expect(summary.getByRole("link", { name: "Request a quote" })).toBeVisible();
+  await expect(summary.getByRole("link", { name: "Book a demo" })).toHaveAttribute(
+    "href",
+    /kind=demo_request/,
+  );
+  expect(await axe(page)).toEqual([]);
+});
+
 test("a product website shows its own hover previews, never FigBud Global's wording", async ({
   page,
   isMobile,

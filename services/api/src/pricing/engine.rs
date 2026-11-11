@@ -571,19 +571,31 @@ impl PriceBook {
         self.items.iter().find(|i| i.id == id)
     }
 
-    /// Items customers may see when public pricing is switched on.
+    /// Items customers may see when public pricing is switched on: priced
+    /// items, and services quoted for each customer (custom quotes, one-offs
+    /// quoted on scope), which show as "Request a quote" with no price
+    /// (owner's brief, 12 Nov 2026) and stay out of the totals.
     pub fn public_view(&self) -> Self {
+        let quoted = |i: &Item| {
+            i.method == Method::CustomQuote
+                || (i.billing == Billing::OneOff && i.one_off_mode == OneOffMode::Scoped)
+        };
         let items: Vec<Item> = self
             .items
             .iter()
-            .filter(|i| {
-                i.public
-                    && i.active
-                    && i.availability == Availability::Available
-                    && i.method != Method::CustomQuote
+            .filter(|i| i.public && i.active && i.availability == Availability::Available)
+            .filter(|i| quoted(i) || i.rate.is_some() || !i.tiers.is_empty())
+            .map(|i| {
+                let mut i = i.clone();
+                if quoted(&i) {
+                    // Any internal estimate stays internal.
+                    i.rate = None;
+                    i.tiers.clear();
+                    i.minimum_charge = None;
+                    i.cycle_terms.clear();
+                }
+                i
             })
-            .filter(|i| i.rate.is_some() || !i.tiers.is_empty())
-            .cloned()
             .collect();
         let ids: Vec<&str> = items.iter().map(|i| i.id.as_str()).collect();
         Self {
@@ -1190,6 +1202,23 @@ pub fn zirahr_starting_book() -> PriceBook {
             "One connected hiring flow, from applicant to new employee.",
             Flat,
             "organisation",
+            Available,
+        ),
+        // The owner's eight modules (12 Nov 2026): unpriced and private until set.
+        module(
+            "teams",
+            "Teams & collaboration",
+            "Teams, announcements and shared work in one place.",
+            PerEmployee,
+            "employees",
+            Available,
+        ),
+        module(
+            "learning",
+            "Learning & development",
+            "Courses, skills and growth plans.",
+            PerEmployee,
+            "employees",
             Available,
         ),
         module(
@@ -1871,5 +1900,18 @@ mod tests {
         let ids: Vec<_> = view.items.iter().map(|i| i.id.as_str()).collect();
         assert_eq!(ids, ["core_hr", "payroll"], "planned items are never public");
         assert!(view.terms.is_empty() && view.fx_rates.is_empty());
+
+        // Services quoted per customer can be shown publicly, without a price.
+        let mut b = book();
+        let custom = b.items.iter_mut().find(|i| i.id == "integration_custom").unwrap();
+        custom.public = true;
+        let b = b.normalise().unwrap();
+        let view = b.public_view();
+        let custom = view
+            .items
+            .iter()
+            .find(|i| i.id == "integration_custom")
+            .expect("listed");
+        assert!(custom.rate.is_none() && custom.tiers.is_empty());
     }
 }
