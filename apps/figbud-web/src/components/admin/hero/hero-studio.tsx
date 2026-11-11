@@ -16,6 +16,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
 
@@ -41,7 +42,11 @@ const STATUS: Record<HeroAdmin["status"], { label: string; tone: string }> = {
   in_review: { label: "Awaiting approval", tone: "border-warning/40 text-warning" },
   published: { label: "Published", tone: "border-accent/40 text-accent-strong" },
   changes_pending: { label: "Published · draft changes", tone: "border-accent/40 text-accent-strong" },
+  own: { label: "Live · the website's own hero", tone: "border-accent/40 text-accent-strong" },
 };
+
+/** The website's own hero, always listed (owner's brief, 12 Nov 2026). */
+const OWN = "own";
 
 const field =
   "min-h-11 w-full rounded-xl border border-line-strong bg-surface px-3 text-sm text-text disabled:opacity-60";
@@ -111,6 +116,7 @@ export function HeroStudio({ data, isOwner }: { data: HeroAdmin; isOwner: boolea
   const src = (id: string, mode: Theme = theme) =>
     `/admin/hero-preview/${slug}/${id}?theme=${mode}&v=${version}`;
   const live = data.published;
+  const ownName = `${data.site.name}'s own hero`;
   const editable = data.can_edit;
   const review = data.review;
   const canDecide = review && data.can_review && (!review.own || isOwner);
@@ -227,9 +233,9 @@ export function HeroStudio({ data, isOwner }: { data: HeroAdmin; isOwner: boolea
     <div className="space-y-8">
       <div className="flex flex-wrap items-center gap-3">
         <span className={cn("rounded-full border px-2.5 py-0.5 text-xs", status.tone)}>{status.label}</span>
-        {live && (
-          <span className="text-xs text-muted">{`Live: ${live.name} · version ${data.published_number}`}</span>
-        )}
+        <span className="text-xs text-muted">
+          {live ? `Live: ${live.name} · version ${data.published_number}` : `Live: ${ownName}`}
+        </span>
         <div
           role="radiogroup"
           aria-label="Preview theme"
@@ -272,6 +278,67 @@ export function HeroStudio({ data, isOwner }: { data: HeroAdmin; isOwner: boolea
       )}
 
       <ul className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+        {/* What the website shows without a published design: listed first, labelled live when it is. */}
+        <li
+          data-variant={OWN}
+          className={cn(
+            "overflow-hidden rounded-2xl border bg-surface",
+            draft.selected === OWN ? "border-accent/60" : "border-line",
+          )}
+        >
+          <div className="relative border-b border-line bg-bg">
+            <Frame src={src(OWN)} title={`${ownName} preview`} />
+            <div className="absolute start-3 top-3 flex gap-1.5">
+              {data.live === OWN && (
+                <span className="rounded-full bg-accent px-2 py-0.5 text-[0.7rem] font-medium text-accent-ink">
+                  Live
+                </span>
+              )}
+              {draft.selected === OWN && (
+                <span className="rounded-full border border-accent/50 bg-surface/90 px-2 py-0.5 text-[0.7rem] text-accent-strong">
+                  Selected to publish
+                </span>
+              )}
+            </div>
+          </div>
+          <div className="p-4">
+            <p className="font-medium text-text">{ownName}</p>
+            <p className="mt-0.5 text-xs text-subtle">
+              {slug === "figbud"
+                ? "The hero built into the home page, shown whenever no design is published."
+                : "The hero section of the published home page (Page builder), shown whenever no design is published."}
+            </p>
+            <div className="mt-3 flex flex-wrap gap-1">
+              <button
+                type="button"
+                onClick={() => setPreview({ id: OWN, device: "desktop" })}
+                className="inline-flex min-h-10 items-center gap-1.5 rounded-lg px-2.5 text-sm text-text hover:bg-surface-2"
+              >
+                <Eye aria-hidden className="size-4" />
+                Preview
+              </button>
+              {slug !== "figbud" && (
+                <Link
+                  href={`/admin/sites/${slug}/pages`}
+                  className="inline-flex min-h-10 items-center gap-1.5 rounded-lg px-2.5 text-sm text-text hover:bg-surface-2"
+                >
+                  <Pencil aria-hidden className="size-4" />
+                  Edit in Page builder
+                </Link>
+              )}
+              {draft.selected !== OWN && (
+                <button
+                  type="button"
+                  disabled={!editable}
+                  onClick={() => setDraft((d) => ({ ...d, selected: OWN }))}
+                  className="inline-flex min-h-10 items-center rounded-lg px-2.5 text-sm text-accent hover:bg-accent-soft disabled:opacity-50"
+                >
+                  Select for publishing
+                </button>
+              )}
+            </div>
+          </div>
+        </li>
         {draft.variants.map((v) => {
           const isLive = live?.variant_id === v.id;
           const selected = draft.selected === v.id;
@@ -486,12 +553,12 @@ export function HeroStudio({ data, isOwner }: { data: HeroAdmin; isOwner: boolea
             {!review && editable && (
               <ActionButton
                 variant="secondary"
-                ready={!dirty && data.status !== "published"}
+                ready={!dirty && data.status !== "published" && data.status !== "own"}
                 busy={busy === "submit"}
                 hint={
                   dirty
                     ? "Save the draft first."
-                    : data.status === "published"
+                    : data.status === "published" || data.status === "own"
                       ? "The selected variant is already live."
                       : undefined
                 }
@@ -535,7 +602,7 @@ export function HeroStudio({ data, isOwner }: { data: HeroAdmin; isOwner: boolea
                 <li key={ver.number} className="flex flex-wrap items-center justify-between gap-3 py-3">
                   <div>
                     <p className="text-sm font-medium text-text">
-                      {`Version ${ver.number} · ${ver.hero.name}`}
+                      {`Version ${ver.number} · ${ver.hero?.name ?? ownName}`}
                       {ver.number === data.published_number && (
                         <span className="ms-2 text-xs text-accent-strong">Live</span>
                       )}
@@ -551,7 +618,7 @@ export function HeroStudio({ data, isOwner }: { data: HeroAdmin; isOwner: boolea
                         "rollback",
                         { version: ver.number },
                         `Rolled back: version ${ver.number} is live again.`,
-                        `Make version ${ver.number} (${ver.hero.name}) live again?`,
+                        `Make version ${ver.number} (${ver.hero?.name ?? ownName}) live again?`,
                       )}
                     >
                       Roll back to this
@@ -573,7 +640,9 @@ export function HeroStudio({ data, isOwner }: { data: HeroAdmin; isOwner: boolea
         {preview && (
           <div className="flex h-full flex-col">
             <div className="flex flex-wrap items-center gap-3 border-b border-line px-4 py-3">
-              <p className="font-medium text-text">{draft.variants.find((v) => v.id === preview.id)?.name}</p>
+              <p className="font-medium text-text">
+                {preview.id === OWN ? ownName : draft.variants.find((v) => v.id === preview.id)?.name}
+              </p>
               <div
                 role="radiogroup"
                 aria-label="Device"

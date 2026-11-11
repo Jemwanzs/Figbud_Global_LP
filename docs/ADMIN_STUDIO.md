@@ -207,11 +207,12 @@ Studio → Marketing, then the tabs **Trusted By**, **Testimonials** and **Succe
   - Each record has a working **draft** (with its chosen websites) and a **published snapshot** (with the websites it was approved for). Websites only ever read the snapshot.
   - Every approval adds a row to `proof_versions` (history), and every action is audited (`proof.created`, `proof.draft_saved`, `proof.submitted`, `proof.published`, `proof.rejected`, `proof.unpublished`, `proof.settings_changed`, `proof.archived`, `proof.restored`).
 - **Kinds:**
-  - **Organisation (Trusted By):** name, relationship (customer, partner, technology provider, other), website, short description, logo and icon from the FigBud Global media library, and permission (relationship confirmed, display approved, where the approval is recorded).
+  - **Organisation (Trusted By):** name, relationship (customer, partner, technology provider, other), website, short description, one approved logo from the FigBud Global media library (UI-TB1: chosen in a picker with thumbnails, search, light and dark previews, Replace and Remove; no separate icon), and permission (relationship confirmed, display approved, where the approval is recorded).
   - **Testimonial:** the approved quotation, an organisation from Trusted By (its name and logo) or a name, the person's name and designation, a photograph, product, industry, country, and permission (quote approved, name approved, photo approved, where it's recorded). The designation only shows with an approved name.
   - **Metric:** what it measures, the figure, shown as number, currency (ISO code such as KES) or percentage, compact notation, decimals, short marks before or after (">", "+"), the source and the measurement period (both shown publicly), and "checked against its source".
 - **Workflow:**
   - Editors with access to FigBud Global and every targeted website save drafts. Saving never changes what websites show, and a changed draft cancels a pending request, because approval covers what was asked for.
+  - The publishing checklist follows unsaved edits: `POST /v1/admin/proof/{id}/check` applies the publishing rules without saving. "Save and ask for approval" saves and requests in one step. A progress list shows Draft → Requirements complete → Approval requested → Published.
   - "Ask for approval" works only when the API's publication checks pass:
     - organisations: a name, a logo, a confirmed relationship, display approval and evidence;
     - testimonials: a quote of 20+ characters, an attribution, quote approval, name and photo approval when those are shown, and evidence;
@@ -289,6 +290,7 @@ Settings → **Security & Authentication** (also in the account menu), for every
 Websites → a website → **Hero Design Studio**. The rules are in [HEROES.md](HEROES.md).
 
 - **Variant cards:** live preview frames, "Live" and "Selected to publish" badges, and Preview, Edit, Duplicate, Select for publishing and Remove.
+- **The website's own hero (UI-HM1):** always listed first. It's what the website shows with no design published: a product website's home page hero section (edited in the Page builder), FigBud Global's built-in hero. It's labelled Live when it is, and can be selected and published like a design (stored as a published "none", with its own version for rollback).
 - **Preview:** a Light / Dark switch for every frame, and a full-screen preview with desktop, tablet and phone sizes.
 - **Edit panel:** shows only the chosen design's settings.
 - **Publishing:** Save draft, Ask for approval, Approve and publish or Decline. Version history has "Roll back to this".

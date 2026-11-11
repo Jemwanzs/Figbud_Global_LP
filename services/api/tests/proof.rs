@@ -328,3 +328,61 @@ async fn testimonials_and_metrics_need_their_approvals_and_sources() {
     assert_eq!(shown["period"], "Jan–Sep 2026");
     assert!(shown.get("verified").is_none());
 }
+
+/// The Studio's checklist follows unsaved edits (owner's brief, 12 Nov 2026):
+/// the check uses the publishing rules, saves nothing, and explains an image
+/// that can't be used.
+#[tokio::test]
+async fn the_publishing_checklist_follows_unsaved_edits_without_saving() {
+    let Some(t) = T::new().await else { return };
+    let editor = t.admin("editor").await;
+    let logo = t.image().await;
+    let id = t.create(&editor, "organization").await;
+    let (_, before) = t
+        .call("GET", &format!("/v1/admin/proof/{id}"), Some(&editor), None)
+        .await;
+    let check = |doc: Value| {
+        let uri = format!("/v1/admin/proof/{id}/check");
+        let editor = editor.clone();
+        let t = &t;
+        async move {
+            t.call(
+                "POST",
+                &uri,
+                Some(&editor),
+                Some(json!({ "document": doc, "sites": ["zirahr"] })),
+            )
+            .await
+        }
+    };
+    let codes = |body: &Value, list: &str| -> Vec<String> {
+        body[list]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|e| e["field"].as_str().unwrap().to_owned())
+            .collect()
+    };
+    let (status, empty) = check(json!({ "name": "Example Credit" })).await;
+    assert_eq!(status, StatusCode::OK, "{empty}");
+    assert!(codes(&empty, "publish_errors").contains(&"logo_id".to_owned()));
+
+    // Choosing a logo is enough at once: no separate icon, no save needed.
+    let complete = json!({ "name": "Example Credit", "relationship": "customer", "logo_id": logo,
+        "permission": { "relationship_confirmed": true, "display_approved": true, "evidence": "Signed form, 12 Nov 2026" } });
+    let (_, ready) = check(complete.clone()).await;
+    assert_eq!(ready["publish_errors"], json!([]));
+    assert_eq!(ready["errors"], json!([]));
+    // Nothing was saved.
+    let (_, detail) = t
+        .call("GET", &format!("/v1/admin/proof/{id}"), Some(&editor), None)
+        .await;
+    assert_eq!(detail["draft_version"], before["draft_version"], "{detail}");
+    assert!(detail["draft"].get("logo_id").is_none_or(Value::is_null));
+
+    // An image from outside the corporate library is explained, not silently dropped.
+    let mut foreign = complete;
+    foreign["logo_id"] = json!(Uuid::now_v7());
+    let (_, refused) = check(foreign).await;
+    assert_eq!(codes(&refused, "errors"), ["logo_id"]);
+}

@@ -489,6 +489,7 @@ pub fn router() -> Router<SharedState> {
         .route("/v1/admin/proof", get(list).post(create))
         .route("/v1/admin/proof/{id}", get(read))
         .route("/v1/admin/proof/{id}/draft", post(save_draft))
+        .route("/v1/admin/proof/{id}/check", post(check_draft))
         .route("/v1/admin/proof/{id}/{action}", post(action))
 }
 
@@ -791,6 +792,42 @@ struct DraftInput {
     document: Value,
     sites: Vec<String>,
     version: i32,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct CheckInput {
+    document: Value,
+    sites: Vec<String>,
+}
+
+/// The publishing checklist for unsaved edits, with the same rules as saving
+/// and publishing (so the Studio's list is never stale). Saves nothing.
+async fn check_draft(
+    State(state): State<SharedState>,
+    session: AdminSession,
+    Path(id): Path<Uuid>,
+    Json(input): Json<CheckInput>,
+) -> Result<impl IntoResponse, ApiError> {
+    let row = load(&state.pool, id).await?;
+    let sites = tidy_sites(&input.sites);
+    require_sites(&session, &row.draft_sites, Role::Editor)?;
+    let mut errors = Vec::new();
+    let mut publish_errors = Vec::new();
+    match ProofDoc::decode(&row.kind, input.document)?.normalise() {
+        Ok(doc) => {
+            match check_refs(&state.pool, &doc, &sites).await {
+                Ok(()) => {}
+                Err(ApiError::Validation(e)) => errors = e,
+                Err(other) => return Err(other),
+            }
+            publish_errors = doc.publish_errors();
+        }
+        Err(e) => errors = e,
+    }
+    Ok(Json(
+        json!({ "errors": errors, "publish_errors": publish_errors }),
+    ))
 }
 
 /// Saving a draft never changes what websites show.

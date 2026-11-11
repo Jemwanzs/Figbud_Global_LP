@@ -8,19 +8,24 @@ export interface HeroAdmin {
   draft: { variants: HeroVariant[]; selected: string };
   /** 0 until the first save. */
   draft_version: number;
+  /** `null` while the website shows its own hero. */
   published: PublishedHero | null;
+  /** What visitors see now: a variant's id, or "own" (the website's own hero). */
+  live: string;
   published_number: number;
   published_at: string | null;
   review: { requested_at: string; requested_by: string | null; note: string | null; own: boolean } | null;
   versions: {
     number: number;
     note: string;
-    hero: PublishedHero;
+    /** `null`: the website's own hero. */
+    hero: PublishedHero | null;
     requested_by: string | null;
     published_by: string | null;
     created_at: string;
   }[];
-  status: "draft" | "in_review" | "published" | "changes_pending";
+  /** "own": the website's own hero is selected and live, nothing ever published. */
+  status: "draft" | "in_review" | "published" | "changes_pending" | "own";
   can_edit: boolean;
   can_review: boolean;
 }

@@ -2,15 +2,15 @@
 
 import { cn } from "@figbud/ui";
 import { CircleAlert, CircleCheck } from "lucide-react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { type ReactNode, useId, useState } from "react";
+import { type ReactNode, useEffect, useId, useState } from "react";
 
 import { AdminError, type FieldError, adminFetch } from "@/lib/admin-client";
 import { useSavedBaseline, useUnsavedChangesWarning } from "@/lib/form-state";
 
 import { ActionButton } from "./action-button";
-import { type MediaItem, STUDIO_MEDIA_BASE } from "./page-types";
+import { MediaPicker } from "./media-picker";
+import type { MediaItem } from "./page-types";
 import { type FieldIssue, KIND_LABELS, type ProofDetail, RELATIONSHIPS, STATUS_LABELS } from "./proof-types";
 
 type Doc = Record<string, unknown>;
@@ -48,30 +48,65 @@ export function ProofEditor({
     doc: initial.draft,
     sites: initial.sites,
   });
-  const [issues, setIssues] = useState<FieldIssue[]>(initial.publish_errors);
+  const [savedIssues, setSavedIssues] = useState<FieldIssue[]>(initial.publish_errors);
   const [fields, setFields] = useState<FieldError[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
   const [note, setNote] = useState("");
   const [message, setMessage] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
   const { dirty, markSaved } = useSavedBaseline(form);
   useUnsavedChangesWarning(data.can_edit && dirty);
+  const archivedNow = data.status === "archived";
+  // The checklist follows unsaved edits (owner's brief, 12 Nov 2026): the API
+  // checks them with its publishing rules, without saving, a moment after
+  // typing stops. Each result belongs to the edits it checked.
+  const formKey = JSON.stringify(form);
+  const [checked, setChecked] = useState<{ key: string; errors: FieldError[]; issues: FieldIssue[] } | null>(
+    null,
+  );
+  const wantCheck = dirty && data.can_edit && !archivedNow;
+  useEffect(() => {
+    if (!wantCheck) return;
+    let live = true;
+    const timer = setTimeout(async () => {
+      try {
+        const doc = JSON.parse(formKey) as { doc: Doc; sites: string[] };
+        const result = await adminFetch<{ errors: FieldError[]; publish_errors: FieldIssue[] }>(
+          `proof/${data.id}/check`,
+          { document: doc.doc, sites: doc.sites },
+        );
+        if (live) setChecked({ key: formKey, errors: result.errors, issues: result.publish_errors });
+      } catch {
+        // The list stays as last checked; saving checks again.
+      }
+    }, 400);
+    return () => {
+      live = false;
+      clearTimeout(timer);
+    };
+  }, [formKey, wantCheck, data.id]);
+  const current = wantCheck && checked?.key === formKey ? checked : null;
+  const checking = wantCheck && !current;
+  const checkFields = current?.errors ?? [];
+  // Saved: its own list. Editing: the latest check (the previous one while checking).
+  const issues = !wantCheck ? savedIssues : (current?.issues ?? checked?.issues ?? savedIssues);
 
   const kind = data.kind;
   const doc = form.doc;
-  const archived = data.status === "archived";
+  const archived = archivedNow;
   const editable = data.can_edit && !archived;
   const set = (key: string, value: unknown) => setForm((f) => ({ ...f, doc: { ...f.doc, [key]: value } }));
   const setPermission = (key: string, value: unknown) =>
     set("permission", { ...(doc.permission as Doc | undefined), [key]: value });
   const permission = (doc.permission as Doc | undefined) ?? {};
-  const errorFor = (field: string) => fields.find((f) => f.field === field)?.message;
+  const errorFor = (field: string) =>
+    (fields.find((f) => f.field === field) ?? checkFields.find((f) => f.field === field))?.message;
   const inputClass =
     "min-h-11 w-full rounded-xl border border-line-strong bg-surface px-4 text-text disabled:opacity-60";
 
   async function reload() {
     const fresh = await adminFetch<ProofDetail>(`proof/${data.id}`);
     setData(fresh);
-    setIssues(fresh.publish_errors);
+    setSavedIssues(fresh.publish_errors);
     router.refresh();
     return fresh;
   }
@@ -98,20 +133,37 @@ export function ProofEditor({
     }
   }
 
+  async function saveDraft() {
+    const saved = await adminFetch<{ version: number; publish_errors: FieldIssue[] }>(
+      `proof/${data.id}/draft`,
+      {
+        document: form.doc,
+        sites: form.sites,
+        version: data.draft_version,
+      },
+    );
+    markSaved();
+    setSavedIssues(saved.publish_errors);
+    return saved;
+  }
+
   const save = () =>
     run("save", async () => {
-      const saved = await adminFetch<{ version: number; publish_errors: FieldIssue[] }>(
-        `proof/${data.id}/draft`,
-        {
-          document: form.doc,
-          sites: form.sites,
-          version: data.draft_version,
-        },
-      );
-      markSaved();
-      setIssues(saved.publish_errors);
+      await saveDraft();
       await reload();
       return "Draft saved. Websites keep showing the published version until a reviewer approves the change.";
+    });
+
+  // Ask for approval saves unsaved edits first, so one click is enough.
+  const submit = () =>
+    run("submit", async () => {
+      if (dirty) await saveDraft();
+      await adminFetch(`proof/${data.id}/submit`, { note });
+      setNote("");
+      await reload();
+      return isOwner
+        ? "Approval requested. As an owner you can approve it below, or a reviewer will."
+        : "Approval requested. A reviewer other than you approves it before anything is shown.";
     });
 
   const act = (action: string, body: Record<string, unknown>, done: string, confirm?: string) => () => {
@@ -174,51 +226,17 @@ export function ProofEditor({
     </label>
   );
 
-  const image = (key: string, label: string, hint: string) => {
-    const id = `${uid}-${key}`;
-    const chosen = media.find((m) => m.id === doc[key]);
-    return (
-      <div>
-        <label htmlFor={id} className="block text-sm font-medium text-text">
-          {label}
-        </label>
-        <div className="mt-2 flex items-center gap-4">
-          <span className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-line bg-surface-2">
-            {chosen ? (
-              // eslint-disable-next-line @next/next/no-img-element -- Studio-only private image proxy
-              <img
-                src={`${STUDIO_MEDIA_BASE}${chosen.id}`}
-                alt={chosen.alt_text}
-                className="max-h-full max-w-full object-contain"
-              />
-            ) : (
-              <span className="text-xs text-subtle">None</span>
-            )}
-          </span>
-          <select
-            id={id}
-            value={str(doc[key])}
-            disabled={!editable}
-            onChange={(e) => set(key, e.target.value || null)}
-            className={inputClass}
-          >
-            <option value="">No image</option>
-            {media.map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.label}
-              </option>
-            ))}
-          </select>
-        </div>
-        <p className="mt-1.5 text-sm text-subtle">
-          {errorFor(key) ?? hint}{" "}
-          <Link href="/admin/sites/figbud/media" className="text-accent underline underline-offset-2">
-            Upload to the FigBud Global media library
-          </Link>
-        </p>
-      </div>
-    );
-  };
+  const image = (key: string, label: string, hint: string) => (
+    <MediaPicker
+      label={label}
+      hint={hint}
+      value={str(doc[key]) || null}
+      media={media}
+      disabled={!editable}
+      error={errorFor(key)}
+      onChange={(id) => set(key, id)}
+    />
+  );
 
   const status = STATUS_LABELS[data.status];
   const review = data.review;
@@ -268,8 +286,12 @@ export function ProofEditor({
               area: true,
               hint: "Optional, up to 300 characters.",
             })}
-            {image("logo_id", "Logo", "Their approved logo, unaltered: proportions and colours as supplied.")}
-            {image("favicon_id", "Icon", "Optional small square icon.")}
+            {/* One approved logo is enough: it's used for every Trusted By display. */}
+            {image(
+              "logo_id",
+              "Approved logo",
+              "Pick the logo you'd love us to showcase: their approved file, unaltered, used wherever they're shown.",
+            )}
           </fieldset>
         )}
 
@@ -517,6 +539,32 @@ export function ProofEditor({
               : "Not shown on any website."}
           </p>
 
+          <ol aria-label="Publishing progress" className="mt-4 grid gap-1.5 text-sm">
+            {[
+              { label: "Draft", done: true },
+              { label: "Requirements complete", done: issues.length === 0 && form.sites.length > 0 },
+              { label: "Approval requested", done: Boolean(review) || data.status === "published" },
+              { label: "Published", done: data.status === "published" },
+            ].map((step, i, all) => {
+              const current = step.done && !all[i + 1]?.done;
+              return (
+                <li
+                  key={step.label}
+                  aria-current={current ? "step" : undefined}
+                  className={cn("flex items-center gap-2", step.done ? "text-text" : "text-subtle")}
+                >
+                  {step.done ? (
+                    <CircleCheck aria-hidden className="size-4 text-accent-strong" />
+                  ) : (
+                    <span aria-hidden className="size-4 rounded-full border border-line-strong" />
+                  )}
+                  <span className={cn(current && "font-medium")}>{step.label}</span>
+                  <span className="sr-only">{step.done ? "(done)" : "(to do)"}</span>
+                </li>
+              );
+            })}
+          </ol>
+
           <h3 className="mt-5 text-sm font-medium text-text">Before it can be published</h3>
           {issues.length === 0 && form.sites.length > 0 ? (
             <p className="mt-2 flex items-center gap-2 text-sm text-accent-strong">
@@ -538,7 +586,13 @@ export function ProofEditor({
               )}
             </ul>
           )}
-          {dirty && <p className="mt-2 text-xs text-subtle">Save the draft to update this list.</p>}
+          <p aria-live="polite" className="mt-2 text-xs text-subtle">
+            {checking
+              ? "Checking your changes…"
+              : dirty
+                ? "Checked as you edit; save to keep your changes."
+                : ""}
+          </p>
 
           {review && (
             <p className="mt-5 rounded-xl bg-surface-2 p-3 text-sm text-muted">
@@ -563,19 +617,26 @@ export function ProofEditor({
                 {data.can_edit && !review && (
                   <ActionButton
                     ready={
-                      !dirty && issues.length === 0 && form.sites.length > 0 && data.status !== "published"
+                      !checking &&
+                      checkFields.length === 0 &&
+                      issues.length === 0 &&
+                      form.sites.length > 0 &&
+                      (dirty || data.status !== "published")
                     }
                     busy={busy === "submit"}
                     hint={
-                      dirty
-                        ? "Save the draft first."
-                        : data.status === "published"
-                          ? "Nothing changed since publication."
-                          : undefined
+                      checking
+                        ? undefined
+                        : issues.length || form.sites.length === 0 || checkFields.length
+                          ? "Complete the list above first."
+                          : !dirty && data.status === "published"
+                            ? "Nothing changed since publication."
+                            : undefined
                     }
-                    onClick={act("submit", { note }, "Approval requested. A reviewer will check it.")}
+                    title={dirty ? "Saves your changes, then asks for approval." : undefined}
+                    onClick={submit}
                   >
-                    Ask for approval
+                    {dirty ? "Save and ask for approval" : "Ask for approval"}
                   </ActionButton>
                 )}
                 {review && data.can_review && (

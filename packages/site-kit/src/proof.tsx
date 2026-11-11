@@ -2,6 +2,7 @@ import { CountUp, Marquee, RevealGroup, cn, revealOrder } from "@figbud/ui";
 import { Quote } from "lucide-react";
 
 import { MEDIA_PATH } from "./blocks";
+import { ProofLogo } from "./proof-logo";
 
 /*
  * Customers & proof (P10-T1..T3): what websites receive from
@@ -111,23 +112,34 @@ export function TrustedBy({
         className="mt-10"
         duration={Math.max(32, shown.length * 8)}
       >
-        {shown.map((o) => (
-          <div
-            key={o.id}
-            className="flex h-20 w-44 items-center justify-center rounded-2xl border border-line bg-white px-6 shadow-[0_8px_24px_-18px_rgb(2_6_23/0.35)] sm:h-24 sm:w-52"
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element -- media library files, served as uploaded */}
-            <img
-              src={src(o.logo!)}
-              alt={o.name}
-              width={o.logo!.width}
-              height={o.logo!.height}
-              loading="lazy"
-              decoding="async"
-              className="max-h-10 w-auto max-w-full object-contain sm:max-h-12"
-            />
-          </div>
-        ))}
+        {shown.map((o) => {
+          const plate =
+            "flex h-20 w-44 items-center justify-center rounded-2xl border border-line bg-white px-6 shadow-[0_8px_24px_-18px_rgb(2_6_23/0.35)] sm:h-24 sm:w-52";
+          const logo = (
+            <ProofLogo src={src(o.logo!)} name={o.name} width={o.logo!.width} height={o.logo!.height} />
+          );
+          // Their own website, where they gave one (owner's brief, 12 Nov 2026).
+          return o.website?.startsWith("https://") ? (
+            <a
+              key={o.id}
+              href={o.website}
+              target="_blank"
+              rel="noopener noreferrer"
+              title={`${o.name}: visit their website`}
+              className={cn(
+                plate,
+                "focus-visible:outline-focus transition-[translate,box-shadow] duration-[var(--motion-base)] ease-out-expo hover:-translate-y-0.5 hover:shadow-[0_14px_30px_-18px_rgb(2_6_23/0.45)] focus-visible:outline-2 focus-visible:outline-offset-2 motion-reduce:hover:translate-y-0",
+              )}
+            >
+              {logo}
+              <span className="sr-only"> (opens their website in a new tab)</span>
+            </a>
+          ) : (
+            <div key={o.id} className={plate}>
+              {logo}
+            </div>
+          );
+        })}
       </Marquee>
     </section>
   );

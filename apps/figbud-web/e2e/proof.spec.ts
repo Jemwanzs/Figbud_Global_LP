@@ -24,6 +24,10 @@ test("the home page shows published Trusted By logos, verified metrics and testi
   await expect(logo).toBeVisible();
   // Logos load from this website's origin, and only because a published record uses them.
   expect(await logo.getAttribute("src")).toMatch(/^\/media\/[0-9a-f-]{36}$/);
+  // It opens the organisation's own website, in a new tab.
+  const link = trusted.getByRole("link", { name: /Synthetic Test Organisation/ }).first();
+  await expect(link).toHaveAttribute("href", "https://example.com");
+  await expect(link).toHaveAttribute("target", "_blank");
   const metrics = page.getByRole("region", { name: "Measured, not estimated." });
   await metrics.scrollIntoViewIfNeeded();
   await expect(metrics.getByText("Synthetic test metric")).toBeVisible();
@@ -75,7 +79,19 @@ test.describe("Studio", () => {
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("New organisation");
     const name = `Proof Test ${randomBytes(3).toString("hex")}`;
     await page.getByLabel("Organisation name").fill(name);
-    await page.getByLabel("Logo", { exact: true }).selectOption({ label: "Synthetic logo" });
+    // The checklist follows unsaved edits; one logo is enough (no separate icon).
+    await expect(page.getByText("Add the organisation's approved logo.")).toBeVisible();
+    await expect(page.getByText("Icon", { exact: true })).toHaveCount(0);
+    await page.getByRole("button", { name: "Approved logo" }).click();
+    const library = page.getByRole("dialog", { name: "Approved logo: choose an image" });
+    await library.getByRole("searchbox", { name: "Search the media library" }).fill("synthetic logo");
+    await library
+      .getByRole("button", { name: /Synthetic logo/ })
+      .first()
+      .click();
+    await expect(library).toBeHidden();
+    await expect(page.getByRole("button", { name: "Replace" })).toBeVisible();
+    await expect(page.getByText("Add the organisation's approved logo.")).toHaveCount(0);
     await page.getByLabel("Show on FigBud Global").check();
     await page.getByRole("button", { name: "Save draft" }).click();
     await expect(page.getByRole("status").filter({ hasText: "Draft saved." })).toBeVisible();
@@ -88,9 +104,9 @@ test.describe("Studio", () => {
     await page.getByLabel("The relationship is confirmed with the organisation").check();
     await page.getByLabel("They approved showing their name and logo publicly").check();
     await page.getByLabel("Where the approval is recorded").fill("Signed consent form (test)");
-    await page.getByRole("button", { name: "Save draft" }).click();
+    // Complete before saving: one click saves and asks for approval.
     await expect(page.getByText("Ready for approval")).toBeVisible();
-    await page.getByRole("button", { name: "Ask for approval" }).click();
+    await page.getByRole("button", { name: "Save and ask for approval" }).click();
     await expect(page.getByText(/Approval requested by you/)).toBeVisible();
     // Owners may approve their own request; reviewers need a colleague (API rule).
     await page.getByRole("button", { name: "Approve and publish" }).click();

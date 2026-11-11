@@ -220,6 +220,51 @@ async fn heroes_publish_one_variant_with_approval_and_roll_back() {
         .await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(t.live("zirahr").await["design"], "payroll");
+    let (_, read) = t.call("GET", base, Some(&editor), None).await;
+    assert_eq!(read["live"], read["published"]["variant_id"]);
+
+    // The website's own hero is listed and publishable too (owner's brief, 12 Nov
+    // 2026): published as nothing, so the home page shows its own hero again.
+    draft["selected"] = json!("own");
+    let (status, body) = t.save("zirahr", &editor, &draft).await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    t.call("POST", &format!("{base}/submit"), Some(&editor), None)
+        .await;
+    assert_eq!(
+        t.call("POST", &format!("{base}/publish"), Some(&reviewer), None)
+            .await
+            .0,
+        StatusCode::OK
+    );
+    assert_eq!(t.live("zirahr").await, Value::Null);
+    let (_, read) = t.call("GET", base, Some(&editor), None).await;
+    assert_eq!(read["live"], "own");
+    assert_eq!(read["status"], "published");
+    assert!(read["published"].is_null());
+    // Already live: nothing to ask approval for.
+    assert_eq!(
+        t.call("POST", &format!("{base}/submit"), Some(&editor), None)
+            .await
+            .0,
+        StatusCode::CONFLICT
+    );
+    // And it rolls back like any version.
+    let previous = read["versions"][1]["number"].as_i64().unwrap();
+    t.call(
+        "POST",
+        &format!("{base}/rollback"),
+        Some(&reviewer),
+        Some(json!({ "version": previous })),
+    )
+    .await;
+    assert_eq!(t.live("zirahr").await["design"], "payroll");
+    // "own" can't be taken as a variant's name.
+    let mut reserved = draft.clone();
+    reserved["variants"][0]["id"] = json!("own");
+    assert_eq!(
+        t.save("zirahr", &editor, &reserved).await.0,
+        StatusCode::UNPROCESSABLE_ENTITY
+    );
 
     let actions: Vec<String> = sqlx::query_scalar(
         "SELECT action FROM audit_log WHERE site_id = (SELECT id FROM sites WHERE slug = 'zirahr') AND action LIKE 'hero.%'",

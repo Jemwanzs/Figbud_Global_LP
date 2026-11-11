@@ -57,6 +57,13 @@ pub fn designs_for(slug: &str) -> &'static [&'static str] {
 
 const MAX_VARIANTS: usize = 9;
 
+/// The website's own hero (owner's brief, 12 Nov 2026): the hero it renders
+/// without a published design (a product website's home page hero section,
+/// FigBud Global's built-in hero). Selectable and publishable like a variant,
+/// so it's always listed, labelled live when it is, and switching back to it
+/// is versioned and can be rolled back. Published as `null`.
+pub const OWN: &str = "own";
+
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum Speed {
@@ -303,14 +310,20 @@ impl HeroDraft {
                 }
             }
         }
-        if !self.variants.iter().any(|v| v.id == self.selected) {
+        if self.variants.iter().any(|v| v.id == OWN) {
+            e.push(field("variants", "id", "That variant name is reserved."));
+        }
+        if self.selected != OWN && !self.variants.iter().any(|v| v.id == self.selected) {
             e.push(field("selected", "missing", "Choose which variant to publish."));
         }
         if e.is_empty() { Ok(self) } else { Err(e) }
     }
 
-    /// What goes live: the selected variant.
+    /// What goes live: the selected variant, or `null` for the website's own hero.
     pub fn snapshot(&self) -> Option<Value> {
+        if self.selected == OWN {
+            return Some(Value::Null);
+        }
         let v = self.variant(&self.selected)?;
         Some(json!({ "variant_id": v.id, "design": v.design, "name": v.name, "config": v.config }))
     }
@@ -360,8 +373,9 @@ struct Row {
 
 async fn load(pool: &PgPool, site_id: Uuid) -> Result<Option<Row>, sqlx::Error> {
     sqlx::query_as(
-        "SELECT draft, draft_version, published, published_number, published_at, review_requested_by,
-                review_requested_at, review_note FROM site_heroes WHERE site_id = $1",
+        "SELECT draft, draft_version, NULLIF(published, 'null'::jsonb) AS published, published_number,
+                published_at, review_requested_by, review_requested_at, review_note
+           FROM site_heroes WHERE site_id = $1",
     )
     .bind(site_id)
     .fetch_optional(pool)
@@ -497,14 +511,15 @@ async fn read(
             )
         }
     };
+    let live_now = published.clone().unwrap_or(Value::Null);
     let status = if review.is_some() {
         "in_review"
-    } else if published.is_none() {
+    } else if draft.snapshot().as_ref() == Some(&live_now) {
+        if number == 0 { "own" } else { "published" }
+    } else if number == 0 {
         "draft"
-    } else if published.as_ref() != draft.snapshot().as_ref() {
-        "changes_pending"
     } else {
-        "published"
+        "changes_pending"
     };
     Ok(Json(json!({
         "site": { "slug": slug, "name": site.name },
@@ -512,6 +527,8 @@ async fn read(
         "draft": draft,
         "draft_version": version,
         "published": published,
+        // What visitors see now: a variant, or the website's own hero.
+        "live": published.as_ref().and_then(|p| p["variant_id"].as_str().map(str::to_owned)).unwrap_or_else(|| OWN.to_owned()),
         "published_number": number,
         "published_at": published_at,
         "review": review,
@@ -638,7 +655,7 @@ async fn action(
     match action.as_str() {
         "submit" => {
             session.require_site(site.id, Role::Editor)?;
-            if row.published.as_ref() == draft.snapshot().as_ref() {
+            if Some(&live(&row)) == draft.snapshot().as_ref() {
                 return Err(ApiError::Conflict(
                     "The selected variant is already live, unchanged.",
                 ));
@@ -725,6 +742,11 @@ async fn action(
         _ => return Err(ApiError::NotFound),
     }
     Ok(Json(json!({ "ok": true })))
+}
+
+/// What's live: the published variant, or `null` (the website's own hero).
+fn live(row: &Row) -> Value {
+    row.published.clone().unwrap_or(Value::Null)
 }
 
 #[allow(clippy::too_many_arguments)]

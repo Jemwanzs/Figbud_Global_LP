@@ -2965,6 +2965,20 @@ function proofRoutes(path, req, body, user, send) {
     };
   };
   if (!action && req.method === "GET") return send(200, detail());
+  // The checklist for unsaved edits (proof.rs check_draft): saves nothing.
+  if (action === "check") {
+    if (!canEdit) return forbidden();
+    const [doc, errors] = proofNormalise(item.kind, clone(body.document ?? {}));
+    const ids =
+      item.kind === "organization" ? [doc.logo_id] : item.kind === "testimonial" ? [doc.photo_id] : [];
+    if (ids.some((id) => id && !mediaAssets.get(id)))
+      errors.push({
+        field: "logo_id",
+        code: "image",
+        message: "Choose images from the FigBud Global media library.",
+      });
+    return send(200, { errors, publish_errors: errors.length ? [] : proofPublishErrors(item.kind, doc) });
+  }
   if (action === "draft") {
     if (!canEdit) return forbidden();
     if (item.archived_at) return conflict("Restore this record before editing it.");
@@ -3086,6 +3100,8 @@ function proofRoutes(path, req, body, user, send) {
     "organization",
     {
       name: "Synthetic Test Organisation",
+      // A reserved example domain: the logo links to the organisation's website.
+      website: "https://example.com",
       logo_id: logo.id,
       permission: { relationship_confirmed: true, display_approved: true, evidence: "Test fixture" },
     },
@@ -3966,7 +3982,9 @@ const heroState = (slug) => {
   }
   return heroStates.get(slug);
 };
+// "own": the website's own hero, published as null (heroes.rs OWN).
 const heroSnapshot = (draft) => {
+  if (draft.selected === "own") return null;
   const v = draft.variants.find((x) => x.id === draft.selected);
   return v ? { variant_id: v.id, design: v.design, name: v.name, config: clone(v.config) } : null;
 };
@@ -3978,19 +3996,23 @@ function heroRoutes(slug, action, req, body, user, send) {
   const nope = (status, code, message) => send(status, { error: { code, message } });
   if (!action && req.method === "GET") {
     const snap = heroSnapshot(st.draft);
+    const same = JSON.stringify(st.published) === JSON.stringify(snap);
     const status = st.review
       ? "in_review"
-      : !st.published
-        ? "draft"
-        : JSON.stringify(st.published) !== JSON.stringify(snap)
+      : same
+        ? st.published_number
+          ? "published"
+          : "own"
+        : st.published_number
           ? "changes_pending"
-          : "published";
+          : "draft";
     return send(200, {
       site: { slug, name: site.name },
       designs: (HERO_DESIGNS[slug] ?? []).map((key) => ({ key, name: HERO_NAMES[key] })),
       draft: st.draft,
       draft_version: st.draft_version,
       published: st.published,
+      live: st.published?.variant_id ?? "own",
       published_number: st.published_number,
       published_at: st.published_at,
       review: st.review ? { ...st.review, own: st.review.by === user.id } : null,
@@ -4028,7 +4050,7 @@ function heroRoutes(slug, action, req, body, user, send) {
           message: "Headlines up to 90 characters (second line 60, eyebrow 60).",
         });
     }
-    if (!(doc.variants ?? []).some((v) => v.id === doc.selected))
+    if (doc.selected !== "own" && !(doc.variants ?? []).some((v) => v.id === doc.selected))
       fields.push({ field: "selected", code: "missing", message: "Choose which variant to publish." });
     if (fields.length)
       return send(422, { error: { code: "validation", message: "Some fields need attention.", fields } });
@@ -4039,6 +4061,8 @@ function heroRoutes(slug, action, req, body, user, send) {
   }
   if (action === "submit") {
     if (rank < RANKS.editor) return nope(403, "forbidden", "You don't have permission to do that.");
+    if (JSON.stringify(st.published) === JSON.stringify(heroSnapshot(st.draft)))
+      return nope(409, "conflict", "The selected variant is already live, unchanged.");
     st.review = {
       by: user.id,
       requested_by: user.name,

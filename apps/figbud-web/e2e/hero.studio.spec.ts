@@ -66,6 +66,9 @@ test("exact previews render each design's real hero, in light and dark, without 
     // The editorial designs (UI-MO8).
     ["figbud", "v4", "One vision."],
     ["zirahr", "v4", "Your people, in chapters."],
+    // Each website's own hero, as it renders with no design published.
+    ["figbud", "own", "Built for complexity."],
+    ["zirahr", "own", "People. Payroll. Progress. Connected."],
   ];
   for (const [slug, id, headline] of expected) {
     for (const theme of ["light", "dark"] as const) {
@@ -107,9 +110,14 @@ test("ZiraHR: edit, select, approve and publish one hero, then roll back", async
   await page.goto("/admin/sites/zirahr");
   await page.getByRole("link", { name: "Hero Design Studio" }).click();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("ZiraHR: Hero Design Studio");
-  await expect(page.locator("[data-variant]")).toHaveCount(4);
-  if (!before)
+  // The website's own hero is listed first, beside the four designs, and is live until one is published.
+  await expect(page.locator("[data-variant]")).toHaveCount(5);
+  await expect(page.locator("[data-variant]").first()).toHaveAttribute("data-variant", "own");
+  await expect(page.locator('[data-variant="own"]')).toContainText("ZiraHR's own hero");
+  if (!before) {
     await expect(page.getByText("Nothing published · the website keeps its current hero")).toBeVisible();
+    await expect(page.locator('[data-variant="own"]').getByText("Live", { exact: true })).toBeVisible();
+  }
 
   // Light and dark previews switch the frames only.
   await page.getByRole("radiogroup", { name: "Preview theme" }).getByRole("radio", { name: "Light" }).click();
@@ -163,6 +171,17 @@ test("ZiraHR: edit, select, approve and publish one hero, then roll back", async
   await expect(page.getByRole("status").filter({ hasText: "Rolled back" })).toBeVisible();
   live = await liveHero();
   expect(live.design).toBe("payroll");
+
+  // Back to the website's own hero, published like any variant (and rolled back like one).
+  await page.locator('[data-variant="own"]').getByRole("button", { name: "Select for publishing" }).click();
+  await page.getByRole("button", { name: "Save draft" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Draft saved." })).toBeVisible();
+  await page.getByRole("button", { name: "Ask for approval" }).click();
+  await page.getByRole("button", { name: "Approve and publish" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Published." })).toBeVisible();
+  expect(await liveHero()).toBeNull();
+  await expect(page.locator('[data-variant="own"]').getByText("Live", { exact: true })).toBeVisible();
+  await expect(page.getByText("ZiraHR's own hero").first()).toBeVisible();
 
   expect(violations(await axe(page))).toEqual([]);
 });
