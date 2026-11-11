@@ -58,6 +58,29 @@ test("a listed website without a published home page shows an honest holding pag
   await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", /noindex/);
 });
 
+test("a website's published Brand & Theme Studio colours apply to it alone, in both themes", async ({
+  page,
+}) => {
+  // Expense Now has a published theme in the mock API; Ziwa LMS doesn't.
+  await page.goto("/expense_now");
+  await expect(page.locator("style[data-site-theme]")).toHaveCount(1);
+  const bodyColours = () =>
+    page.evaluate(() => {
+      const style = getComputedStyle(document.body);
+      return { bg: style.getPropertyValue("--bg").trim(), action: style.getPropertyValue("--action").trim() };
+    });
+  for (const [theme, bg] of [
+    ["dark", "#1a1410"],
+    ["light", "#fffaf3"],
+  ] as const) {
+    await page.evaluate((t) => document.documentElement.setAttribute("data-theme", t), theme);
+    await expect.poll(bodyColours).toEqual({ bg, action: "#ff7a00" });
+  }
+  await page.goto("/ziwa");
+  await expect(page.locator("style[data-site-theme]")).toHaveCount(0);
+  await expect.poll(bodyColours).not.toEqual(expect.objectContaining({ bg: "#1a1410" }));
+});
+
 test("not indexed outside production; the shared root goes to FigBud Global", async ({ page, request }) => {
   await page.goto("/ziwa");
   await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", /noindex/);

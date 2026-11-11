@@ -242,3 +242,76 @@ test("Studio: home page section themes, previewed in both themes, drafted and pu
   await expect(page.getByRole("status")).toContainText("Published.");
   expect((await published()).closing).toBeUndefined();
 });
+
+test("Studio: a product website's colours and themes are drafted, checked, previewed, published and rolled back", async ({
+  page,
+}, testInfo) => {
+  // Brand & Theme Studio (owner's brief, 11 Nov 2026). Shared mock data: edited
+  // from one project only, on Jasiri LMS, and put back at the end.
+  test.skip(testInfo.project.name !== "desktop", "edited from the desktop project");
+  test.setTimeout(90_000);
+  await signInAsOwner(page);
+  await page.goto("/admin/sites/jasiri/theme");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Colours & themes");
+  await expect(page.getByRole("link", { name: "Colours & themes" }).first()).toBeVisible();
+  // Nothing changed yet: nothing to publish.
+  const publish = page.getByRole("button", { name: "Publish", exact: true });
+  await expect(publish).toBeDisabled();
+  await expect(page.getByText("Nothing to publish")).toBeVisible();
+  await expect(page.getByText("Every colour meets WCAG AA in both modes.")).toBeVisible();
+
+  // An unreadable secondary text colour: a warning while drafting, and publishing waits.
+  await page.getByRole("tab", { name: "Light mode" }).click();
+  const muted = page.getByLabel("Secondary text", { exact: true });
+  await muted.fill("#c0c0c0");
+  const checks = page.locator("[data-theme-issues]");
+  await expect(checks).toContainText(
+    "Blocks publishing · Light: Secondary text on the background and surfaces",
+  );
+  await expect(publish).toBeDisabled();
+  await expect(page.getByText("Fix the contrast checks first")).toBeVisible();
+  await page.getByRole("button", { name: "Save draft" }).click();
+  await expect(page.getByRole("status")).toContainText(
+    "Draft saved. Visitors still see the published colours.",
+  );
+
+  // Readable again; previewed at phone width in the light mode, then published.
+  await muted.fill("#334155");
+  await expect(page.getByText("Every colour meets WCAG AA in both modes.")).toBeVisible();
+  await page.getByRole("button", { name: "Light", exact: true }).click();
+  await page.getByRole("button", { name: "Mobile" }).click();
+  const preview = page.locator("[data-theme-preview]");
+  await expect(preview).toHaveAttribute("data-theme", "light");
+  await expect
+    .poll(() => preview.evaluate((el) => getComputedStyle(el).getPropertyValue("--text-muted").trim()))
+    .toBe("#334155");
+  await expect.poll(() => preview.evaluate((el) => el.getBoundingClientRect().width)).toBeLessThan(400);
+  await publish.click();
+  await expect(page.getByRole("status")).toContainText("Published. Jasiri LMS shows these colours");
+
+  // The version is kept, with who published it.
+  await page.getByRole("tab", { name: "History" }).click();
+  const latest = page.getByRole("tabpanel").getByRole("listitem").first();
+  await expect(latest).toContainText("Olu Owner");
+  await expect(latest).toContainText("Live now");
+
+  await page.evaluate(() => window.scrollTo(0, 0));
+  const results = await new AxeBuilder({ page: await themeSettled(page) })
+    .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
+    .analyze();
+  expect(
+    results.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`),
+  ).toEqual([]);
+
+  // Restore defaults is a publish too, so it can be rolled back.
+  await page.getByRole("button", { name: "Restore defaults" }).click();
+  await publish.click();
+  await expect(page.getByRole("status")).toContainText("Published.");
+  await expect(page.getByRole("tabpanel").getByRole("listitem")).toHaveCount(2);
+  await page.getByRole("tabpanel").getByRole("button", { name: "Load this version" }).nth(1).click();
+  await page.getByRole("tab", { name: "Light mode" }).click();
+  await expect(muted).toHaveValue("#334155");
+  // Put it back for other tests: the built-in colours, nothing stored.
+  await page.getByRole("button", { name: "Restore defaults" }).click();
+  await expect(publish).toBeDisabled();
+});

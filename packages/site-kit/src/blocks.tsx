@@ -43,7 +43,19 @@ interface Base {
   shared?: { id: string; name: string; version: number };
 }
 
-export type SectionTone = "brand" | "soft" | "inverse";
+export type SectionTone =
+  | "brand"
+  | "soft"
+  | "inverse"
+  // Brand & Theme Studio (11 Nov 2026): a surface that stays light or dark, or a gradient preset.
+  | "light"
+  | "dark"
+  | "gradient_hero"
+  | "gradient_band"
+  | "gradient_cta";
+
+/** Full-width section styles (like the contrasting band). */
+const FULL_TONES = new Set<SectionTone>(["light", "dark", "gradient_hero", "gradient_band", "gradient_cta"]);
 
 export type PageSection = Base &
   (
@@ -589,8 +601,11 @@ export function PageBlocks({
             data-section={section.type}
             data-hidden={section.hidden || undefined}
             data-tone={section.tone}
+            // A light or dark surface keeps its colours whatever the visitor's theme.
+            data-theme={section.tone === "light" || section.tone === "dark" ? section.tone : undefined}
             className={cn(
               section.tone && `fb-tone fb-tone-${section.tone}`,
+              section.tone && FULL_TONES.has(section.tone) && "fb-tone-full",
               section.hidden && "relative rounded-2xl border border-dashed border-line-strong p-4 opacity-50",
             )}
           >

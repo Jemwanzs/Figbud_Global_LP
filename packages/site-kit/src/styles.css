@@ -603,10 +603,15 @@ select.fb-field {
 
 /* A page that ends on a full-width band meets the footer directly: the band
    reaches through the page's bottom padding, and the footer adds no gap. */
-[data-page-content] > [data-page-blocks]:last-child > .fb-tone-inverse:last-child::before {
+[data-page-content]
+  > [data-page-blocks]:last-child
+  > :is(.fb-tone-inverse, .fb-tone-full):last-child::before {
   bottom: calc(-1 * var(--spacing-section-sm));
 }
-body:has([data-page-content] > [data-page-blocks]:last-child > .fb-tone-inverse:last-child) footer {
+body:has(
+    [data-page-content] > [data-page-blocks]:last-child > :is(.fb-tone-inverse, .fb-tone-full):last-child
+  )
+  footer {
   margin-top: 0;
 }
 
@@ -701,7 +706,8 @@ body:has(main [data-section="call_to_action"]:last-child) footer {
    a layer behind it, one surface with no seam. The website's full-width main
    area clips it (`overflow-x-clip` on <main>), so it never widens the page.
    Colours come from the inverse tokens. */
-.fb-tone-inverse {
+.fb-tone-inverse,
+.fb-tone-full {
   position: relative;
   isolation: isolate;
   border-radius: 0;
@@ -709,7 +715,8 @@ body:has(main [data-section="call_to_action"]:last-child) footer {
   padding-block: clamp(3.5rem, 9cqi, 6.5rem);
   color: var(--text);
 }
-.fb-tone-inverse::before {
+.fb-tone-inverse::before,
+.fb-tone-full::before {
   content: "";
   position: absolute;
   inset-block: 0;
@@ -717,6 +724,20 @@ body:has(main [data-section="call_to_action"]:last-child) footer {
   z-index: -1;
   /* A website's band gradient (ZiraHR), else its plain background. */
   background: var(--grad-band, var(--bg));
+}
+/* Brand & Theme Studio section styles (11 Nov 2026), full width like the
+   contrasting band (`.fb-tone-full`): a surface that stays light or dark
+   whatever the visitor's theme (the section carries `data-theme`), or the
+   hero, band or call-to-action gradient. */
+.fb-tone-light::before,
+.fb-tone-dark::before {
+  background: var(--bg);
+}
+.fb-tone-gradient_hero::before {
+  background: var(--grad-hero, var(--bg));
+}
+.fb-tone-gradient_cta::before {
+  background: var(--grad-cta, var(--surface));
 }
 
 /* Gradients (ZiraHR's dark-mode gradients brief, 11 Nov 2026), from the
@@ -743,11 +764,13 @@ body:has(main [data-section="call_to_action"]:last-child) footer {
   background: var(--grad-cta, var(--surface));
 }
 [data-footer-cta] .fb-cta-panel {
-  background: var(--grad-cta, var(--bg));
+  background: var(--grad-footer, var(--grad-cta, var(--bg)));
 }
-/* Secondary text stays readable on a gradient's lighter end (ZiraHR, the
-   website that defines gradients). */
-[data-site="zirahr"] :is(.fb-cta-panel, .fb-tone-inverse, .fb-demo-stage) {
+/* Secondary text stays readable on a gradient's lighter end: a website's
+   `--text-on-grad` (ZiraHR's, or one from the Brand & Theme Studio; the
+   shared tokens make it the usual secondary text). */
+[data-site]
+  :is(.fb-cta-panel, .fb-tone-inverse, .fb-demo-stage, .fb-tone-gradient_band, .fb-tone-gradient_cta) {
   --text-muted: var(--text-on-grad);
 }
 /* A showcase panel on its own surface: rounded, with depth suited to it. */

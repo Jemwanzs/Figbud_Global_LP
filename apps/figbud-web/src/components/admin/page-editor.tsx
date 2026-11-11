@@ -8,6 +8,7 @@ import {
   type SectionTone,
   type SiteTheme,
   ZIRAHR_MODULES,
+  siteThemeCss,
   siteThemeStyle,
 } from "@figbud/site-kit";
 import { buttonClasses, cn } from "@figbud/ui";
@@ -253,7 +254,31 @@ const TONES: { value: SectionTone | undefined; label: string; hint: string }[] =
     label: "Contrasting band",
     hint: "Full width, in the opposite of the visitor's theme; demonstrations inside flip too",
   },
+  // Brand & Theme Studio (11 Nov 2026): fixed surfaces and the website's gradient presets.
+  { value: "light", label: "Light surface", hint: "Full width, light in either theme" },
+  { value: "dark", label: "Dark surface", hint: "Full width, dark in either theme" },
+  { value: "gradient_hero", label: "Hero gradient", hint: "Full width, on the website's hero gradient" },
+  {
+    value: "gradient_band",
+    label: "Band gradient",
+    hint: "Full width, on the website's feature band gradient",
+  },
+  {
+    value: "gradient_cta",
+    label: "Call-to-action gradient",
+    hint: "Full width, on the website's call-to-action gradient",
+  },
 ];
+
+/** A small sample of each style for the picker. */
+const TONE_SWATCH: Partial<Record<SectionTone, string>> = {
+  inverse: "linear-gradient(90deg, #020617 50%, #f8fafc 50%)",
+  light: "#f8fafc",
+  dark: "#020617",
+  gradient_hero: "linear-gradient(135deg, var(--bg), var(--surface-3))",
+  gradient_band: "radial-gradient(circle at 80% 20%, var(--surface-3), var(--bg))",
+  gradient_cta: "linear-gradient(140deg, var(--bg), var(--accent-soft), var(--action))",
+};
 
 /** A section's style: none, or a band in the website's theme colours (Navigation & forms → Theme). */
 function ToneField({
@@ -296,9 +321,7 @@ function ToneField({
                       ? (theme?.brand_section ?? "#1e293b")
                       : t.value === "soft"
                         ? (theme?.soft_section ?? "#f1f5f9")
-                        : t.value === "inverse"
-                          ? "linear-gradient(90deg, #020617 50%, #f8fafc 50%)"
-                          : "transparent",
+                        : ((t.value && TONE_SWATCH[t.value]) ?? "transparent"),
                 }}
                 className="mt-0.5 size-4 shrink-0 rounded-full border border-line-strong"
               />
@@ -1884,6 +1907,8 @@ export function PageEditor({ slug, user, initial }: { slug: string; user: AdminU
             </div>
             {/* The website's colours, not the Studio's. */}
             <div data-site-preview="">
+              {/* Its published Brand & Theme Studio colours, as on the website. */}
+              <style>{siteThemeCss(slug, initial.site.theme)}</style>
               <div
                 data-product={KNOWN.includes(slug) ? slug : "figbud"}
                 // The website's own surfaces, as on the live site (ZiraHR's warm palette).

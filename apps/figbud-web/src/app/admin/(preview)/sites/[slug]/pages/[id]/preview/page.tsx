@@ -1,4 +1,4 @@
-import { PageBlocks, siteThemeStyle } from "@figbud/site-kit";
+import { PageBlocks, siteThemeCss, siteThemeStyle } from "@figbud/site-kit";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -34,6 +34,8 @@ async function Preview({ params }: Pick<PageProps<"/admin/sites/[slug]/pages/[id
   return (
     // The website's own colours, not the Studio's.
     <div data-site-preview="">
+      {/* Its published Brand & Theme Studio colours, as on the website. */}
+      <style>{siteThemeCss(slug, data.site.theme)}</style>
       <div
         data-product={KNOWN.includes(slug) ? slug : "figbud"}
         data-site={slug}

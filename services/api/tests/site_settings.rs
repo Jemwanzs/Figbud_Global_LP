@@ -244,3 +244,137 @@ async fn navigation_footer_and_enquiries_are_managed_per_website() {
         .await
         .unwrap();
 }
+
+/// The Brand & Theme Studio (owner's brief, 11 Nov 2026): drafts stay private,
+/// publishing is contrast-checked and recorded for rollback, and one
+/// website's colours never reach another.
+#[tokio::test]
+async fn themes_publish_with_history_and_stay_on_their_website() {
+    let Some(pool) = database().await else { return };
+    let url = std::env::var("TEST_DATABASE_URL").unwrap();
+    let app = app_with(pool.clone(), config(&url));
+    let run = Uuid::now_v7().simple().to_string();
+    let slug = format!("theme_{}", &run[run.len() - 10..]);
+    sqlx::query(
+        "INSERT INTO sites (id, slug, kind, name, category, template, status, position)
+         VALUES ($1, $2, 'product', 'Theme Site', 'hr_workforce', 'hr', 'active', 91)",
+    )
+    .bind(Uuid::now_v7())
+    .bind(&slug)
+    .execute(&pool)
+    .await
+    .unwrap();
+    let uri = format!("/v1/admin/sites/{slug}/settings");
+    let reviewer = admin(&pool, "reviewer").await;
+    let (_, read) = call(&app, "GET", &uri, Some(&reviewer), None).await;
+
+    let light = json!({ "background": "#f9f5ef", "surface": "#fff5e6", "text": "#292625", "text_muted": "#6a5a51",
+        "action": "#f7933a", "action_text": "#292625", "accent_text": "#9a4f17" });
+    // A draft with an unreadable colour saves; it's only a warning until published.
+    let mut weak = light.clone();
+    weak["text_muted"] = json!("#c9b6a3");
+    let (status, saved) = call(
+        &app,
+        "POST",
+        &uri,
+        Some(&reviewer),
+        Some(json!({
+        "settings": { "theme_draft": { "light": weak } }, "version": read["version"] })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{saved}");
+    assert_eq!(saved["settings"]["theme_draft"]["light"]["text_muted"], "#c9b6a3");
+    // Publishing it is refused.
+    let (status, refused) = call(
+        &app,
+        "POST",
+        &uri,
+        Some(&reviewer),
+        Some(json!({
+        "settings": { "theme": { "light": weak } }, "version": saved["version"] })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY, "{refused}");
+
+    // Publishing a readable theme records who and when; a forged history is ignored.
+    let (status, published) = call(
+        &app,
+        "POST",
+        &uri,
+        Some(&reviewer),
+        Some(json!({
+        "settings": { "theme": { "light": light }, "theme_history": [
+            { "published_at": "2020-01-01T00:00:00Z", "by": "Someone else", "theme": {} }] },
+        "version": saved["version"] })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{published}");
+    let history = published["settings"]["theme_history"].as_array().unwrap();
+    assert_eq!(history.len(), 1);
+    assert_eq!(history[0]["by"], "Settings Tester");
+    assert_eq!(history[0]["theme"]["light"]["action"], "#f7933a");
+    assert!(
+        published["settings"]
+            .get("theme_draft")
+            .is_none_or(Value::is_null)
+    );
+
+    // The website shows it; drafts and history stay in the Studio; other websites keep theirs.
+    let (_, sites) = call(&app, "GET", "/v1/sites", None, None).await;
+    let list = sites.as_array().unwrap().clone();
+    let ours = list.iter().find(|s| s["slug"] == slug.as_str()).unwrap();
+    assert_eq!(ours["settings"]["theme"]["light"]["background"], "#f9f5ef");
+    assert!(ours["settings"].get("theme_history").is_none());
+    for other in list.iter().filter(|s| s["slug"] != slug.as_str()) {
+        assert_ne!(
+            other["settings"]["theme"]["light"],
+            ours["settings"]["theme"]["light"]
+        );
+    }
+
+    // Restoring the defaults (an empty theme) is a publish too, so it can be rolled back.
+    let (status, restored) = call(
+        &app,
+        "POST",
+        &uri,
+        Some(&reviewer),
+        Some(json!({
+        "settings": {}, "version": published["version"] })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(restored["settings"]["theme_history"].as_array().unwrap().len(), 2);
+    // Two editors at once: the second is told to reload.
+    let (status, _) = call(
+        &app,
+        "POST",
+        &uri,
+        Some(&reviewer),
+        Some(json!({
+        "settings": { "theme": { "light": light } }, "version": published["version"] })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CONFLICT);
+
+    let actions: Vec<String> = sqlx::query_scalar(
+        "SELECT a.action FROM audit_log a JOIN sites s ON s.id = a.site_id
+          WHERE s.slug = $1 ORDER BY a.created_at",
+    )
+    .bind(&slug)
+    .fetch_all(&pool)
+    .await
+    .unwrap();
+    assert_eq!(
+        actions,
+        [
+            "site.theme_draft_saved",
+            "site.theme_published",
+            "site.theme_published"
+        ]
+    );
+    sqlx::query("DELETE FROM sites WHERE slug = $1")
+        .bind(&slug)
+        .execute(&pool)
+        .await
+        .ok();
+}

@@ -28,6 +28,7 @@ use crate::{
     error::{ApiError, FieldError},
     privacy::valid_link,
     routes::SharedState,
+    site_theme::{self, Gradients, ModeTokens, Swatch, ThemeVersion},
     sites::audit_site,
 };
 
@@ -310,8 +311,10 @@ impl Default for Enquiries {
     }
 }
 
-/// Colours of the section bands editors can give page sections (P7-E1).
-/// Unset means the shared design system's neutral bands.
+/// A website's colours: the section bands editors can give page sections
+/// (P7-E1) and, from the Brand & Theme Studio (owner's brief, 11 Nov 2026),
+/// its palette, light and dark colours and gradients (`site_theme`). Unset
+/// means the website's built-in colours.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Default)]
 #[serde(default, deny_unknown_fields)]
 pub struct Theme {
@@ -320,6 +323,16 @@ pub struct Theme {
     /// Behind "soft" sections in light mode, with the theme's dark text
     /// on it (at least 4.5:1); dark mode uses a deep tint of the brand band.
     pub soft_section: Option<String>,
+    /// Named colours to choose from (the Studio's swatches).
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub palette: Vec<Swatch>,
+    #[serde(skip_serializing_if = "ModeTokens::is_empty")]
+    pub light: ModeTokens,
+    #[serde(skip_serializing_if = "ModeTokens::is_empty")]
+    pub dark: ModeTokens,
+    /// Gradient presets by where they're used (`GRADIENT_PRESETS`).
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    pub gradients: Gradients,
 }
 
 /// Motion on the website's home page (UI-MO2). Rotation is off unless an
@@ -546,6 +559,12 @@ pub struct WebsiteSettings {
     pub section_themes: BTreeMap<String, SectionTone>,
     /// Saved in the Studio but not published.
     pub section_themes_draft: Option<BTreeMap<String, SectionTone>>,
+    /// The theme being edited in the Brand & Theme Studio; never sent to the
+    /// websites, and it may save with contrast warnings.
+    pub theme_draft: Option<Theme>,
+    /// Published themes, newest first, for rollback. Kept by the API: what an
+    /// editor sends is ignored.
+    pub theme_history: Vec<ThemeVersion>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
@@ -710,6 +729,10 @@ impl WebsiteSettings {
             &LIGHT_TEXT,
             "Too dark: the page's text on it must stay readable (at least 4.5:1).",
         );
+        site_theme::check(&mut e, &mut self.theme, true);
+        if let Some(draft) = &mut self.theme_draft {
+            site_theme::check(&mut e, draft, false);
+        }
         if !ROTATION_SECONDS.contains(&self.motion.rotation_seconds) {
             e.push(FieldError {
                 field: "motion.rotation_seconds",
@@ -852,10 +875,23 @@ async fn update(
     if site.archived {
         return Err(ApiError::Conflict("Restore this website first."));
     }
-    let next = input
+    let mut next = input
         .settings
         .normalise(site.kind == "corporate")
         .map_err(ApiError::Validation)?;
+    // Publishing a theme (or rolling one back) records who and when.
+    next.theme_history = site.settings.theme_history.clone();
+    let theme_published = next.theme != site.settings.theme;
+    if theme_published {
+        site_theme::remember(
+            &mut next.theme_history,
+            ThemeVersion {
+                published_at: Utc::now().to_rfc3339(),
+                by: Some(session.user.name.clone()),
+                theme: next.theme.clone(),
+            },
+        );
+    }
     let value = serde_json::to_value(&next).map_err(|e| ApiError::Internal(e.to_string()))?;
     let saved: Option<i32> = sqlx::query_scalar(
         "UPDATE sites SET settings = $3, settings_version = settings_version + 1
@@ -874,6 +910,8 @@ async fn update(
     let action = match (site.settings.enquiries.open, next.enquiries.open) {
         (true, false) => "site.enquiries_closed",
         (false, true) => "site.enquiries_opened",
+        _ if theme_published => "site.theme_published",
+        _ if next.theme_draft != site.settings.theme_draft => "site.theme_draft_saved",
         _ => "site.settings_updated",
     };
     audit_site(
@@ -936,11 +974,38 @@ mod tests {
     }
 
     #[test]
+    fn theme_drafts_and_history_never_reach_the_websites() {
+        let stored = WebsiteSettings::from_stored(json!({
+            "theme": { "palette": [{ "name": "Signature Orange", "hex": "#f7933a" }] },
+            // A draft may save with contrast warnings, not with broken colours.
+            "theme_draft": { "light": { "background": "#ffffff", "text": "#eeeeee" } },
+            "theme_history": [{ "published_at": "2026-11-11T00:00:00Z", "by": "Ama", "theme": {} }],
+        }));
+        let settings = stored.normalise(false).unwrap();
+        let public = settings.public();
+        assert_eq!(public["theme"]["palette"][0]["hex"], "#f7933a");
+        assert!(public.get("theme_draft").is_none() && public.get("theme_history").is_none());
+        // An empty theme stays as small as before.
+        assert_eq!(
+            WebsiteSettings::default().public()["theme"],
+            json!({ "brand_section": null, "soft_section": null })
+        );
+        let broken = WebsiteSettings::from_stored(json!({ "theme_draft": { "dark": { "text": "cream" } } }));
+        assert_eq!(broken.normalise(false).unwrap_err()[0].field, "theme.dark");
+        // Published, the same draft is refused for its contrast.
+        let published = WebsiteSettings::from_stored(json!({ "theme": {
+            "light": { "background": "#ffffff", "surface": "#ffffff", "text": "#eeeeee", "text_muted": "#475569",
+                       "action": "#0f172a", "action_text": "#ffffff", "accent_text": "#0f172a" } } }));
+        assert_eq!(published.normalise(false).unwrap_err()[0].code, "contrast");
+    }
+
+    #[test]
     fn theme_colours_keep_text_readable() {
         let theme = |brand: &str, soft: &str| WebsiteSettings {
             theme: Theme {
                 brand_section: Some(brand.into()),
                 soft_section: Some(soft.into()),
+                ..Theme::default()
             },
             ..WebsiteSettings::default()
         };

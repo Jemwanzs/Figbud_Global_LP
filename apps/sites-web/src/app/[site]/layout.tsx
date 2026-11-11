@@ -8,6 +8,7 @@ import {
   brandIcons,
   enquiriesOpen,
   resolveNavPreviews,
+  siteThemeCss,
   siteThemeStyle,
   verificationMeta,
 } from "@figbud/site-kit";
@@ -130,6 +131,8 @@ export default async function SiteLayout({ children, params }: LayoutProps<"/[si
       : {}),
     ...siteThemeStyle(site.settings?.theme),
   } as CSSProperties;
+  // Its published Brand & Theme Studio colours, scoped to this website (validated hex only).
+  const themeCss = siteThemeCss(slug, site.settings?.theme);
 
   return (
     <html
@@ -143,6 +146,7 @@ export default async function SiteLayout({ children, params }: LayoutProps<"/[si
       </head>
       {/* `data-site` lets a website have its own surfaces (ZiraHR's warm palette). */}
       <body data-site={slug} className="min-h-dvh">
+        {themeCss && <style data-site-theme="">{themeCss}</style>}
         <div
           data-product={KNOWN.includes(slug) ? slug : "figbud"}
           style={colours}

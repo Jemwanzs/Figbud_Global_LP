@@ -4,6 +4,7 @@
  * itself at `/brand/assets/{id}` (see `brandAssetRoute` in ./server).
  */
 
+import type { StudioTheme } from "./site-theme";
 import type { SiteSeo } from "./seo";
 
 export interface BrandAsset {
@@ -77,8 +78,12 @@ export interface WebsiteSettings {
   /** Saved in the Studio, not published. */
   section_themes_draft?: Partial<Record<string, "follow" | "inverse">> | null;
   enquiries: { open: boolean; closed_message?: string | null };
-  /** Section band colours (P7-E1); unset means the design system's neutral bands. */
+  /** Section band colours (P7-E1) and the Brand & Theme Studio's colours; unset means the built-in ones. */
   theme?: SiteTheme;
+  /** The theme being edited in the Studio (only the Studio ever receives it). */
+  theme_draft?: SiteTheme | null;
+  /** Published themes, newest first, for rollback (kept by the API; Studio only). */
+  theme_history?: { published_at: string; by?: string | null; theme: SiteTheme }[];
   /** Home page motion (UI-MO2): optional, slow product rotation. */
   motion?: { product_rotation: boolean; rotation_seconds: number };
   /** Our Platforms on the corporate home page (UI-MO5). */
@@ -212,7 +217,7 @@ export function orderBySlug<T extends { slug: string }>(items: T[], order: strin
     .map(({ item }) => item);
 }
 
-export interface SiteTheme {
+export interface SiteTheme extends StudioTheme {
   /** Behind "brand" sections, with white text on it. */
   brand_section?: string | null;
   /** Behind "soft" sections in light mode; dark mode uses a deep tint of the brand band. */

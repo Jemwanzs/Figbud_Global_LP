@@ -333,14 +333,21 @@ pub struct Section {
 }
 
 /// Section styles: the website's brand band (light text on its brand
-/// colour), its soft band (a light tint; a deep tint in dark mode), or a
-/// contrasting band in the opposite of the visitor's theme (UI-TH3).
+/// colour), its soft band (a light tint; a deep tint in dark mode), a
+/// contrasting band in the opposite of the visitor's theme (UI-TH3), and from
+/// the Brand & Theme Studio (11 Nov 2026) a band that stays light or dark in
+/// either theme, or one on the website's hero, band or call-to-action gradient.
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum Tone {
     Brand,
     Soft,
     Inverse,
+    Light,
+    Dark,
+    GradientHero,
+    GradientBand,
+    GradientCta,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
@@ -784,6 +791,14 @@ mod tests {
             "default sections stay unchanged"
         );
         assert!(doc(json!([{ "id": "a", "type": "text", "body": "x", "tone": "#ff0000" }])).is_err());
+        // The Brand & Theme Studio's surfaces and gradient presets.
+        for tone in ["light", "dark", "gradient_hero", "gradient_band", "gradient_cta"] {
+            let page = doc(json!([{ "id": "a", "type": "text", "body": "x", "tone": tone }])).unwrap();
+            assert_eq!(page.render(false)["sections"][0]["tone"], tone);
+        }
+        assert!(
+            doc(json!([{ "id": "a", "type": "text", "body": "x", "tone": "gradient_sidebar" }])).is_err()
+        );
     }
 
     #[test]

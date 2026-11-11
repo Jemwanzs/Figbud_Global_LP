@@ -63,6 +63,8 @@
   --text: #f8fafc;
   --text-muted: #cbd5e1;
   --text-subtle: #94a3b8;
+  /* Secondary text on gradient panels and bands (a website's own, else this). */
+  --text-on-grad: #cbd5e1;
   --accent: #22c55e;
   --accent-strong: #4ade80;
   --accent-ink: #020617;
@@ -97,6 +99,7 @@
   --text: #0f172a;
   --text-muted: #475569;
   --text-subtle: #556377;
+  --text-on-grad: #475569;
   --accent: #15803d;
   --accent-strong: #166534;
   --accent-ink: #ffffff;

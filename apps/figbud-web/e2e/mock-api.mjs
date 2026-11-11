@@ -465,6 +465,44 @@ Object.assign(sites.find((s) => s.slug === "zirahr").settings, {
 // The admin row has no settings: they have their own endpoint (sites/{slug}/settings).
 // Ziwa LMS's brown and ivory section bands (migration 14).
 sites[4].settings.theme = { brand_section: "#4e2d17", soft_section: "#fdf9f4" };
+// A published Brand & Theme Studio theme (site_theme.rs) on Expense Now, so the
+// renderer's tests see it applied there and nowhere else. Synthetic colours,
+// contrast-checked like the API would.
+sites.find((s) => s.slug === "expense_now").settings.theme = {
+  brand_section: null,
+  soft_section: null,
+  palette: [{ name: "Expense Orange", hex: "#ff7a00" }],
+  dark: {
+    background: "#1a1410",
+    surface: "#241b15",
+    text: "#fff8f0",
+    text_muted: "#d9c8b8",
+    action: "#ff7a00",
+    action_text: "#2a1405",
+    accent_text: "#ff9a3d",
+  },
+  light: {
+    background: "#fffaf3",
+    surface: "#ffffff",
+    text: "#2a1405",
+    text_muted: "#5e4632",
+    action: "#ff7a00",
+    action_text: "#2a1405",
+    accent_text: "#a84f00",
+  },
+  gradients: {
+    cta: {
+      dark: {
+        kind: "linear",
+        angle: 140,
+        stops: [
+          { color: "#1a1410", at: 0 },
+          { color: "#4a2a10", at: 100 },
+        ],
+      },
+    },
+  },
+};
 // A product website's own hover preview (UI-NAV2), for the renderer's tests.
 sites[4].settings.nav_previews = {
   enabled: true,
@@ -494,7 +532,18 @@ const publicSites = () =>
         ),
       ),
       // Drafts never reach the websites.
-      settings: Object.fromEntries(Object.entries(s.settings).filter(([k]) => k !== "nav_previews_draft")),
+      settings: Object.fromEntries(
+        Object.entries(s.settings).filter(
+          ([k]) =>
+            ![
+              "nav_previews_draft",
+              "footer_draft",
+              "section_themes_draft",
+              "theme_draft",
+              "theme_history",
+            ].includes(k),
+        ),
+      ),
       cta: SITE_CTA[s.status],
       brand: publishedBrand(s.slug),
       seo: seoPublic(siteSeo(s.slug)),
@@ -4504,7 +4553,64 @@ function siteSettingsRoutes(slug, req, body, user, send) {
   next.footer_draft ??= null;
   next.section_themes ??= {};
   next.section_themes_draft ??= null;
+  next.theme_draft ??= null;
+  // Kept by the API: what an editor sends is ignored (site_settings.rs update).
+  next.theme_history = clone(site.settings.theme_history ?? []);
   const fields = [];
+  // Brand & Theme Studio (site_theme.rs): colours in drafts and published
+  // themes; publishing also needs readable core colours.
+  const hex = (v) => typeof v === "string" && /^#[0-9a-f]{6}$/.test(v);
+  const lum = (h) =>
+    [1, 3, 5]
+      .map((i) => parseInt(h.slice(i, i + 2), 16) / 255)
+      .map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4))
+      .reduce((sum, c, i) => sum + c * [0.2126, 0.7152, 0.0722][i], 0);
+  const ratio = (a, b) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a), lum(b)) + 0.05);
+  for (const [theme, strict] of [
+    [next.theme, true],
+    [next.theme_draft, false],
+  ]) {
+    if (!theme) continue;
+    for (const swatch of theme.palette ?? []) {
+      swatch.hex = String(swatch.hex ?? "")
+        .trim()
+        .toLowerCase();
+      if (!hex(swatch.hex) || !String(swatch.name ?? "").trim())
+        fields.push({
+          field: "theme.palette",
+          code: "format",
+          message: "Use a six-digit hex colour such as #f7933a.",
+        });
+    }
+    for (const mode of ["light", "dark"]) {
+      const m = theme[mode];
+      if (!m) continue;
+      for (const [k, v] of Object.entries(m)) {
+        m[k] =
+          String(v ?? "")
+            .trim()
+            .toLowerCase() || undefined;
+        if (m[k] && !hex(m[k]))
+          fields.push({
+            field: `theme.${mode}`,
+            code: "format",
+            message: "Use a six-digit hex colour such as #f7933a.",
+          });
+      }
+      if (!strict || fields.length) continue;
+      if (
+        ["text", "text_muted", "accent_text"].some((k) =>
+          [m.background, m.surface].some((bg) => ratio(m[k], bg) < 4.5),
+        ) ||
+        ratio(m.action_text, m.action) < 4.5
+      )
+        fields.push({
+          field: `theme.${mode}`,
+          code: "contrast",
+          message: "Text needs at least 4.5:1 on the background and every surface.",
+        });
+    }
+  }
   // Home page section themes (site_settings.rs check_section_themes).
   const homeSections = ["platforms", "philosophy", "africa", "engineer", "proof", "company", "closing"];
   for (const themes of [next.section_themes, next.section_themes_draft].filter(Boolean)) {
@@ -4681,12 +4787,23 @@ function siteSettingsRoutes(slug, req, body, user, send) {
     return send(422, { error: { code: "validation", message: "Some fields need attention.", fields } });
   next.footer.note = next.footer.note?.trim() || null;
   next.enquiries.closed_message = next.enquiries.closed_message?.trim() || null;
+  const studioTheme = (t) => JSON.stringify([t?.palette, t?.light, t?.dark, t?.gradients]);
+  const themePublished = studioTheme(next.theme) !== studioTheme(site.settings.theme);
+  if (themePublished)
+    next.theme_history = [
+      { published_at: new Date().toISOString(), by: user.name, theme: clone(next.theme) },
+      ...next.theme_history,
+    ].slice(0, 10);
   const action =
     site.settings.enquiries.open && !next.enquiries.open
       ? "site.enquiries_closed"
       : !site.settings.enquiries.open && next.enquiries.open
         ? "site.enquiries_opened"
-        : "site.settings_updated";
+        : themePublished
+          ? "site.theme_published"
+          : JSON.stringify(next.theme_draft) !== JSON.stringify(site.settings.theme_draft ?? null)
+            ? "site.theme_draft_saved"
+            : "site.settings_updated";
   audit.unshift({
     id: randomBytes(8).toString("hex"),
     action,

@@ -27,4 +27,5 @@ pub mod routes;
 pub mod seo;
 pub mod shared;
 pub mod site_settings;
+pub mod site_theme;
 pub mod sites;

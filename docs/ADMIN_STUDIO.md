@@ -243,6 +243,35 @@ Websites → a website → Navigation & forms → **Hover Previews**.
 - **Defaults:** FigBud Global starts with its approved wording, and empty fields keep it. Product websites start with none, so a link shows nothing until its own headline is written. Studio edits apply to English pages; other languages keep their own wording.
 - **Where it runs:** `NavPreview` in `@figbud/site-kit`, used by the corporate header and the product renderer. Stored as `nav_previews` in the website's settings.
 
+## Colours & themes: the Brand & Theme Studio (UI-BT1, 11 Nov 2026)
+
+Websites → a product website → **Colours & themes** (also under Products & Branding). FigBud Global keeps its own identity, built into the corporate website.
+
+- **Palette:** up to 16 named colours. Add, rename, duplicate or remove them; set each by hex or with the colour picker. Any colour below can be picked from the palette.
+- **Light mode and Dark mode,** edited independently. Each has ten semantic colours: background, cards and panels, headings and text, secondary text, buttons and active states, text on buttons, links and labels, and optionally borders, the focus ring and secondary text on gradients. The deeper surfaces are derived from the cards and text colours, the same way on the website and in the API.
+- **Gradients:** per mode, for the hero, feature bands, demonstrations, the call to action and the footer's call to action. Linear (with an angle) or radial (with a centre), 2 to 5 colour stops, each with a position and an opacity.
+- **Preview:** a sample page in either mode, at desktop, tablet or phone width, updating as you edit.
+- **Contrast checks:** shown as you edit, with ratios.
+  - Critical, blocking Publish (WCAG AA): text, secondary text and link text on the background, every surface and every gradient stop (4.5:1); text on buttons (4.5:1); the focus ring (3:1).
+  - Warnings: buttons that barely stand out from the background, faint borders.
+  - The API makes the same critical checks, so nothing unreadable is published even from elsewhere.
+- **Actions:**
+  - **Save draft** keeps your work (warnings allowed); visitors don't see it.
+  - **Publish** is available only when something changed and no critical check fails.
+  - **Discard draft** goes back to the published colours.
+  - **Restore defaults** puts the website's built-in colours back in the editor; publish to use them.
+  - **History** lists the last ten published themes with who published them and when. Load one, then publish it to roll back.
+- **Safety:**
+  - saves are checked against the version you opened, so two editors can't overwrite each other;
+  - every draft and publish is in the audit log (`site.theme_draft_saved`, `site.theme_published`);
+  - each website's theme is scoped to that website (`data-site`), so no colour leaks to another.
+- **Section styles** (Page builder → a section): besides Brand band, Soft band and Contrasting band, a section can be a Light surface or Dark surface (the same in either theme) or sit on the hero, band or call-to-action gradient.
+- **Where it runs:**
+  - stored in the website's settings: `theme` (published), `theme_draft`, `theme_history`;
+  - checked by `services/api/src/site_theme.rs`;
+  - turned into CSS by `siteThemeCss` in `@figbud/site-kit` (`site-theme.ts`), on the product renderer and in Studio previews;
+  - built-in themes are `BUILT_IN_THEMES`, which a unit test keeps equal to `tokens.css`.
+
 ## Security & Authentication (P13, 5 Nov 2026)
 
 Settings → **Security & Authentication** (also in the account menu), for every role and only for one's own account. The rules are in [SECURITY.md](SECURITY.md).
