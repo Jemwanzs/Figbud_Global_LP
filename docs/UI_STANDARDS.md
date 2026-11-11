@@ -134,6 +134,16 @@ Motion explains and guides. It never decorates for its own sake, and content nev
     - The current row is the one crossing the middle of the screen; rows are content height, nothing pins.
     - Numbers and dots are `aria-hidden` and never take a pointer. Dots sit beside headings or steps, never behind words, and are left out on narrow screens.
     - Colours come from `--num-stroke`, `--dot-from` and `--dot-to`: the product's accents by default, and FigBud Global's green and blue under `.fb-accent-numbers`.
+  - Selected numbers (UI-NS2):
+    - Rows that can be current carry `fb-num-row` (bar and heading colour) and use `OutlineNumber`.
+    - The current one is solid `--num-active`; waiting ones are `--num-stroke` outlines. Don't style selected numbers by hand.
+  - Demonstration sizing (UI-SC1):
+    - A stage is as tall as its content (`fit="content"` on scroll stories) unless pieces are positioned in it, and then it's capped.
+    - Never fill height with an empty panel.
+    - Showcase padding: 20–32 px.
+  - Guided sections (UI-MT1):
+    - Pinning is for one section at a time, on wide screens only, over a runway sized to its steps, with a skip.
+    - Phones get auto-play on the shared demonstration clock instead, so scroll-driven and timed progression never compete.
   - ZiraHR modules: list them from `ZIRAHR_MODULES` (site-kit `zirahr-modules.ts`), never a local array. The API's `ZIRAHR_MODULE_KEYS` must match it.
   - Studio (P7-UX3–UX5):
     - **Palette:** the Studio's own palette is set on its `<html>` (`data-studio`, tokens in `tokens.css`). Use the semantic tokens, never fixed colours. `bg-action` / `text-action-ink` is the primary button (warm orange in both themes); `text-accent` is orange as text.

@@ -77,7 +77,12 @@ pub enum Block {
         motion: DemoMotion,
         /// Employee Self-Service, highlighted under the hero (8 Nov 2026).
         #[serde(default, skip_serializing_if = "Option::is_none")]
-        ess: Option<Highlight>,
+        // Boxed: the hero is the largest block, and this keeps every block's size close.
+        ess: Option<Box<Highlight>>,
+        /// Hover messages for the visual's modules, by key; the approved copy
+        /// where none is set (11 Nov 2026).
+        #[serde(default, skip_serializing_if = "std::collections::BTreeMap::is_empty")]
+        messages: std::collections::BTreeMap<String, String>,
     },
     Text {
         #[serde(default)]
@@ -448,6 +453,7 @@ impl PageDoc {
                     highlights,
                     modules,
                     ess,
+                    messages,
                     ..
                 } => {
                     c.optional("sections", eyebrow, 60, "Eyebrows can be up to 60 characters.");
@@ -470,6 +476,16 @@ impl PageDoc {
                         c.push(
                             "sections",
                             "Choose at least three of the eight modules for the hero, each once (or leave it to show all eight).",
+                        );
+                    }
+                    if messages.iter().any(|(key, text)| {
+                        !ZIRAHR_MODULE_KEYS.contains(&key.as_str())
+                            || text.trim().is_empty()
+                            || text.chars().count() > 80
+                    }) {
+                        c.push(
+                            "sections",
+                            "Hover messages are for the eight modules, each 1–80 characters.",
                         );
                     }
                     if let Some(ess) = ess {
@@ -840,6 +856,11 @@ mod tests {
         );
         assert!(hero(json!({ "ess": { "heading": "Your team.", "body": "In any browser." } })).is_ok());
         assert!(hero(json!({ "ess": { "heading": "", "body": "x" } })).is_err());
+        // Hover messages: the eight modules only, each 1–80 characters.
+        assert!(hero(json!({ "messages": { "payroll": "Payday, sorted." } })).is_ok());
+        assert!(hero(json!({ "messages": { "mobile_app": "Download us" } })).is_err());
+        assert!(hero(json!({ "messages": { "leave": " " } })).is_err());
+        assert!(hero(json!({ "messages": { "leave": "x".repeat(81) } })).is_err());
     }
 
     #[test]

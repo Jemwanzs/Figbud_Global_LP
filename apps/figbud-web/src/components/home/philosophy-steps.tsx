@@ -35,7 +35,7 @@ export function PhilosophySteps({
             ref={register(i)}
             data-row={i}
             data-current={i === current || undefined}
-            className="relative border-t border-line last:border-b"
+            className="fb-num-row border-t border-line last:border-b"
           >
             <RevealGroup className="grid gap-2.5 py-6 sm:py-7 md:grid-cols-12 md:items-baseline md:gap-x-8 md:gap-y-0 md:py-8">
               <span

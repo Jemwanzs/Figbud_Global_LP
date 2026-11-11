@@ -375,4 +375,14 @@ test("the hero's modules visual: choose and order the modules, highlight self-se
   ).toBeVisible();
   await expect(preview.locator("[data-hero-modules]")).toHaveAttribute("data-hero-modules", "3");
   await expect(preview.getByRole("button", { name: "Show Leave Management" })).toBeVisible();
+  // Each card's hover message can be changed; blank keeps the approved one.
+  await modules.getByLabel("Hover message for Leave Management").fill("Holidays, handled.");
+  await expect(preview.getByRole("button", { name: "Show Leave Management" })).toHaveAttribute(
+    "aria-description",
+    "Holidays, handled.",
+  );
+  await expect(preview.getByRole("button", { name: "Show Core HR & Employee 360" })).toHaveAttribute(
+    "aria-description",
+    "Your people, their records. All in one happy place.",
+  );
 });

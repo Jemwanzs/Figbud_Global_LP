@@ -654,8 +654,10 @@ export function BlockForm({
             <>
               <HeroModules
                 value={section.modules ?? []}
+                messages={section.messages ?? {}}
                 disabled={p.disabled}
                 onChange={(modules) => onChange({ ...section, modules })}
+                onMessages={(messages) => onChange({ ...section, messages })}
               />
               <label className="block text-sm font-medium text-text">
                 Animation
@@ -2364,13 +2366,24 @@ function initialAnswer(data: PageDetail, sectionId: string, index: number): stri
  */
 function HeroModules({
   value,
+  messages,
   disabled,
   onChange,
+  onMessages,
 }: {
   value: string[];
+  messages: Partial<Record<string, string>>;
   disabled?: boolean;
   onChange: (modules: string[]) => void;
+  onMessages: (messages: Partial<Record<string, string>>) => void;
 }) {
+  // Blank means the approved message; only changed ones are saved.
+  const setMessage = (key: string, text: string) => {
+    const next = { ...messages };
+    if (text.trim()) next[key] = text;
+    else delete next[key];
+    onMessages(next);
+  };
   const all = ZIRAHR_MODULES.map((m) => m.key as string);
   const chosen = value.length ? value.filter((k) => all.includes(k)) : all;
   const rows = [...chosen, ...all.filter((k) => !chosen.includes(k))];
@@ -2386,7 +2399,8 @@ function HeroModules({
       <legend className="text-sm font-medium text-text">Modules in the visual</legend>
       <p className="text-sm text-subtle">
         Tick at least three and put them in order. Names and descriptions come from the module catalogue, the
-        same as the Platform page&apos;s showcase.
+        same as the Platform page&apos;s showcase. Each card&apos;s hover message can be changed; left blank,
+        the approved one shows.
       </p>
       <ol className="divide-y divide-line rounded-xl border border-line">
         {rows.map((key) => {
@@ -2394,7 +2408,7 @@ function HeroModules({
           const on = chosen.includes(key);
           const at = chosen.indexOf(key);
           return (
-            <li key={key} className="flex items-center gap-3 px-3 py-2">
+            <li key={key} className="flex flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2">
               <label className="flex min-w-0 flex-1 items-center gap-3 text-sm text-text">
                 <input
                   type="checkbox"
@@ -2424,6 +2438,20 @@ function HeroModules({
                     Down<span className="sr-only"> {entry.name}</span>
                   </button>
                 </span>
+              )}
+              {on && (
+                <label className="w-full text-xs text-muted">
+                  <span className="sr-only">Hover message for {entry.name}</span>
+                  <input
+                    type="text"
+                    value={messages[key] ?? ""}
+                    maxLength={80}
+                    disabled={disabled}
+                    placeholder={entry.hover}
+                    onChange={(e) => setMessage(key, e.target.value)}
+                    className="min-h-10 w-full rounded-lg border border-line-strong bg-surface px-3 text-sm text-text placeholder:text-subtle"
+                  />
+                </label>
               )}
             </li>
           );

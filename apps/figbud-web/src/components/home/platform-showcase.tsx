@@ -541,7 +541,7 @@ export function PlatformShowcase({
                       aria-hidden
                       className="pointer-events-none absolute end-[-10%] -top-32 h-96 w-96 rounded-full bg-[radial-gradient(closest-side,var(--product-soft),transparent)]"
                     />
-                    <div className="relative grid gap-10 p-6 sm:p-8 lg:grid-cols-12 lg:gap-12 lg:p-12">
+                    <div className="relative grid gap-8 p-5 sm:p-7 lg:grid-cols-12 lg:gap-10 lg:p-8">
                       <div className="flex flex-col lg:col-span-5">
                         <div className="flex flex-wrap items-center gap-3">
                           {productLogoKind(brands[product.slug]) === "wordmark" ? (

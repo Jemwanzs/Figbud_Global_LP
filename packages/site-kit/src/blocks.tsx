@@ -63,6 +63,8 @@ export type PageSection = Base &
         motion?: StoryMotion;
         /** Employee Self-Service, highlighted under the hero. */
         ess?: { heading: string; body: string } | null;
+        /** Hover messages changed in the Studio, by module key; the approved copy otherwise. */
+        messages?: Partial<Record<string, string>>;
       }
     | { type: "text"; heading?: string | null; body?: string; body_html?: string }
     | {
@@ -290,7 +292,11 @@ function Block({
           <div className="fb-hero-signal relative isolate grid items-center gap-10 @5xl:grid-cols-12 @5xl:gap-8">
             <div className="@5xl:col-span-6">{words}</div>
             <div className="@container @5xl:col-span-6">
-              <HeroSignal modules={section.modules} motion={section.motion ?? "standard"} />
+              <HeroSignal
+                modules={section.modules}
+                motion={section.motion ?? "standard"}
+                messages={section.messages}
+              />
             </div>
           </div>
           {section.ess && <SelfServiceHighlight {...section.ess} />}

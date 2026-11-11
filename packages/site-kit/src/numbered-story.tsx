@@ -186,7 +186,7 @@ export function NumberedStory({
               data-current={i === current || undefined}
               data-seen={i < seen || undefined}
               // The number sits level with its heading; the description runs beneath the heading.
-              className="fb-numbered-row grid grid-cols-[4.25rem_minmax(0,1fr)] items-center gap-x-4 border-t border-line py-6 last:border-b @xl:grid-cols-[6rem_minmax(0,1fr)] @xl:gap-x-6 @xl:py-8"
+              className="fb-numbered-row fb-num-row grid grid-cols-[4.25rem_minmax(0,1fr)] items-center gap-x-4 border-t border-line py-6 last:border-b @xl:grid-cols-[6rem_minmax(0,1fr)] @xl:gap-x-6 @xl:py-8"
             >
               <OutlineNumber n={i + 1} current={i === current} className="text-[3rem] @xl:text-[4.5rem]" />
               <h3 className="fb-numbered-words font-display text-title font-semibold text-text">

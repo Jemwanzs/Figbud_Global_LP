@@ -750,12 +750,12 @@ test("our philosophy: outlined numbers that follow the scroll, with dots beside 
       await expect(rows.nth(i)).toHaveAttribute("data-current", { timeout: 1_000 });
     }).toPass();
   }
-  // Green numbers (FigBud Global's accent), not a product's colour.
+  // The selected number is FigBud Global's green, not a product's colour.
   const [stroke, accent] = await section
     .locator(".fb-outline-num")
     .first()
     .evaluate((el) => [
-      getComputedStyle(el).getPropertyValue("--num-stroke").trim(),
+      getComputedStyle(el).getPropertyValue("--num-active").trim(),
       getComputedStyle(el).getPropertyValue("--accent").trim(),
     ]);
   expect(stroke).toBe(accent);

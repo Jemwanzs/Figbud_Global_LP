@@ -17,6 +17,7 @@ import {
 import { type CSSProperties, type KeyboardEvent, useEffect, useRef, useState } from "react";
 
 import { DemoControl, useAutoDemo } from "./auto-demo";
+import { ModuleTour } from "./module-tour";
 import {
   EmployeeJourneyStory,
   ScatteredToConnectedStory,
@@ -1381,6 +1382,8 @@ export function ModuleCatalogue({
   preview?: boolean;
 }) {
   const [index, setIndex] = useState(0);
+  // On the website, a guided tour (11 Nov 2026); the Studio's preview keeps plain tabs.
+  if (!preview) return <ModuleTour items={items} plannedLabel={plannedLabel} />;
   return (
     <div className="grid gap-5 @3xl:grid-cols-12 @3xl:gap-8">
       <div

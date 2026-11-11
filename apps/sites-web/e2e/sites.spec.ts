@@ -457,10 +457,10 @@ test("ZiraHR's demo call opens the same enquiry form on ZiraHR, without leaving 
   expect(await axe(page)).toEqual([]);
 
   await expect(async () => {
-    await form.getByLabel("Full name").fill("Amina Wanjiru");
-    await expect(form.getByLabel("Full name")).toHaveValue("Amina Wanjiru", { timeout: 1_000 });
+    await form.getByLabel("Full name").fill("Libbie Sonia");
+    await expect(form.getByLabel("Full name")).toHaveValue("Libbie Sonia", { timeout: 1_000 });
   }).toPass();
-  await form.getByLabel("Work email").fill("amina@mfano.co.ke");
+  await form.getByLabel("Work email").fill("libbie@mfano.co.ke");
   await form.getByLabel("Company or organisation").fill("Mfano Ltd");
   await form.getByRole("checkbox").check();
   await form.getByRole("button", { name: "Send enquiry" }).click();
@@ -491,8 +491,8 @@ test("a website that isn't launched shows a branded Coming Soon page with a work
     await expect(form.getByRole("alert")).toContainText("highlighted", { timeout: 2_000 });
   }).toPass();
   await expect(page.getByText("You're on the list")).toHaveCount(0);
-  await form.getByLabel("Your name").fill("Amina Wanjiru");
-  await form.getByLabel("Work email").fill("amina@example.co.ke");
+  await form.getByLabel("Your name").fill("Libbie Sonia");
+  await form.getByLabel("Work email").fill("libbie@example.co.ke");
   await form.getByRole("checkbox").check();
   await form.getByRole("button", { name: "Join the waitlist" }).click();
   await expect(page.getByText("You're on the list")).toBeVisible();
@@ -926,10 +926,10 @@ test.describe("ZiraHR: payroll calculator and demonstrations (P14)", () => {
     await expect(page.getByText("Thanks for the introduction")).toHaveCount(0);
 
     await form.getByLabel("Business name").fill("Mfano Ltd");
-    await form.getByLabel("Contact person").fill("Baraka Otieno");
-    await form.getByLabel("Their email").fill("baraka@example.co.ke");
-    await form.getByLabel("Your name").fill("Amina Wanjiru");
-    await form.getByLabel("Your email").fill("amina@example.co.ke");
+    await form.getByLabel("Contact person").fill("James Sammy");
+    await form.getByLabel("Their email").fill("james@example.co.ke");
+    await form.getByLabel("Your name").fill("Libbie Sonia");
+    await form.getByLabel("Your email").fill("libbie@example.co.ke");
     await form.getByRole("checkbox").check();
     await form.getByRole("button", { name: "Submit referral" }).click();
     await expect(page.getByText("Thanks for the introduction")).toBeVisible();
@@ -1112,4 +1112,133 @@ test.describe("numbered storytelling (owner's brief, 8 Nov 2026)", () => {
     await expect(row).toHaveAttribute("data-current");
     expect(await scan()).toEqual([]);
   });
+});
+
+test.describe("Choose a module: a guided tour (owner's brief, 11 Nov 2026)", () => {
+  test("wide screens: pinned, scrolling steps through the modules both ways, then lets go", async ({
+    page,
+  }) => {
+    test.skip(page.viewportSize()!.width < 1024, "the tour pins on wide screens");
+    await page.goto("/zirahr/platform");
+    const tour = page.locator("[data-module-tour]");
+    const tabs = tour.getByRole("tablist", { name: "Modules" }).getByRole("tab");
+    const count = await tabs.count();
+    const at = (fraction: number) => tour.evaluate(scrollToFraction, fraction);
+    await at(0.05);
+    await expect
+      .poll(() => tour.evaluate((el) => (el as HTMLElement).style.getPropertyValue("--story-top")))
+      .not.toBe("");
+    for (const i of [...Array(count).keys(), ...[...Array(count).keys()].reverse()]) {
+      await at((i + 0.5) / count);
+      await expect(tour).toHaveAttribute("data-step", String(i));
+      await expect(tabs.nth(i)).toHaveAttribute("aria-selected", "true");
+      await expect(tour.getByRole("tabpanel")).toHaveCount(1);
+    }
+    // Its demonstration sits with the module's words.
+    await at(0.5 / count);
+    await expect(tour.getByRole("tabpanel").locator('[data-module-preview="payroll"]')).toBeVisible();
+    // A tab goes to its module; "Skip the tour" leaves the section.
+    await tabs.nth(count - 1).click();
+    await expect(tour).toHaveAttribute("data-step", String(count - 1));
+    await tour.getByRole("button", { name: "Skip the tour" }).click();
+    await expect
+      .poll(async () => (await tour.boundingBox())!.y + (await tour.boundingBox())!.height)
+      .toBeLessThan(200);
+    // Only this section pins: the page goes on scrolling normally after it.
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(
+      0,
+    );
+  });
+
+  test("phones: no pinning; it plays by itself in view, and a choice holds", async ({ page }) => {
+    test.skip(page.viewportSize()!.width >= 1024, "phones and narrow screens");
+    await page.goto("/zirahr/platform");
+    const tour = page.locator("[data-module-tour]");
+    await tour.scrollIntoViewIfNeeded();
+    expect(await tour.locator(".fb-tour-pin").evaluate((el) => getComputedStyle(el).position)).not.toBe(
+      "sticky",
+    );
+    await expect(tour).toHaveAttribute("data-step", "1", { timeout: 10_000 });
+    await tour.getByRole("tab").first().click();
+    await expect(tour).toHaveAttribute("data-step", "0");
+    await page.waitForTimeout(5_000);
+    await expect(tour).toHaveAttribute("data-step", "0");
+  });
+});
+
+test.describe("hero module messages (owner's brief, 11 Nov 2026)", () => {
+  test("hovering a card shows its message and holds the journey; Escape puts it away", async ({ page }) => {
+    test.skip(page.viewportSize()!.width < 1024, "hover is a pointer feature");
+    await page.goto("/zirahr/platform");
+    const hero = page.locator("[data-hero-modules]");
+    await hero.scrollIntoViewIfNeeded();
+    const card = hero.locator('[data-module="payroll"] [data-card]');
+    await card.hover();
+    const tip = hero.locator('[data-hero-tip="payroll"]');
+    await expect(tip).toHaveText("Payday without the headaches. Now that's smart!");
+    const held = await hero.getAttribute("data-current");
+    await page.waitForTimeout(3_500);
+    await expect(hero).toHaveAttribute("data-current", held!);
+    await page.keyboard.press("Escape");
+    await expect(tip).toHaveCount(0);
+    // Inside the hero column, never off the side of the page.
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(
+      0,
+    );
+  });
+
+  test("keyboard and screen readers get the same messages from the dots", async ({ page }) => {
+    await page.goto("/zirahr/platform");
+    const dot = page.getByRole("button", { name: "Show Learning & Development" });
+    await expect(dot).toHaveAttribute("aria-description", "New skills unlocked. Growth looks good on you!");
+    await dot.focus();
+    await expect(page.getByText("New skills unlocked. Growth looks good on you!").first()).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(page.locator("[data-hero-tip]")).toHaveCount(0);
+  });
+
+  test("a tap shows a card's message on touch screens", async ({ page, isMobile }) => {
+    test.skip(!isMobile, "touch");
+    await page.goto("/zirahr/platform");
+    const hero = page.locator("[data-hero-modules]");
+    await hero.scrollIntoViewIfNeeded();
+    const shown = hero.locator("[data-module][data-shown]").first();
+    const key = await shown.getAttribute("data-module");
+    await shown.locator("[data-card]").tap();
+    await expect(hero.locator(`[data-hero-tip="${key}"]`)).toBeVisible();
+  });
+});
+
+test("numbered steps: the selected number is solid brand colour, its heading and bar follow", async ({
+  page,
+}) => {
+  await page.goto("/zirahr/platform");
+  const rows = page.locator("[data-numbered] .fb-numbered-row");
+  const centre = (i: number) =>
+    rows.nth(i).evaluate((el) => {
+      const box = el.getBoundingClientRect();
+      window.scrollBy({ top: box.top + box.height / 2 - innerHeight / 2, behavior: "instant" });
+    });
+  const look = (i: number) =>
+    rows.nth(i).evaluate((el) => {
+      const text = el.querySelector(".fb-outline-num text")!;
+      return {
+        fill: getComputedStyle(text).fill,
+        product: getComputedStyle(el).getPropertyValue("--product").trim(),
+        heading: getComputedStyle(el.querySelector("h3")!).color,
+        bar: getComputedStyle(el, "::before").transform,
+      };
+    });
+  await expect(async () => {
+    await centre(1);
+    await expect(rows.nth(1)).toHaveAttribute("data-current", { timeout: 1_000 });
+  }).toPass();
+  await page.waitForTimeout(400);
+  const on = await look(1);
+  const off = await look(0);
+  expect(on.fill).not.toBe("none");
+  expect(on.fill).not.toBe(off.fill);
+  expect(off.fill).toMatch(/rgba\(0, 0, 0, 0\)|transparent/);
+  expect(on.heading).not.toBe(off.heading);
+  expect(on.bar).not.toBe(off.bar);
 });

@@ -2,7 +2,7 @@
 name = "figbud-api"
 version = "0.1.0"
 edition = "2024"
-rust-version = "1.88"
+rust-version = "1.94"
 description = "FigBud Global website API: enquiries, lead capture and transactional email"
 publish = false
 

@@ -30,3 +30,4 @@ export * from "./product-header";
 export * from "./use-dismiss";
 export * from "./zirahr-modules";
 export * from "./numbered-story";
+export * from "./module-tour";

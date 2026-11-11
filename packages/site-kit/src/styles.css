@@ -782,6 +782,21 @@ body:has(main [data-section="call_to_action"]:last-child) footer {
   stroke-width: 2.4;
   opacity: 0.18;
 }
+/* A module's message (11 Nov 2026): fades and rises in above its card. */
+.fb-hero-tip {
+  animation: fb-hero-tip 200ms var(--motion-ease) both;
+}
+@keyframes fb-hero-tip {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fb-hero-tip {
+    animation: none;
+  }
+}
 /* All eight modules (8 Nov 2026): cards glide to their next place and fade in
    or out off the line; with reduced motion they move at once when chosen. */
 .fb-signal-track {
@@ -931,6 +946,41 @@ body:has(main [data-section="call_to_action"]:last-child) footer {
   }
   .fb-modules-skip {
     display: none;
+  }
+}
+/* The module tour (11 Nov 2026): pinned on wide screens over its runway; each
+   module's demonstration lines arrive one after another as it opens. */
+@media (scripting: none) {
+  .fb-tour-pin {
+    position: static !important;
+  }
+  .fb-tour-skip,
+  [data-module-tour] .fb-modules-runway {
+    display: none !important;
+  }
+}
+.fb-tour-preview :is(dl > div, ul > li),
+.fb-tour-preview > div + div {
+  animation: fb-demo-unfold var(--motion-slow) var(--motion-ease) both;
+}
+.fb-tour-preview :is(dl > div, ul > li):nth-child(2),
+.fb-tour-preview > div + div:nth-child(3) {
+  animation-delay: 140ms;
+}
+.fb-tour-preview :is(dl > div, ul > li):nth-child(3),
+.fb-tour-preview > div + div:nth-child(4) {
+  animation-delay: 280ms;
+}
+.fb-tour-preview :is(dl > div, ul > li):nth-child(4) {
+  animation-delay: 420ms;
+}
+.fb-tour-preview :is(dl > div, ul > li):nth-child(5) {
+  animation-delay: 560ms;
+}
+@media (prefers-reduced-motion: reduce) {
+  .fb-tour-preview :is(dl > div, ul > li),
+  .fb-tour-preview > div + div {
+    animation: none;
   }
 }
 /* Without JavaScript, the story reads as an ordinary list. */
@@ -1097,14 +1147,18 @@ body:has(main [data-section="call_to_action"]:last-child) footer {
    current step and drift a little with it. The website's accents by default
    (ZiraHR's oranges); FigBud Global sets its green and blue. Without
    JavaScript, or with reduced motion or motion "off", everything shows at rest. */
-:where(.fb-outline-num, .fb-dots) {
-  --num-stroke: var(--product-text);
+:where(.fb-outline-num, .fb-dots, .fb-num-row) {
+  /* Waiting numbers: a thin, muted outline. The current one: solid, in the brand colour. */
+  --num-stroke: var(--text-subtle);
+  --num-active: var(--product);
+  --num-active-text: var(--product-text);
   --dot-from: var(--product);
   --dot-to: var(--product-text);
 }
 /* FigBud Global's own accents: green numbers, green-to-blue dots. */
-.fb-accent-numbers :is(.fb-outline-num, .fb-dots) {
-  --num-stroke: var(--accent);
+.fb-accent-numbers :is(.fb-outline-num, .fb-dots, .fb-num-row) {
+  --num-active: var(--accent);
+  --num-active-text: var(--accent);
   --dot-from: var(--accent);
   --dot-to: var(--accent-2);
 }
@@ -1114,12 +1168,50 @@ body:has(main [data-section="call_to_action"]:last-child) footer {
   stroke-width: 1.25px;
   vector-effect: non-scaling-stroke;
   transition:
-    fill var(--motion-base) var(--motion-ease-standard),
-    stroke-width var(--motion-base) var(--motion-ease-standard);
+    fill 250ms var(--motion-ease-standard),
+    stroke 250ms var(--motion-ease-standard),
+    stroke-width 250ms var(--motion-ease-standard);
 }
+/* The selected step (owner's brief, 11 Nov 2026): unmistakable at a glance. */
 .fb-outline-num[data-current] text {
-  fill: color-mix(in srgb, var(--num-stroke) 16%, transparent);
-  stroke-width: 1.75px;
+  fill: var(--num-active);
+  stroke: var(--num-active);
+  stroke-width: 1.5px;
+  font-weight: 700;
+}
+/* Its row: the heading takes the brand colour, and a short bar grows beside it.
+   The row keeps its start padding either way, so nothing moves. */
+.fb-num-row {
+  position: relative;
+  padding-inline-start: 0.875rem;
+}
+.fb-num-row::before {
+  content: "";
+  position: absolute;
+  inset-inline-start: 0;
+  top: 50%;
+  height: 2.75rem;
+  width: 3px;
+  margin-top: -1.375rem;
+  border-radius: 999px;
+  background: var(--num-active);
+  transform: scaleY(0);
+  transition: transform 250ms var(--motion-ease);
+}
+.fb-num-row[data-current]::before {
+  transform: scaleY(1);
+}
+.fb-num-row h3 {
+  transition: color 250ms var(--motion-ease-standard);
+}
+.fb-num-row[data-current] h3 {
+  color: var(--num-active-text);
+}
+@media (prefers-reduced-motion: reduce) {
+  .fb-num-row::before,
+  .fb-num-row h3 {
+    transition: none;
+  }
 }
 .fb-dot {
   transition: opacity 600ms var(--motion-ease-standard);

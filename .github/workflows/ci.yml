@@ -124,3 +124,7 @@ jobs:
         with:
           tool: cargo-audit
       - run: cargo audit
+      # An advisory excepted in .cargo/audit.toml because its crate isn't built
+      # must stay that way: this fails if the crate ever joins the build.
+      - name: Excepted crates stay out of the build
+        run: test -z "$(cargo tree -i libsqlite3-sys -e normal,build,dev 2>/dev/null)"

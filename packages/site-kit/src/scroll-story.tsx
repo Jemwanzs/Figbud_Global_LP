@@ -2,18 +2,23 @@
 
 import { cn } from "@figbud/ui";
 import {
+  BookOpen,
+  CalendarCheck,
   Check,
   CalendarDays,
+  Clock,
   FileSpreadsheet,
   FileText,
   Mail,
   MessageCircle,
   type LucideIcon,
   UserRound,
+  Users,
+  Wallet,
 } from "lucide-react";
 import { type CSSProperties, type ReactNode, useEffect, useRef, useState } from "react";
 
-import { ZIRAHR_MODULES } from "./zirahr-modules";
+import { ZIRAHR_MODULES, ZIRAHR_SELF_SERVICE } from "./zirahr-modules";
 
 /*
  * Signature scroll stories (UI-MO6; made compact on the owner's brief of 7 Nov
@@ -128,11 +133,18 @@ function ScrollStory({
   steps,
   motion,
   label,
+  fit = "stage",
   children,
 }: {
   steps: { title: string; body: string }[];
   motion: StoryMotion;
   label: string;
+  /**
+   * "stage": a sized stage, for visuals placed in it (pieces flying in from
+   * set points); "content": as tall as its content (owner's brief, 11 Nov
+   * 2026: no oversized panels).
+   */
+  fit?: "stage" | "content";
   children: (state: { step: number; onScreen: boolean }) => ReactNode;
 }) {
   const count = steps.length;
@@ -147,12 +159,19 @@ function ScrollStory({
       className="fb-story relative"
     >
       <div className="fb-story-pin sticky top-[var(--story-top,4.5rem)] flex flex-col gap-4 py-4 lg:grid lg:grid-cols-12 lg:items-center lg:gap-x-12 lg:py-6">
-        <div className="lg:order-2 lg:col-span-7">
+        {/* Compact: about 46rem at most, beside the words; the full width on phones. */}
+        <div className="w-full lg:order-2 lg:col-span-7 lg:ms-auto lg:max-w-[46rem]">
           {/* The steps say all of this in words, so the picture isn't read out. */}
           <div
             aria-hidden
             data-tone="inverse"
-            className="fb-demo-stage fb-story-stage relative h-[min(38svh,22rem)] min-h-56 overflow-hidden rounded-[var(--radius-panel)] text-text lg:h-[min(34rem,calc(100svh-10rem))]"
+            data-fit={fit}
+            className={cn(
+              "fb-demo-stage relative overflow-hidden rounded-[var(--radius-panel)] text-text",
+              fit === "stage"
+                ? "fb-story-stage h-[min(42svh,20rem)] min-h-56 lg:h-[min(26rem,calc(100svh-11rem))]"
+                : "@container",
+            )}
           >
             {children({ step, onScreen })}
           </div>
@@ -224,6 +243,13 @@ const TRAIL = [
   ["Run approved", "Finance"],
   ["Payroll locked", "Finance"],
 ];
+// What one record holds, across the modules (owner's brief, 11 Nov 2026: the
+// record shows more of ZiraHR, compactly). Synthetic, labelled on the page.
+const ACTIVITY = [
+  ["Leave request approved", "Manager · 3 days"],
+  ["Course completed", "Learning · Payroll basics"],
+  ["Team update shared", "Teams · Finance"],
+];
 
 function toolStyle(index: number, step: number): CSSProperties {
   const [x, y, turn] = TOOLS[index]!.scattered;
@@ -278,8 +304,10 @@ function ScatteredStage({ step, onScreen, mark }: { step: number; onScreen: bool
         return (
           <div key={tool.name} style={toolStyle(i, step)} className="fb-story-move absolute top-0 left-0">
             <div
+              // Settled, they light up one after another.
+              style={{ transitionDelay: settled ? `${200 + i * 110}ms` : "0ms" }}
               className={cn(
-                "flex items-center gap-2 rounded-xl border px-2 py-1.5 text-[0.68rem] whitespace-nowrap shadow-lg @lg:px-3 @lg:py-2 @lg:text-xs",
+                "flex items-center gap-2 rounded-xl border px-2 py-1.5 text-[0.68rem] whitespace-nowrap shadow-lg transition-[background-color,border-color] duration-[var(--motion-base)] @lg:px-3 @lg:py-2 @lg:text-xs",
                 settled ? "border-product/50 bg-product-soft" : "border-line bg-surface",
               )}
             >
@@ -301,61 +329,97 @@ function ScatteredStage({ step, onScreen, mark }: { step: number; onScreen: bool
         );
       })}
 
-      {/* One record unfolds where the lines meet. */}
+      {/* One record unfolds where the lines meet: who, six facts, then what's happening on it. */}
       <div
         data-open={step >= 2}
-        className="fb-story-unfold absolute inset-x-[5%] top-[20%] max-h-[75%] overflow-hidden rounded-2xl border border-line bg-surface p-3 shadow-2xl @lg:p-5"
+        className="fb-story-unfold absolute inset-x-[4%] top-[17%] overflow-hidden rounded-2xl border border-line bg-surface p-3 shadow-2xl @lg:inset-x-[5%] @lg:p-4"
       >
         <div className="flex items-center gap-3">
           <span className="grid size-8 shrink-0 place-items-center rounded-full bg-product text-product-ink @lg:size-10">
             <UserRound className="size-4 @lg:size-5" />
           </span>
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <p className="truncate font-semibold">Amani W.</p>
-            <p className="truncate text-xs text-muted">Finance · one employee record</p>
+            <p className="truncate text-xs text-muted">Finance · accounts lead</p>
           </div>
+          <span className="shrink-0 rounded-full bg-product-soft px-2 py-0.5 text-[0.65rem] font-medium text-product-text @lg:text-xs">
+            One record
+          </span>
         </div>
-        <div className="mt-2 grid grid-cols-3 gap-1.5 text-[0.68rem] @lg:mt-4 @lg:gap-2 @lg:text-xs">
-          {[
-            ["Leave balance", step >= 3 ? "11 days" : "14 days"],
-            ["Today", "In 08:02"],
-            ["Payslip", stage === PAY_STAGES.length - 1 ? "Ready" : "Soon"],
-          ].map(([label, value]) => (
-            <div key={label} className="min-w-0 rounded-xl bg-surface-2 p-2 @lg:p-2.5">
-              <p className="truncate text-subtle">{label}</p>
-              <p className="mt-0.5 truncate font-medium">{value}</p>
+        <dl className="mt-2.5 grid grid-cols-3 gap-1.5 text-[0.68rem] @lg:mt-3 @lg:gap-2 @lg:text-xs">
+          {(
+            [
+              ["Leave left", step >= 3 ? "11 days" : "14 days", CalendarCheck],
+              ["Today", "In 08:02", Clock],
+              ["Payslip", stage === PAY_STAGES.length - 1 ? "Ready" : "Soon", Wallet],
+              ["Team", "Finance · 6", Users],
+              ["Learning", "2 courses", BookOpen],
+              ["Self-service", "Any browser", ZIRAHR_SELF_SERVICE.icon],
+            ] as [string, string, LucideIcon][]
+          ).map(([label, value, Icon], i) => (
+            <div
+              key={label}
+              data-open={step >= 2}
+              // The facts arrive one after another once the record opens.
+              style={{ transitionDelay: step >= 2 ? `${120 + i * 70}ms` : "0ms" }}
+              className="fb-story-rise min-w-0 rounded-xl bg-surface-2 p-2 @lg:p-2.5"
+            >
+              <dt className="flex items-center gap-1 text-subtle">
+                <Icon className="size-3 shrink-0 text-product-text" />
+                <span className="truncate">{label}</span>
+              </dt>
+              <dd className="mt-0.5 truncate font-medium">{value}</dd>
             </div>
           ))}
-        </div>
-        <div data-open={step >= 3} className="fb-story-rise mt-2 @lg:mt-4">
-          <p className="text-xs text-subtle">November pay run</p>
-          <ol className="mt-2 flex items-center gap-1.5">
-            {PAY_STAGES.map((name, i) => (
-              <li
-                key={name}
-                className={cn(
-                  "flex min-w-0 flex-1 items-center justify-center gap-1 rounded-lg px-1 py-1.5 text-[0.7rem] transition-colors duration-[var(--motion-base)]",
-                  i <= stage ? "bg-product text-product-ink" : "bg-surface-2 text-muted",
-                )}
-              >
-                {i < stage && <Check className="hidden size-3 shrink-0 @lg:block" />}
-                <span className="truncate">{name}</span>
-              </li>
-            ))}
-          </ol>
-          {/* Each step leaves its mark; there's only room for the trail on wider stages. */}
-          <ul className="mt-4 hidden gap-2 text-xs @lg:grid">
-            {TRAIL.map(([what, who], i) => (
+        </dl>
+        {/* The record's activity, then the pay run moving through: one place, no gap kept for later. */}
+        <div className="mt-2.5 grid @lg:mt-3">
+          <ul data-open={step === 2} className="fb-story-rise grid content-start gap-1.5 [grid-area:1/1]">
+            {ACTIVITY.map(([what, where], i) => (
               <li
                 key={what}
-                data-open={i < stage}
-                className="fb-story-rise flex justify-between gap-3 rounded-lg bg-surface-2 px-3 py-2"
+                className={cn(
+                  "items-center justify-between gap-3 rounded-lg bg-surface-2 px-2.5 py-1.5 text-[0.68rem] @lg:text-xs",
+                  i === 2 ? "hidden @lg:flex" : "flex",
+                )}
               >
-                <span>{what}</span>
-                <span className="text-subtle">{who}</span>
+                <span className="flex min-w-0 items-center gap-1.5">
+                  <Check className="size-3 shrink-0 text-product-text" />
+                  <span className="truncate">{what}</span>
+                </span>
+                <span className="shrink-0 text-subtle">{where}</span>
               </li>
             ))}
           </ul>
+          <div data-open={step >= 3} className="fb-story-rise [grid-area:1/1]">
+            <p className="text-xs text-subtle">November pay run</p>
+            <ol className="mt-1.5 flex items-center gap-1.5">
+              {PAY_STAGES.map((name, i) => (
+                <li
+                  key={name}
+                  className={cn(
+                    "flex min-w-0 flex-1 items-center justify-center gap-1 rounded-lg px-1 py-1.5 text-[0.7rem] transition-colors duration-[var(--motion-base)]",
+                    i <= stage ? "bg-product text-product-ink" : "bg-surface-2 text-muted",
+                  )}
+                >
+                  {i < stage && <Check className="hidden size-3 shrink-0 @lg:block" />}
+                  <span className="truncate">{name}</span>
+                </li>
+              ))}
+            </ol>
+            {/* Each step leaves its mark; there's only room for the trail on wider stages. */}
+            <ul className="mt-2 hidden flex-wrap gap-1.5 text-xs @lg:flex">
+              {TRAIL.map(([what, who], i) => (
+                <li
+                  key={what}
+                  data-open={i < stage}
+                  className="fb-story-rise rounded-full bg-surface-2 px-2.5 py-1"
+                >
+                  {what} <span className="text-subtle">· {who}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
       </div>
     </>
@@ -399,7 +463,7 @@ export function ScatteredToConnectedStory({
 
 /* ------------------------------------------------- one employee's whole journey */
 
-function Rows({ rows, wide = [] }: { rows: [string, string, boolean?][]; wide?: string[] }) {
+export function Rows({ rows, wide = [] }: { rows: [string, string, boolean?][]; wide?: string[] }) {
   return (
     <dl className="mt-2 divide-y divide-line text-xs @lg:mt-3 @lg:text-sm">
       {rows.map(([term, value, strong]) => (
@@ -420,7 +484,7 @@ function Rows({ rows, wide = [] }: { rows: [string, string, boolean?][]; wide?: 
   );
 }
 
-function Ticks({ items }: { items: [string, boolean][] }) {
+export function Ticks({ items }: { items: [string, boolean][] }) {
   return (
     <ul className="mt-2 grid gap-1.5 text-xs @lg:mt-3 @lg:gap-2.5 @lg:text-sm">
       {items.map(([item, done]) => (
@@ -440,7 +504,7 @@ function Ticks({ items }: { items: [string, boolean][] }) {
   );
 }
 
-function Meter({ label, value }: { label: string; value: number }) {
+export function Meter({ label, value }: { label: string; value: number }) {
   return (
     <div className="mt-2 text-xs @lg:mt-3 @lg:text-sm">
       <p className="flex justify-between">
@@ -542,7 +606,8 @@ const JOURNEY: { stage: string; title: string; card: ReactNode }[] = [
 
 function JourneyStage({ step }: { step: number }) {
   return (
-    <div className="absolute inset-0 grid grid-cols-[auto_1fr] gap-3 p-3 @lg:gap-6 @lg:p-6">
+    // In normal flow: the stage is as tall as the tallest card, never taller.
+    <div className="relative grid grid-cols-[auto_1fr] gap-3 p-3 @lg:gap-6 @lg:p-6">
       {/* The rail follows the scroll; each stop lights up as it's reached. */}
       <ol className="relative flex flex-col justify-between py-1 text-[0.7rem] text-muted">
         <span className="absolute start-[0.6875rem] top-3 bottom-3 w-0.5 bg-line" />
@@ -562,12 +627,12 @@ function JourneyStage({ step }: { step: number }) {
         ))}
       </ol>
       {/* One card, turning into each stage: earlier ones lift away, later ones wait behind it. */}
-      <div className="relative min-w-0 [perspective:70rem]">
+      <div className="relative grid min-w-0 [perspective:70rem]">
         {JOURNEY.map((item, i) => (
           <div
             key={item.stage}
             data-place={i < step ? "past" : i === step ? "now" : "next"}
-            className="fb-story-card absolute inset-0 overflow-hidden rounded-2xl border border-line bg-surface p-3 shadow-2xl @lg:p-6"
+            className="fb-story-card overflow-hidden rounded-2xl border border-line bg-surface p-3 shadow-2xl [grid-area:1/1] @lg:p-5"
           >
             <p className="text-xs font-medium tracking-wide text-product-text uppercase">{item.stage}</p>
             <p className="mt-1 font-semibold">{item.title}</p>
@@ -587,6 +652,7 @@ export function EmployeeJourneyStory({ motion = "standard" }: { motion?: StoryMo
     <ScrollStory
       label="employee-journey"
       motion={motion}
+      fit="content"
       steps={[
         {
           title: "It starts with a hire.",

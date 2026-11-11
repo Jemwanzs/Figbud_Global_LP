@@ -43,6 +43,8 @@ function subscribe(listener: (elapsed: number) => void) {
       const now = performance.now();
       const elapsed = now - last;
       last = now;
+      // A hidden tab holds every demonstration where it is.
+      if (document.hidden) return;
       for (const fn of listeners) fn(elapsed);
     }, TICK);
   }
@@ -74,6 +76,8 @@ export function useAutoDemo<T extends HTMLElement>({
     index: 0,
     visible: false,
     focused: false,
+    // Held still while someone explores it (a hover or a tooltip), without pausing.
+    held: false,
     paused: false,
     manualFor: 0,
     elapsed: 0,
@@ -120,6 +124,7 @@ export function useAutoDemo<T extends HTMLElement>({
         next = "manual";
       } else if (s.passes >= passes) next = "completed";
       else if (!s.visible || s.focused) next = s.started ? "paused" : "idle";
+      else if (s.held) next = s.started ? "playing" : "idle";
       else {
         s.started = true;
         next = "playing";
@@ -169,7 +174,12 @@ export function useAutoDemo<T extends HTMLElement>({
     setState(s.paused ? "paused" : "playing");
   }, [go, passes]);
 
-  return { ref, index, state, choose, toggle };
+  /** Holds the current state while someone explores it; the timing carries on afterwards. */
+  const hold = useCallback((on: boolean) => {
+    live.current.held = on;
+  }, []);
+
+  return { ref, index, state, choose, toggle, hold };
 }
 
 /** Pause, play or replay a demonstration. Hidden with reduced motion, when nothing moves by itself. */

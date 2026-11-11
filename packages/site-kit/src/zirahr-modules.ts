@@ -30,6 +30,8 @@ export type ZiraModule = {
   note: string;
   /** One line for the module showcase. */
   line: string;
+  /** The hero card's message on hover or focus (owner-approved copy, 11 Nov 2026). */
+  hover: string;
   icon: LucideIcon;
 };
 
@@ -52,6 +54,7 @@ export const ZIRAHR_MODULES: readonly ZiraModule[] = [
     label: "Core HR",
     note: "Employee 360",
     line: "Every record, contract and milestone in one place.",
+    hover: "Your people, their records. All in one happy place.",
     icon: UserRound,
   },
   {
@@ -60,6 +63,7 @@ export const ZIRAHR_MODULES: readonly ZiraModule[] = [
     label: "Payroll",
     note: "Statutory ready",
     line: "From earnings and deductions to approvals and reports.",
+    hover: "Payday without the headaches. Now that's smart!",
     icon: Wallet,
   },
   {
@@ -68,6 +72,7 @@ export const ZIRAHR_MODULES: readonly ZiraModule[] = [
     label: "Leave",
     note: "Requests and approvals",
     line: "Requests, approvals and balances without the back-and-forth.",
+    hover: "Time off? Requested, approved, sorted!",
     icon: CalendarCheck,
   },
   {
@@ -76,6 +81,7 @@ export const ZIRAHR_MODULES: readonly ZiraModule[] = [
     label: "Attendance",
     note: "Time and shifts",
     line: "Working time, shifts and overtime, clearly.",
+    hover: "Every minute matters. We've got the clock!",
     icon: Clock,
   },
   {
@@ -84,6 +90,7 @@ export const ZIRAHR_MODULES: readonly ZiraModule[] = [
     label: "Performance",
     note: "Goals and reviews",
     line: "Goals, feedback and progress, connected.",
+    hover: "Big goals. Clear progress. Better results.",
     icon: Target,
   },
   {
@@ -92,6 +99,7 @@ export const ZIRAHR_MODULES: readonly ZiraModule[] = [
     label: "Teams",
     note: "Work together",
     line: "A shared home for work, updates and approvals.",
+    hover: "Great teams work better together. Let's connect!",
     icon: Users,
   },
   {
@@ -100,6 +108,7 @@ export const ZIRAHR_MODULES: readonly ZiraModule[] = [
     label: "Recruitment",
     note: "Hire to first day",
     line: "From first application to first day.",
+    hover: "Find the talent. Make the hire. Grow the team!",
     icon: UserSearch,
   },
   {
@@ -108,6 +117,7 @@ export const ZIRAHR_MODULES: readonly ZiraModule[] = [
     label: "Learning",
     note: "Training and growth",
     line: "Training, skills and growth in the employee journey.",
+    hover: "New skills unlocked. Growth looks good on you!",
     icon: BookOpen,
   },
 ];
