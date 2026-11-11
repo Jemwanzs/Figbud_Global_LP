@@ -270,7 +270,9 @@ export function ModuleTour({ items, plannedLabel }: { items: TourItem[]; planned
             </div>
           </div>
 
-          <div className="min-w-0 @3xl:col-span-8">
+          {/* Every panel shares one cell, so the section is always as tall as the tallest
+              module: nothing below moves as the tour changes module (or the theme). */}
+          <div className="grid min-w-0 @3xl:col-span-8">
             {items.map((item, i) => {
               const key = moduleKey(item.title);
               const preview = key ? PREVIEWS[key] : null;
@@ -281,10 +283,15 @@ export function ModuleTour({ items, plannedLabel }: { items: TourItem[]; planned
                   id={`module-panel-${i}`}
                   role="tabpanel"
                   aria-labelledby={`module-tab-${i}`}
-                  hidden={i !== index}
-                  className="fb-panel @container rounded-[var(--radius-panel)] p-5 sm:p-6"
+                  inert={i !== index}
+                  className={cn(
+                    "fb-panel @container rounded-[var(--radius-panel)] p-5 [grid-area:1/1] sm:p-6",
+                    i !== index && "invisible",
+                  )}
                 >
                   <div
+                    // Remounted as it opens, so its lines arrive afresh each time.
+                    key={i === index ? "open" : "closed"}
                     className={cn(
                       "fb-demo-unfold grid gap-5",
                       preview && "@2xl:grid-cols-[minmax(0,1fr)_minmax(0,19rem)] @2xl:items-start",

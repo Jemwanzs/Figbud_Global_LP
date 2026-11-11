@@ -84,7 +84,14 @@ export function OutlineNumber({
       data-current={current || undefined}
       className={cn("fb-outline-num h-[1em] w-[1.24em] overflow-visible select-none", className)}
     >
-      <text x="2" y="86" fontSize="100" className="font-display font-semibold">
+      {/* The state sits on the text itself: WebKit doesn't always restyle SVG children when a parent's attribute changes. */}
+      <text
+        x="2"
+        y="86"
+        fontSize="100"
+        data-current={current || undefined}
+        className="font-display font-semibold"
+      >
         {String(n).padStart(2, "0")}
       </text>
     </svg>

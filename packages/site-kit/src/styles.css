@@ -1173,7 +1173,7 @@ body:has(main [data-section="call_to_action"]:last-child) footer {
     stroke-width 250ms var(--motion-ease-standard);
 }
 /* The selected step (owner's brief, 11 Nov 2026): unmistakable at a glance. */
-.fb-outline-num[data-current] text {
+.fb-outline-num text[data-current] {
   fill: var(--num-active);
   stroke: var(--num-active);
   stroke-width: 1.5px;

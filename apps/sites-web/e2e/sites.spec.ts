@@ -1191,8 +1191,14 @@ test.describe("hero module messages (owner's brief, 11 Nov 2026)", () => {
     await page.goto("/zirahr/platform");
     const dot = page.getByRole("button", { name: "Show Learning & Development" });
     await expect(dot).toHaveAttribute("aria-description", "New skills unlocked. Growth looks good on you!");
-    await dot.focus();
-    await expect(page.getByText("New skills unlocked. Growth looks good on you!").first()).toBeVisible();
+    // Focused again until the page is interactive (hydration can trail the first paint).
+    await expect(async () => {
+      await dot.blur();
+      await dot.focus();
+      await expect(page.getByText("New skills unlocked. Growth looks good on you!").first()).toBeVisible({
+        timeout: 1_000,
+      });
+    }).toPass({ timeout: 20_000 });
     await page.keyboard.press("Escape");
     await expect(page.locator("[data-hero-tip]")).toHaveCount(0);
   });
