@@ -16,7 +16,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
  * every control still works.
  */
 
-export type DemoState = "idle" | "playing" | "paused" | "manual" | "completed";
+/** "guided": scrolling drives it (`GuidedDemo`), so there's no clock to pause. */
+export type DemoState = "idle" | "playing" | "paused" | "manual" | "completed" | "guided";
 
 // One clock for every demonstration on the page.
 const TICK = 200;
@@ -192,7 +193,7 @@ export function DemoControl({
   onToggle: () => void;
   className?: string;
 }) {
-  if (state === "idle") return null;
+  if (state === "idle" || state === "guided") return null;
   const playing = state === "playing" || state === "manual";
   const label =
     state === "completed" ? "Replay demonstration" : playing ? "Pause demonstration" : "Play demonstration";

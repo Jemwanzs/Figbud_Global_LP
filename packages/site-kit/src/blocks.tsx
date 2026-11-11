@@ -2,6 +2,8 @@ import { buttonClasses, cn } from "@figbud/ui";
 import { ArrowRight, Check, Monitor, MonitorSmartphone, Smartphone, Tablet } from "lucide-react";
 import { type ReactNode, Suspense } from "react";
 
+import { GuidedDemo } from "./guided-demo";
+import { GUIDED_STEPS } from "./guided-steps";
 import { type DemoKind, ModuleCatalogue, type ModuleItem, ProductDemo } from "./product-demos";
 import { enquiryFormCopy, type EnquiryProduct } from "./enquiry";
 import { EnquiryForm } from "./enquiry-form";
@@ -116,6 +118,8 @@ export type PageSection = Base &
         intro?: string | null;
         motion?: StoryMotion;
         layout?: "stacked" | "split";
+        /** Scrolling guides a demonstration with steps on wide screens; `false` turns it off. */
+        guided?: boolean | null;
       }
     | { type: "referral_form"; heading?: string | null; intro?: string | null; contact_phone?: string | null }
     | { type: "enquiry_form"; heading?: string | null; intro?: string | null }
@@ -503,28 +507,39 @@ function Block({
           </div>
         </div>
       );
-    case "demo":
+    case "demo": {
       // Split: an editorial column beside the showcase on wide screens, stacked on narrow ones.
-      return section.layout === "split" ? (
-        <div className="grid gap-8 @5xl:grid-cols-12 @5xl:items-center @5xl:gap-12">
-          <div className="@5xl:col-span-4">
-            <span aria-hidden className="mb-5 block h-0.5 w-12 bg-product" />
+      const content =
+        section.layout === "split" ? (
+          <div className="grid gap-8 @5xl:grid-cols-12 @5xl:items-center @5xl:gap-12">
+            <div className="@5xl:col-span-4">
+              <span aria-hidden className="mb-5 block h-0.5 w-12 bg-product" />
+              {section.heading && <Heading>{section.heading}</Heading>}
+              {section.intro && <p className="mt-4 text-lead text-muted">{section.intro}</p>}
+            </div>
+            <div className="min-w-0 @5xl:col-span-8">
+              <ProductDemo demo={section.demo} motion={section.motion} mark={mark} />
+            </div>
+          </div>
+        ) : (
+          <div>
             {section.heading && <Heading>{section.heading}</Heading>}
-            {section.intro && <p className="mt-4 text-lead text-muted">{section.intro}</p>}
+            {section.intro && <p className="mt-4 max-w-2xl text-lead text-muted">{section.intro}</p>}
+            <div className={cn((section.heading || section.intro) && "mt-8")}>
+              <ProductDemo demo={section.demo} motion={section.motion} mark={mark} />
+            </div>
           </div>
-          <div className="min-w-0 @5xl:col-span-8">
-            <ProductDemo demo={section.demo} motion={section.motion} mark={mark} />
-          </div>
-        </div>
+        );
+      // Demonstrations with steps: scrolling guides them on wide screens (owner's brief, 12 Nov 2026).
+      const steps = GUIDED_STEPS[section.demo];
+      return steps && mode !== "preview" ? (
+        <GuidedDemo steps={steps} enabled={section.guided !== false} label={section.heading ?? "product"}>
+          {content}
+        </GuidedDemo>
       ) : (
-        <div>
-          {section.heading && <Heading>{section.heading}</Heading>}
-          {section.intro && <p className="mt-4 max-w-2xl text-lead text-muted">{section.intro}</p>}
-          <div className={cn((section.heading || section.intro) && "mt-8")}>
-            <ProductDemo demo={section.demo} motion={section.motion} mark={mark} />
-          </div>
-        </div>
+        content
       );
+    }
     case "shared":
       // Only previews see an unresolved item (unpublished or archived); websites never get one.
       return mode === "preview" ? (

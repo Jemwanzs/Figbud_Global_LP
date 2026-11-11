@@ -161,6 +161,10 @@ pub enum Block {
         /// Words above the demonstration, or beside it on wide screens.
         #[serde(default, skip_serializing_if = "DemoLayout::is_stacked")]
         layout: DemoLayout,
+        /// Scrolling guides a demonstration with steps (owner's brief, 12 Nov
+        /// 2026); `false` turns it off. Unset means on.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        guided: Option<bool>,
     },
     /// Refer & earn: a form that reaches the enquiry inbox (P14-R). The phone
     /// number people call to follow a deal is set here, never invented.
@@ -773,6 +777,19 @@ mod tests {
                 .unwrap()
                 .contains("<h2")
         );
+    }
+
+    #[test]
+    fn demonstrations_are_guided_unless_turned_off() {
+        let page = doc(json!([
+            { "id": "a", "type": "demo", "demo": "payslip" },
+            { "id": "b", "type": "demo", "demo": "self_service", "guided": false },
+        ]))
+        .unwrap();
+        let rendered = page.render(false);
+        assert!(rendered["sections"][0].get("guided").is_none(), "unset means on");
+        assert_eq!(rendered["sections"][1]["guided"], false);
+        assert!(doc(json!([{ "id": "a", "type": "demo", "demo": "payslip", "guided": "yes" }])).is_err());
     }
 
     #[test]

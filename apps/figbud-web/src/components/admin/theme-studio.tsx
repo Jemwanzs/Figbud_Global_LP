@@ -867,6 +867,7 @@ export function ThemeStudio({
               hint={
                 busy ? undefined : critical.length ? "Fix the contrast checks first" : "Nothing to publish"
               }
+              title="Everything checked? You're ready to go live."
               onClick={() => save("publish")}
             >
               Publish

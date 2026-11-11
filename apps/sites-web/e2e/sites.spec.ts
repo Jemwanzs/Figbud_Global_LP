@@ -859,7 +859,10 @@ test.describe("ZiraHR: payroll calculator and demonstrations (P14)", () => {
 
   test("demonstrations show themselves, hold a visitor's choice, pause and replay (auto-demo engine)", async ({
     page,
+    isMobile,
   }) => {
+    // Wide screens guide these demonstrations by scrolling instead (next test); phones play them.
+    test.skip(!isMobile, "phones and tablets play demonstrations by themselves");
     test.setTimeout(90_000);
     await page.goto("/zirahr/platform");
     const slip = page.locator("[data-demo]").filter({ has: page.locator("#demo-slip-gross") });
@@ -901,6 +904,48 @@ test.describe("ZiraHR: payroll calculator and demonstrations (P14)", () => {
     await expect(tab("paye")).toBeFocused();
     await page.waitForTimeout(13_000);
     await expect(tab("paye")).toHaveAttribute("aria-selected", "true");
+  });
+
+  test("smart scroll: on wide screens scrolling guides a demonstration through its steps, both ways, and it can be skipped", async ({
+    page,
+    isMobile,
+  }) => {
+    // Owner's brief, 12 Nov 2026.
+    test.skip(isMobile, "phones play demonstrations by themselves");
+    test.setTimeout(60_000);
+    await page.goto("/zirahr/platform");
+    const guided = page.locator("[data-guided]").filter({ has: page.locator("#demo-slip-gross") });
+    await expect(guided).toBeAttached();
+    // No clock to pause: scrolling is the control.
+    await expect(guided.getByRole("button", { name: /Pause demonstration/ })).toHaveCount(0);
+    // To where it settles, then down through its steps with the wheel.
+    await guided.evaluate((el) =>
+      window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 80, behavior: "instant" }),
+    );
+    await expect(guided).toHaveAttribute("data-step", "0");
+    await expect(page.locator("#demo-slip-gross")).toHaveAttribute("aria-selected", "true");
+    const step = async () => Number(await guided.getAttribute("data-step"));
+    await page.mouse.move(700, 450);
+    await expect(async () => {
+      await page.mouse.wheel(0, 400);
+      expect(await step()).toBeGreaterThanOrEqual(3);
+    }).toPass({ timeout: 15_000 });
+    await expect(page.locator("#demo-slip-panel")).not.toContainText("Monthly earnings before any deduction");
+    // Back up, it reverses.
+    await expect(async () => {
+      await page.mouse.wheel(0, -400);
+      expect(await step()).toBe(0);
+    }).toPass({ timeout: 15_000 });
+    // Choosing a line takes the page to that step, and it stays.
+    await page.locator("#demo-slip-net").click();
+    await expect(guided).toHaveAttribute("data-step", "5", { timeout: 5_000 });
+    await expect(page.locator("#demo-slip-panel")).toContainText("103,618.15");
+    await page.waitForTimeout(1_500);
+    await expect(guided).toHaveAttribute("data-step", "5");
+    // Skip leaves it: the page carries on below.
+    await guided.getByRole("button", { name: /^Skip the .* demonstration$/ }).click();
+    await expect.poll(() => guided.evaluate((el) => el.getBoundingClientRect().bottom)).toBeLessThan(200);
+    expect(await axe(page)).toEqual([]);
   });
 
   test("with reduced motion, nothing plays by itself and there's nothing to pause", async ({ page }) => {

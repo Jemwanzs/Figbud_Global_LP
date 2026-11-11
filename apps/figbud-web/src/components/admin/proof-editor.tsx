@@ -647,6 +647,7 @@ export function ProofEditor({
                       hint={
                         review.own && !isOwner ? "Another reviewer approves your own request." : undefined
                       }
+                      title="Everything checked? You're ready to go live."
                       onClick={act(
                         "publish",
                         { note },

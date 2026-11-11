@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  GUIDED_STEPS,
   PageBlocks,
   type PageCta,
   type PageDocument,
@@ -994,6 +995,24 @@ export function BlockForm({
                 <option value="stacked">Heading above the demonstration</option>
                 <option value="split">Heading beside it on wide screens</option>
               </select>
+            </label>
+          )}
+          {GUIDED_STEPS[section.demo] && (
+            <label className="flex items-start gap-3 text-sm text-text">
+              <input
+                type="checkbox"
+                checked={section.guided !== false}
+                disabled={p.disabled}
+                onChange={(e) => onChange({ ...section, guided: e.target.checked ? undefined : false })}
+                className="mt-0.5 size-4 accent-[var(--accent)]"
+              />
+              <span>
+                Guide it with scrolling
+                <span className="block text-xs text-subtle">
+                  On wide screens the demonstration stays in view and scrolling moves it through its steps,
+                  with a skip control. Phones and reduced motion play it by itself.
+                </span>
+              </span>
             </label>
           )}
           {(section.demo === "scattered_to_connected" || section.demo === "employee_journey") && (

@@ -311,6 +311,7 @@ export function HeroStudio({ data, isOwner }: { data: HeroAdmin; isOwner: boolea
             <div className="mt-3 flex flex-wrap gap-1">
               <button
                 type="button"
+                title="See it before the world does."
                 onClick={() => setPreview({ id: OWN, device: "desktop" })}
                 className="inline-flex min-h-10 items-center gap-1.5 rounded-lg px-2.5 text-sm text-text hover:bg-surface-2"
               >
@@ -372,6 +373,7 @@ export function HeroStudio({ data, isOwner }: { data: HeroAdmin; isOwner: boolea
                 <div className="mt-3 flex flex-wrap gap-1">
                   <button
                     type="button"
+                    title="See it before the world does."
                     onClick={() => setPreview({ id: v.id, device: "desktop" })}
                     className="inline-flex min-h-10 items-center gap-1.5 rounded-lg px-2.5 text-sm text-text hover:bg-surface-2"
                   >
@@ -573,6 +575,7 @@ export function HeroStudio({ data, isOwner }: { data: HeroAdmin; isOwner: boolea
                   ready={Boolean(canDecide)}
                   busy={busy === "publish"}
                   hint={review.own && !isOwner ? "Another reviewer approves your own request." : undefined}
+                  title="Everything checked? You're ready to go live."
                   onClick={act("publish", { note }, "Published. The website shows this hero now.")}
                 >
                   Approve and publish

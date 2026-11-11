@@ -16,7 +16,8 @@ import {
 } from "lucide-react";
 import { type CSSProperties, type KeyboardEvent, useEffect, useRef, useState } from "react";
 
-import { DemoControl, useAutoDemo } from "./auto-demo";
+import { DemoControl } from "./auto-demo";
+import { useDemo } from "./guided-demo";
 import { ModuleTour } from "./module-tour";
 import {
   EmployeeJourneyStory,
@@ -266,7 +267,7 @@ const STAGES = [
 
 /** A run moving along the line: the line fills as far as the chosen stage. */
 function PayRun() {
-  const demo = useAutoDemo<HTMLDivElement>({ durations: STAGES.map(() => 3000) });
+  const demo = useDemo<HTMLDivElement>(STAGES.map(() => 3000));
   const { index, choose } = demo;
   const stage = STAGES[index]!;
   return (
@@ -442,7 +443,7 @@ const SLIP = [
  * Choosing a line by hand works at any time.
  */
 function Payslip() {
-  const demo = useAutoDemo<HTMLDivElement>({ durations: [2200, 4200, 3000, 2600, 2600, 3400] });
+  const demo = useDemo<HTMLDivElement>([2200, 4200, 3000, 2600, 2600, 3400]);
   const { index, choose } = demo;
   const line = SLIP[index]!;
   return (
@@ -656,7 +657,7 @@ const SCREENS = [
 
 /** The employee's view in a phone's web browser: the address bar makes the point, there's no app. */
 function SelfService() {
-  const demo = useAutoDemo<HTMLDivElement>({ durations: SCREENS.map(() => 3200) });
+  const demo = useDemo<HTMLDivElement>(SCREENS.map(() => 3200));
   const { index, choose } = demo;
   const screen = SCREENS[index]!;
   return (
@@ -831,7 +832,7 @@ const LEAVE_SCRIPT: { route: keyof typeof ROUTES; approved: number }[] = [
 
 /** Approval routes show themselves; choose a route or approve a step to try it yourself. */
 function LeaveFlow() {
-  const demo = useAutoDemo<HTMLDivElement>({ durations: [2200, 2800, 2200, 2400, 3200] });
+  const demo = useDemo<HTMLDivElement>([2200, 2800, 2200, 2400, 3200]);
   const [own, setOwn] = useState<{ route: keyof typeof ROUTES; approved: number } | null>(null);
   // While playing, the script decides; once a visitor acts, their choice holds.
   const current = demo.state === "manual" && own ? own : LEAVE_SCRIPT[demo.index]!;
@@ -987,7 +988,7 @@ const WEEKDAY = ["S", "M", "T", "W", "T", "F", "S"];
 
 /** Who's out, at a glance. Choose someone to see what's counted and who overlaps. */
 function TeamCalendar() {
-  const demo = useAutoDemo<HTMLDivElement>({ durations: TEAM.map(() => 3200) });
+  const demo = useDemo<HTMLDivElement>(TEAM.map(() => 3200));
   const { index, choose: setIndex } = demo;
   const person = TEAM[index]!;
   const days = Array.from({ length: 31 }, (_, i) => i + 1);
@@ -1136,7 +1137,7 @@ const DAY_SCRIPT: DayChoice[] = [
 ];
 
 function Attendance() {
-  const demo = useAutoDemo<HTMLDivElement>({ durations: [2600, 2800, 2400, 2600, 2600, 3200] });
+  const demo = useDemo<HTMLDivElement>([2600, 2800, 2400, 2600, 2600, 3200]);
   const [own, setOwn] = useState<DayChoice | null>(null);
   const current = demo.state === "manual" && own ? own : DAY_SCRIPT[demo.index]!;
   const { arrival, departure, approved } = current;

@@ -427,6 +427,10 @@ One settings document for every FigBud website (one data controller). Everyone s
 - **Approvals** lists everything waiting for a second person, across pages, brand, website status, heroes, pricing, the Payroll Calculator, campaigns, customer proof and articles. It shows whose turn it is and links to the item's own screen, where the decision is made. People only see requests for websites they can access; a request on several websites needs access to all of them.
 - **Activity** (owners, from Overview) lists who did what, by website, with **Show changes** for before and after values. Undoing a change happens on the item's own screen, by restoring an earlier version.
 
+## Guided demonstrations (UI-SS1, 12 Nov 2026)
+
+Page builder → a demonstration section → **Guide it with scrolling** (on by default) for demonstrations with steps (pay run, payslip, self-service, leave flow, team calendar, attendance). On wide screens the section stays in view and scrolling moves it through its steps, with a progress bar, a step count and a skip control; on phones and with reduced motion it plays by itself. Studio previews show it unguided.
+
 ## Contrasting sections (UI-TH3)
 
 - **Section style → Contrasting band:** a full-width band in the opposite of the visitor's theme. Demonstrations inside it flip too, so they still contrast.
