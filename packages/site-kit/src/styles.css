@@ -773,6 +773,42 @@ body:has(main [data-section="call_to_action"]:last-child) footer {
   :is(.fb-cta-panel, .fb-tone-inverse, .fb-demo-stage, .fb-tone-gradient_band, .fb-tone-gradient_cta) {
   --text-muted: var(--text-on-grad);
 }
+/* Guided demonstrations (UI-SS1, guided-demo.tsx): on wide screens without
+   reduced motion the panel stays in view while its runway scrolls by, about a
+   quarter of a screen per step. Pure CSS, so the page has its final layout
+   before JavaScript runs (no shift when it does). */
+.fb-guided-controls {
+  display: none;
+}
+.fb-guided-runway {
+  height: 0;
+}
+@media (min-width: 64rem) and (prefers-reduced-motion: no-preference) {
+  .fb-guided-pin {
+    position: sticky;
+    top: var(--story-top, 4.5rem);
+    padding-block: 0.5rem;
+  }
+  .fb-guided-controls {
+    display: flex;
+  }
+  .fb-guided-runway {
+    height: calc((var(--story-steps) - 1) * 26svh);
+  }
+}
+/* Without JavaScript nothing follows the scroll, so nothing is pinned either. */
+@media (scripting: none) {
+  .fb-guided-controls {
+    display: none;
+  }
+  .fb-guided-pin {
+    position: static;
+  }
+  .fb-guided-runway {
+    height: 0;
+  }
+}
+
 /* A showcase panel on its own surface: rounded, with depth suited to it. */
 .fb-surface {
   background: var(--bg);

@@ -38,9 +38,6 @@ function useGuidable() {
 type Guide = { step: number; goTo: (i: number) => void } | null;
 const GuideContext = createContext<Guide>(null);
 
-/** Scrolling per step: enough to read each step, never a long wait. */
-const STEP_SCROLL = "26svh";
-
 /**
  * Wraps a demonstration (with its heading) so scrolling guides it through
  * `steps` steps on wide screens. Elsewhere it renders the content unchanged.
@@ -58,22 +55,25 @@ export function GuidedDemo({
   children: ReactNode;
 }) {
   const guidable = useGuidable();
-  const on = enabled && guidable && steps > 1;
-  const story = useScrollStory(on ? steps : 1);
-  if (!on) return <>{children}</>;
+  const story = useScrollStory(steps);
+  if (!enabled || steps < 2) return <>{children}</>;
+  // The same markup before and after the page loads, and on every screen:
+  // CSS (`.fb-guided*`, wide screens without reduced motion) pins it, sizes
+  // its scrolling and shows its controls, so nothing shifts or remounts as
+  // the page becomes interactive. JavaScript only follows the scroll.
   return (
     <div
       ref={story.root}
-      data-guided=""
-      data-step={story.step}
+      data-guided={guidable ? "" : undefined}
+      data-step={guidable ? story.step : undefined}
       style={{ "--story-progress": 0, "--story-steps": steps } as CSSProperties}
-      className="relative"
+      className="fb-guided relative"
     >
-      <div className="sticky top-[var(--story-top,4.5rem)] py-2">
-        <GuideContext.Provider value={{ step: story.step, goTo: story.goTo }}>
+      <div className="fb-guided-pin">
+        <GuideContext.Provider value={guidable ? { step: story.step, goTo: story.goTo } : null}>
           {children}
         </GuideContext.Provider>
-        <div className="mt-4 flex items-center gap-4">
+        <div className="fb-guided-controls mt-4 items-center gap-4">
           {/* Where the demonstration is: it fills as the steps go by. */}
           <span aria-hidden className="relative h-1 flex-1 overflow-hidden rounded-full bg-line">
             <span
@@ -95,7 +95,7 @@ export function GuidedDemo({
         </div>
       </div>
       {/* The scrolling the steps take; the panel releases right after the last one. */}
-      <div data-runway="" aria-hidden style={{ height: `calc(${steps - 1} * ${STEP_SCROLL})` }} />
+      <div data-runway="" aria-hidden className="fb-guided-runway" />
     </div>
   );
 }
