@@ -143,6 +143,8 @@ export function studioNav(
         { href: "/admin/settings/team", label: "Team & roles" },
         { href: "/admin/settings/security", label: "Security" },
         { href: "/admin/settings/privacy", label: "Privacy" },
+        // The Studio's own colours (owner's brief, 12 Nov 2026).
+        { href: "/admin/settings/appearance", label: "Appearance & themes" },
       ],
     },
   ].filter((group) => group.href || group.links.length) as NavGroup[];

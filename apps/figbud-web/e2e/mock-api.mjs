@@ -2917,6 +2917,59 @@ function publicProof(slug) {
     metrics: live.filter((i) => i.kind === "metric").map(proofPublicDoc),
   };
 }
+// The Studio's own appearance (studio_appearance.rs): owners publish; the
+// mock checks formats and button text (the API checks every contrast).
+const studioAppearance = { appearance: {}, draft: null, history: [], version: 1 };
+function studioAppearanceRoutes(req, body, user, send) {
+  const read = () => send(200, { ...clone(studioAppearance), can_edit: user.role === "owner" });
+  if (req.method === "GET") return read();
+  if (user.role !== "owner")
+    return send(403, { error: { code: "forbidden", message: "You don't have permission to do that." } });
+  if (body.version !== studioAppearance.version)
+    return send(409, {
+      error: {
+        code: "conflict",
+        message: "Someone changed the Studio's appearance after you opened it. Reload to see the latest.",
+      },
+    });
+  const hex = (v) => typeof v === "string" && /^#[0-9a-f]{6}$/i.test(v);
+  const fields = [];
+  for (const [doc, strict] of [
+    [body.appearance ?? {}, true],
+    [body.draft, false],
+  ]) {
+    if (!doc) continue;
+    for (const mode of ["light", "dark"]) {
+      const m = doc[mode];
+      if (!m) continue;
+      for (const [k, v] of Object.entries(m))
+        if (k !== "glow_intensity" && v != null && !hex(v))
+          fields.push({
+            field: mode,
+            code: "format",
+            message: "Use a six-digit hex colour such as #f28c38.",
+          });
+      if (strict && m.action_text && m.action_text.toLowerCase() === m.action?.toLowerCase())
+        fields.push({
+          field: mode,
+          code: "contrast",
+          message: "Button text needs at least 4.5:1 on the button colour.",
+        });
+    }
+  }
+  if (fields.length)
+    return send(422, { error: { code: "validation", message: "Some fields need attention.", fields } });
+  if (JSON.stringify(body.appearance ?? {}) !== JSON.stringify(studioAppearance.appearance))
+    studioAppearance.history = [
+      { published_at: new Date().toISOString(), by: user.name, appearance: clone(body.appearance ?? {}) },
+      ...studioAppearance.history,
+    ].slice(0, 10);
+  studioAppearance.appearance = clone(body.appearance ?? {});
+  studioAppearance.draft = body.draft ? clone(body.draft) : null;
+  studioAppearance.version += 1;
+  return read();
+}
+
 function proofRoutes(path, req, body, user, send) {
   const notFound = () => send(404, { error: { code: "not_found", message: "Not found." } });
   const forbidden = () =>
@@ -5703,6 +5756,7 @@ function admin(req, res, url, body, send, raw) {
   if (path === "campaigns" || path.startsWith("campaigns/"))
     return campaignRoutes(path, req, body, user, send);
   if (path === "proof" || path.startsWith("proof/")) return proofRoutes(path, req, body, user, send);
+  if (path === "studio-appearance") return studioAppearanceRoutes(req, body, user, send);
   const payrollPath = /^sites\/([a-z0-9_-]+)\/payroll-calculator(?:\/([a-z_]+))?$/.exec(path);
   if (payrollPath) {
     if (payrollPath[1] !== "zirahr")

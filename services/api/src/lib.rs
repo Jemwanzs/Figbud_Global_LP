@@ -29,3 +29,4 @@ pub mod shared;
 pub mod site_settings;
 pub mod site_theme;
 pub mod sites;
+pub mod studio_appearance;

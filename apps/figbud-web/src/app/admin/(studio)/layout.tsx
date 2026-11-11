@@ -6,6 +6,7 @@ import { StudioShell } from "@/components/admin/studio-shell";
 import { StudioSkeleton } from "@/components/admin/studio-states";
 import { FigBudBrand } from "@/components/figbud-brand";
 import { adminGet, requireAdmin } from "@/lib/admin-server";
+import { type AppearanceAdmin, studioAppearanceCss } from "@/lib/studio-appearance";
 
 /**
  * Every signed-in Studio page shares this layout, so the top bar and sidebar
@@ -21,15 +22,24 @@ export default function StudioLayout({ children }: { children: ReactNode }) {
 }
 
 async function SignedIn({ children }: { children: ReactNode }) {
-  const [user, sites] = await Promise.all([requireAdmin(), adminGet<AdminSite[]>("sites")]);
+  const [user, sites, appearance] = await Promise.all([
+    requireAdmin(),
+    adminGet<AdminSite[]>("sites"),
+    adminGet<AppearanceAdmin>("studio-appearance"),
+  ]);
   if (user === "unavailable") return <AdminUnavailable standalone />;
   const listed = (sites.data ?? [])
     .filter((s) => !s.archived_at)
     .map(({ slug, name, kind, status }) => ({ slug, name, kind, status }));
+  // The Studio's published colours (Settings & Security → Appearance & themes), validated hex only.
+  const css = studioAppearanceCss(appearance.data?.appearance);
   return (
-    <StudioShell user={user} sites={listed} brand={<FigBudBrand />}>
-      {children}
-    </StudioShell>
+    <>
+      {css && <style data-studio-appearance="">{css}</style>}
+      <StudioShell user={user} sites={listed} brand={<FigBudBrand />}>
+        {children}
+      </StudioShell>
+    </>
   );
 }
 

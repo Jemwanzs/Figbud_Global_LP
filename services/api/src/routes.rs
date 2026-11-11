@@ -92,6 +92,7 @@ pub fn router(state: SharedState) -> Router {
         .merge(seo::router())
         .merge(campaigns::router())
         .merge(proof::router())
+        .merge(crate::studio_appearance::router())
         .merge(cms::router())
         .merge(admin::router())
         .merge(crate::approvals::router())

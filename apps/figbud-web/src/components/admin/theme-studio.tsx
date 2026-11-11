@@ -135,7 +135,7 @@ const studioPart = (t?: SiteTheme | null): StudioTheme => ({
   gradients: t?.gradients,
 });
 
-function ColourField({
+export function ColourField({
   id,
   label,
   hint,

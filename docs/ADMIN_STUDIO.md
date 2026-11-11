@@ -244,6 +244,16 @@ Websites → a website → Navigation & forms → **Hover Previews**.
 - **Defaults:** FigBud Global starts with its approved wording, and empty fields keep it. Product websites start with none, so a link shows nothing until its own headline is written. Studio edits apply to English pages; other languages keep their own wording.
 - **Where it runs:** `NavPreview` in `@figbud/site-kit`, used by the corporate header and the product renderer. Stored as `nav_previews` in the website's settings.
 
+## Appearance & themes: the Studio's own colours (UI-AP1, 12 Nov 2026)
+
+Settings & Security → **Appearance & themes**. This changes the Admin Studio only; websites have their own themes (Colours & themes, below).
+
+- **Shared brand colours:** primary, secondary and a named palette (warm cream, cream, warm orange, warm brown, brown to start with), offered in every colour field.
+- **Light mode and Dark mode:** page background, sidebar and navigation, cards and panels, hover background, form fields (optional), borders, headings, body text, buttons and active states, text on buttons, links and active labels (also the focus ring), success, warning, error, and the gradient glow with its intensity.
+- **Checks:** text on every background, card, hover and field, links, button text and status colours need 4.5:1. Failures block Publish here and in the API; faint borders or hover are warnings.
+- **Actions:** Save draft, Publish, Discard draft, Restore defaults, and History (the last ten, with who and when; load one and publish to roll back). Owners change it; everyone sees it. Saves are version-checked and audited (`studio.appearance_draft_saved`, `studio.appearance_published`).
+- **Where it runs:** `studio_appearance` (migration 32) through `services/api/src/studio_appearance.rs`; `GET /v1/admin/studio-appearance`, `POST` the same, and `GET /v1/studio/appearance`. The Studio layout turns the published colours into tokens on its own `<html>` (`apps/figbud-web/src/lib/studio-appearance.ts`), whose built-in values a unit test keeps equal to `tokens.css`.
+
 ## Colours & themes: the Brand & Theme Studio (UI-BT1, 11 Nov 2026)
 
 Websites → a product website → **Colours & themes** (also under Products & Branding). FigBud Global keeps its own identity, built into the corporate website.

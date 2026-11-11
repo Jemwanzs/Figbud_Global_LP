@@ -315,3 +315,66 @@ test("Studio: a product website's colours and themes are drafted, checked, previ
   await page.getByRole("button", { name: "Restore defaults" }).click();
   await expect(publish).toBeDisabled();
 });
+
+test("Studio: the Studio's own appearance is drafted, checked, published, applied and restored", async ({
+  page,
+}, testInfo) => {
+  // Owner's brief, 12 Nov 2026. Shared mock data: one project only, put back at the end.
+  test.skip(testInfo.project.name !== "desktop", "edited from the desktop project");
+  test.setTimeout(90_000);
+  await signInAsOwner(page);
+  await page.goto("/admin/settings/appearance");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Appearance & themes");
+  await expect(page.getByRole("link", { name: "Appearance & themes" })).toBeVisible();
+  const publish = page.getByRole("button", { name: "Publish", exact: true });
+  await expect(publish).toBeDisabled();
+  await expect(page.getByText("Every colour stays readable in both modes.")).toBeVisible();
+
+  // Unreadable body text: a warning while drafting, and publishing waits.
+  await page.getByRole("tab", { name: "Dark mode" }).click();
+  const body = page.getByLabel("Body text", { exact: true });
+  await body.fill("#3a2a20");
+  await expect(page.locator("[data-appearance-issues]")).toContainText("Blocks publishing · Dark: Body text");
+  await expect(publish).toBeDisabled();
+  await page.getByRole("button", { name: "Save draft" }).click();
+  await expect(page.getByRole("status")).toContainText("Draft saved.");
+
+  // A readable sidebar colour: previewed, published, and applied to the Studio at once.
+  await body.fill("#e3d4c3");
+  await page.getByLabel("Sidebar and navigation", { exact: true }).fill("#1f140d");
+  await expect
+    .poll(() =>
+      page
+        .locator('[data-appearance-preview][data-theme="dark"]')
+        .evaluate((el) => getComputedStyle(el).getPropertyValue("--bg-elevated").trim()),
+    )
+    .toBe("#1f140d");
+  await publish.click();
+  await expect(page.getByRole("status")).toContainText("Published.");
+  await page.reload();
+  await expect(page.locator("style[data-studio-appearance]")).toHaveCount(1);
+  await page.evaluate(() => document.documentElement.setAttribute("data-theme", "dark"));
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        getComputedStyle(document.documentElement).getPropertyValue("--bg-elevated").trim(),
+      ),
+    )
+    .toBe("#1f140d");
+  await page.getByRole("tab", { name: "History" }).click();
+  await expect(page.getByRole("tabpanel").getByRole("listitem").first()).toContainText("Olu Owner");
+
+  const results = await new AxeBuilder({ page: await themeSettled(page) })
+    .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
+    .analyze();
+  expect(
+    results.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`),
+  ).toEqual([]);
+
+  // Back to the built-in palette, for other tests.
+  await page.getByRole("button", { name: "Restore defaults" }).click();
+  await publish.click();
+  await expect(page.getByRole("status")).toContainText("Published.");
+  await page.reload();
+  await expect(page.locator("style[data-studio-appearance]")).toHaveCount(0);
+});
