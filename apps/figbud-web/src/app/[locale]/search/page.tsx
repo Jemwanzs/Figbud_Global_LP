@@ -7,6 +7,7 @@ import { Suspense } from "react";
 
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { PageHeader } from "@/components/page-header";
+import { SearchQueryInput } from "@/components/search-query-input";
 import type { Dictionary } from "@/i18n/get-dictionary";
 import { getArticles } from "@/lib/cms";
 import { fill } from "@/lib/format";
@@ -48,7 +49,9 @@ export default async function SearchPage({ params, searchParams }: PageProps<"/[
         lead={copy.lead}
       />
       <Container size="wide" className="py-section-sm">
-        <Suspense fallback={<SearchForm locale={locale} dict={dict} />}>
+        {/* Outside the streamed results, so typing before they arrive isn't lost. */}
+        <SearchForm locale={locale} dict={dict} />
+        <Suspense fallback={null}>
           <Results locale={locale} dict={dict} searchParams={searchParams} />
         </Suspense>
       </Container>
@@ -56,7 +59,7 @@ export default async function SearchPage({ params, searchParams }: PageProps<"/[
   );
 }
 
-function SearchForm({ locale, dict, q }: { locale: Locale; dict: Dictionary; q?: string }) {
+function SearchForm({ locale, dict }: { locale: Locale; dict: Dictionary }) {
   const copy = dict.common.search;
   return (
     <form role="search" action={localizePath(locale, routes.search)} className="relative max-w-2xl">
@@ -67,11 +70,10 @@ function SearchForm({ locale, dict, q }: { locale: Locale; dict: Dictionary; q?:
         aria-hidden
         className="pointer-events-none absolute start-4 top-1/2 size-4 -translate-y-1/2 text-subtle"
       />
-      <input
+      <SearchQueryInput
         id="site-search"
         type="search"
         name="q"
-        defaultValue={q}
         maxLength={100}
         placeholder={copy.placeholder}
         className="min-h-12 w-full rounded-full border border-line-strong bg-surface ps-11 pe-28 text-text placeholder:text-subtle"
@@ -99,12 +101,7 @@ async function Results({
   const raw = (await searchParams).q;
   const q = (Array.isArray(raw) ? raw[0] : raw)?.trim().slice(0, 100) || undefined;
   if (!q) {
-    return (
-      <>
-        <SearchForm locale={locale} dict={dict} />
-        <p className="mt-4 text-sm text-subtle">{copy.hint}</p>
-      </>
-    );
+    return <p className="mt-4 text-sm text-subtle">{copy.hint}</p>;
   }
 
   const [products, articles] = await Promise.all([
@@ -116,7 +113,6 @@ async function Results({
 
   return (
     <>
-      <SearchForm locale={locale} dict={dict} q={q} />
       <p className="mt-6 text-sm text-muted" aria-live="polite">
         {fill(copy.resultsFor, { q })}
       </p>
