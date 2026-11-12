@@ -943,7 +943,7 @@ test.describe("ZiraHR: payroll calculator and demonstrations (P14)", () => {
     await page.waitForTimeout(1_500);
     await expect(guided).toHaveAttribute("data-step", "5");
     // Skip leaves it: the page carries on below.
-    await guided.getByRole("button", { name: /^Skip the .* demonstration$/ }).click();
+    await guided.getByRole("button", { name: /^Skip this demonstration: .+[^.]$/ }).click();
     await expect.poll(() => guided.evaluate((el) => el.getBoundingClientRect().bottom)).toBeLessThan(200);
     expect(await axe(page)).toEqual([]);
   });

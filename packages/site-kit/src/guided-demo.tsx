@@ -85,12 +85,14 @@ export function GuidedDemo({
           <button
             type="button"
             onClick={story.leave}
+            // The visible words first (label in name), then which demonstration.
+            aria-label={`Skip this demonstration: ${label.replace(/[.!?]+$/, "")}`}
             className={cn(
               "min-h-9 rounded-full px-3 text-xs text-muted underline-offset-4 hover:text-text hover:underline",
               "focus-visible:ring-2 focus-visible:ring-[var(--focus)] focus-visible:outline-none",
             )}
           >
-            {`Skip the ${label} demonstration`}
+            Skip this demonstration
           </button>
         </div>
       </div>
