@@ -134,11 +134,18 @@ function ScrollStory({
   motion,
   label,
   fit = "stage",
+  intro,
   children,
 }: {
   steps: { title: string; body: string }[];
   motion: StoryMotion;
   label: string;
+  /**
+   * The section's heading and lead, pinned with the story so they stay
+   * together while it plays (owner's brief, 12 Nov 2026: no gap opening
+   * between the heading and the story as the page scrolls).
+   */
+  intro?: ReactNode;
   /**
    * "stage": a sized stage, for visuals placed in it (pieces flying in from
    * set points); "content": as tall as its content (owner's brief, 11 Nov
@@ -158,7 +165,8 @@ function ScrollStory({
       style={{ "--story-progress": 0, "--story-steps": count } as CSSProperties}
       className="fb-story relative"
     >
-      <div className="fb-story-pin sticky top-[var(--story-top,4.5rem)] flex flex-col gap-4 py-4 lg:grid lg:grid-cols-12 lg:items-center lg:gap-x-12 lg:py-6">
+      <div className="fb-story-pin sticky top-[var(--story-top,4.5rem)] flex flex-col gap-4 py-4 lg:grid lg:grid-cols-12 lg:items-start lg:gap-x-12 lg:gap-y-6 lg:py-4">
+        {intro && <div className="fb-story-intro lg:col-span-12">{intro}</div>}
         {/* Compact: about 46rem at most, beside the words; the full width on phones. */}
         <div className="w-full lg:order-2 lg:col-span-7 lg:ms-auto lg:max-w-[46rem]">
           {/* The steps say all of this in words, so the picture isn't read out. */}
@@ -169,7 +177,10 @@ function ScrollStory({
             className={cn(
               "fb-demo-stage relative overflow-hidden rounded-[var(--radius-panel)] text-text",
               fit === "stage"
-                ? "fb-story-stage h-[min(42svh,20rem)] min-h-56 lg:h-[min(26rem,calc(100svh-11rem))]"
+                ? intro
+                  ? // Room for the heading above it in the same pinned panel.
+                    "fb-story-stage h-[min(42svh,20rem)] min-h-56 lg:h-[min(24rem,calc(100svh-19rem))]"
+                  : "fb-story-stage h-[min(42svh,20rem)] min-h-56 lg:h-[min(26rem,calc(100svh-11rem))]"
                 : "@container",
             )}
           >
@@ -177,7 +188,8 @@ function ScrollStory({
           </div>
           <p className="mt-2 text-xs text-subtle">Illustrative product activity · synthetic data</p>
         </div>
-        <div className="lg:order-1 lg:col-span-5">
+        {/* Level with the top of the picture, not floating at its middle. */}
+        <div className="lg:order-1 lg:col-span-5 lg:pt-2">
           {/* Where the story is: the current step, and a dot for each that jumps to it. */}
           <div className="fb-story-nav mb-4 flex items-center gap-3">
             <span className="font-mono text-sm text-product-text tabular-nums">
@@ -429,14 +441,17 @@ function ScatteredStage({ step, onScreen, mark }: { step: number; onScreen: bool
 export function ScatteredToConnectedStory({
   motion = "standard",
   mark,
+  intro,
 }: {
   motion?: StoryMotion;
   mark?: ReactNode;
+  intro?: ReactNode;
 }) {
   return (
     <ScrollStory
       label="scattered-to-connected"
       motion={motion}
+      intro={intro}
       steps={[
         {
           title: "HR usually lives in too many places.",
@@ -647,11 +662,18 @@ function JourneyStage({ step }: { step: number }) {
   );
 }
 
-export function EmployeeJourneyStory({ motion = "standard" }: { motion?: StoryMotion }) {
+export function EmployeeJourneyStory({
+  motion = "standard",
+  intro,
+}: {
+  motion?: StoryMotion;
+  intro?: ReactNode;
+}) {
   return (
     <ScrollStory
       label="employee-journey"
       motion={motion}
+      intro={intro}
       fit="content"
       steps={[
         {

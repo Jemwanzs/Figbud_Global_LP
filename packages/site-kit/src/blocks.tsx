@@ -507,6 +507,17 @@ function Block({
         </div>
       );
     case "demo": {
+      // Scroll stories pin their heading and lead with them, so nothing drifts apart.
+      if (section.demo === "scattered_to_connected" || section.demo === "employee_journey") {
+        const intro =
+          section.heading || section.intro ? (
+            <>
+              {section.heading && <Heading>{section.heading}</Heading>}
+              {section.intro && <p className="mt-3 max-w-2xl text-lead text-muted">{section.intro}</p>}
+            </>
+          ) : undefined;
+        return <ProductDemo demo={section.demo} motion={section.motion} mark={mark} intro={intro} />;
+      }
       // Split: an editorial column beside the showcase on wide screens, stacked on narrow ones.
       const content =
         section.layout === "split" ? (

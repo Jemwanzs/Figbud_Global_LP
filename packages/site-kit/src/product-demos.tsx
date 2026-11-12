@@ -1326,11 +1326,14 @@ export function ProductDemo({
   demo,
   motion,
   mark,
+  intro,
 }: {
   demo: DemoKind;
   motion?: StoryMotion;
   /** The website's own mark, where a demonstration shows it. */
   mark?: React.ReactNode;
+  /** A scroll story's heading and lead, pinned with it. */
+  intro?: React.ReactNode;
 }) {
   switch (demo) {
     case "connected_modules":
@@ -1352,9 +1355,9 @@ export function ProductDemo({
     case "attendance":
       return <Attendance />;
     case "scattered_to_connected":
-      return <ScatteredToConnectedStory motion={motion} mark={mark} />;
+      return <ScatteredToConnectedStory motion={motion} mark={mark} intro={intro} />;
     case "employee_journey":
-      return <EmployeeJourneyStory motion={motion} />;
+      return <EmployeeJourneyStory motion={motion} intro={intro} />;
   }
 }
 
