@@ -12,7 +12,51 @@ export interface AdminUser {
   last_login_at?: string;
   /** Which websites they work on (P7-F1); absent means every website. */
   access?: SiteAccess;
+  /** Studio areas and actions (P13-B3); null or absent means every area within their role. */
+  modules?: Partial<Record<StudioArea, StudioAction[]>> | null;
 }
+
+/** Studio areas (services/api/src/admin/modules.rs). */
+export const STUDIO_AREAS = [
+  "websites",
+  "hero",
+  "pages",
+  "website_settings",
+  "branding",
+  "content",
+  "campaigns",
+  "proof",
+  "pricing",
+  "enquiries",
+  "seo",
+  "publishing",
+] as const;
+export type StudioArea = (typeof STUDIO_AREAS)[number];
+export const STUDIO_ACTIONS = ["view", "edit", "submit", "publish", "export"] as const;
+export type StudioAction = (typeof STUDIO_ACTIONS)[number];
+
+export const AREA_LABELS: Record<StudioArea, string> = {
+  websites: "Websites (create, archive, status)",
+  hero: "Hero management",
+  pages: "Page builder",
+  website_settings: "Navigation, footer & colours",
+  branding: "Logos, brand colours & media",
+  content: "Content library & Insights",
+  campaigns: "Campaigns & promotions",
+  proof: "Customer proof",
+  pricing: "Pricing Studio & payroll calculator",
+  enquiries: "Leads & enquiries",
+  seo: "SEO",
+  publishing: "Approvals",
+};
+
+export const ACTION_LABELS: Record<StudioAction, string> = {
+  view: "View",
+  edit: "Edit",
+  submit: "Ask for approval",
+  publish: "Approve & publish",
+  export: "Export",
+};
 
 /** Every website with the Studio role, or selected websites, each with its own role. */
 export interface SiteAccess {

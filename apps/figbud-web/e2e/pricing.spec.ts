@@ -36,6 +36,8 @@ test("ZiraHR pricing: rates, approval, calculator, quotation, customer link; hid
   // Shared mock data: edit it from one project only.
   test.skip(testInfo.project.name !== "desktop", "edited from the desktop project");
   test.setTimeout(120_000);
+  // ZiraHR's price book from its starting state, so a retry doesn't meet the first attempt's rates.
+  expect((await request.post("http://localhost:3199/test/reset-pricing")).ok()).toBe(true);
 
   // Public pricing is off before anything happens.
   expect(await (await request.get(`${API}/v1/sites/zirahr/pricing`)).json()).toEqual({ visible: false });
@@ -112,9 +114,9 @@ test("ZiraHR pricing: rates, approval, calculator, quotation, customer link; hid
   const summary = page.getByRole("complementary", { name: "Calculation summary" });
   await expect(summary.getByText("KES 62,500.00").first()).toBeVisible();
   await expect(summary.getByText("Renewal per month")).toBeVisible();
-  await expect(summary.getByText("KES 72,500.00")).toBeVisible();
+  await expect(summary.getByText("KES 72,500.00").first()).toBeVisible();
   // First period: 72,500 + 80,000 + 16% VAT on setup.
-  await expect(summary.getByText("KES 165,300.00")).toBeVisible();
+  await expect(summary.getByText("KES 165,300.00").first()).toBeVisible();
   // Planned modules can't be chosen.
   await expect(page.getByRole("checkbox", { name: /AI assistant/ })).toBeDisabled();
 

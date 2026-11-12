@@ -124,6 +124,24 @@ test("Users & access: change a role, suspend and reactivate, revoke a pending in
   await member.getByRole("button", { name: "Change role for Kofi Editor" }).click();
   await expect(member.getByRole("status")).toContainText("Role changed to");
 
+  // Studio areas: limited to pricing, their sidebar shows only that (the API refuses the rest).
+  await member.getByRole("button", { name: /Change access/ }).click();
+  await member.getByRole("radio", { name: "Selected areas" }).check();
+  await member.getByLabel("Start from").selectOption("Pricing manager");
+  await expect(member.getByText("Changes to apply")).toBeVisible();
+  await member.getByRole("button", { name: "Save areas for Kofi Editor" }).click();
+  await expect(member.getByRole("status").filter({ hasText: "Areas saved" })).toBeVisible();
+  await kofi.goto("/admin");
+  const nav = kofi.getByRole("navigation", { name: "Admin" }).first();
+  await expect(
+    nav
+      .getByRole("link", { name: "Pricing Studio" })
+      .or(nav.getByRole("button", { name: /Pricing Studio/ }))
+      .first(),
+  ).toBeVisible();
+  await expect(nav.getByRole("link", { name: "Hero management" })).toHaveCount(0);
+  await expect(nav.getByRole("button", { name: /Leads & Enquiries/ })).toHaveCount(0);
+
   // Suspended: their next click asks them to sign in; reactivated: back.
   page.once("dialog", (d) => d.accept());
   await member.getByRole("button", { name: /^Suspend/ }).click();

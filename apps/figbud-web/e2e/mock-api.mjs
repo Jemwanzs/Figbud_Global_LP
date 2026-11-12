@@ -250,7 +250,13 @@ const listRow = (a) => ({
   scheduled: isScheduled(a),
 });
 
-const publicUser = (u) => ({ id: u.id, email: u.email, name: u.name, role: u.role });
+const publicUser = (u) => ({
+  id: u.id,
+  email: u.email,
+  name: u.name,
+  role: u.role,
+  modules: u.modules ?? null,
+});
 // Per-website permissions (services/api/src/admin/team.rs, P7-F1).
 const invites = new Map(); // token -> { role, grants }
 const allSites = (u) => u.role === "owner" || !u.grants;
@@ -3912,6 +3918,8 @@ const payrollCalc = {
   review: null,
   versions: [],
 };
+// The calculator's starting state, so its Studio test can begin from it on a retry.
+const PAYROLL_START = JSON.stringify(payrollCalc);
 const round2 = (n) => Math.round((n + Number.EPSILON) * 100) / 100;
 function payrollForward(rules, input, gross) {
   const n = (v) => Number(v ?? 0);
@@ -5599,6 +5607,24 @@ function admin(req, res, url, body, send, raw) {
       return send(201, { recovery_url: `${ADMIN_ORIGIN}/admin/reset-password#token=${token}`, hours: 24 });
     }
     // Users & access (team.rs): roles, suspension, signing out; never yourself, always an owner.
+    // Studio areas (modules.rs): owners set them; null gives back every area.
+    const areas = /^team\/([0-9a-f]+)\/modules$/.exec(path);
+    if (areas) {
+      const person = [...users.values()].find((u) => u.id === areas[1]);
+      if (!person) return send(404, { error: { code: "not_found", message: "Not found." } });
+      if (person.role === "owner")
+        return send(409, { error: { code: "conflict", message: "Owners always have every area." } });
+      const next = body.modules
+        ? Object.fromEntries(
+            Object.entries(body.modules)
+              .filter(([, a]) => a.length)
+              .map(([m, a]) => [m, a.includes("view") ? a : ["view", ...a]]),
+          )
+        : null;
+      person.modules = next;
+      record(user, "admin.modules_changed", { email: person.email });
+      return send(200, { modules: next });
+    }
     const manage = /^team\/([0-9a-f]+)\/(role|suspend|reactivate|sessions\/revoke)$/.exec(path);
     if (manage) {
       const person = [...users.values()].find((u) => u.id === manage[1]);
@@ -6118,6 +6144,16 @@ createServer(async (req, res) => {
     return send(200, {
       published: ["en", ...localeReviews.filter((l) => l.status === "published").map((l) => l.code)],
     });
+  // Test-only: ZiraHR's price book back to its starting state (pricing.spec.ts); quotations stay.
+  if (url.pathname === "/test/reset-pricing" && req.method === "POST") {
+    pricingBooks.delete("zirahr");
+    return send(200, { ok: true });
+  }
+  // Test-only: back to the payroll calculator's starting state (payroll.studio.spec.ts).
+  if (url.pathname === "/test/reset-payroll" && req.method === "POST") {
+    Object.assign(payrollCalc, JSON.parse(PAYROLL_START));
+    return send(200, { ok: true });
+  }
   if (url.pathname === "/v1/quotes/shared") {
     const token = String(req.headers["x-quote-token"] ?? "");
     const q = token.length === 64 ? [...quotes.values()].find((x) => x.token === token) : null;

@@ -25,6 +25,7 @@ pub fn router() -> Router<SharedState> {
         .route("/v1/admin/team", get(list))
         .route("/v1/admin/team/{id}/access", post(set_access))
         .route("/v1/admin/team/{id}/role", post(set_role))
+        .route("/v1/admin/team/{id}/modules", post(set_modules))
         .route("/v1/admin/team/{id}/suspend", post(suspend))
         .route("/v1/admin/team/{id}/reactivate", post(reactivate))
         .route("/v1/admin/team/{id}/sessions/revoke", post(revoke_sessions))
@@ -46,6 +47,8 @@ struct Member {
     has_password: bool,
     has_two_factor: bool,
     passkeys: i64,
+    /// Studio areas (P13-B3); `null`: every area within their role.
+    modules: Option<Value>,
 }
 
 async fn list(
@@ -56,7 +59,8 @@ async fn list(
     let members: Vec<Member> = sqlx::query_as(
         "SELECT id, email, name, role, all_sites, last_login_at, disabled_at, created_at,
                 password_hash IS NOT NULL AS has_password, totp_confirmed_at IS NOT NULL AS has_two_factor,
-                (SELECT count(*) FROM admin_passkeys p WHERE p.user_id = admin_users.id) AS passkeys
+                (SELECT count(*) FROM admin_passkeys p WHERE p.user_id = admin_users.id) AS passkeys,
+                modules
            FROM admin_users
           ORDER BY disabled_at IS NOT NULL, CASE role WHEN 'owner' THEN 0 WHEN 'reviewer' THEN 1
                    WHEN 'editor' THEN 2 ELSE 3 END, name",
@@ -483,4 +487,45 @@ async fn revoke_invite(
     )
     .await?;
     Ok(Json(json!({ "revoked": true })))
+}
+
+/// Sets which Studio areas someone may open and what they may do there
+/// (P13-B3). `null` gives back every area within their role. Owners are
+/// never limited; it applies from their next request.
+async fn set_modules(
+    State(state): State<SharedState>,
+    session: AdminSession,
+    Path(id): Path<Uuid>,
+    Json(input): Json<super::modules::ModulesInput>,
+) -> Result<impl IntoResponse, ApiError> {
+    session.require(Role::Owner)?;
+    not_yourself(&session, id)?;
+    let t = target(&state.pool, id).await?;
+    if t.role == Role::Owner {
+        return Err(ApiError::Conflict("Owners always have every area."));
+    }
+    let next = match input.modules {
+        None => None,
+        Some(m) => Some(super::modules::normalise(m).map_err(ApiError::Validation)?),
+    };
+    let before: Option<Value> = sqlx::query_scalar("SELECT modules FROM admin_users WHERE id = $1")
+        .bind(id)
+        .fetch_one(&state.pool)
+        .await?;
+    let value = next.as_ref().map(|m| json!(m));
+    sqlx::query("UPDATE admin_users SET modules = $2 WHERE id = $1")
+        .bind(id)
+        .bind(&value)
+        .execute(&state.pool)
+        .await?;
+    audit(
+        &state.pool,
+        Some(session.user.id),
+        "admin.modules_changed",
+        Some(("admin_user", id.to_string())),
+        json!({ "email": t.email, "from": before, "to": value }),
+        None,
+    )
+    .await?;
+    Ok(Json(json!({ "modules": value })))
 }

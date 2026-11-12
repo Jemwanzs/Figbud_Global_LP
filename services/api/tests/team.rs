@@ -500,3 +500,111 @@ async fn owners_manage_people_and_the_studio_keeps_an_owner() {
         assert!(actions.iter().any(|x| x == a), "{a} audited");
     }
 }
+
+/// Studio areas (P13-B3): an owner limits someone to pricing; the API refuses
+/// every other area and any action not granted, whatever URL is called.
+#[tokio::test]
+async fn people_limited_to_areas_are_refused_elsewhere_by_the_api() {
+    let Some(t) = Team::new().await else { return };
+    let (_, owner) = t.admin("owner").await;
+    let (editor_id, editor) = t.admin("editor").await;
+    let uri = format!("/v1/admin/team/{editor_id}/modules");
+
+    // Everything within their role until an owner sets areas.
+    assert_eq!(
+        t.call("GET", "/v1/admin/sites/zirahr/hero", &editor, None)
+            .await
+            .0,
+        StatusCode::OK
+    );
+
+    // Unknown areas or actions are refused; owners can't be limited.
+    let (status, _) = t
+        .call(
+            "POST",
+            &uri,
+            &owner,
+            Some(json!({ "modules": { "payroll": ["view"] } })),
+        )
+        .await;
+    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
+    assert_eq!(
+        t.call("POST", &uri, &editor, Some(json!({ "modules": null })))
+            .await
+            .0,
+        StatusCode::FORBIDDEN
+    );
+
+    let (status, body) = t
+        .call(
+            "POST",
+            &uri,
+            &owner,
+            Some(json!({ "modules": { "pricing": ["edit"] } })),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    assert_eq!(
+        body["modules"]["pricing"],
+        json!(["view", "edit"]),
+        "viewing comes with any grant"
+    );
+
+    // Their own account and the website list still work.
+    let (status, me) = t.call("GET", "/v1/admin/me", &editor, None).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(me["user"]["modules"]["pricing"], json!(["view", "edit"]));
+    assert_eq!(
+        t.call("GET", "/v1/admin/sites", &editor, None).await.0,
+        StatusCode::OK
+    );
+    // Pricing yes; other areas no, even by URL.
+    assert_eq!(
+        t.call("GET", "/v1/admin/sites/zirahr/pricing", &editor, None)
+            .await
+            .0,
+        StatusCode::OK
+    );
+    for path in [
+        "/v1/admin/sites/zirahr/hero",
+        "/v1/admin/proof",
+        "/v1/admin/enquiries",
+        "/v1/admin/approvals",
+    ] {
+        assert_eq!(
+            t.call("GET", path, &editor, None).await.0,
+            StatusCode::FORBIDDEN,
+            "{path}"
+        );
+    }
+    // Asking for approval wasn't granted.
+    assert_eq!(
+        t.call(
+            "POST",
+            "/v1/admin/sites/zirahr/pricing/submit",
+            &editor,
+            Some(json!({}))
+        )
+        .await
+        .0,
+        StatusCode::FORBIDDEN
+    );
+
+    // Back to every area within their role.
+    t.call("POST", &uri, &owner, Some(json!({ "modules": null })))
+        .await;
+    assert_eq!(
+        t.call("GET", "/v1/admin/sites/zirahr/hero", &editor, None)
+            .await
+            .0,
+        StatusCode::OK
+    );
+    let changed: i64 = sqlx::query_scalar(
+        "SELECT count(*) FROM audit_log WHERE action = 'admin.modules_changed' AND target_id = $1",
+    )
+    .bind(editor_id.to_string())
+    .fetch_one(&t.pool)
+    .await
+    .unwrap();
+    assert_eq!(changed, 2);
+}

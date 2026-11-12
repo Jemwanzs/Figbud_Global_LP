@@ -13,6 +13,8 @@ test("rules can't be published unchecked; draft, approve, switch on and roll bac
 }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop", "Studio flow, on desktop Chromium");
   test.setTimeout(120_000);
+  // From the calculator's starting state, so a retry doesn't meet the first attempt's changes.
+  expect((await request.post("http://localhost:3199/test/reset-payroll")).ok()).toBe(true);
   const cdp = await page.context().newCDPSession(page);
   await cdp.send("WebAuthn.enable");
   await cdp.send("WebAuthn.addVirtualAuthenticator", {
@@ -71,7 +73,8 @@ test("rules can't be published unchecked; draft, approve, switch on and roll bac
   ).toEqual([]);
 
   await page.getByRole("button", { name: "Save draft" }).click();
-  await expect(page.getByRole("status").filter({ hasText: "Draft saved." })).toBeVisible();
+  // Saving runs the API's checks on both rule sets: allow for a busy CI machine.
+  await expect(page.getByRole("status").filter({ hasText: "Draft saved." })).toBeVisible({ timeout: 15_000 });
   await page.getByRole("button", { name: "Ask for approval" }).click();
   await expect(page.getByText(/You asked for approval/)).toBeVisible();
 
@@ -90,7 +93,8 @@ test("rules can't be published unchecked; draft, approve, switch on and roll bac
   // A second version, then one step back.
   await page.getByLabel("Introduction").fill("A clearer introduction.");
   await page.getByRole("button", { name: "Save draft" }).click();
-  await expect(page.getByRole("status").filter({ hasText: "Draft saved." })).toBeVisible();
+  // Saving runs the API's checks on both rule sets: allow for a busy CI machine.
+  await expect(page.getByRole("status").filter({ hasText: "Draft saved." })).toBeVisible({ timeout: 15_000 });
   await page.getByRole("button", { name: "Ask for approval" }).click();
   await page.getByRole("button", { name: "Approve and publish" }).click();
   await expect(page.getByRole("status").filter({ hasText: "Published." })).toBeVisible();

@@ -1,4 +1,4 @@
-import type { AdminUser } from "@/lib/admin-client";
+import type { AdminUser, StudioArea } from "@/lib/admin-client";
 
 import type { AdminSite } from "./site-labels";
 
@@ -56,7 +56,7 @@ export function siteTools(site: NavSite): NavLink[] {
  * media and pricing links follow it.
  */
 export function studioNav(
-  user: Pick<AdminUser, "role">,
+  user: Pick<AdminUser, "role" | "modules">,
   sites: NavSite[],
   context: string | null,
 ): NavGroup[] {
@@ -149,7 +149,61 @@ export function studioNav(
         { href: "/admin/settings/languages", label: "Languages" },
       ],
     },
-  ].filter((group) => group.href || group.links.length) as NavGroup[];
+  ]
+    .map((group) => {
+      const granted = user.modules;
+      if (!granted) return group;
+      return {
+        ...group,
+        links: withinAreas(group.links as NavLink[], (area) => Boolean(granted[area]?.length)),
+      };
+    })
+    .filter((group) => group.href || group.links.length) as NavGroup[];
+}
+
+/**
+ * The Studio area a page belongs to (P13-B3), as the API classifies its
+ * requests (admin/modules.rs); `null` for pages everyone may open.
+ */
+export function areaOf(href: string): StudioArea | null {
+  const path = href.split("?")[0]!;
+  const site = /^\/admin\/sites\/[^/]+\/([^/]+)/.exec(path)?.[1];
+  if (site) {
+    const map: Record<string, StudioArea> = {
+      hero: "hero",
+      pages: "pages",
+      website: "website_settings",
+      footer: "website_settings",
+      theme: "website_settings",
+      "section-themes": "website_settings",
+      platforms: "website_settings",
+      brand: "branding",
+      media: "branding",
+      pricing: "pricing",
+      "payroll-calculator": "pricing",
+      seo: "seo",
+    };
+    return map[site] ?? null;
+  }
+  if (path === "/admin/sites/new") return "websites";
+  if (path.startsWith("/admin/content")) return "content";
+  if (path.startsWith("/admin/insights")) return "content";
+  if (path.startsWith("/admin/marketing")) return "campaigns";
+  if (path.startsWith("/admin/proof")) return "proof";
+  if (path.startsWith("/admin/seo")) return "seo";
+  if (path.startsWith("/admin/enquiries")) return "enquiries";
+  if (path.startsWith("/admin/approvals")) return "publishing";
+  return null;
+}
+
+/** Leaves out links to areas someone can't open (the API refuses them anyway). */
+function withinAreas(links: NavLink[], allowed: (area: StudioArea) => boolean): NavLink[] {
+  return links
+    .filter((link) => {
+      const area = areaOf(link.href);
+      return area === null || allowed(area);
+    })
+    .map((link) => (link.children ? { ...link, children: withinAreas(link.children, allowed) } : link));
 }
 
 function flatten(links: NavLink[]): NavLink[] {

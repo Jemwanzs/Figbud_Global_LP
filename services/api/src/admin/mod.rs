@@ -12,6 +12,7 @@
 pub mod credentials;
 mod enquiries;
 mod handlers;
+pub mod modules;
 mod security;
 mod team;
 
@@ -91,6 +92,8 @@ pub struct AdminUser {
     pub role: Role,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub last_login_at: Option<DateTime<Utc>>,
+    /// Studio areas they may open (P13-B3); `None`: every area within their role.
+    pub modules: Option<modules::Modules>,
 }
 
 /// An authenticated admin request. Extracting it enforces a live session and,
@@ -267,11 +270,22 @@ impl FromRequestParts<SharedState> for AdminSession {
         let admin = state.config.admin.as_ref().ok_or(ApiError::NotFound)?;
         check_origin(&parts.method, &parts.headers, admin)?;
         let token = session_cookie(&parts.headers).ok_or(ApiError::Unauthorized("Please sign in."))?;
-        authenticate(&state.pool, &token)
+        let session = authenticate(&state.pool, &token)
             .await?
             .ok_or(ApiError::Unauthorized(
                 "Your session has ended. Please sign in again.",
-            ))
+            ))?;
+        // Studio areas (P13-B3): checked here, for every admin request.
+        if let (Some(granted), Some((module, action))) = (
+            session.user.modules.as_ref(),
+            modules::classify(&parts.method, parts.uri.path()),
+        ) && !modules::allows(granted, module, action)
+        {
+            return Err(ApiError::NotPermitted(
+                "You don't have access to this part of the Studio. An owner can change that in Users & access.",
+            ));
+        }
+        Ok(session)
     }
 }
 
@@ -389,6 +403,7 @@ struct SessionRow {
     all_sites: bool,
     last_login_at: Option<DateTime<Utc>>,
     verified: bool,
+    modules: Option<serde_json::Value>,
 }
 
 /// How many passkeys someone has.
@@ -407,7 +422,7 @@ pub async fn authenticate(pool: &PgPool, token: &str) -> Result<Option<AdminSess
           WHERE s.token_hash = $1 AND u.id = s.user_id
             AND s.revoked_at IS NULL AND s.expires_at > now() AND u.disabled_at IS NULL
       RETURNING s.id AS session_id, u.id, u.email, u.name, u.role, u.all_sites, u.last_login_at,
-                COALESCE(s.verified_until > now(), false) AS verified",
+                COALESCE(s.verified_until > now(), false) AS verified, u.modules",
     )
     .bind(token_hash(token))
     .fetch_optional(pool)
@@ -430,6 +445,11 @@ pub async fn authenticate(pool: &PgPool, token: &str) -> Result<Option<AdminSess
             name: r.name,
             role,
             last_login_at: r.last_login_at,
+            // Owners are never limited; unreadable areas mean none at all.
+            modules: match (role, r.modules) {
+                (Role::Owner, _) | (_, None) => None,
+                (_, Some(v)) => Some(serde_json::from_value(v).unwrap_or_default()),
+            },
         },
         access,
         verified: r.verified,

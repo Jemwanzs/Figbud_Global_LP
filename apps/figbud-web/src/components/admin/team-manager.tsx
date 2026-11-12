@@ -8,6 +8,7 @@ import { type AdminUser, AdminError, ROLE_LABELS, adminFetch } from "@/lib/admin
 import { sameValue } from "@/lib/form-state";
 
 import { ActionButton } from "./action-button";
+import { AreasEditor } from "./areas-editor";
 import {
   type AccessValue,
   type SiteOption,
@@ -28,6 +29,8 @@ export interface TeamMember {
   has_password?: boolean;
   has_two_factor?: boolean;
   passkeys?: number;
+  /** Studio areas (P13-B3); null: every area within their role. */
+  modules?: AdminUser["modules"];
 }
 
 const ROLES: AdminUser["role"][] = ["owner", "reviewer", "editor", "viewer"];
@@ -375,6 +378,7 @@ function Member({ member, sites, self }: { member: TeamMember; sites: SiteOption
               Save access
             </ActionButton>
           </div>
+          <AreasEditor id={saved.id} name={saved.name} role={saved.role} initial={saved.modules ?? null} />
         </div>
       )}
       {message && (

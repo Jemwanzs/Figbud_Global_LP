@@ -53,7 +53,9 @@ There are no default passwords, and nobody can set a password for someone else.
 - **Sessions:** random tokens stored as hashes, in `HttpOnly`, `SameSite=Strict`, `Secure` (`__Host-` prefixed) cookies. State changes also need the admin `Origin`. Changing or resetting a password signs out other sessions. Signing out does a full page load, so nothing stays in browser memory.
 - **Sensitive changes** need a check within the last 10 minutes: two-factor, passwords, recovery codes, passkeys and owner recovery links.
 - **You can't remove your last way in:** the last passkey needs a password first, and a password needs a passkey first. Two-factor can't be removed while a password depends on it.
-- **Audit:** every event is in `audit_log` and shown under Security activity (`admin.login`, `admin.login_failed`, `admin.password_*`, `admin.two_factor_*`, `admin.passkey_*`, `admin.session_revoked`, `admin.recovery_link_created`), and for owners managing people: `admin.role_changed`, `admin.suspended`, `admin.reactivated`, `admin.sessions_revoked`, `admin.invite_revoked`.
+- **Audit:** every event is in `audit_log` and shown under Security activity (`admin.login`, `admin.login_failed`, `admin.password_*`, `admin.two_factor_*`, `admin.passkey_*`, `admin.session_revoked`, `admin.recovery_link_created`), and for owners managing people: `admin.role_changed`, `admin.suspended`, `admin.reactivated`, `admin.sessions_revoked`, `admin.invite_revoked`, `admin.modules_changed`.
+
+**Authorisation layers** (each checked by the API, never only by hiding controls): the Studio role (owner, reviewer, editor, viewer); website access (all websites, or selected websites each with a role no higher than the Studio role); and Studio areas (P13-B3: selected areas, each with view, edit, ask for approval, approve and publish, export), checked for every admin request when the session is read. Owners are never limited, and maker-checker approval still applies to what they publish.
 - **Roles:** the sign-in method doesn't affect roles or website access. Everything in Security & Authentication applies only to the signed-in person's own account.
 
 ## 5. Deliberately not built
