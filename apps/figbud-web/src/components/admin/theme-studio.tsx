@@ -215,14 +215,21 @@ export function ColourField({
 }
 
 /** A small page in the theme's colours, at the chosen width. */
-function ThemePreview({ form, mode, width }: { form: StudioTheme; mode: ThemeMode; width: string }) {
+/** A mode's colours and gradients as CSS custom properties. */
+function modeStyle(form: StudioTheme, mode: ThemeMode): Record<string, string> {
   const tokens: Record<string, string> = themeTokens(form[mode] ?? {});
   for (const p of GRADIENT_PRESETS) {
     const g = form.gradients?.[p]?.[mode];
     const css = g && gradientCss(g);
     if (css) tokens[`--grad-${p}`] = css;
   }
-  const style = tokens as CSSProperties;
+  return tokens;
+}
+
+function ThemePreview({ form, mode, width }: { form: StudioTheme; mode: ThemeMode; width: string }) {
+  const style = modeStyle(form, mode) as CSSProperties;
+  // Contrasting bands take the other mode's colours, as on the website.
+  const other: ThemeMode = mode === "dark" ? "light" : "dark";
   const panel = "rounded-2xl p-5 @md:p-7";
   return (
     <div className="overflow-x-auto rounded-2xl border border-line bg-surface-2 p-3">
@@ -269,14 +276,24 @@ function ThemePreview({ form, mode, width }: { form: StudioTheme; mode: ThemeMod
           ))}
         </div>
         <div
-          className={panel}
+          data-theme={other}
+          data-preview-band=""
+          className={cn(panel, "text-text")}
           style={{
-            background: "var(--grad-band, var(--bg-elevated))",
+            ...(modeStyle(form, other) as CSSProperties),
+            background: "var(--grad-band, var(--bg))",
             ["--text-muted" as string]: "var(--text-on-grad)",
           }}
         >
-          <p className="font-semibold">Feature band</p>
-          <p className="mt-1 text-sm text-muted">Secondary text on the band gradient.</p>
+          <p className="font-semibold">
+            {other === "dark" ? "Dark section on a light page" : "Light section on a dark page"}
+          </p>
+          <p className="mt-1 text-sm text-muted">
+            A contrasting band uses the {other} colours and band gradient, whatever the visitor&apos;s mode.
+          </p>
+          <span className="mt-3 inline-flex rounded-full bg-action px-3 py-1.5 text-xs font-medium text-action-ink">
+            Button
+          </span>
         </div>
         <div
           className={panel}

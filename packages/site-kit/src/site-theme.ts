@@ -365,8 +365,8 @@ export const BUILT_IN_THEMES = {
           angle: 125,
           stops: [
             { color: "#292625", at: 5 },
-            { color: "#38302d", at: 54 },
-            { color: "#6b4229", at: 100 },
+            { color: "#2f2a28", at: 54 },
+            { color: "#38302d", at: 100 },
           ],
         },
         light: {
@@ -385,7 +385,7 @@ export const BUILT_IN_THEMES = {
           x: 80,
           y: 20,
           stops: [
-            { color: "#765037", at: 0 },
+            { color: "#43362e", at: 0 },
             { color: "#38302d", at: 45 },
             { color: "#292625", at: 100 },
           ],
@@ -407,7 +407,7 @@ export const BUILT_IN_THEMES = {
           x: 80,
           y: 20,
           stops: [
-            { color: "#765037", at: 0 },
+            { color: "#43362e", at: 0 },
             { color: "#38302d", at: 45 },
             { color: "#292625", at: 100 },
           ],
@@ -429,8 +429,8 @@ export const BUILT_IN_THEMES = {
           angle: 140,
           stops: [
             { color: "#292625", at: 15 },
-            { color: "#4b342a", at: 65 },
-            { color: "#87502b", at: 100 },
+            { color: "#38302d", at: 65 },
+            { color: "#43362e", at: 100 },
           ],
         },
         light: {

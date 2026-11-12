@@ -409,10 +409,10 @@
   /* The parent's red is under 4.5:1 on Charcoal Mocha's deeper cards. */
   --danger: #fca5a5;
   --shadow-elevated: 0 1px 0 rgb(255 245 230 / 0.04) inset, 0 24px 60px -24px rgb(0 0 0 / 0.7);
-  --grad-hero: linear-gradient(125deg, #292625 5%, #38302d 54%, #6b4229 100%);
-  --grad-band: radial-gradient(ellipse at 80% 20%, #765037 0%, #38302d 45%, #292625 100%);
-  --grad-demo: radial-gradient(ellipse at 80% 20%, #765037 0%, #38302d 45%, #292625 100%);
-  --grad-cta: linear-gradient(140deg, #292625 15%, #4b342a 65%, #87502b 100%);
+  --grad-hero: linear-gradient(125deg, #292625 5%, #2f2a28 54%, #38302d 100%);
+  --grad-band: radial-gradient(ellipse at 80% 20%, #43362e 0%, #38302d 45%, #292625 100%);
+  --grad-demo: radial-gradient(ellipse at 80% 20%, #43362e 0%, #38302d 45%, #292625 100%);
+  --grad-cta: linear-gradient(140deg, #292625 15%, #38302d 65%, #43362e 100%);
   --grad-glow: radial-gradient(closest-side, rgb(247 147 58 / 0.22), rgb(185 139 97 / 0.08) 60%, transparent);
   /* On a gradient's lighter end, secondary text stays above 4.5:1. */
   --text-on-grad: #eadfd2;

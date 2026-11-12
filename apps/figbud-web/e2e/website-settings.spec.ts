@@ -282,6 +282,10 @@ test("Studio: a product website's colours and themes are drafted, checked, previ
   await page.getByRole("button", { name: "Mobile" }).click();
   const preview = page.locator("[data-theme-preview]");
   await expect(preview).toHaveAttribute("data-theme", "light");
+  // A dark section on a light page: the band takes the dark colours, as on the website.
+  const band = preview.locator("[data-preview-band]");
+  await expect(band).toHaveAttribute("data-theme", "dark");
+  await expect(band).toContainText("Dark section on a light page");
   await expect
     .poll(() => preview.evaluate((el) => getComputedStyle(el).getPropertyValue("--text-muted").trim()))
     .toBe("#334155");

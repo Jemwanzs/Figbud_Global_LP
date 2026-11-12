@@ -409,6 +409,23 @@ test("pricing stays off the website until switched on: a request-a-quote page in
   await expect(page.getByRole("radiogroup", { name: "Billing cycle" })).toHaveCount(0);
 });
 
+test("ZiraHR's dark sections use the dark palette in light mode, with no brown cast (owner's brief, 12 Nov 2026)", async ({
+  page,
+}) => {
+  // The Platform page's contrasting band (the test data's; on the live home page it's the second section).
+  await page.goto("/zirahr/platform");
+  await page.evaluate(() => document.documentElement.setAttribute("data-theme", "light"));
+  const band = page.locator('section[data-tone="inverse"]').first();
+  await expect(band).toBeAttached();
+  const colours = await band.evaluate((el) => {
+    const css = getComputedStyle(el, "::before").backgroundImage + " " + getComputedStyle(el).backgroundImage;
+    return [...css.matchAll(/rgba?\((\d+), (\d+), (\d+)/g)].map((m) => m.slice(1, 4).map(Number));
+  });
+  expect(colours.length).toBeGreaterThan(0);
+  // Deep Charcoal, Charcoal Mocha and a faint orange lift only: no stop brighter than #43362E.
+  for (const [r, g, b] of colours) expect(Math.max(r!, g!, b!)).toBeLessThanOrEqual(0x43);
+});
+
 test("public pricing in three steps: modules, configuration, optional services, with a live estimate", async ({
   page,
   isMobile,
