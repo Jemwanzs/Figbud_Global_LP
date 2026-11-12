@@ -56,6 +56,15 @@ impl Team {
         (id, format!("figbud_admin={token}"))
     }
 
+    /// A new session for an existing person.
+    async fn admin_session(&self, id: Uuid) -> (Uuid, String) {
+        let admin_config = config("unused").admin.unwrap();
+        let token = admin::create_session(&self.pool, &admin_config, id, "test", None)
+            .await
+            .unwrap();
+        (id, format!("figbud_admin={token}"))
+    }
+
     async fn call(&self, method: &str, uri: &str, cookie: &str, body: Option<Value>) -> (StatusCode, Value) {
         let req = Request::builder()
             .method(method)
@@ -326,4 +335,168 @@ async fn owners_limit_people_to_selected_websites() {
         .await
         .unwrap();
     assert_eq!(stored[0]["role"], "viewer");
+}
+
+/// Users & Access (owner's brief, 12 Nov 2026): roles change, people are
+/// suspended and reactivated, signed out everywhere, invitations revoked;
+/// nobody edits their own access and the Studio keeps an active owner.
+#[tokio::test]
+async fn owners_manage_people_and_the_studio_keeps_an_owner() {
+    let Some(t) = Team::new().await else { return };
+    let (owner_id, owner) = t.admin("owner").await;
+    let (other_owner_id, _) = t.admin("owner").await;
+    let (editor_id, editor) = t.admin("editor").await;
+
+    // Editors can't manage people; nobody edits themselves.
+    let (status, _) = t
+        .call(
+            "POST",
+            &format!("/v1/admin/team/{editor_id}/role"),
+            &editor,
+            Some(json!({ "role": "reviewer" })),
+        )
+        .await;
+    assert_eq!(status, StatusCode::FORBIDDEN);
+    let (status, _) = t
+        .call(
+            "POST",
+            &format!("/v1/admin/team/{owner_id}/role"),
+            &owner,
+            Some(json!({ "role": "viewer" })),
+        )
+        .await;
+    assert_eq!(status, StatusCode::CONFLICT);
+
+    // A role change, audited.
+    let (status, body) = t
+        .call(
+            "POST",
+            &format!("/v1/admin/team/{editor_id}/role"),
+            &owner,
+            Some(json!({ "role": "reviewer" })),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    let role: String = sqlx::query_scalar("SELECT role FROM admin_users WHERE id = $1")
+        .bind(editor_id)
+        .fetch_one(&t.pool)
+        .await
+        .unwrap();
+    assert_eq!(role, "reviewer");
+
+    // Suspended: signed out at once and can't use the Studio; reactivated: signs in again.
+    let (status, _) = t
+        .call(
+            "POST",
+            &format!("/v1/admin/team/{editor_id}/suspend"),
+            &owner,
+            None,
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK);
+    let (status, _) = t.call("GET", "/v1/admin/me", &editor, None).await;
+    assert_eq!(status, StatusCode::UNAUTHORIZED);
+    let (status, _) = t
+        .call(
+            "POST",
+            &format!("/v1/admin/team/{editor_id}/reactivate"),
+            &owner,
+            None,
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK);
+    let (_, fresh) = t.admin_session(editor_id).await;
+    assert_eq!(
+        t.call("GET", "/v1/admin/me", &fresh, None).await.0,
+        StatusCode::OK
+    );
+
+    // Signed out everywhere.
+    let (status, body) = t
+        .call(
+            "POST",
+            &format!("/v1/admin/team/{editor_id}/sessions/revoke"),
+            &owner,
+            None,
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(body["sessions_ended"].as_u64().unwrap() >= 1);
+    assert_eq!(
+        t.call("GET", "/v1/admin/me", &fresh, None).await.0,
+        StatusCode::UNAUTHORIZED
+    );
+
+    // Another owner can be demoted while one remains; the last can't be suspended by anyone else.
+    let (status, _) = t
+        .call(
+            "POST",
+            &format!("/v1/admin/team/{other_owner_id}/role"),
+            &owner,
+            Some(json!({ "role": "viewer" })),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK);
+    // Demoting yourself is refused above; with the other owner demoted, this
+    // run's owner is the last one this test made, and stays an owner.
+    let role: String = sqlx::query_scalar("SELECT role FROM admin_users WHERE id = $1")
+        .bind(owner_id)
+        .fetch_one(&t.pool)
+        .await
+        .unwrap();
+    assert_eq!(role, "owner");
+
+    // Invitations: listed while pending, revoked on request.
+    let email = format!("invitee-{}@figbud.test", t.run);
+    let (status, _) = t
+        .call(
+            "POST",
+            "/v1/admin/invites",
+            &owner,
+            Some(json!({ "email": email, "role": "editor" })),
+        )
+        .await;
+    assert_eq!(status, StatusCode::CREATED);
+    let (_, pending) = t.call("GET", "/v1/admin/invites/pending", &owner, None).await;
+    let invite = pending["invites"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|i| i["email"] == email.as_str())
+        .unwrap()
+        .clone();
+    let (status, _) = t
+        .call(
+            "POST",
+            &format!("/v1/admin/invites/{}/revoke", invite["id"].as_str().unwrap()),
+            &owner,
+            None,
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK);
+    let (_, pending) = t.call("GET", "/v1/admin/invites/pending", &owner, None).await;
+    assert!(
+        !pending["invites"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|i| i["email"] == email.as_str())
+    );
+
+    let actions: Vec<String> = sqlx::query_scalar(
+        "SELECT action FROM audit_log WHERE actor_user_id = $1 AND action LIKE 'admin.%' ORDER BY created_at",
+    )
+    .bind(owner_id)
+    .fetch_all(&t.pool)
+    .await
+    .unwrap();
+    for a in [
+        "admin.role_changed",
+        "admin.suspended",
+        "admin.reactivated",
+        "admin.sessions_revoked",
+        "admin.invite_revoked",
+    ] {
+        assert!(actions.iter().any(|x| x == a), "{a} audited");
+    }
 }

@@ -358,3 +358,25 @@ test("owners can create a recovery link for someone with two-factor", async ({ p
   await expect(row.getByTestId("recovery-url")).toContainText("/admin/reset-password#token=");
   await context.close();
 });
+
+test("sign-in help: set up a password from a way in you already have, with nothing about any account revealed", async ({
+  page,
+}) => {
+  await page.goto("/admin/login");
+  await expect(page.getByText("Your workspace. Your way. Sign in securely.")).toBeVisible();
+  await page.getByRole("link", { name: "Set up a password" }).click();
+  await expect(page).toHaveURL(/\/admin\/sign-in-help#set-up-password$/);
+  await expect(page.getByRole("heading", { level: 2, name: "Set up a password" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Sign in with your passkey" })).toHaveAttribute(
+    "href",
+    "/admin/login",
+  );
+  await expect(page.getByRole("link", { name: "Reset it by email" })).toHaveAttribute(
+    "href",
+    "/admin/forgot-password",
+  );
+  const results = await new AxeBuilder({ page: await themeSettled(page) })
+    .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
+    .analyze();
+  expect(results.violations.map((v) => v.id)).toEqual([]);
+});

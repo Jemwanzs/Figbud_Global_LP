@@ -24,6 +24,12 @@ pub fn router() -> Router<SharedState> {
     Router::new()
         .route("/v1/admin/team", get(list))
         .route("/v1/admin/team/{id}/access", post(set_access))
+        .route("/v1/admin/team/{id}/role", post(set_role))
+        .route("/v1/admin/team/{id}/suspend", post(suspend))
+        .route("/v1/admin/team/{id}/reactivate", post(reactivate))
+        .route("/v1/admin/team/{id}/sessions/revoke", post(revoke_sessions))
+        .route("/v1/admin/invites/pending", get(pending_invites))
+        .route("/v1/admin/invites/{id}/revoke", post(revoke_invite))
 }
 
 #[derive(Serialize, FromRow)]
@@ -39,6 +45,7 @@ struct Member {
     /// Whether they can sign in with a password; never the password itself.
     has_password: bool,
     has_two_factor: bool,
+    passkeys: i64,
 }
 
 async fn list(
@@ -48,7 +55,8 @@ async fn list(
     session.require(Role::Owner)?;
     let members: Vec<Member> = sqlx::query_as(
         "SELECT id, email, name, role, all_sites, last_login_at, disabled_at, created_at,
-                password_hash IS NOT NULL AS has_password, totp_confirmed_at IS NOT NULL AS has_two_factor
+                password_hash IS NOT NULL AS has_password, totp_confirmed_at IS NOT NULL AS has_two_factor,
+                (SELECT count(*) FROM admin_passkeys p WHERE p.user_id = admin_users.id) AS passkeys
            FROM admin_users
           ORDER BY disabled_at IS NOT NULL, CASE role WHEN 'owner' THEN 0 WHEN 'reviewer' THEN 1
                    WHEN 'editor' THEN 2 ELSE 3 END, name",
@@ -216,4 +224,263 @@ async fn set_access(
     Ok(Json(
         json!({ "all_sites": input.all_sites, "sites": if input.all_sites { vec![] } else { after } }),
     ))
+}
+
+// ---------------------------------------------------------------- Users & Access
+// Owner's brief, 12 Nov 2026: change a Studio role, suspend and reactivate,
+// sign someone out everywhere, and manage pending invitations. Owners only;
+// no one changes their own access this way, the last active owner can't be
+// demoted or suspended, and owner-level changes need a recent verification.
+
+struct Target {
+    email: String,
+    role: Role,
+    disabled: bool,
+}
+
+async fn target(pool: &PgPool, id: Uuid) -> Result<Target, ApiError> {
+    let row: Option<(String, String, bool)> =
+        sqlx::query_as("SELECT email, role, disabled_at IS NOT NULL FROM admin_users WHERE id = $1")
+            .bind(id)
+            .fetch_optional(pool)
+            .await?;
+    let (email, role, disabled) = row.ok_or(ApiError::NotFound)?;
+    let role = Role::parse(&role).ok_or(ApiError::Internal("unknown stored role".into()))?;
+    Ok(Target {
+        email,
+        role,
+        disabled,
+    })
+}
+
+fn not_yourself(session: &AdminSession, id: Uuid) -> Result<(), ApiError> {
+    if session.user.id == id {
+        return Err(ApiError::Conflict(
+            "You can't change your own access here. Another owner can.",
+        ));
+    }
+    Ok(())
+}
+
+/// Other active owners besides `id`.
+async fn other_owners(pool: &PgPool, id: Uuid) -> Result<i64, ApiError> {
+    Ok(sqlx::query_scalar(
+        "SELECT count(*) FROM admin_users WHERE role = 'owner' AND disabled_at IS NULL AND id <> $1",
+    )
+    .bind(id)
+    .fetch_one(pool)
+    .await?)
+}
+
+async fn end_sessions(pool: &PgPool, id: Uuid) -> Result<u64, ApiError> {
+    Ok(
+        sqlx::query("UPDATE admin_sessions SET revoked_at = now() WHERE user_id = $1 AND revoked_at IS NULL")
+            .bind(id)
+            .execute(pool)
+            .await?
+            .rows_affected(),
+    )
+}
+
+#[derive(Deserialize)]
+struct RoleInput {
+    role: String,
+}
+
+async fn set_role(
+    State(state): State<SharedState>,
+    session: AdminSession,
+    Path(id): Path<Uuid>,
+    Json(input): Json<RoleInput>,
+) -> Result<impl IntoResponse, ApiError> {
+    session.require(Role::Owner)?;
+    not_yourself(&session, id)?;
+    let role = Role::parse(&input.role).ok_or(ApiError::Validation(vec![FieldError {
+        field: "role",
+        code: "invalid",
+        message: "Choose owner, reviewer, editor or viewer.",
+    }]))?;
+    let before = target(&state.pool, id).await?;
+    if before.role == role {
+        return Ok(Json(json!({ "role": role.as_str(), "changed": false })));
+    }
+    // Making or unmaking an owner needs a recent verification.
+    if role == Role::Owner || before.role == Role::Owner {
+        session.require_verified()?;
+    }
+    if before.role == Role::Owner && other_owners(&state.pool, id).await? == 0 {
+        return Err(ApiError::Conflict(
+            "The Studio always keeps at least one active owner.",
+        ));
+    }
+    let mut tx = state.pool.begin().await?;
+    sqlx::query("UPDATE admin_users SET role = $2 WHERE id = $1")
+        .bind(id)
+        .bind(role.as_str())
+        .execute(&mut *tx)
+        .await?;
+    if role == Role::Owner {
+        // Owners have every website.
+        store_grants(&mut tx, id, None, Some(session.user.id)).await?;
+    } else {
+        // Website roles never rise above the Studio role.
+        sqlx::query(
+            "UPDATE admin_site_grants SET role = $2 WHERE user_id = $1 AND
+                CASE role WHEN 'reviewer' THEN 3 WHEN 'editor' THEN 2 ELSE 1 END >
+                CASE $2 WHEN 'reviewer' THEN 3 WHEN 'editor' THEN 2 ELSE 1 END",
+        )
+        .bind(id)
+        .bind(role.as_str())
+        .execute(&mut *tx)
+        .await?;
+    }
+    tx.commit().await?;
+    audit(
+        &state.pool,
+        Some(session.user.id),
+        "admin.role_changed",
+        Some(("admin_user", id.to_string())),
+        json!({ "email": before.email, "from": before.role.as_str(), "to": role.as_str() }),
+        None,
+    )
+    .await?;
+    Ok(Json(json!({ "role": role.as_str(), "changed": true })))
+}
+
+async fn suspend(
+    State(state): State<SharedState>,
+    session: AdminSession,
+    Path(id): Path<Uuid>,
+) -> Result<impl IntoResponse, ApiError> {
+    session.require(Role::Owner)?;
+    not_yourself(&session, id)?;
+    let t = target(&state.pool, id).await?;
+    if t.disabled {
+        return Ok(Json(json!({ "suspended": true })));
+    }
+    if t.role == Role::Owner {
+        session.require_verified()?;
+        if other_owners(&state.pool, id).await? == 0 {
+            return Err(ApiError::Conflict(
+                "The Studio always keeps at least one active owner.",
+            ));
+        }
+    }
+    sqlx::query("UPDATE admin_users SET disabled_at = now() WHERE id = $1")
+        .bind(id)
+        .execute(&state.pool)
+        .await?;
+    let sessions = end_sessions(&state.pool, id).await?;
+    audit(
+        &state.pool,
+        Some(session.user.id),
+        "admin.suspended",
+        Some(("admin_user", id.to_string())),
+        json!({ "email": t.email, "sessions_ended": sessions }),
+        None,
+    )
+    .await?;
+    Ok(Json(json!({ "suspended": true })))
+}
+
+async fn reactivate(
+    State(state): State<SharedState>,
+    session: AdminSession,
+    Path(id): Path<Uuid>,
+) -> Result<impl IntoResponse, ApiError> {
+    session.require(Role::Owner)?;
+    not_yourself(&session, id)?;
+    let t = target(&state.pool, id).await?;
+    if t.role == Role::Owner {
+        session.require_verified()?;
+    }
+    sqlx::query("UPDATE admin_users SET disabled_at = NULL WHERE id = $1")
+        .bind(id)
+        .execute(&state.pool)
+        .await?;
+    audit(
+        &state.pool,
+        Some(session.user.id),
+        "admin.reactivated",
+        Some(("admin_user", id.to_string())),
+        json!({ "email": t.email }),
+        None,
+    )
+    .await?;
+    Ok(Json(json!({ "suspended": false })))
+}
+
+/// Signs someone out of every device (they sign in again as usual).
+async fn revoke_sessions(
+    State(state): State<SharedState>,
+    session: AdminSession,
+    Path(id): Path<Uuid>,
+) -> Result<impl IntoResponse, ApiError> {
+    session.require(Role::Owner)?;
+    not_yourself(&session, id)?;
+    let t = target(&state.pool, id).await?;
+    let ended = end_sessions(&state.pool, id).await?;
+    audit(
+        &state.pool,
+        Some(session.user.id),
+        "admin.sessions_revoked",
+        Some(("admin_user", id.to_string())),
+        json!({ "email": t.email, "sessions_ended": ended }),
+        None,
+    )
+    .await?;
+    Ok(Json(json!({ "sessions_ended": ended })))
+}
+
+#[derive(Serialize, FromRow)]
+struct PendingInvite {
+    id: Uuid,
+    email: String,
+    role: String,
+    invited_by: Option<String>,
+    expires_at: DateTime<Utc>,
+    created_at: DateTime<Utc>,
+}
+
+/// Invitations not yet accepted, revoked or expired.
+async fn pending_invites(
+    State(state): State<SharedState>,
+    session: AdminSession,
+) -> Result<impl IntoResponse, ApiError> {
+    session.require(Role::Owner)?;
+    let invites: Vec<PendingInvite> = sqlx::query_as(
+        "SELECT i.id, i.email, i.role, u.name AS invited_by, i.expires_at, i.created_at
+           FROM admin_invites i LEFT JOIN admin_users u ON u.id = i.created_by
+          WHERE i.used_at IS NULL AND i.revoked_at IS NULL AND i.expires_at > now()
+          ORDER BY i.created_at DESC",
+    )
+    .fetch_all(&state.pool)
+    .await?;
+    Ok(Json(json!({ "invites": invites })))
+}
+
+async fn revoke_invite(
+    State(state): State<SharedState>,
+    session: AdminSession,
+    Path(id): Path<Uuid>,
+) -> Result<impl IntoResponse, ApiError> {
+    session.require(Role::Owner)?;
+    let email: Option<String> = sqlx::query_scalar(
+        "UPDATE admin_invites SET revoked_at = now()
+          WHERE id = $1 AND used_at IS NULL AND revoked_at IS NULL RETURNING email",
+    )
+    .bind(id)
+    .fetch_optional(&state.pool)
+    .await?;
+    let email = email.ok_or(ApiError::NotFound)?;
+    audit(
+        &state.pool,
+        Some(session.user.id),
+        "admin.invite_revoked",
+        Some(("admin_invite", id.to_string())),
+        json!({ "email": email }),
+        None,
+    )
+    .await?;
+    Ok(Json(json!({ "revoked": true })))
 }

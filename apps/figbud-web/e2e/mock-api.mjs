@@ -5334,7 +5334,8 @@ function admin(req, res, url, body, send, raw) {
     return signIn(user, "admin.login");
   }
   const user = userOf();
-  if (!user) return send(401, { error: { code: "unauthorized", message: "Please sign in." } });
+  if (!user || user.disabled_at)
+    return send(401, { error: { code: "unauthorized", message: "Please sign in." } });
   if (path === "security" || path.startsWith("security/")) {
     const token = readCookie(req);
     const info = sessionInfo.get(token);
@@ -5579,9 +5580,10 @@ function admin(req, res, url, body, send, raw) {
           all_sites: allSites(u),
           sites: allSites(u) ? [] : grantsOf(u),
           last_login_at: null,
-          disabled_at: null,
+          disabled_at: u.disabled_at ?? null,
           has_password: Boolean(u.password),
           has_two_factor: Boolean(u.totp),
+          passkeys: u.credentialId ? 1 : 0,
         })),
         sites: sites.map((s) => ({ site: s.slug, name: s.name, archived: Boolean(s.archived_at) })),
       });
@@ -5595,6 +5597,52 @@ function admin(req, res, url, body, send, raw) {
       resets.set(token, { email: person.email, expires: Date.now() + 24 * 3600000 });
       record(user, "admin.recovery_link_created", { email: person.email });
       return send(201, { recovery_url: `${ADMIN_ORIGIN}/admin/reset-password#token=${token}`, hours: 24 });
+    }
+    // Users & access (team.rs): roles, suspension, signing out; never yourself, always an owner.
+    const manage = /^team\/([0-9a-f]+)\/(role|suspend|reactivate|sessions\/revoke)$/.exec(path);
+    if (manage) {
+      const person = [...users.values()].find((u) => u.id === manage[1]);
+      if (!person) return send(404, { error: { code: "not_found", message: "Not found." } });
+      if (person.id === user.id)
+        return send(409, {
+          error: { code: "conflict", message: "You can't change your own access here. Another owner can." },
+        });
+      const owners = [...users.values()].filter((u) => u.role === "owner" && !u.disabled_at && u !== person);
+      const endSessions = () => {
+        let n = 0;
+        for (const [token, email] of sessions)
+          if (email === person.email) {
+            sessions.delete(token);
+            n++;
+          }
+        return n;
+      };
+      if (manage[2] === "role") {
+        if (person.role === "owner" && !owners.length)
+          return send(409, {
+            error: { code: "conflict", message: "The Studio always keeps at least one active owner." },
+          });
+        record(user, "admin.role_changed", { email: person.email, from: person.role, to: body.role });
+        person.role = body.role;
+        return send(200, { role: person.role, changed: true });
+      }
+      if (manage[2] === "suspend") {
+        if (person.role === "owner" && !owners.length)
+          return send(409, {
+            error: { code: "conflict", message: "The Studio always keeps at least one active owner." },
+          });
+        person.disabled_at = new Date().toISOString();
+        record(user, "admin.suspended", { email: person.email, sessions_ended: endSessions() });
+        return send(200, { suspended: true });
+      }
+      if (manage[2] === "reactivate") {
+        person.disabled_at = null;
+        record(user, "admin.reactivated", { email: person.email });
+        return send(200, { suspended: false });
+      }
+      const ended = endSessions();
+      record(user, "admin.sessions_revoked", { email: person.email, sessions_ended: ended });
+      return send(200, { sessions_ended: ended });
     }
     const m = /^team\/([0-9a-f]+)\/access$/.exec(path);
     const target = m && [...users.values()].find((u) => u.id === m[1]);
@@ -5630,6 +5678,32 @@ function admin(req, res, url, body, send, raw) {
     res.writeHead(204);
     return res.end();
   }
+  // Pending invitations and revoking one (team.rs).
+  if (path === "invites/pending") {
+    if (user.role !== "owner") return send(403, { error: { code: "forbidden", message: "Forbidden." } });
+    return send(200, {
+      invites: [...invites.entries()]
+        .filter(([token, i]) => i.email && !i.revoked && !usedInvites.has(token))
+        .map(([, i]) => ({
+          id: i.id,
+          email: i.email,
+          role: i.role,
+          invited_by: user.name,
+          expires_at: i.expires_at,
+          created_at: i.created_at,
+        })),
+    });
+  }
+  const revokeInvite = /^invites\/([0-9a-f]{16})\/revoke$/.exec(path);
+  if (revokeInvite) {
+    if (user.role !== "owner") return send(403, { error: { code: "forbidden", message: "Forbidden." } });
+    const entry = [...invites.entries()].find(([, i]) => i.id === revokeInvite[1] && !i.revoked);
+    if (!entry) return send(404, { error: { code: "not_found", message: "Not found." } });
+    entry[1].revoked = true;
+    usedInvites.add(entry[0]);
+    record(user, "admin.invite_revoked", { email: entry[1].email });
+    return send(200, { revoked: true });
+  }
   if (path === "invites" && req.method === "POST") {
     const token = randomBytes(32).toString("hex");
     let grants = null;
@@ -5644,7 +5718,14 @@ function admin(req, res, url, body, send, raw) {
           },
         });
     }
-    invites.set(token, { role: body.role, grants });
+    invites.set(token, {
+      role: body.role,
+      grants,
+      id: token.slice(0, 16),
+      email: body.email,
+      created_at: new Date().toISOString(),
+      expires_at: new Date(Date.now() + 7 * 864e5).toISOString(),
+    });
     audit.unshift({
       id: token.slice(0, 16),
       action: "admin.invite_created",

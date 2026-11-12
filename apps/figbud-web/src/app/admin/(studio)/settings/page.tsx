@@ -87,7 +87,7 @@ async function Settings() {
               </span>
               <span className="min-w-0">
                 <span className="flex items-center gap-2 font-semibold text-text">
-                  Team & access
+                  Users & access
                   <ArrowRight
                     aria-hidden
                     className="size-4 transition-transform group-hover:translate-x-0.5"

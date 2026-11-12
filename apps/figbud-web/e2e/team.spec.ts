@@ -65,10 +65,13 @@ test("limit an invited editor to one website, then give them every website", asy
   await esi.goto("/admin/sites/jasiri");
   await expect(esi.getByRole("heading", { level: 1 })).not.toHaveText("Jasiri LMS");
 
-  // The owner sees the limit in Team & access and lifts it.
+  // The owner sees the limit in Users & access and lifts it.
   await page.goto("/admin/settings");
-  await page.getByRole("link", { name: /Team & access/ }).click();
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Team & access");
+  await page
+    .getByRole("link", { name: /Users & access/ })
+    .first()
+    .click();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Users & access");
   const member = page.getByRole("listitem", { name: "Esi Editor" });
   await expect(member).toContainText("ZiraHR · Editor");
   await member.getByRole("button", { name: /Change access/ }).click();
@@ -85,5 +88,67 @@ test("limit an invited editor to one website, then give them every website", asy
 
   await esi.goto("/admin/sites");
   await expect(esi.getByRole("main")).toContainText("Jasiri LMS");
+  await context.close();
+});
+
+test("Users & access: change a role, suspend and reactivate, revoke a pending invitation", async ({
+  page,
+  browser,
+}) => {
+  // Owner's brief, 12 Nov 2026.
+  test.setTimeout(90_000);
+  await accept(page, `/admin/invite#token=${randomBytes(32).toString("hex")}`, "Olu Owner");
+  const run = randomBytes(2).toString("hex");
+  const invite = async (email: string) => {
+    await page.goto("/admin");
+    await page.getByLabel("Work email").fill(email);
+    await page.getByRole("radio", { name: /^Editor/ }).check();
+    await page.getByRole("button", { name: "Create invite" }).click();
+    return (await page.getByRole("status").locator("code").textContent())!;
+  };
+
+  // Someone who joins, and an invitation nobody accepts.
+  const link = await invite(`kofi-${run}@figbud.test`);
+  const context = await browser.newContext();
+  const kofi = await context.newPage();
+  await accept(kofi, new URL(link).pathname + new URL(link).hash, "Kofi Editor");
+  const waiting = `ama-${run}@figbud.test`;
+  await invite(waiting);
+
+  await page.goto("/admin/settings/team");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Users & access");
+  const member = page.getByRole("listitem", { name: "Kofi Editor" });
+
+  // A new role.
+  await member.getByLabel("Studio role").selectOption("reviewer");
+  await member.getByRole("button", { name: "Change role for Kofi Editor" }).click();
+  await expect(member.getByRole("status")).toContainText("Role changed to");
+
+  // Suspended: their next click asks them to sign in; reactivated: back.
+  page.once("dialog", (d) => d.accept());
+  await member.getByRole("button", { name: /^Suspend/ }).click();
+  await expect(member).toContainText("Suspended");
+  await kofi.goto("/admin/sites");
+  await expect(kofi).toHaveURL(/\/admin\/login/);
+  await member.getByRole("button", { name: /^Reactivate/ }).click();
+  await expect(member.getByRole("status")).toContainText("Reactivated");
+
+  // Filters.
+  await page.getByLabel("Status").selectOption("suspended");
+  await expect(page.getByRole("listitem", { name: "Kofi Editor" })).toHaveCount(0);
+  await page.getByLabel("Status").selectOption("");
+
+  // The pending invitation, revoked.
+  const pending = page.getByRole("region", { name: "Pending invitations" });
+  await expect(pending).toContainText(waiting);
+  page.once("dialog", (d) => d.accept());
+  await pending.getByRole("button", { name: `Revoke the invitation for ${waiting}` }).click();
+  await expect(pending.getByRole("status")).toContainText("revoked");
+  await expect(pending).not.toContainText(`${waiting}Editor`);
+
+  const results = await new AxeBuilder({ page: await themeSettled(page) })
+    .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
+    .analyze();
+  expect(results.violations.map((v) => v.id)).toEqual([]);
   await context.close();
 });

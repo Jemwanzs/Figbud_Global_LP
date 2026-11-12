@@ -98,7 +98,7 @@ async fn accept_start(
 ) -> Result<impl IntoResponse, ApiError> {
     let ctx = public(&state, &headers, peer)?;
     let invite: Option<(Uuid, String)> = sqlx::query_as(
-        "SELECT id, email FROM admin_invites WHERE token_hash = $1 AND used_at IS NULL AND expires_at > now()",
+        "SELECT id, email FROM admin_invites WHERE token_hash = $1 AND used_at IS NULL AND revoked_at IS NULL AND expires_at > now()",
     )
     .bind(token_hash(body.token.trim()))
     .fetch_optional(&state.pool)
@@ -188,7 +188,7 @@ async fn accept_finish(
     // Claiming the invite inside the transaction makes it strictly single-use.
     let claimed: Option<(String, String, Option<Value>)> = sqlx::query_as(
         "UPDATE admin_invites SET used_at = now()
-          WHERE id = $1 AND used_at IS NULL AND expires_at > now()
+          WHERE id = $1 AND used_at IS NULL AND revoked_at IS NULL AND expires_at > now()
       RETURNING email, role, site_grants",
     )
     .bind(invite_id)

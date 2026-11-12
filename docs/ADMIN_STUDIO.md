@@ -302,7 +302,8 @@ Settings → **Security & Authentication** (also in the account menu), for every
 - **Passkeys:** register this device, name it, remove it. The last way in can't be removed.
 - **Active sessions and devices:** sign out one, or all others.
 - **Security activity:** the person's own sign-ins and changes.
-- **Team & access** shows who has two-factor and a password (never the password), and owners can create a recovery link.
+- **Users & access** shows who has two-factor, a password (never the password) and passkeys, and owners can create a recovery link.
+- **Help signing in** (`/admin/sign-in-help`, linked from the login card as "Set up a password" and "Need help signing in?"): the same guidance for everyone; a password is set up after signing in with a passkey, never from an email address alone.
 - **API:** public `POST /v1/admin/password/{login|verify|forgot|reset}`; `GET /v1/admin/security`; `POST …/security/verify/{password|passkey/start|passkey/finish}`, `…/two-factor/{start|confirm|remove}`, `…/recovery-codes`, `…/password`, `…/password/remove`, `…/passkeys/{start|finish}`, `…/passkeys/{id}/remove`, `…/sessions/{id}/revoke`, `…/sessions/revoke-others`; `POST /v1/admin/team/{id}/recovery-link`. Migration 26.
 
 ## Hero Design Studio (P12, 31 Oct 2026)
@@ -345,7 +346,7 @@ Websites → a product website → **Pricing**. The rules are in [PRICING.md](PR
 
 ## Per-website permissions (P7-F1, 30 Oct 2026)
 
-Settings → **Team & access** (owners). Everyone has one Studio role (owner, reviewer, editor, viewer). On top of it, each person (except owners) has website access:
+Settings & Security → **Users & access** (owners; formerly Team & access). Everyone has one Studio role (owner, reviewer, editor, viewer). On top of it, each person (except owners) has website access:
 
 - **All websites:** their Studio role on every website, including new ones. Everyone starts here, so nothing changed for existing people.
 - **Selected websites:** only the websites chosen, each with its own role (viewer, editor or reviewer), never above the Studio role. Someone who's an editor in the Studio can be an editor on ZiraHR and a viewer on Jasiri.
@@ -357,6 +358,7 @@ What a limit means:
 - **Shared content** reaches every website that uses it, so creating, editing, publishing or archiving items needs access to all websites; usage lists leave out other websites.
 - Changes apply from the person's next click (access is read with every request) and are audited (`admin.access_changed`, with before and after).
 - **Invites** can choose the websites too (Overview → Invite an admin → Website access); they're applied when the invite is accepted.
+- **Managing people (P13-B1, 12 Nov 2026):** filter by role, website and status; change a Studio role (website roles never rise above it); suspend (signed out everywhere at once) and reactivate; sign someone out of every device; see pending invitations and revoke one (its link stops working; to resend, create a new invite). Nobody changes their own access here, the Studio always keeps an active owner, and changes to an owner need a recent identity check. API: `POST /v1/admin/team/{id}/{role|suspend|reactivate|sessions/revoke}`, `GET /v1/admin/invites/pending`, `POST /v1/admin/invites/{id}/revoke`.
 
 ## Performance budgets (P7-G4, 30 Oct 2026)
 

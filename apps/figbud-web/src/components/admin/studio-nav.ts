@@ -140,7 +140,7 @@ export function studioNav(
       label: "Settings & Security",
       links: [
         { href: "/admin/settings", label: "General" },
-        { href: "/admin/settings/team", label: "Team & roles" },
+        { href: "/admin/settings/team", label: "Users & access" },
         { href: "/admin/settings/security", label: "Security" },
         { href: "/admin/settings/privacy", label: "Privacy" },
         // The Studio's own colours (owner's brief, 12 Nov 2026).

@@ -294,6 +294,15 @@ export function LoginForm() {
         {busy === "passkey" ? "Waiting for your passkey…" : "Use passkey instead"}
       </button>
       <p className="mt-3 text-center text-xs text-subtle">Your fingerprint, face or screen lock.</p>
+      {/* The same links for everyone: nothing here reveals how an account signs in. */}
+      <p className="mt-5 flex flex-wrap justify-center gap-x-4 gap-y-1 text-sm">
+        <Link href="/admin/sign-in-help#set-up-password" className="text-accent hover:underline">
+          Set up a password
+        </Link>
+        <Link href="/admin/sign-in-help" className="text-accent hover:underline">
+          Need help signing in?
+        </Link>
+      </p>
     </form>
   );
 }

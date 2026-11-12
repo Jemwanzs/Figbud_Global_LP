@@ -27,7 +27,10 @@ export interface TeamMember {
   disabled_at: string | null;
   has_password?: boolean;
   has_two_factor?: boolean;
+  passkeys?: number;
 }
+
+const ROLES: AdminUser["role"][] = ["owner", "reviewer", "editor", "viewer"];
 
 const toValue = (m: TeamMember): AccessValue => ({
   all: m.all_sites,
@@ -42,7 +45,11 @@ const initials = (name: string) =>
     .map((w) => w[0]!.toUpperCase())
     .join("");
 
-/** Owners decide which websites each person works on (P7-F1). */
+/**
+ * Users & access: everyone's role, websites and sign-in methods, with owner
+ * controls (P7-F1; owner's brief, 12 Nov 2026), filtered by role, website and
+ * status. The API enforces every rule; this only offers what it allows.
+ */
 export function TeamManager({
   members,
   sites,
@@ -52,12 +59,61 @@ export function TeamManager({
   sites: SiteOption[];
   me: string;
 }) {
+  const [role, setRole] = useState("");
+  const [site, setSite] = useState("");
+  const [status, setStatus] = useState("");
+  const shown = members.filter(
+    (m) =>
+      (!role || m.role === role) &&
+      (!site || m.all_sites || m.role === "owner" || m.sites.some((s) => s.site === site)) &&
+      (!status || (status === "suspended") === Boolean(m.disabled_at)),
+  );
+  const select = "min-h-11 rounded-xl border border-line-strong bg-surface px-3 text-sm text-text";
   return (
-    <ul className="space-y-4" aria-label="Team">
-      {members.map((member) => (
-        <Member key={member.id} member={member} sites={sites} self={member.id === me} />
-      ))}
-    </ul>
+    <>
+      <div role="group" aria-label="Filter people" className="mb-5 flex flex-wrap gap-3">
+        <label className="grid gap-1 text-xs text-muted">
+          Role
+          <select value={role} onChange={(e) => setRole(e.target.value)} className={select}>
+            <option value="">Any role</option>
+            {ROLES.map((r) => (
+              <option key={r} value={r}>
+                {ROLE_LABELS[r]}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="grid gap-1 text-xs text-muted">
+          Website
+          <select value={site} onChange={(e) => setSite(e.target.value)} className={select}>
+            <option value="">Any website</option>
+            {sites
+              .filter((s) => !s.archived)
+              .map((s) => (
+                <option key={s.site} value={s.site}>
+                  {s.name}
+                </option>
+              ))}
+          </select>
+        </label>
+        <label className="grid gap-1 text-xs text-muted">
+          Status
+          <select value={status} onChange={(e) => setStatus(e.target.value)} className={select}>
+            <option value="">Any status</option>
+            <option value="active">Active</option>
+            <option value="suspended">Suspended</option>
+          </select>
+        </label>
+        <p aria-live="polite" className="self-end pb-3 text-xs text-subtle">
+          {`${shown.length} of ${members.length}`}
+        </p>
+      </div>
+      <ul className="space-y-4" aria-label="Team">
+        {shown.map((member) => (
+          <Member key={member.id} member={member} sites={sites} self={member.id === me} />
+        ))}
+      </ul>
+    </>
   );
 }
 
@@ -71,6 +127,52 @@ function Member({ member, sites, self }: { member: TeamMember; sites: SiteOption
   const changed = !sameValue(value, toValue(saved));
   const problem = accessProblem(value);
   const editable = saved.role !== "owner" && !saved.disabled_at;
+  const [nextRole, setNextRole] = useState<AdminUser["role"]>(member.role);
+
+  /** Owner controls: each is checked again by the API (last owner, recent verification). */
+  async function manage<T>(path: string, body: Record<string, unknown>, done: (r: T) => string) {
+    setBusy(true);
+    setMessage(null);
+    try {
+      const result = await adminFetch<T>(`team/${saved.id}/${path}`, body);
+      setMessage({ tone: "ok", text: done(result) });
+    } catch (err) {
+      setMessage({
+        tone: "error",
+        text:
+          err instanceof AdminError && err.status === 403
+            ? "Please confirm it's you first, in Settings → Security & Authentication, then try again."
+            : err instanceof AdminError
+              ? err.message
+              : "Something went wrong.",
+      });
+    } finally {
+      setBusy(false);
+    }
+  }
+  const changeRole = () =>
+    manage("role", { role: nextRole }, () => {
+      setSaved((s) => ({ ...s, role: nextRole, all_sites: nextRole === "owner" ? true : s.all_sites }));
+      return `Role changed to ${ROLE_LABELS[nextRole]}. It applies from their next click.`;
+    });
+  const suspend = () =>
+    window.confirm(
+      `Suspend ${saved.name}? They're signed out everywhere and can't sign in until reactivated.`,
+    ) &&
+    manage("suspend", {}, () => {
+      setSaved((s) => ({ ...s, disabled_at: new Date().toISOString() }));
+      return "Suspended and signed out everywhere.";
+    });
+  const reactivate = () =>
+    manage("reactivate", {}, () => {
+      setSaved((s) => ({ ...s, disabled_at: null }));
+      return "Reactivated. They can sign in again.";
+    });
+  const signOut = () =>
+    window.confirm(`Sign ${saved.name} out of every device?`) &&
+    manage("sessions/revoke", {}, (r: { sessions_ended: number }) =>
+      r.sessions_ended ? `Signed out of ${r.sessions_ended} session(s).` : "They had no open sessions.",
+    );
 
   async function save() {
     setBusy(true);
@@ -140,7 +242,7 @@ function Member({ member, sites, self }: { member: TeamMember; sites: SiteOption
               {ROLE_LABELS[saved.role]}
             </span>
             {saved.disabled_at ? (
-              <span className="rounded-full bg-surface-2 px-2.5 py-0.5 text-muted">Disabled</span>
+              <span className="rounded-full bg-surface-2 px-2.5 py-0.5 text-muted">Suspended</span>
             ) : saved.all_sites ? (
               <span className="inline-flex items-center gap-1 rounded-full bg-surface-2 px-2.5 py-0.5 text-muted">
                 <Globe2 aria-hidden className="size-3.5" />
@@ -159,6 +261,16 @@ function Member({ member, sites, self }: { member: TeamMember; sites: SiteOption
             {saved.has_password && (
               <span className="rounded-full bg-surface-2 px-2.5 py-0.5 text-muted">Password</span>
             )}
+            {Boolean(saved.passkeys) && (
+              <span className="rounded-full bg-surface-2 px-2.5 py-0.5 text-muted">
+                {saved.passkeys === 1 ? "1 passkey" : `${saved.passkeys} passkeys`}
+              </span>
+            )}
+            <span className="text-subtle">
+              {saved.last_login_at
+                ? `Last sign-in ${new Date(saved.last_login_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}`
+                : "Never signed in"}
+            </span>
           </div>
         </div>
         {editable && (
@@ -173,6 +285,59 @@ function Member({ member, sites, self }: { member: TeamMember; sites: SiteOption
           </button>
         )}
       </div>
+      {!self && (
+        <div className="mt-4 flex flex-wrap items-end gap-3 border-t border-line pt-4">
+          {!saved.disabled_at && (
+            <>
+              <label className="grid gap-1 text-xs text-muted">
+                Studio role
+                <select
+                  value={nextRole}
+                  disabled={busy}
+                  onChange={(e) => setNextRole(e.target.value as AdminUser["role"])}
+                  className="min-h-11 rounded-xl border border-line-strong bg-surface px-3 text-sm text-text"
+                >
+                  {ROLES.map((r) => (
+                    <option key={r} value={r}>
+                      {ROLE_LABELS[r]}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <ActionButton
+                variant="secondary"
+                ready={nextRole !== saved.role}
+                busy={busy}
+                onClick={changeRole}
+              >
+                Change role
+                <span className="sr-only"> for {saved.name}</span>
+              </ActionButton>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={signOut}
+                className="min-h-11 rounded-xl px-3 text-sm font-medium text-text hover:bg-surface-2"
+              >
+                Sign out everywhere
+                <span className="sr-only"> ({saved.name})</span>
+              </button>
+            </>
+          )}
+          <button
+            type="button"
+            disabled={busy}
+            onClick={saved.disabled_at ? reactivate : suspend}
+            className={cn(
+              "min-h-11 rounded-xl px-3 text-sm font-medium hover:bg-surface-2",
+              saved.disabled_at ? "text-accent" : "text-danger",
+            )}
+          >
+            {saved.disabled_at ? "Reactivate" : "Suspend"}
+            <span className="sr-only"> {saved.name}</span>
+          </button>
+        </div>
+      )}
       {!self && !saved.disabled_at && saved.has_two_factor && (
         <div className="mt-4 border-t border-line pt-4">
           <button

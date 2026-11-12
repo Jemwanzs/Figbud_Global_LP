@@ -46,7 +46,7 @@ export function ForgotPasswordForm() {
           password is on its way. It works once and expires in an hour.
         </p>
         <p className="mt-3 leading-relaxed text-muted">
-          Nothing after a few minutes? Ask a FigBud owner for a recovery link from Team & access.
+          Nothing after a few minutes? Ask a FigBud owner for a recovery link from Users & access.
         </p>
         <Link href="/admin/login" className={buttonClasses("secondary", "lg", "mt-6 w-full")}>
           Back to sign in
