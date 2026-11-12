@@ -9,6 +9,7 @@ import { sameValue } from "@/lib/form-state";
 
 import { ActionButton } from "./action-button";
 import { AreasEditor } from "./areas-editor";
+import { MemberSessions } from "./member-sessions";
 import {
   type AccessValue,
   type SiteOption,
@@ -341,6 +342,7 @@ function Member({ member, sites, self }: { member: TeamMember; sites: SiteOption
           </button>
         </div>
       )}
+      {!self && !saved.disabled_at && <MemberSessions id={saved.id} name={saved.name} />}
       {!self && !saved.disabled_at && saved.has_two_factor && (
         <div className="mt-4 border-t border-line pt-4">
           <button

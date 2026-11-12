@@ -245,7 +245,9 @@ async fn accept_finish(
         Some(&ctx.ip_hash),
     )
     .await?;
-    signed_in(&state, ctx, reg.user_id, "passkey").await
+    // An invitation's first session, so a newcomer can set up a way in the
+    // sign-in policy allows, whichever that is (P13-B4).
+    signed_in(&state, ctx, reg.user_id, "invite").await
 }
 
 #[derive(Deserialize)]
@@ -260,6 +262,10 @@ async fn login_start(
     Json(body): Json<LoginStart>,
 ) -> Result<impl IntoResponse, ApiError> {
     let ctx = public(&state, &headers, peer)?;
+    // Turned off for everyone, so saying so reveals nothing about any account.
+    if !super::policy::load(&state.pool).await?.passkey_sign_in {
+        return Err(ApiError::Unauthorized(super::policy::PASSKEYS_OFF));
+    }
     let user: Option<Uuid> = sqlx::query_scalar(
         "SELECT id FROM admin_users WHERE lower(email) = lower($1) AND disabled_at IS NULL",
     )
@@ -402,6 +408,7 @@ pub(super) async fn signed_in(
     user_id: Uuid,
     method: &str,
 ) -> Result<Response, ApiError> {
+    super::policy::check_sign_in(&state.pool, user_id, super::policy::Method::parse(method)).await?;
     let token = create_session_via(
         &state.pool,
         ctx.admin,

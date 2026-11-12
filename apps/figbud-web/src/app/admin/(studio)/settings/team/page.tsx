@@ -7,6 +7,7 @@ import { AdminUnavailable } from "@/components/admin/admin-shell";
 import { StudioSkeleton } from "@/components/admin/studio-states";
 import type { SiteOption } from "@/components/admin/site-access-picker";
 import { type PendingInvite, PendingInvites } from "@/components/admin/pending-invites";
+import { type SignInPolicyData, SignInPolicyEditor } from "@/components/admin/sign-in-policy";
 import { type TeamMember, TeamManager } from "@/components/admin/team-manager";
 import { adminGet, requireAdmin } from "@/lib/admin-server";
 
@@ -24,9 +25,10 @@ async function Team() {
   const user = await requireAdmin();
   if (user === "unavailable") return <AdminUnavailable />;
   if (user.role !== "owner") redirect("/admin/settings");
-  const [{ data }, invites] = await Promise.all([
+  const [{ data }, invites, policy] = await Promise.all([
     adminGet<{ members: TeamMember[]; sites: SiteOption[] }>("team"),
     adminGet<{ invites: PendingInvite[] }>("invites/pending"),
+    adminGet<SignInPolicyData>("sign-in-policy"),
   ]);
   if (!data) return <AdminUnavailable />;
   return (
@@ -43,12 +45,18 @@ async function Team() {
         that&apos;s never above their Studio role. Websites they can&apos;t access don&apos;t appear for them,
         and shared content (which reaches every website) needs access to all websites. Suspending someone
         signs them out everywhere; the Studio always keeps at least one active owner, and changes to an owner
-        need you to have confirmed it&apos;s you recently.
+        need you to have confirmed it&apos;s you recently. Below, you can see and end anyone&apos;s sessions,
+        and set how everyone signs in.
       </p>
       <div className="mt-10">
         <TeamManager members={data.members} sites={data.sites} me={user.id} />
       </div>
       <PendingInvites invites={invites.data?.invites ?? []} />
+      {policy.data && (
+        <div className="mt-12">
+          <SignInPolicyEditor data={policy.data} />
+        </div>
+      )}
       <p className="mt-8 text-sm text-subtle">
         To add someone, create an invite from the{" "}
         <Link href="/admin" className="text-accent underline underline-offset-2">

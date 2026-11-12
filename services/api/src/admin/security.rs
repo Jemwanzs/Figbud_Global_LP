@@ -238,6 +238,8 @@ async fn password_login(
         record_failure(&state.pool, account.id, &ctx.ip_hash, "password").await?;
         return Err(ApiError::Unauthorized(BAD_LOGIN));
     }
+    // Said only once the password is proven, so it reveals nothing to anyone else.
+    super::policy::check_sign_in(&state.pool, account.id, super::policy::Method::Password).await?;
     // The password was right; nothing is signed in until the second factor is.
     let secret = new_token();
     let challenge_id = store_challenge(

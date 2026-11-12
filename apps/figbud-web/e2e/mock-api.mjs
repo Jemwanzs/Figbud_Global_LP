@@ -86,6 +86,14 @@ const b64url = (buf) => Buffer.from(buf).toString("base64url");
 const users = new Map(); // email -> { id, email, name, role, credentialId }
 const sessions = new Map(); // token -> email
 const sessionInfo = new Map(); // token -> { id, method, user_agent, created_at, verified }
+// The organisation's sign-in policy (policy.rs, P13-B4).
+const POLICY_START = JSON.stringify({
+  password_sign_in: true,
+  passkey_sign_in: true,
+  passkey_only_roles: [],
+  idle_minutes: null,
+});
+const signInPolicy = JSON.parse(POLICY_START);
 const resets = new Map(); // token -> { email, expires }
 const lastRecovery = new Map(); // email -> token (read by e2e through /v1/__test/recovery)
 const totpStep = () => Math.floor(Date.now() / 30000);
@@ -5627,6 +5635,39 @@ function admin(req, res, url, body, send, raw) {
       record(user, "admin.modules_changed", { email: person.email });
       return send(200, { modules: next });
     }
+    // Someone's sessions, and ending one (policy.rs).
+    const memberSessions = /^team\/([0-9a-f]+)\/sessions$/.exec(path);
+    const endOne = /^team\/([0-9a-f]+)\/sessions\/([0-9a-f]+)\/revoke$/.exec(path);
+    if (memberSessions || endOne) {
+      const person = [...users.values()].find((u) => u.id === (memberSessions ?? endOne)[1]);
+      if (!person) return send(404, { error: { code: "not_found", message: "Not found." } });
+      const theirs = [...sessions.entries()].filter(([, email]) => email === person.email);
+      if (memberSessions)
+        return send(200, {
+          sessions: theirs.map(([token]) => {
+            const info = sessionInfo.get(token) ?? {};
+            return {
+              id: info.id,
+              current: token === readCookie(req),
+              user_agent: info.user_agent ?? null,
+              method: info.method ?? "passkey",
+              created_at: info.created_at ?? new Date().toISOString(),
+              last_seen_at: new Date().toISOString(),
+            };
+          }),
+        });
+      if (person.id === user.id)
+        return send(409, {
+          error: { code: "conflict", message: "Your own sessions are in Security & Authentication." },
+        });
+      const found = theirs.find(([token]) => sessionInfo.get(token)?.id === endOne[2]);
+      if (!found) return send(404, { error: { code: "not_found", message: "Not found." } });
+      sessions.delete(found[0]);
+      sessionInfo.delete(found[0]);
+      record(user, "admin.session_revoked", { email: person.email });
+      res.writeHead(204);
+      return res.end();
+    }
     const manage = /^team\/([0-9a-f]+)\/(role|suspend|reactivate|sessions\/revoke)$/.exec(path);
     if (manage) {
       const person = [...users.values()].find((u) => u.id === manage[1]);
@@ -5705,6 +5746,66 @@ function admin(req, res, url, body, send, raw) {
     res.setHeader("set-cookie", "figbud_admin=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0");
     res.writeHead(204);
     return res.end();
+  }
+  // The sign-in policy (policy.rs): owners only; an owner always keeps a way in.
+  if (path === "sign-in-policy") {
+    if (user.role !== "owner") return send(403, { error: { code: "forbidden", message: "Forbidden." } });
+    const people = [...users.values()]
+      .filter((u) => !u.disabled_at)
+      .map((u) => ({
+        id: u.id,
+        name: u.name,
+        email: u.email,
+        role: u.role,
+        passkeys: u.credentialId ? 1 : 0,
+        password: Boolean(u.password && u.totp),
+      }));
+    if (req.method === "GET")
+      return send(200, {
+        policy: signInPolicy,
+        people,
+        passwords_available: true,
+        idle_choices: [15, 30, 60, 120, 480, 1440],
+        updated_at: null,
+        updated_by: null,
+      });
+    if (!sessionInfo.get(readCookie(req))?.verified)
+      return send(403, { error: { code: "forbidden", message: "Please confirm it's you first." } });
+    if (!body.password_sign_in && !body.passkey_sign_in)
+      return send(422, {
+        error: {
+          code: "validation",
+          message: "Keep at least one way to sign in turned on.",
+          fields: [
+            {
+              field: "password_sign_in",
+              code: "required",
+              message: "Keep at least one way to sign in turned on.",
+            },
+          ],
+        },
+      });
+    const wayIn = (p) =>
+      (p.passkeys > 0 && body.passkey_sign_in) ||
+      (p.password && body.password_sign_in && !body.passkey_only_roles.includes(p.role));
+    if (people.some((p) => p.role === "owner" && !wayIn(p)))
+      return send(409, {
+        error: { code: "conflict", message: "This would leave an owner without a way to sign in." },
+      });
+    Object.assign(signInPolicy, {
+      password_sign_in: body.password_sign_in,
+      passkey_sign_in: body.passkey_sign_in,
+      passkey_only_roles: ["owner", "reviewer", "editor", "viewer"].filter((r) =>
+        body.passkey_only_roles.includes(r),
+      ),
+      idle_minutes: body.idle_minutes ?? null,
+    });
+    record(user, "admin.sign_in_policy_changed", {});
+    return send(200, {
+      policy: signInPolicy,
+      sessions_ended: 0,
+      without_a_way_in: people.filter((p) => !wayIn(p)).map((p) => p.email),
+    });
   }
   // Pending invitations and revoking one (team.rs).
   if (path === "invites/pending") {
@@ -6149,6 +6250,11 @@ createServer(async (req, res) => {
   // Test-only: ZiraHR's price book back to its starting state (pricing.spec.ts); quotations stay.
   if (url.pathname === "/test/reset-pricing" && req.method === "POST") {
     pricingBooks.delete("zirahr");
+    return send(200, { ok: true });
+  }
+  // Test-only: the sign-in policy back to its defaults (team.spec.ts).
+  if (url.pathname === "/test/reset-sign-in-policy" && req.method === "POST") {
+    Object.assign(signInPolicy, JSON.parse(POLICY_START));
     return send(200, { ok: true });
   }
   // Test-only: back to the payroll calculator's starting state (payroll.studio.spec.ts).

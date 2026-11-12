@@ -170,3 +170,68 @@ test("Users & access: change a role, suspend and reactivate, revoke a pending in
   expect(results.violations.map((v) => v.id)).toEqual([]);
   await context.close();
 });
+
+test("Users & access: the sign-in policy, previewed and saved; ending one of someone's sessions", async ({
+  page,
+  browser,
+  request,
+}) => {
+  // P13-B4 (owner's brief, 12 Nov 2026). Retry-safe: the policy starts from its defaults.
+  test.setTimeout(90_000);
+  expect((await request.post("http://localhost:3199/test/reset-sign-in-policy")).ok()).toBe(true);
+  await accept(page, `/admin/invite#token=${randomBytes(32).toString("hex")}`, "Pia Owner");
+  const run = randomBytes(2).toString("hex");
+  await page.goto("/admin");
+  await page.getByLabel("Work email").fill(`efe-${run}@figbud.test`);
+  await page.getByRole("radio", { name: /^Editor/ }).check();
+  await page.getByRole("button", { name: "Create invite" }).click();
+  const link = (await page.getByRole("status").locator("code").textContent())!;
+  const context = await browser.newContext();
+  const efe = await context.newPage();
+  await accept(efe, new URL(link).pathname + new URL(link).hash, "Efe Editor");
+
+  await page.goto("/admin/settings/team");
+  const policy = page.getByRole("region", { name: "Sign-in policy" });
+  const save = policy.getByRole("button", { name: "Save sign-in policy" });
+  await expect(save).toBeDisabled();
+
+  // Turning passkeys off would strand owners who only have one: shown, and it can't be saved.
+  await policy.getByRole("checkbox", { name: "Passkeys" }).uncheck();
+  await expect(policy.getByTestId("policy-impact")).toContainText("Pia Owner");
+  await expect(policy.getByTestId("policy-impact")).toContainText("Owners must keep a way in");
+  await expect(save).toBeDisabled();
+  await expect(policy).toContainText("An owner would have no way in");
+  await policy.getByRole("checkbox", { name: "Password with two-factor" }).uncheck();
+  await expect(policy).toContainText("Keep at least one way to sign in");
+  await policy.getByRole("checkbox", { name: "Passkeys" }).check();
+  await policy.getByRole("checkbox", { name: "Password with two-factor" }).check();
+
+  // Editors must use passkeys (Efe has one), and an hour without use signs people out.
+  await policy.getByRole("checkbox", { name: "Editor" }).check();
+  await policy.getByLabel("Sign out after inactivity").selectOption("60");
+  await expect(policy.getByTestId("policy-impact")).not.toContainText("Efe Editor");
+  await save.click();
+  await expect(policy.getByRole("status")).toContainText("Sign-in policy saved");
+  await page.reload();
+  await expect(policy.getByRole("checkbox", { name: "Editor" })).toBeChecked();
+  await expect(policy.getByLabel("Sign out after inactivity")).toHaveValue("60");
+
+  // Efe's devices: one session, ended on its own; their next click asks them to sign in.
+  const member = page.getByRole("listitem", { name: "Efe Editor" });
+  await member.getByRole("button", { name: "Devices and sessions for Efe Editor" }).click();
+  const list = member.getByRole("list", { name: "Efe Editor's sessions" });
+  await expect(list.getByRole("listitem")).toHaveCount(1);
+  await expect(list).toContainText("Signed in with a passkey");
+  await list.getByRole("button", { name: /^Sign out Efe Editor on / }).click();
+  await expect(member.getByRole("status")).toContainText("signed out");
+  await expect(list.getByRole("listitem")).toHaveText("Not signed in anywhere.");
+  await efe.goto("/admin/sites");
+  await expect(efe).toHaveURL(/\/admin\/login/);
+
+  const results = await new AxeBuilder({ page: await themeSettled(page) })
+    .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
+    .analyze();
+  expect(results.violations.map((v) => v.id)).toEqual([]);
+  await context.close();
+  expect((await request.post("http://localhost:3199/test/reset-sign-in-policy")).ok()).toBe(true);
+});

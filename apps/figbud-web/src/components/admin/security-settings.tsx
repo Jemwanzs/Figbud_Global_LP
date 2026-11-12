@@ -79,6 +79,7 @@ const METHODS: Record<string, string> = {
   password: "password and two-factor",
   recovery_code: "password and recovery code",
   two_factor: "two-factor code",
+  invite: "an invitation and a new passkey",
   identity_check: "identity check",
 };
 

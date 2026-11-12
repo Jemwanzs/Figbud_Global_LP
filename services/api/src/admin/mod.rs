@@ -13,6 +13,7 @@ pub mod credentials;
 mod enquiries;
 mod handlers;
 pub mod modules;
+pub mod policy;
 mod security;
 mod team;
 
@@ -35,6 +36,7 @@ pub fn router() -> axum::Router<SharedState> {
     handlers::router()
         .merge(enquiries::router())
         .merge(team::router())
+        .merge(policy::router())
         .merge(security::router())
 }
 
@@ -418,9 +420,16 @@ pub(crate) async fn passkeys_of(pool: &PgPool, user_id: Uuid) -> Result<i64, sql
 pub async fn authenticate(pool: &PgPool, token: &str) -> Result<Option<AdminSession>, sqlx::Error> {
     let row: Option<SessionRow> = sqlx::query_as(
         "UPDATE admin_sessions s SET last_seen_at = now()
-           FROM admin_users u
+           FROM admin_users u, admin_sign_in_policy p
           WHERE s.token_hash = $1 AND u.id = s.user_id
             AND s.revoked_at IS NULL AND s.expires_at > now() AND u.disabled_at IS NULL
+            -- The sign-in policy (P13-B4): unused too long, or started a way that's now off.
+            AND (p.idle_minutes IS NULL OR s.last_seen_at > now() - make_interval(mins => p.idle_minutes))
+            AND CASE s.auth_method
+                  WHEN 'passkey' THEN p.passkey_sign_in
+                  WHEN 'password' THEN p.password_sign_in AND NOT (u.role = ANY(p.passkey_only_roles))
+                  ELSE true
+                END
       RETURNING s.id AS session_id, u.id, u.email, u.name, u.role, u.all_sites, u.last_login_at,
                 COALESCE(s.verified_until > now(), false) AS verified, u.modules",
     )
