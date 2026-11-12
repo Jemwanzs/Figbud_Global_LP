@@ -515,17 +515,16 @@ test("a product website shows its own hover previews, never FigBud Global's word
 const scrollToFraction = (el: Element, fraction: number) => {
   const section = el as HTMLElement;
   const header = document.querySelector("header")!.offsetHeight;
-  // The panel, or the stage alone where the heading scrolls by (as the site measures it).
+  // The panel, or the stage alone where the heading scrolls by above it (as the site measures it).
   const panel = section.firstElementChild as HTMLElement;
-  const pin = (
-    getComputedStyle(panel).display === "contents"
-      ? panel.querySelector<HTMLElement>("[data-stage-pin]")!
-      : panel
-  ).offsetHeight;
-  const top = Math.max(header, Math.round((innerHeight + header - pin) / 2));
+  const compact = getComputedStyle(panel).display === "contents";
+  const stage = compact ? panel.querySelector<HTMLElement>("[data-stage-pin]")! : panel;
+  const before = compact ? stage.previousElementSibling : null;
+  const offset = before instanceof HTMLElement ? before.offsetHeight : 0;
+  const top = Math.max(header, Math.round((innerHeight + header - stage.offsetHeight) / 2));
   const travel = section.querySelector<HTMLElement>("[data-runway]")!.offsetHeight;
   window.scrollTo({
-    top: section.getBoundingClientRect().top + window.scrollY - top + travel * fraction,
+    top: section.getBoundingClientRect().top + window.scrollY + offset - top + travel * fraction,
     behavior: "instant",
   });
 };
@@ -1025,6 +1024,11 @@ test.describe("ZiraHR: payroll calculator and demonstrations (P14)", () => {
       const header = (await page.getByRole("banner").boundingBox())!;
       const box = (await pinned.boundingBox())!;
       expect(Math.round(box.y)).toBeGreaterThanOrEqual(Math.floor(header.y + header.height) - 1);
+      // Each module plays while the stage is actually pinned, not on its way up.
+      const rest = parseFloat(
+        await showcase.evaluate((el) => (el as HTMLElement).style.getPropertyValue("--story-top")),
+      );
+      expect(Math.abs(box.y - rest), `module ${i + 1}`).toBeLessThanOrEqual(2);
       const s = (await stage.boundingBox())!;
       expect(s.y + s.height).toBeLessThanOrEqual(viewport + 1);
       if (travels) {

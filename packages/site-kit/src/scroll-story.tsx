@@ -49,11 +49,16 @@ function geometry(el: HTMLElement, tallest?: { current: number }) {
   const header = document.querySelector("header")?.offsetHeight ?? 64;
   // The tallest the panel has been at this size: steps differ in height, and
   // a resting place that moved with each one could pull the page a step back.
-  let pin = pinned(el)?.offsetHeight ?? 0;
+  const stage = pinned(el);
+  let pin = stage?.offsetHeight ?? 0;
   if (tallest) pin = tallest.current = Math.max(tallest.current, pin);
+  // Where the heading scrolls by above the stage (phones), the pinned
+  // stretch starts that much further down.
+  const before = stage && stage !== el.firstElementChild ? stage.previousElementSibling : null;
+  const offset = before instanceof HTMLElement ? before.offsetHeight : 0;
   const top = Math.max(header, Math.round((window.innerHeight + header - pin) / 2));
   const travel = Math.max(1, el.querySelector<HTMLElement>("[data-runway]")?.offsetHeight ?? 0);
-  return { top, travel };
+  return { top, travel, offset };
 }
 
 /**
@@ -113,10 +118,10 @@ export function useScrollStory(count: number) {
     let frame = 0;
     const measure = () => {
       frame = 0;
-      const { top, travel } = geometry(el, tallest);
+      const { top, travel, offset } = geometry(el, tallest);
       el.style.setProperty("--story-top", `${top}px`);
       // How far through the pinned stretch: 0 as the panel settles, 1 as it leaves.
-      const progress = clamp((top - el.getBoundingClientRect().top) / travel);
+      const progress = clamp((top - offset - el.getBoundingClientRect().top) / travel);
       el.style.setProperty("--story-progress", progress.toFixed(3));
       if (chosen.current === null) setTarget(Math.min(count - 1, Math.floor(progress * count)));
     };
@@ -164,9 +169,9 @@ export function useScrollStory(count: number) {
   const goTo = (i: number) => {
     const el = root.current;
     if (!el) return;
-    const { top, travel } = geometry(el, tallest);
+    const { top, travel, offset } = geometry(el, tallest);
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const y = el.getBoundingClientRect().top + window.scrollY - top + travel * ((i + 0.5) / count);
+    const y = el.getBoundingClientRect().top + window.scrollY + offset - top + travel * ((i + 0.5) / count);
     chosen.current = i;
     setTarget(i);
     setStep(i);
@@ -192,6 +197,8 @@ export function useScrollStory(count: number) {
   const leave = () => {
     const el = root.current;
     if (!el) return;
+    // Leaving ends any chosen step's journey, so nothing pulls the page back.
+    chosen.current = null;
     const header = document.querySelector("header")?.offsetHeight ?? 64;
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     window.scrollTo({
