@@ -32,7 +32,7 @@ Decisions taken, for you to overrule if you prefer:
 | --- | --- | --- | --- |
 | Primary navigation | Six items, including ESS, Referral and Insights | At most four pages | **Four:** Home, Platform, About, Contact & Demo. ESS sits within Platform |
 | Hero line | "Your people. Your payroll. One smarter way to work." | "HR Simplified. Business Amplified." | The live Home still leads with "People. Payroll. Progress. Connected.". The guide's Home would use the guide's line as the headline and the slogan as the eyebrow |
-| Payroll stages | Draft to locked | n/a | Five stages, matching the published hero design. The Meridian reference's wording wasn't reused |
+| Payroll stages | Draft to locked | n/a | Five stages, matching the published hero design. The external reference's wording wasn't reused |
 | Spelling | US ("organization") | n/a | British/Kenyan English in drafts, matching the rest of the site |
 
 ## 3. Content map

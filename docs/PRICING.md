@@ -10,7 +10,7 @@ Last updated: 12 Nov 2026.
 - **Nothing is assumed:**
   - Rates start **unset**, and an unset rate is never priced.
   - There's no discount unless one is configured, and no tax until a rate is entered.
-  - The MeridianHR reference document's USD figures are guidance only: they are never converted into KES selling prices.
+  - The external pricing reference's USD figures are guidance only: they are never converted into KES selling prices.
 - **Approval before use.** Prices reach calculators and quotations only after a reviewer approves a version (maker-checker). They reach the public website only when someone also switches that on.
 - **Quotations never change.** Each one keeps a frozen snapshot of what was offered, from the version it was priced with.
 
