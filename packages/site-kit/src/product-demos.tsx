@@ -105,8 +105,14 @@ const MODULES = ZIRAHR_MODULES;
  * (the ring fills module by module), and it releases after the eighth;
  * scrolling back up reverses it. Choosing a module scrolls to it, and "Skip"
  * leaves the sequence. About a fifth of a screen per module, never a wait.
+ *
+ * The section's heading and lead travel in the same pinned panel (owner's
+ * brief, 12 Nov 2026), so no blank band opens between them; the ring makes
+ * room for them. Where both don't fit (phones, short screens: see
+ * `.fb-modules-pin[data-intro]` in the styles), the heading scrolls by and
+ * the stage alone stays in view.
  */
-function ConnectedModules() {
+function ConnectedModules({ intro }: { intro?: React.ReactNode }) {
   const count = MODULES.length;
   const { root, step: index, goTo, leave } = useScrollStory(count);
   const active = MODULES[index]!;
@@ -128,12 +134,23 @@ function ConnectedModules() {
       style={{ "--story-steps": count, "--story-progress": 0 } as CSSProperties}
       className="fb-modules relative"
     >
-      <div className="fb-modules-pin sticky top-[var(--story-top,4.5rem)] py-2 @3xl:py-4">
+      <div
+        data-intro={intro ? "" : undefined}
+        className="fb-modules-pin sticky top-[var(--story-top,4.5rem)] py-2 @3xl:py-4"
+      >
+        {intro && <div className="fb-modules-intro pb-6">{intro}</div>}
         <div
+          data-stage-pin=""
           data-tone="inverse"
-          className="fb-demo-stage grid items-center gap-4 overflow-hidden rounded-[var(--radius-panel)] p-5 text-text sm:p-8 @3xl:grid-cols-2 @3xl:gap-8"
+          className="fb-modules-stage fb-demo-stage grid items-center gap-4 overflow-hidden rounded-[var(--radius-panel)] p-5 text-text sm:p-8 @3xl:grid-cols-2 @3xl:gap-8"
         >
-          <div className="relative mx-auto aspect-square w-full max-w-[min(16rem,34svh)] @3xl:max-w-[min(26rem,62svh)]">
+          <div
+            className={cn(
+              "relative mx-auto aspect-square w-full max-w-[min(16rem,34svh)]",
+              // With the heading above it, the ring gives up the heading's height.
+              intro ? "@3xl:max-w-[min(24rem,calc(100svh-20rem))]" : "@3xl:max-w-[min(26rem,62svh)]",
+            )}
+          >
             <svg aria-hidden viewBox="0 0 400 400" className="absolute inset-0 size-full">
               <circle cx="200" cy="200" r={R} fill="none" stroke="var(--line-strong)" strokeWidth="1.5" />
               <circle
@@ -1332,12 +1349,12 @@ export function ProductDemo({
   motion?: StoryMotion;
   /** The website's own mark, where a demonstration shows it. */
   mark?: React.ReactNode;
-  /** A scroll story's heading and lead, pinned with it. */
+  /** A scroll story's (or the module showcase's) heading and lead, pinned with it. */
   intro?: React.ReactNode;
 }) {
   switch (demo) {
     case "connected_modules":
-      return <ConnectedModules />;
+      return <ConnectedModules intro={intro} />;
     case "pay_run":
       return <PayRun />;
     case "payslip":
@@ -1379,100 +1396,106 @@ export function ModuleCatalogue({
   items,
   plannedLabel,
   preview,
+  intro,
 }: {
   items: ModuleItem[];
   plannedLabel: string;
   /** Studio previews show buttons without leaving the page. */
   preview?: boolean;
+  /** The section's heading and lead: pinned with the tour on wide screens. */
+  intro?: React.ReactNode;
 }) {
   const [index, setIndex] = useState(0);
   // On the website, a guided tour (11 Nov 2026); the Studio's preview keeps plain tabs.
-  if (!preview) return <ModuleTour items={items} plannedLabel={plannedLabel} />;
+  if (!preview) return <ModuleTour items={items} plannedLabel={plannedLabel} intro={intro} />;
   return (
-    <div className="grid gap-5 @3xl:grid-cols-12 @3xl:gap-8">
-      <div
-        role="tablist"
-        aria-label="Modules"
-        aria-orientation="vertical"
-        className="flex [scrollbar-width:none] gap-1.5 overflow-x-auto pb-1 @3xl:col-span-4 @3xl:flex-col @3xl:overflow-visible @3xl:pb-0"
-      >
-        {items.map((item, i) => (
-          <button
-            key={item.title}
-            type="button"
-            role="tab"
-            id={`module-tab-${i}`}
-            aria-selected={i === index}
-            aria-controls={`module-panel-${i}`}
-            tabIndex={i === index ? 0 : -1}
-            onClick={() => setIndex(i)}
-            onKeyDown={(e) => arrows(e, i, items.length, setIndex)}
-            className={cn(
-              "flex min-h-11 shrink-0 items-center justify-between gap-3 rounded-xl border px-3.5 py-2 text-start text-sm whitespace-nowrap transition-colors @3xl:whitespace-normal",
-              i === index
-                ? "border-product/60 bg-product-soft font-medium text-text"
-                : "border-transparent text-muted hover:bg-surface-2 hover:text-text",
-            )}
-          >
-            {item.title}
-            {item.availability === "planned" && (
-              <span className="rounded-full border border-line px-2 py-0.5 text-[0.7rem] font-normal text-muted">
-                {plannedLabel}
-              </span>
-            )}
-          </button>
-        ))}
-      </div>
-      <div className="@3xl:col-span-8">
-        {items.map((item, i) => (
-          <div
-            key={item.title}
-            id={`module-panel-${i}`}
-            role="tabpanel"
-            aria-labelledby={`module-tab-${i}`}
-            hidden={i !== index}
-            className="fb-panel rounded-[var(--radius-panel)] p-6 sm:p-8"
-          >
-            <div className="fb-demo-unfold">
-              <h3 className="font-display text-title font-semibold text-text">
-                {item.headline || item.title}
-              </h3>
-              <p className="mt-2 text-muted">{item.body}</p>
-              {item.bullets && item.bullets.length > 0 && (
-                <ul className="mt-5 grid gap-x-6 gap-y-2.5 text-sm text-text @xl:grid-cols-2">
-                  {item.bullets
-                    .filter((bullet) => bullet.trim())
-                    .map((bullet) => (
-                      <li key={bullet} className="flex items-start gap-2.5">
-                        <span className="mt-0.5 grid size-5 shrink-0 place-items-center rounded-full bg-product-soft text-product-text">
-                          <Check aria-hidden className="size-3" strokeWidth={3} />
-                        </span>
-                        {bullet}
-                      </li>
-                    ))}
-                </ul>
+    <div>
+      {intro && <div className="mb-8">{intro}</div>}
+      <div className="grid gap-5 @3xl:grid-cols-12 @3xl:gap-8">
+        <div
+          role="tablist"
+          aria-label="Modules"
+          aria-orientation="vertical"
+          className="flex [scrollbar-width:none] gap-1.5 overflow-x-auto pb-1 @3xl:col-span-4 @3xl:flex-col @3xl:overflow-visible @3xl:pb-0"
+        >
+          {items.map((item, i) => (
+            <button
+              key={item.title}
+              type="button"
+              role="tab"
+              id={`module-tab-${i}`}
+              aria-selected={i === index}
+              aria-controls={`module-panel-${i}`}
+              tabIndex={i === index ? 0 : -1}
+              onClick={() => setIndex(i)}
+              onKeyDown={(e) => arrows(e, i, items.length, setIndex)}
+              className={cn(
+                "flex min-h-11 shrink-0 items-center justify-between gap-3 rounded-xl border px-3.5 py-2 text-start text-sm whitespace-nowrap transition-colors @3xl:whitespace-normal",
+                i === index
+                  ? "border-product/60 bg-product-soft font-medium text-text"
+                  : "border-transparent text-muted hover:bg-surface-2 hover:text-text",
               )}
+            >
+              {item.title}
               {item.availability === "planned" && (
-                <p className="mt-5 text-sm text-muted">
-                  This module is planned. Ask us what&apos;s available for your organisation today.
-                </p>
+                <span className="rounded-full border border-line px-2 py-0.5 text-[0.7rem] font-normal text-muted">
+                  {plannedLabel}
+                </span>
               )}
-              {item.cta && (
-                <div className="mt-6">
-                  {preview ? (
-                    <span className={buttonClasses("product", "lg")} title={item.cta.href}>
-                      {item.cta.label}
-                    </span>
-                  ) : (
-                    <a href={item.cta.href} className={buttonClasses("product", "lg")}>
-                      {item.cta.label}
-                    </a>
-                  )}
-                </div>
-              )}
+            </button>
+          ))}
+        </div>
+        <div className="@3xl:col-span-8">
+          {items.map((item, i) => (
+            <div
+              key={item.title}
+              id={`module-panel-${i}`}
+              role="tabpanel"
+              aria-labelledby={`module-tab-${i}`}
+              hidden={i !== index}
+              className="fb-panel rounded-[var(--radius-panel)] p-6 sm:p-8"
+            >
+              <div className="fb-demo-unfold">
+                <h3 className="font-display text-title font-semibold text-text">
+                  {item.headline || item.title}
+                </h3>
+                <p className="mt-2 text-muted">{item.body}</p>
+                {item.bullets && item.bullets.length > 0 && (
+                  <ul className="mt-5 grid gap-x-6 gap-y-2.5 text-sm text-text @xl:grid-cols-2">
+                    {item.bullets
+                      .filter((bullet) => bullet.trim())
+                      .map((bullet) => (
+                        <li key={bullet} className="flex items-start gap-2.5">
+                          <span className="mt-0.5 grid size-5 shrink-0 place-items-center rounded-full bg-product-soft text-product-text">
+                            <Check aria-hidden className="size-3" strokeWidth={3} />
+                          </span>
+                          {bullet}
+                        </li>
+                      ))}
+                  </ul>
+                )}
+                {item.availability === "planned" && (
+                  <p className="mt-5 text-sm text-muted">
+                    This module is planned. Ask us what&apos;s available for your organisation today.
+                  </p>
+                )}
+                {item.cta && (
+                  <div className="mt-6">
+                    {preview ? (
+                      <span className={buttonClasses("product", "lg")} title={item.cta.href}>
+                        {item.cta.label}
+                      </span>
+                    ) : (
+                      <a href={item.cta.href} className={buttonClasses("product", "lg")}>
+                        {item.cta.label}
+                      </a>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
     </div>
   );

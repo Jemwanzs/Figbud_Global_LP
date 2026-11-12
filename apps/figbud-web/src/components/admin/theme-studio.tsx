@@ -13,6 +13,7 @@ import {
   builtInTheme,
   contrast,
   gradientCss,
+  modeGradientCss,
   isHex,
   themeIssues,
   themeTokens,
@@ -216,18 +217,25 @@ export function ColourField({
 
 /** A small page in the theme's colours, at the chosen width. */
 /** A mode's colours and gradients as CSS custom properties. */
-function modeStyle(form: StudioTheme, mode: ThemeMode): Record<string, string> {
+/** A mode's colours and gradients, as the website will publish them (`siteThemeCss`). */
+function modeStyle(slug: string, form: StudioTheme, mode: ThemeMode): Record<string, string> {
   const tokens: Record<string, string> = themeTokens(form[mode] ?? {});
-  for (const p of GRADIENT_PRESETS) {
-    const g = form.gradients?.[p]?.[mode];
-    const css = g && gradientCss(g);
-    if (css) tokens[`--grad-${p}`] = css;
-  }
+  for (const [p, css] of Object.entries(modeGradientCss(slug, form, mode))) tokens[`--grad-${p}`] = css;
   return tokens;
 }
 
-function ThemePreview({ form, mode, width }: { form: StudioTheme; mode: ThemeMode; width: string }) {
-  const style = modeStyle(form, mode) as CSSProperties;
+function ThemePreview({
+  slug,
+  form,
+  mode,
+  width,
+}: {
+  slug: string;
+  form: StudioTheme;
+  mode: ThemeMode;
+  width: string;
+}) {
+  const style = modeStyle(slug, form, mode) as CSSProperties;
   // Contrasting bands take the other mode's colours, as on the website.
   const other: ThemeMode = mode === "dark" ? "light" : "dark";
   const panel = "rounded-2xl p-5 @md:p-7";
@@ -280,7 +288,7 @@ function ThemePreview({ form, mode, width }: { form: StudioTheme; mode: ThemeMod
           data-preview-band=""
           className={cn(panel, "text-text")}
           style={{
-            ...(modeStyle(form, other) as CSSProperties),
+            ...(modeStyle(slug, form, other) as CSSProperties),
             background: "var(--grad-band, var(--bg))",
             ["--text-muted" as string]: "var(--text-on-grad)",
           }}
@@ -975,6 +983,7 @@ export function ThemeStudio({
           </div>
         </div>
         <ThemePreview
+          slug={slug}
           form={form}
           mode={previewMode}
           width={VIEWPORTS.find((v) => v.key === viewport)!.width}

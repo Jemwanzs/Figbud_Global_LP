@@ -182,7 +182,16 @@ function arrows(event: KeyboardEvent, index: number, count: number, choose: (i: 
   list?.querySelectorAll<HTMLElement>('[role="tab"]')[next]?.focus();
 }
 
-export function ModuleTour({ items, plannedLabel }: { items: TourItem[]; plannedLabel: string }) {
+export function ModuleTour({
+  items,
+  plannedLabel,
+  intro,
+}: {
+  items: TourItem[];
+  plannedLabel: string;
+  /** The section's heading and lead, pinned with the tour so they stay together (12 Nov 2026). */
+  intro?: ReactNode;
+}) {
   const count = items.length;
   const wide = useSyncExternalStore(
     subscribeWide,
@@ -208,6 +217,7 @@ export function ModuleTour({ items, plannedLabel }: { items: TourItem[]; planned
       className="relative"
     >
       <div className="fb-tour-pin py-2 lg:sticky lg:top-[var(--story-top,4.5rem)]">
+        {intro && <div className="fb-tour-intro pb-6 lg:pb-5">{intro}</div>}
         <div className="grid gap-5 @3xl:grid-cols-12 @3xl:gap-8">
           <div className="min-w-0 @3xl:col-span-4">
             <div

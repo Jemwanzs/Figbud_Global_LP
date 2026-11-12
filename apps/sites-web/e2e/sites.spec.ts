@@ -515,7 +515,13 @@ test("a product website shows its own hover previews, never FigBud Global's word
 const scrollToFraction = (el: Element, fraction: number) => {
   const section = el as HTMLElement;
   const header = document.querySelector("header")!.offsetHeight;
-  const pin = (section.firstElementChild as HTMLElement).offsetHeight;
+  // The panel, or the stage alone where the heading scrolls by (as the site measures it).
+  const panel = section.firstElementChild as HTMLElement;
+  const pin = (
+    getComputedStyle(panel).display === "contents"
+      ? panel.querySelector<HTMLElement>("[data-stage-pin]")!
+      : panel
+  ).offsetHeight;
   const top = Math.max(header, Math.round((innerHeight + header - pin) / 2));
   const travel = section.querySelector<HTMLElement>("[data-runway]")!.offsetHeight;
   window.scrollTo({
@@ -729,10 +735,12 @@ test.describe("ZiraHR: payroll calculator and demonstrations (P14)", () => {
     }
     // The dots jump to a step.
     await dot(3).click();
+    // The chosen step shows at once; the page then arrives at it.
     await expect(story).toHaveAttribute("data-step", "3");
-    expect(
-      Number(await story.evaluate((el) => el.style.getPropertyValue("--story-progress"))),
-    ).toBeGreaterThan(0.5);
+    await expect
+      .poll(async () => Number(await story.evaluate((el) => el.style.getPropertyValue("--story-progress"))))
+      .toBeGreaterThan(0.5);
+    await expect(story).toHaveAttribute("data-step", "3");
     // The visual stays in view while the steps go past.
     const stage = story.locator(".fb-story-stage");
     await expect(stage).toBeInViewport();
@@ -978,14 +986,26 @@ test.describe("ZiraHR: payroll calculator and demonstrations (P14)", () => {
   test("the eight modules: pinned, every module in turn by scrolling, then released (and back)", async ({
     page,
   }) => {
+    // All eight modules both ways, plus a fast flick through them: longer than most.
+    test.setTimeout(60_000);
     await page.goto("/zirahr/platform");
     const showcase = page.locator("[data-modules]");
-    const pin = showcase.locator(".fb-modules-pin");
-    // Right under its heading and introduction: no blank band before the showcase.
-    const intro = page.locator("section").filter({ has: showcase }).locator("p").first();
+    // What stays in view: the panel with its heading, or on phones and short
+    // screens the stage alone (the heading then scrolls by, never clipped).
+    const travels = await showcase
+      .locator(".fb-modules-pin")
+      .evaluate((el) => getComputedStyle(el).display !== "contents");
+    const pinned = travels ? showcase.locator(".fb-modules-pin") : showcase.locator(".fb-modules-stage");
+    const stage = showcase.locator(".fb-modules-stage");
+    const heading = showcase.getByRole("heading", { level: 2 });
+    const lead = showcase.locator(".fb-modules-intro p").first();
+    // The heading and lead belong to the showcase, once (no duplicate heading).
+    await expect(heading).toHaveCount(1);
+    // Right under the introduction: no blank band before the stage.
     const gap =
-      (await pin.boundingBox())!.y - ((await intro.boundingBox())!.y + (await intro.boundingBox())!.height);
-    expect(gap).toBeLessThanOrEqual(64);
+      (await stage.boundingBox())!.y - ((await lead.boundingBox())!.y + (await lead.boundingBox())!.height);
+    expect(gap).toBeLessThanOrEqual(48);
+    expect(gap).toBeGreaterThanOrEqual(8);
     const viewport = page.viewportSize()!.height;
     // About a fifth of a screen per module after the first, no more.
     expect((await showcase.boundingBox())!.height).toBeLessThanOrEqual(viewport * (1 + 7 * 0.22) + 2);
@@ -1001,28 +1021,52 @@ test.describe("ZiraHR: payroll calculator and demonstrations (P14)", () => {
       await expect(showcase).toHaveAttribute("data-step", String(i));
       await expect(tabs.nth(i)).toHaveAttribute("aria-selected", "true");
       await expect(showcase).toContainText(`0${i + 1} / 08`);
-      // Pinned below the header the whole way.
+      // Pinned below the header the whole way, the stage whole on screen.
       const header = (await page.getByRole("banner").boundingBox())!;
-      expect(Math.round((await pin.boundingBox())!.y)).toBeGreaterThanOrEqual(
-        Math.floor(header.y + header.height) - 1,
-      );
+      const box = (await pinned.boundingBox())!;
+      expect(Math.round(box.y)).toBeGreaterThanOrEqual(Math.floor(header.y + header.height) - 1);
+      const s = (await stage.boundingBox())!;
+      expect(s.y + s.height).toBeLessThanOrEqual(viewport + 1);
+      if (travels) {
+        // The heading stays with the stage, still just above it.
+        const h = (await heading.boundingBox())!;
+        expect(h.y).toBeGreaterThanOrEqual(Math.floor(header.y + header.height) - 1);
+        expect(s.y - (h.y + h.height)).toBeLessThanOrEqual(160);
+      }
     }
     // Released after the eighth: scrolling on moves it away.
     await at(1.4);
     await expect(showcase).toHaveAttribute("data-step", "7");
-    expect((await pin.boundingBox())!.y).toBeLessThan(0);
+    expect((await pinned.boundingBox())!.y).toBeLessThan(0);
     // Back up, it reverses through the modules.
     await at((5 + 0.5) / 8);
     await expect(showcase).toHaveAttribute("data-step", "5");
     await at(0.02);
     await expect(showcase).toHaveAttribute("data-step", "0");
 
+    // A fast flick from the first module to the last still passes through
+    // every one, in order, and back again (never several at once).
+    await showcase.evaluate((el) => {
+      const steps: string[] = [];
+      (window as unknown as { steps: string[] }).steps = steps;
+      new MutationObserver(() => steps.push(el.getAttribute("data-step") ?? "")).observe(el, {
+        attributes: true,
+        attributeFilter: ["data-step"],
+      });
+    });
+    await at(7.5 / 8);
+    await expect(showcase).toHaveAttribute("data-step", "7");
+    await at(0.02);
+    await expect(showcase).toHaveAttribute("data-step", "0");
+    const seen = await page.evaluate(() => (window as unknown as { steps: string[] }).steps);
+    expect(seen).toEqual(["1", "2", "3", "4", "5", "6", "7", "6", "5", "4", "3", "2", "1", "0"]);
+
     // Choosing a module scrolls to it; "Skip the modules" leaves the sequence.
     await tabs.nth(4).click();
     await expect(showcase).toHaveAttribute("data-step", "4");
     await expect(showcase).toContainText("Performance");
     await showcase.getByRole("button", { name: "Skip the modules" }).click();
-    await expect.poll(async () => (await pin.boundingBox())!.y, { timeout: 5_000 }).toBeLessThan(0);
+    await expect.poll(async () => (await pinned.boundingBox())!.y, { timeout: 5_000 }).toBeLessThan(0);
     expect(await scan(page)).toEqual([]);
   });
 
@@ -1294,6 +1338,49 @@ test.describe("Choose a module: a guided tour (owner's brief, 11 Nov 2026)", () 
     expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(
       0,
     );
+  });
+
+  test("laptops and tablets: the pinned panels, heading included, fit the screen (12 Nov 2026)", async ({
+    page,
+  }, testInfo) => {
+    test.skip(testInfo.project.name !== "desktop", "sizes set here");
+    test.setTimeout(60_000);
+    for (const size of [
+      { width: 1280, height: 720 },
+      { width: 1366, height: 768 },
+      { width: 1024, height: 768 },
+      { width: 768, height: 1024 },
+      { width: 1440, height: 900 },
+    ]) {
+      await page.setViewportSize(size);
+      await page.goto("/zirahr/platform");
+      const panels = [page.locator("[data-modules]")];
+      if (size.width >= 1024) panels.push(page.locator("[data-module-tour]"));
+      for (const panel of panels) {
+        await panel.evaluate(scrollToFraction, 0.5);
+        await expect
+          .poll(() => panel.evaluate((el) => (el as HTMLElement).style.getPropertyValue("--story-top")))
+          .not.toBe("");
+        await panel.evaluate(scrollToFraction, 0.5);
+        const header = (await page.getByRole("banner").boundingBox())!;
+        // Whatever stays in view: the panel with its heading, or the stage alone.
+        const box = await panel.evaluate((el) => {
+          const first = el.firstElementChild as HTMLElement;
+          const pinned =
+            getComputedStyle(first).display === "contents"
+              ? first.querySelector<HTMLElement>("[data-stage-pin]")!
+              : first;
+          const r = pinned.getBoundingClientRect();
+          return { top: r.top, bottom: r.bottom };
+        });
+        const where = `${size.width}x${size.height}`;
+        expect(box.top, where).toBeGreaterThanOrEqual(Math.floor(header.y + header.height) - 1);
+        expect(box.bottom, where).toBeLessThanOrEqual(size.height + 1);
+      }
+      expect(
+        await page.evaluate(() => document.documentElement.scrollWidth - innerWidth),
+      ).toBeLessThanOrEqual(0);
+    }
   });
 
   test("phones: no pinning; it plays by itself in view, and a choice holds", async ({ page }) => {

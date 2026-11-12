@@ -202,16 +202,92 @@ function modeSelectors(slug: string, mode: ThemeMode) {
   ].join(",\n");
 }
 
+/**
+ * Gradients made from a mode's own colours, by the built-in recipe: the
+ * background into the surface, lit by a touch (6 %) of the button colour.
+ * For ZiraHR's built-in colours this gives its own stops (#43362e is Charcoal
+ * Mocha with 6 % Signature Orange).
+ */
+export function derivedGradients(m: ModeTokens): Partial<Record<GradientPreset, Gradient>> {
+  if (!modeComplete(m)) return {};
+  const { background: bg, surface, action } = m;
+  const lit = mix(surface, action, 6);
+  const glow = (): Gradient => ({
+    kind: "radial",
+    x: 80,
+    y: 20,
+    stops: [
+      { color: lit, at: 0 },
+      { color: surface, at: 45 },
+      { color: bg, at: 100 },
+    ],
+  });
+  return {
+    hero: {
+      kind: "linear",
+      angle: 125,
+      stops: [
+        { color: bg, at: 5 },
+        { color: mix(bg, surface, 50), at: 54 },
+        { color: surface, at: 100 },
+      ],
+    },
+    band: glow(),
+    demo: glow(),
+    cta: {
+      kind: "linear",
+      angle: 140,
+      stops: [
+        { color: bg, at: 15 },
+        { color: surface, at: 65 },
+        { color: lit, at: 100 },
+      ],
+    },
+  };
+}
+
+/**
+ * A mode's gradients as CSS (owner's brief, 12 Nov 2026: gradients come from
+ * the published theme, never from unrelated colours). A gradient the Studio
+ * set is used as it is. Where the background or surface was changed but a
+ * gradient was left as built in, it's made from the new colours instead, so
+ * bands, demonstration stages and calls to action don't keep the old ones.
+ */
+export function modeGradientCss(
+  slug: string,
+  theme: StudioTheme,
+  mode: ThemeMode,
+): Partial<Record<GradientPreset, string>> {
+  const m = theme[mode] ?? {};
+  const base = builtInTheme(slug);
+  const own = base[mode] ?? {};
+  const recoloured =
+    modeComplete(m) &&
+    (!modeComplete(own) ||
+      m.background.toLowerCase() !== own.background.toLowerCase() ||
+      m.surface.toLowerCase() !== own.surface.toLowerCase());
+  const derived = recoloured ? derivedGradients(m) : {};
+  const out: Partial<Record<GradientPreset, string>> = {};
+  for (const preset of GRADIENT_PRESETS) {
+    const g = theme.gradients?.[preset]?.[mode];
+    const builtIn = base.gradients?.[preset]?.[mode];
+    let css = g ? gradientCss(g) : null;
+    const asBuilt = !g || (builtIn && css === gradientCss(builtIn));
+    const made = derived[preset];
+    if (asBuilt && made) css = gradientCss(made);
+    if (css) out[preset] = css;
+  }
+  return out;
+}
+
 /** The website's published theme as a stylesheet, scoped to the website. */
 export function siteThemeCss(slug: string, theme?: StudioTheme | null): string {
   if (!theme || !SLUG.test(slug)) return "";
   const blocks: string[] = [];
   for (const mode of ["dark", "light"] as const) {
     const declarations = Object.entries(themeTokens(theme[mode] ?? {})).map(([k, v]) => `${k}: ${v};`);
-    for (const preset of GRADIENT_PRESETS) {
-      const g = theme.gradients?.[preset]?.[mode];
-      const css = g && gradientCss(g);
-      if (css) declarations.push(`--grad-${preset}: ${css};`);
+    for (const [preset, css] of Object.entries(modeGradientCss(slug, theme, mode))) {
+      declarations.push(`--grad-${preset}: ${css};`);
     }
     if (declarations.length)
       blocks.push(

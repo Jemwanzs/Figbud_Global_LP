@@ -1044,11 +1044,27 @@ body:has(main [data-section="call_to_action"]:last-child) footer {
 .fb-modules-runway {
   height: calc((var(--story-steps, 8) - 1) * 22svh);
 }
+/* The heading travels with the showcase (12 Nov 2026). Where the two don't
+   fit one screen (phones, short screens), the heading scrolls by as usual and
+   the stage alone stays in view: no clipping, no duplicate heading. */
+@media (max-width: 47.99rem), (max-height: 40rem), (max-width: 63.99rem) and (max-height: 50rem) {
+  .fb-modules-pin[data-intro] {
+    display: contents;
+  }
+  .fb-modules-pin[data-intro] > .fb-modules-intro {
+    padding-bottom: 2rem;
+  }
+  .fb-modules-pin[data-intro] > .fb-modules-stage {
+    position: sticky;
+    top: var(--story-top, 4.5rem);
+  }
+}
 @media (scripting: none) {
   .fb-modules-runway {
     display: none;
   }
-  .fb-modules-pin {
+  .fb-modules-pin,
+  .fb-modules-pin[data-intro] > .fb-modules-stage {
     position: static;
   }
   .fb-modules-skip {

@@ -447,20 +447,23 @@ function Block({
       );
     case "modules":
       return (
-        <div>
-          {section.heading && <Heading>{section.heading}</Heading>}
-          {section.intro && <p className="mt-4 max-w-2xl text-muted">{section.intro}</p>}
-          <div className={cn((section.heading || section.intro) && "mt-8")}>
-            <ModuleCatalogue
-              items={section.items.map((item) => ({
-                ...item,
-                cta: item.cta && { ...item.cta, href: resolve ? resolve(item.cta.href) : item.cta.href },
-              }))}
-              plannedLabel="Planned"
-              preview={mode === "preview"}
-            />
-          </div>
-        </div>
+        // The heading and lead travel with the tour while it's pinned (12 Nov 2026).
+        <ModuleCatalogue
+          items={section.items.map((item) => ({
+            ...item,
+            cta: item.cta && { ...item.cta, href: resolve ? resolve(item.cta.href) : item.cta.href },
+          }))}
+          plannedLabel="Planned"
+          preview={mode === "preview"}
+          intro={
+            section.heading || section.intro ? (
+              <>
+                {section.heading && <Heading>{section.heading}</Heading>}
+                {section.intro && <p className="mt-4 max-w-2xl text-muted">{section.intro}</p>}
+              </>
+            ) : undefined
+          }
+        />
       );
     case "enquiry_form":
       return (
@@ -507,8 +510,12 @@ function Block({
         </div>
       );
     case "demo": {
-      // Scroll stories pin their heading and lead with them, so nothing drifts apart.
-      if (section.demo === "scattered_to_connected" || section.demo === "employee_journey") {
+      // Scroll stories and the module showcase pin their heading and lead with them, so nothing drifts apart.
+      if (
+        section.demo === "scattered_to_connected" ||
+        section.demo === "employee_journey" ||
+        (section.demo === "connected_modules" && section.layout !== "split")
+      ) {
         const intro =
           section.heading || section.intro ? (
             <>

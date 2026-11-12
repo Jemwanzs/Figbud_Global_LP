@@ -6,8 +6,10 @@ import {
   BUILT_IN_THEMES,
   builtInTheme,
   contrast,
+  derivedGradients,
   gradientCss,
   mix,
+  modeGradientCss,
   siteThemeCss,
   themeIssues,
   themeTokens,
@@ -112,6 +114,40 @@ describe("Brand & Theme Studio colours", () => {
         expect(block, `${mode} ${token}`).toContain(`${token}: ${value};`);
       }
     }
+  });
+
+  it("make gradients from a recoloured theme's own colours, keeping ones the Studio set", () => {
+    const zirahr: StudioTheme = BUILT_IN_THEMES.zirahr;
+    // The recipe gives the built-in band's lit stop from the built-in colours.
+    expect(gradientCss(derivedGradients(zirahr.dark!).band!)).toContain("#43362e 0%");
+    // Built-in colours: the built-in gradients, unchanged.
+    expect(modeGradientCss("zirahr", zirahr, "dark").band).toBe(gradientCss(zirahr.gradients!.band!.dark!));
+    // A new dark background and surface, gradients left as built in: made from the new colours.
+    const green: StudioTheme = {
+      ...zirahr,
+      dark: { ...zirahr.dark, background: "#19241b", surface: "#202a21" },
+    };
+    const made = modeGradientCss("zirahr", green, "dark");
+    for (const preset of ["hero", "band", "demo", "cta"] as const) {
+      expect(made[preset], preset).toContain("#19241b");
+      expect(made[preset], preset).not.toMatch(/#292625|#38302d|#43362e/);
+    }
+    // Light mode wasn't recoloured, so it keeps its own.
+    expect(modeGradientCss("zirahr", green, "light").band).toBe(gradientCss(zirahr.gradients!.band!.light!));
+    // A gradient the Studio set stays as it was set.
+    const hero = {
+      kind: "linear" as const,
+      angle: 90,
+      stops: [
+        { color: "#19241b", at: 0 },
+        { color: "#6f6c15", at: 100 },
+      ],
+    };
+    const set = modeGradientCss("zirahr", { dark: green.dark, gradients: { hero: { dark: hero } } }, "dark");
+    expect(set.hero).toBe(gradientCss(hero));
+    expect(set.band).toContain("#19241b");
+    // And the published stylesheet carries them.
+    expect(siteThemeCss("zirahr", { dark: green.dark })).toContain(`--grad-band: ${made.band};`);
   });
 
   it("report what blocks publishing, with the ratio", () => {

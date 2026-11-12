@@ -2037,6 +2037,8 @@ seedPublishedPage("zirahr", "platform", "Platform", {
       demo: "connected_modules",
       tone: "inverse",
       heading: "Eight connected modules.",
+      intro:
+        "Core HR, payroll, leave, attendance, performance, recruitment, learning and collaboration, all working from the same employee record.",
     },
     { id: "zp-run", type: "demo", demo: "pay_run", heading: "Every run, in the open." },
     { id: "zp-slip", type: "demo", demo: "payslip", layout: "split", heading: "Payroll day." },

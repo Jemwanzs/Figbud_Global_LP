@@ -44,14 +44,33 @@ const clamp = (value: number) => Math.min(1, Math.max(0, value));
  * the website's header (never above it); the spacer after it (`[data-runway]`)
  * is the scrolling the steps need, so it releases right after the last one.
  */
-function geometry(el: HTMLElement) {
+function geometry(el: HTMLElement, tallest?: { current: number }) {
   // Clear of the website's header, which takes two rows on phones.
   const header = document.querySelector("header")?.offsetHeight ?? 64;
-  const pin = (el.firstElementChild as HTMLElement | null)?.offsetHeight ?? 0;
+  // The tallest the panel has been at this size: steps differ in height, and
+  // a resting place that moved with each one could pull the page a step back.
+  let pin = pinned(el)?.offsetHeight ?? 0;
+  if (tallest) pin = tallest.current = Math.max(tallest.current, pin);
   const top = Math.max(header, Math.round((window.innerHeight + header - pin) / 2));
   const travel = Math.max(1, el.querySelector<HTMLElement>("[data-runway]")?.offsetHeight ?? 0);
   return { top, travel };
 }
+
+/**
+ * The element that stays in view: the panel, or, where the heading travels
+ * with it but there isn't room for both (phones, short screens), the stage
+ * alone (the panel is then `display: contents` and the heading scrolls by).
+ */
+function pinned(el: HTMLElement) {
+  const panel = el.firstElementChild as HTMLElement | null;
+  if (panel && window.getComputedStyle(panel).display === "contents") {
+    return panel.querySelector<HTMLElement>("[data-stage-pin]");
+  }
+  return panel;
+}
+
+/** How long each step shows while a fast scroll catches up, one at a time. */
+const STEP_MS = 110;
 
 /**
  * Follows the page's scroll with passive listeners and one write per frame:
@@ -60,8 +79,33 @@ function geometry(el: HTMLElement) {
  */
 export function useScrollStory(count: number) {
   const root = useRef<HTMLDivElement>(null);
+  // Where the scroll position is, and the step on show, which follows it one
+  // step at a time, so a fast flick still passes through every step, in
+  // either direction (owner's brief, 12 Nov 2026), never jumping several.
+  const [target, setTarget] = useState(0);
   const [step, setStep] = useState(0);
   const [onScreen, setOnScreen] = useState(false);
+  const tallest = useRef(0);
+  const remeasure = useRef<() => void>(() => {});
+  // A step the visitor chose (a dot or tab): shown at once, and the page is
+  // taken all the way to it, unless they scroll, touch or type meanwhile.
+  const chosen = useRef<number | null>(null);
+
+  // Each step shown can change the panel's height: measure again, so where the
+  // page rests always matches the step (not only when the page scrolls).
+  useEffect(() => {
+    if (onScreen) remeasure.current();
+  }, [step, onScreen]);
+
+  useEffect(() => {
+    if (step === target) return;
+    const instant = !onScreen || window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const timer = window.setTimeout(
+      () => setStep((s) => (instant ? target : s + Math.sign(target - s))),
+      instant ? 0 : STEP_MS,
+    );
+    return () => window.clearTimeout(timer);
+  }, [step, target, onScreen]);
 
   useEffect(() => {
     const el = root.current;
@@ -69,16 +113,29 @@ export function useScrollStory(count: number) {
     let frame = 0;
     const measure = () => {
       frame = 0;
-      const { top, travel } = geometry(el);
+      const { top, travel } = geometry(el, tallest);
       el.style.setProperty("--story-top", `${top}px`);
       // How far through the pinned stretch: 0 as the panel settles, 1 as it leaves.
       const progress = clamp((top - el.getBoundingClientRect().top) / travel);
       el.style.setProperty("--story-progress", progress.toFixed(3));
-      setStep(Math.min(count - 1, Math.floor(progress * count)));
+      if (chosen.current === null) setTarget(Math.min(count - 1, Math.floor(progress * count)));
     };
     const schedule = () => {
       if (!frame) frame = window.requestAnimationFrame(measure);
     };
+    remeasure.current = schedule;
+    const resized = () => {
+      tallest.current = 0;
+      schedule();
+    };
+    // The visitor taking over ends a chosen step's journey.
+    // (Keys inside the story are its own controls choosing a step.)
+    const takeOver = (event: Event) => {
+      if (event.type === "keydown" && el.contains(event.target as Node)) return;
+      chosen.current = null;
+    };
+    const inputs = ["wheel", "touchstart", "keydown"] as const;
+    for (const type of inputs) window.addEventListener(type, takeOver, { passive: true });
     // Only listens while the story is on screen.
     const visibility = new IntersectionObserver(([entry]) => {
       const visible = Boolean(entry?.isIntersecting);
@@ -86,17 +143,19 @@ export function useScrollStory(count: number) {
       if (visible) {
         measure();
         window.addEventListener("scroll", schedule, { passive: true });
-        window.addEventListener("resize", schedule, { passive: true });
+        window.addEventListener("resize", resized, { passive: true });
       } else {
         window.removeEventListener("scroll", schedule);
-        window.removeEventListener("resize", schedule);
+        window.removeEventListener("resize", resized);
       }
     });
     visibility.observe(el);
     return () => {
       visibility.disconnect();
+      remeasure.current = () => {};
+      for (const type of inputs) window.removeEventListener(type, takeOver);
       window.removeEventListener("scroll", schedule);
-      window.removeEventListener("resize", schedule);
+      window.removeEventListener("resize", resized);
       if (frame) window.cancelAnimationFrame(frame);
     };
   }, [count]);
@@ -105,12 +164,28 @@ export function useScrollStory(count: number) {
   const goTo = (i: number) => {
     const el = root.current;
     if (!el) return;
-    const { top, travel } = geometry(el);
+    const { top, travel } = geometry(el, tallest);
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    window.scrollTo({
-      top: el.getBoundingClientRect().top + window.scrollY - top + travel * ((i + 0.5) / count),
-      behavior: reduced ? "auto" : "smooth",
-    });
+    const y = el.getBoundingClientRect().top + window.scrollY - top + travel * ((i + 0.5) / count);
+    chosen.current = i;
+    setTarget(i);
+    setStep(i);
+    // Where the smooth scroll ends (or stops short, as one can when the page
+    // changes under it), finish at the chosen step, then follow the scroll again.
+    let done = false;
+    const settle = () => {
+      if (done) return;
+      done = true;
+      window.removeEventListener("scrollend", settle);
+      if (chosen.current !== i) return;
+      if (Math.abs(window.scrollY - y) > 2) window.scrollTo({ top: y, behavior: "auto" });
+      chosen.current = null;
+      remeasure.current();
+    };
+    window.addEventListener("scrollend", settle);
+    // Browsers without `scrollend`, or a scroll that doesn't move at all.
+    window.setTimeout(settle, reduced ? 50 : 1200);
+    window.scrollTo({ top: y, behavior: reduced ? "auto" : "smooth" });
   };
 
   /** Scrolls just past the pinned stretch (the "skip" control). */
