@@ -120,3 +120,76 @@ test("the activity log shows what changed, as text, by website", async ({ page, 
   expect(await scan(page)).toEqual([]);
   expect(await overflow(page)).toBeLessThanOrEqual(0);
 });
+
+test("approval rules: two approvals for website status; a request assigned to one approver", async ({
+  page,
+}) => {
+  // P13-B5 (owner's brief, 12 Nov 2026). The mock keeps rules per owner, so parallel
+  // tests aren't affected.
+  test.setTimeout(90_000);
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send("WebAuthn.enable");
+  await cdp.send("WebAuthn.addVirtualAuthenticator", {
+    options: {
+      protocol: "ctap2",
+      transport: "internal",
+      hasResidentKey: true,
+      hasUserVerification: true,
+      isUserVerified: true,
+      automaticPresenceSimulation: true,
+    },
+  });
+  const run = randomBytes(3).toString("hex");
+  const name = `Rae Owner ${run}`;
+  await page.goto(`/admin/invite#token=${randomBytes(32).toString("hex")}`);
+  await page.getByLabel("Your name").fill(name);
+  await page.getByRole("button", { name: "Create passkey and sign in" }).click();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Welcome, Rae");
+
+  // The rules, in Users & access: chosen people need at least one; website status needs two.
+  await page.goto("/admin/settings/team");
+  const rules = page.getByRole("region", { name: "Approval rules" });
+  await expect(rules.getByRole("listitem")).toHaveCount(9);
+  const pages = rules.getByRole("listitem").filter({ hasText: "Pages" });
+  await pages.getByLabel("Who approves").selectOption("people");
+  await expect(pages).toContainText("Choose at least one approver");
+  await expect(pages.getByRole("button", { name: "Save the rule for Pages" })).toBeDisabled();
+  await pages.getByLabel("Who approves").selectOption("reviewer");
+  const status = rules.getByRole("listitem").filter({ hasText: "Website status" });
+  await status.getByLabel("Approvals needed").selectOption("2");
+  await status.getByRole("button", { name: "Save the rule for Website status" }).click();
+  await expect(status.getByRole("status")).toContainText("Saved");
+
+  // A new website's launch: the first approval is recorded, not applied.
+  await page.goto("/admin/sites/new");
+  await expect(async () => {
+    await page.getByLabel("Website name").fill(`Rules ${run}`);
+    await expect(page.getByLabel("Identifier")).not.toHaveValue("", { timeout: 1_000 });
+  }).toPass();
+  await page.getByRole("radio", { name: "Lending & Credit" }).click();
+  await page.getByRole("radio", { name: /Coming soon/ }).click();
+  await page.getByLabel("Domain").fill(`rules-${run}.example.com`);
+  await page.getByRole("button", { name: "Create draft website" }).click();
+  const lifecycle = page.getByRole("complementary", { name: "Marketing status" });
+  await lifecycle.getByRole("button", { name: "Approve my request" }).click();
+  await expect(
+    page.getByRole("status").filter({ hasText: "Your approval is recorded (1 of 2)" }),
+  ).toBeVisible();
+  await expect(lifecycle.locator("[aria-current=step]")).toHaveText("Draft");
+  await lifecycle.getByRole("button", { name: "Approve my request" }).click();
+  await expect(page.getByRole("alert").filter({ hasText: "already approved" })).toBeVisible();
+
+  // Reassignment in Approvals: to one approver, then back to everyone.
+  await page.goto("/admin/approvals");
+  const item = page.getByRole("listitem").filter({ hasText: "New module wording" });
+  await item.getByLabel("Assign to").selectOption({ label: `${name} (owner)` });
+  await item.getByRole("button", { name: "Assign Platform" }).click();
+  await expect(item.getByRole("status")).toContainText(`Assigned to ${name}.`);
+  await expect(item).toContainText(`Assigned to ${name}`);
+  await item.getByLabel("Assign to").selectOption("");
+  await item.getByRole("button", { name: "Assign Platform" }).click();
+  await expect(item.getByRole("status")).toContainText("Open to every approver again.");
+
+  expect(await scan(page)).toEqual([]);
+  expect(await overflow(page)).toBeLessThanOrEqual(0);
+});

@@ -11,7 +11,7 @@ import { CheckCircle2, Plus, ShieldAlert, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useId, useState } from "react";
 
-import { AdminError, adminFetch } from "@/lib/admin-client";
+import { AdminError, ApprovalRecorded, adminFetch } from "@/lib/admin-client";
 import { sameValue, useSavedBaseline, useUnsavedChangesWarning } from "@/lib/form-state";
 
 import { ActionButton } from "./action-button";
@@ -416,6 +416,10 @@ export function PayrollStudio({ slug, data }: { slug: string; data: PayrollAdmin
       if (text) setMessage({ tone: "ok", text });
       router.refresh();
     } catch (err) {
+      if (err instanceof ApprovalRecorded) {
+        setMessage({ tone: "ok", text: err.message });
+        return;
+      }
       setMessage({
         tone: "error",
         text: err instanceof AdminError ? (err.fields[0]?.message ?? err.message) : "Something went wrong.",

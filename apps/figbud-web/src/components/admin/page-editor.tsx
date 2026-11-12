@@ -37,7 +37,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { type ReactNode, useCallback, useEffect, useId, useRef, useState } from "react";
 
-import { type AdminUser, AdminError, adminFetch, hasRole } from "@/lib/admin-client";
+import { type AdminUser, AdminError, ApprovalRecorded, adminFetch, hasRole } from "@/lib/admin-client";
 import { sameValue, useSavedBaseline, useUnsavedChangesWarning } from "@/lib/form-state";
 
 import { ActionButton } from "./action-button";
@@ -1406,6 +1406,10 @@ export function PageEditor({ slug, user, initial }: { slug: string; user: AdminU
       if (after) after();
       else await reload(resetDraft);
     } catch (err) {
+      if (err instanceof ApprovalRecorded) {
+        setMessage({ tone: "ok", text: err.message });
+        return;
+      }
       setMessage({ tone: "error", text: err instanceof Error ? err.message : "Something went wrong." });
     } finally {
       setBusy(null);

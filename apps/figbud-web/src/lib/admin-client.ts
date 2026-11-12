@@ -90,9 +90,19 @@ export async function adminFetch<T>(path: string, body?: unknown): Promise<T> {
   return parseResponse<T>(response);
 }
 
+/**
+ * A first approval where the approval rules need two (P13-B5): recorded, not
+ * yet published. Thrown so no screen reports the change as published; screens
+ * show its message as a confirmation, not an error.
+ */
+export class ApprovalRecorded extends AdminError {}
+
 async function parseResponse<T>(response: Response): Promise<T> {
   if (response.status === 204) return undefined as T;
   const data = await response.json().catch(() => null);
+  if (response.status === 202 && data?.error?.code === "approval_recorded") {
+    throw new ApprovalRecorded(data.error.message, 202, []);
+  }
   if (!response.ok) {
     throw new AdminError(
       data?.error?.message ??

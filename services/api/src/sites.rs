@@ -746,6 +746,8 @@ async fn decide(
                     "A different reviewer must approve your own request (maker-checker).",
                 ));
             }
+            // Approval rules (P13-B5): who approves, how many approvals, assignment.
+            crate::authority::gate(&state.pool, &session, "site_status", &id.to_string()).await?;
             let mut tx = state.pool.begin().await?;
             // Apply only if the site is still in the status the request started from.
             let applied = sqlx::query(

@@ -376,6 +376,11 @@ async fn action(
                     "Someone else needs to approve this: you asked for the approval.",
                 ));
             }
+            if let Some(at) = row.review_requested_at {
+                // Approval rules (P13-B5): who approves, how many approvals, assignment.
+                let request = crate::authority::request_key("payroll", &site.id.to_string(), at);
+                crate::authority::gate(&state.pool, &session, "payroll", &request).await?;
+            }
             let draft = parse(&row.draft)?;
             draft.validate()?;
             draft.require_verified()?;

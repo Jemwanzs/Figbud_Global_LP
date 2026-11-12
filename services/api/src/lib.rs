@@ -8,6 +8,7 @@
 
 pub mod admin;
 pub mod approvals;
+pub mod authority;
 pub mod brand;
 pub mod campaigns;
 pub mod cms;

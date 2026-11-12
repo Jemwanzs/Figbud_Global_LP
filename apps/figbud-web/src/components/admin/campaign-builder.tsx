@@ -12,7 +12,7 @@ import { Monitor, Moon, Plus, Smartphone, Sun, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { type ReactNode, useId, useMemo, useState } from "react";
 
-import { AdminError, adminFetch } from "@/lib/admin-client";
+import { AdminError, ApprovalRecorded, adminFetch } from "@/lib/admin-client";
 import { sameValue, useSavedBaseline, useUnsavedChangesWarning } from "@/lib/form-state";
 
 import { ActionButton } from "./action-button";
@@ -189,6 +189,10 @@ export function CampaignBuilder({
       if (after) after(result);
       else router.refresh();
     } catch (err) {
+      if (err instanceof ApprovalRecorded) {
+        setMessage({ tone: "ok", text: err.message });
+        return;
+      }
       setMessage({
         tone: "error",
         text: err instanceof AdminError ? (err.fields[0]?.message ?? err.message) : "Something went wrong.",

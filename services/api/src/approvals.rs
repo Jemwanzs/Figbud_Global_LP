@@ -3,23 +3,29 @@
 //! item's own screen, with its preview and its own rules.
 //!
 //! `can_decide` mirrors those rules (a reviewer on every website involved, and
-//! not the requester unless they're an owner) so the list can say whose turn
-//! it is. The endpoints that decide remain the authority.
+//! not the requester unless they're an owner), plus the approval rules
+//! (P13-B5, `authority.rs`): who approves each kind, how many approvals it
+//! needs and who it's assigned to, so the list can say whose turn it is. The
+//! endpoints that decide remain the authority. Requests can be reassigned
+//! here, to one eligible approver.
+
+use std::collections::HashMap;
 
 use axum::{
     Json, Router,
     extract::{Path, State},
     response::IntoResponse,
-    routing::get,
+    routing::{get, post},
 };
 use chrono::{DateTime, Utc};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
-use sqlx::FromRow;
+use sqlx::{FromRow, PgPool};
 use uuid::Uuid;
 
 use crate::{
-    admin::{AdminSession, Role},
+    admin::{AdminSession, Role, audit, grants},
+    authority::{self, Rule},
     error::ApiError,
     routes::SharedState,
 };
@@ -27,6 +33,7 @@ use crate::{
 pub fn router() -> Router<SharedState> {
     Router::new()
         .route("/v1/admin/approvals", get(queue))
+        .route("/v1/admin/approvals/assign", post(assign))
         .route("/v1/admin/audit/{id}/changes", get(changes))
 }
 
@@ -100,6 +107,8 @@ struct Item {
     kind: String,
     id: String,
     parent: String,
+    /// The request, for its approvals and assignment (`authority::request_key`).
+    request: String,
     sites: Vec<Named>,
     title: String,
     note: String,
@@ -107,6 +116,57 @@ struct Item {
     requested_at: DateTime<Utc>,
     mine: bool,
     can_decide: bool,
+    /// Approvals so far and needed (P13-B5), and who gave them.
+    approvals: usize,
+    needed: i16,
+    approved_by: Vec<String>,
+    assigned_to: Option<Person>,
+    /// "reviewer", "owner" or "people".
+    approvers: String,
+}
+
+#[derive(Serialize, Clone)]
+struct Person {
+    id: Uuid,
+    name: String,
+}
+
+/// Pending requests with their sites (each once) and request keys.
+async fn pending(pool: &PgPool) -> Result<Vec<(Row, String, Vec<String>)>, sqlx::Error> {
+    let rows: Vec<Row> = sqlx::query_as(PENDING).fetch_all(pool).await?;
+    Ok(rows
+        .into_iter()
+        .map(|row| {
+            let mut slugs: Vec<String> = Vec::new();
+            for slug in &row.sites {
+                if !slugs.contains(slug) {
+                    slugs.push(slug.clone());
+                }
+            }
+            let key = authority::request_key(&row.kind, &row.id, row.requested_at);
+            (row, key, slugs)
+        })
+        .collect())
+}
+
+type Steps = HashMap<(String, String), Vec<Uuid>>;
+type Assignments = HashMap<(String, String), Uuid>;
+
+async fn progress(pool: &PgPool) -> Result<(Steps, Assignments), sqlx::Error> {
+    let mut steps: Steps = HashMap::new();
+    let rows: Vec<(String, String, Uuid)> =
+        sqlx::query_as("SELECT kind, request, approved_by FROM approval_steps ORDER BY approved_at")
+            .fetch_all(pool)
+            .await?;
+    for (kind, request, by) in rows {
+        steps.entry((kind, request)).or_default().push(by);
+    }
+    let rows: Vec<(String, String, Uuid)> =
+        sqlx::query_as("SELECT kind, request, assigned_to FROM approval_assignments")
+            .fetch_all(pool)
+            .await?;
+    let assignments = rows.into_iter().map(|(k, r, to)| ((k, r), to)).collect();
+    Ok((steps, assignments))
 }
 
 #[derive(Serialize)]
@@ -119,7 +179,9 @@ async fn queue(
     State(state): State<SharedState>,
     session: AdminSession,
 ) -> Result<impl IntoResponse, ApiError> {
-    let rows: Vec<Row> = sqlx::query_as(PENDING).fetch_all(&state.pool).await?;
+    let rows = pending(&state.pool).await?;
+    let rules = authority::rules(&state.pool).await?;
+    let (steps, assignments) = progress(&state.pool).await?;
     let sites: Vec<(String, String)> = sqlx::query_as("SELECT slug, name FROM sites")
         .fetch_all(&state.pool)
         .await?;
@@ -133,14 +195,14 @@ async fn queue(
             .map_or_else(|| slug.to_owned(), |s| s.1.clone())
     };
 
+    let person = |id: Uuid| {
+        people.iter().find(|p| p.0 == id).map(|p| Person {
+            id,
+            name: p.1.clone(),
+        })
+    };
     let mut items = Vec::new();
-    for row in rows {
-        let mut slugs: Vec<String> = Vec::new();
-        for slug in row.sites {
-            if !slugs.contains(&slug) {
-                slugs.push(slug);
-            }
-        }
+    for (row, key, slugs) in rows {
         // Someone without every website involved doesn't see the request at all.
         if !slugs.iter().all(|slug| session.sees_slug(slug)) {
             continue;
@@ -152,9 +214,25 @@ async fn queue(
             .iter()
             .all(|slug| session.slug_role(slug) == Some(Role::Owner));
         let mine = row.requested_by == Some(session.user.id);
+        let rule = rules.get(&row.kind).cloned().unwrap_or_default();
+        let done = steps
+            .get(&(row.kind.clone(), key.clone()))
+            .cloned()
+            .unwrap_or_default();
+        let assigned = assignments.get(&(row.kind.clone(), key.clone())).copied();
+        let me = session.user.id;
+        let by_rule = rule.allows(me, session.user.role)
+            && (assigned.is_none_or(|a| a == me) || session.user.role == Role::Owner)
+            && !done.contains(&me);
         items.push(Item {
-            can_decide: reviewer && (!mine || owner),
+            can_decide: reviewer && (!mine || owner) && by_rule,
             mine,
+            request: key,
+            approvals: done.len(),
+            needed: rule.stages,
+            approved_by: done.iter().filter_map(|id| person(*id)).map(|p| p.name).collect(),
+            assigned_to: assigned.and_then(person),
+            approvers: rule.approvers,
             requested_by: row
                 .requested_by
                 .and_then(|id| people.iter().find(|p| p.0 == id).map(|p| p.1.clone())),
@@ -175,6 +253,108 @@ async fn queue(
     }
     let waiting = items.iter().filter(|i| i.can_decide).count();
     Ok(Json(json!({ "items": items, "waiting_for_you": waiting })))
+}
+
+#[derive(Deserialize)]
+struct AssignInput {
+    kind: String,
+    request: String,
+    /// `null` hands it back to every eligible approver.
+    to: Option<Uuid>,
+}
+
+/// A person's role on a website, as their session would see it.
+async fn role_on(pool: &PgPool, user: Uuid, slugs: &[String]) -> Result<Option<(Role, bool)>, ApiError> {
+    let row: Option<(String, bool)> =
+        sqlx::query_as("SELECT role, all_sites FROM admin_users WHERE id = $1 AND disabled_at IS NULL")
+            .bind(user)
+            .fetch_optional(pool)
+            .await?;
+    let Some((role, all)) = row else { return Ok(None) };
+    let role = Role::parse(&role).ok_or(ApiError::Internal("unknown stored role".into()))?;
+    if role == Role::Owner || all {
+        return Ok(Some((role, role >= Role::Reviewer)));
+    }
+    let granted = grants(pool, user).await?;
+    let reviews_all = slugs.iter().all(|slug| {
+        granted
+            .iter()
+            .find(|g| &g.slug == slug)
+            .is_some_and(|g| g.role.min(role) >= Role::Reviewer)
+    });
+    Ok(Some((role, reviews_all)))
+}
+
+/// Hands a request to one approver, or back to everyone (owners, and
+/// reviewers who could decide it themselves).
+async fn assign(
+    State(state): State<SharedState>,
+    session: AdminSession,
+    Json(input): Json<AssignInput>,
+) -> Result<impl IntoResponse, ApiError> {
+    let rows = pending(&state.pool).await?;
+    let (row, key, slugs) = rows
+        .into_iter()
+        .find(|(row, key, _)| row.kind == input.kind && *key == input.request)
+        .ok_or(ApiError::NotFound)?;
+    if !slugs
+        .iter()
+        .all(|slug| session.slug_role(slug) >= Some(Role::Reviewer))
+    {
+        return Err(ApiError::Forbidden);
+    }
+    let rule: Rule = authority::rule(&state.pool, &row.kind).await?;
+    let name = match input.to {
+        None => {
+            sqlx::query("DELETE FROM approval_assignments WHERE kind = $1 AND request = $2")
+                .bind(&row.kind)
+                .bind(&key)
+                .execute(&state.pool)
+                .await?;
+            None
+        }
+        Some(to) => {
+            let Some((role, reviews)) = role_on(&state.pool, to, &slugs).await? else {
+                return Err(ApiError::Conflict("Choose an active approver."));
+            };
+            if !reviews || !rule.allows(to, role) {
+                return Err(ApiError::Conflict(
+                    "They can't approve this: choose a reviewer with every website involved, allowed by the approval rules.",
+                ));
+            }
+            if row.requested_by == Some(to) && role != Role::Owner {
+                return Err(ApiError::Conflict(
+                    "They asked for this approval: choose someone else (maker-checker).",
+                ));
+            }
+            sqlx::query(
+                "INSERT INTO approval_assignments (kind, request, assigned_to, assigned_by) VALUES ($1, $2, $3, $4)
+                 ON CONFLICT (kind, request) DO UPDATE SET assigned_to = $3, assigned_by = $4, assigned_at = now()",
+            )
+            .bind(&row.kind)
+            .bind(&key)
+            .bind(to)
+            .bind(session.user.id)
+            .execute(&state.pool)
+            .await?;
+            sqlx::query_scalar::<_, String>("SELECT name FROM admin_users WHERE id = $1")
+                .bind(to)
+                .fetch_optional(&state.pool)
+                .await?
+        }
+    };
+    audit(
+        &state.pool,
+        Some(session.user.id),
+        "approval.assigned",
+        Some((row.kind.as_str(), key.clone())),
+        json!({ "title": row.title, "to": input.to, "to_name": name }),
+        None,
+    )
+    .await?;
+    Ok(Json(
+        json!({ "request": key, "assigned_to": input.to.map(|id| json!({ "id": id, "name": name })) }),
+    ))
 }
 
 const MAX_CHANGES: usize = 200;

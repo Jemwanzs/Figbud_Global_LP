@@ -687,6 +687,11 @@ async fn action(
                     "A different reviewer must approve your own request (maker-checker).",
                 ));
             }
+            if let Some(at) = row.review_requested_at {
+                // Approval rules (P13-B5): who approves, how many approvals, assignment.
+                let request = crate::authority::request_key("hero", &site.id.to_string(), at);
+                crate::authority::gate(pool, &session, "hero", &request).await?;
+            }
             let hero = draft
                 .snapshot()
                 .ok_or(ApiError::Conflict("Choose which variant to publish."))?;

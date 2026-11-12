@@ -855,6 +855,8 @@ async fn revision_action(
                     "A different reviewer must approve your own change (maker-checker).",
                 ));
             }
+            // Approval rules (P13-B5): who approves, how many approvals, assignment.
+            crate::authority::gate(&state.pool, &session, "brand", &id.to_string()).await?;
             let parsed = decode(config.clone())?;
             validate_assets(&state.pool, site.id, &parsed).await?;
             let mut tx = state.pool.begin().await?;

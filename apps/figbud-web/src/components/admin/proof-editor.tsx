@@ -5,7 +5,7 @@ import { CircleAlert, CircleCheck } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { type ReactNode, useEffect, useId, useState } from "react";
 
-import { AdminError, type FieldError, adminFetch } from "@/lib/admin-client";
+import { AdminError, ApprovalRecorded, type FieldError, adminFetch } from "@/lib/admin-client";
 import { useSavedBaseline, useUnsavedChangesWarning } from "@/lib/form-state";
 
 import { ActionButton } from "./action-button";
@@ -119,6 +119,10 @@ export function ProofEditor({
       const text = await task();
       setMessage({ tone: "ok", text });
     } catch (err) {
+      if (err instanceof ApprovalRecorded) {
+        setMessage({ tone: "ok", text: err.message });
+        return;
+      }
       if (err instanceof AdminError) {
         setFields(err.fields);
         setMessage({

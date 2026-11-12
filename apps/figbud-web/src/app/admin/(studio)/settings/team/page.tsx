@@ -6,6 +6,7 @@ import { Suspense } from "react";
 import { AdminUnavailable } from "@/components/admin/admin-shell";
 import { StudioSkeleton } from "@/components/admin/studio-states";
 import type { SiteOption } from "@/components/admin/site-access-picker";
+import { type ApprovalRulesData, ApprovalRules } from "@/components/admin/approval-rules";
 import { type PendingInvite, PendingInvites } from "@/components/admin/pending-invites";
 import { type SignInPolicyData, SignInPolicyEditor } from "@/components/admin/sign-in-policy";
 import { type TeamMember, TeamManager } from "@/components/admin/team-manager";
@@ -25,10 +26,11 @@ async function Team() {
   const user = await requireAdmin();
   if (user === "unavailable") return <AdminUnavailable />;
   if (user.role !== "owner") redirect("/admin/settings");
-  const [{ data }, invites, policy] = await Promise.all([
+  const [{ data }, invites, policy, rules] = await Promise.all([
     adminGet<{ members: TeamMember[]; sites: SiteOption[] }>("team"),
     adminGet<{ invites: PendingInvite[] }>("invites/pending"),
     adminGet<SignInPolicyData>("sign-in-policy"),
+    adminGet<ApprovalRulesData>("approval-rules"),
   ]);
   if (!data) return <AdminUnavailable />;
   return (
@@ -46,7 +48,7 @@ async function Team() {
         and shared content (which reaches every website) needs access to all websites. Suspending someone
         signs them out everywhere; the Studio always keeps at least one active owner, and changes to an owner
         need you to have confirmed it&apos;s you recently. Below, you can see and end anyone&apos;s sessions,
-        and set how everyone signs in.
+        set how everyone signs in, and decide who approves each kind of change.
       </p>
       <div className="mt-10">
         <TeamManager members={data.members} sites={data.sites} me={user.id} />
@@ -55,6 +57,11 @@ async function Team() {
       {policy.data && (
         <div className="mt-12">
           <SignInPolicyEditor data={policy.data} />
+        </div>
+      )}
+      {rules.data && (
+        <div className="mt-8">
+          <ApprovalRules data={rules.data} />
         </div>
       )}
       <p className="mt-8 text-sm text-subtle">

@@ -30,6 +30,10 @@ pub enum ApiError {
     /// Forbidden, with a reason the person can act on.
     #[error("not permitted: {0}")]
     NotPermitted(&'static str),
+    /// An approval was recorded, but the item needs another approver before
+    /// it's published (P13-B5): 202, so nothing reads it as done.
+    #[error("approval recorded: {0}")]
+    ApprovalRecorded(&'static str),
     /// The website isn't taking enquiries (Admin Studio → website settings).
     #[error("enquiries closed")]
     EnquiriesClosed,
@@ -68,6 +72,9 @@ impl IntoResponse for ApiError {
             ApiError::Unauthorized(message) => (StatusCode::UNAUTHORIZED, "unauthorized", *message, None),
             ApiError::Conflict(message) => (StatusCode::CONFLICT, "conflict", *message, None),
             ApiError::NotPermitted(message) => (StatusCode::FORBIDDEN, "forbidden", *message, None),
+            ApiError::ApprovalRecorded(message) => {
+                (StatusCode::ACCEPTED, "approval_recorded", *message, None)
+            }
             ApiError::Forbidden => (
                 StatusCode::FORBIDDEN,
                 "forbidden",

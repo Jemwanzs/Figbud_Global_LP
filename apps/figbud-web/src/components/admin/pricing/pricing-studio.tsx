@@ -7,7 +7,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { type ReactNode, useId, useState } from "react";
 
-import { AdminError, type FieldError, adminFetch } from "@/lib/admin-client";
+import { AdminError, ApprovalRecorded, type FieldError, adminFetch } from "@/lib/admin-client";
 import { useSavedBaseline, useUnsavedChangesWarning } from "@/lib/form-state";
 
 import { ActionButton } from "../action-button";
@@ -114,6 +114,10 @@ export function PricingStudio({
       setMessage({ tone: "ok", text: await task() });
       router.refresh();
     } catch (err) {
+      if (err instanceof ApprovalRecorded) {
+        setMessage({ tone: "ok", text: err.message });
+        return;
+      }
       if (err instanceof AdminError) {
         setFields(err.fields);
         setMessage({

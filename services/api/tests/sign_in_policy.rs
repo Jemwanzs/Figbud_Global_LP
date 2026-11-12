@@ -19,6 +19,21 @@ use uuid::Uuid;
 
 const ORIGIN: &str = "http://localhost:3000";
 
+/// Puts the shared rows back however the test ends, so a failure here can't
+/// change how other tests' approvals and sign-ins behave.
+struct Restore(PgPool, &'static str);
+
+impl Drop for Restore {
+    fn drop(&mut self) {
+        let (pool, sql) = (self.0.clone(), self.1);
+        tokio::task::block_in_place(|| {
+            tokio::runtime::Handle::current().block_on(async move {
+                let _ = sqlx::query(sql).execute(&pool).await;
+            })
+        });
+    }
+}
+
 struct P {
     app: Router,
     pool: PgPool,
@@ -98,7 +113,7 @@ impl P {
     }
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 async fn owners_set_the_sign_in_policy_and_it_applies_at_once_without_locking_an_owner_out() {
     let Some(pool) = database().await else { return };
     let url = std::env::var("TEST_DATABASE_URL").unwrap();
@@ -108,6 +123,11 @@ async fn owners_set_the_sign_in_policy_and_it_applies_at_once_without_locking_an
         run: Uuid::new_v4().simple().to_string()[..8].to_owned(),
     };
     t.reset().await;
+    let _restore = Restore(
+        t.pool.clone(),
+        "UPDATE admin_sign_in_policy SET password_sign_in = true, passkey_sign_in = true,
+                passkey_only_roles = '{}', idle_minutes = NULL",
+    );
     // Other tests' owners have no ways in at all; set them aside while this runs.
     let parked: Vec<Uuid> = sqlx::query_scalar(
         "UPDATE admin_users SET disabled_at = now() WHERE role = 'owner' AND disabled_at IS NULL RETURNING id",

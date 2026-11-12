@@ -6,7 +6,14 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useId, useState } from "react";
 
-import { type AdminUser, AdminError, type FieldError, adminFetch, hasRole } from "@/lib/admin-client";
+import {
+  type AdminUser,
+  AdminError,
+  ApprovalRecorded,
+  type FieldError,
+  adminFetch,
+  hasRole,
+} from "@/lib/admin-client";
 import { useSavedBaseline, useUnsavedChangesWarning } from "@/lib/form-state";
 
 import { ActionButton } from "./action-button";
@@ -171,6 +178,10 @@ export function ArticleEditor({
       }
       router.refresh();
     } catch (err) {
+      if (err instanceof ApprovalRecorded) {
+        setMessage({ tone: "ok", text: err.message });
+        return;
+      }
       if (err instanceof AdminError) {
         setFields(err.fields);
         setMessage({ tone: "error", text: err.message, conflict: err.status === 409 });

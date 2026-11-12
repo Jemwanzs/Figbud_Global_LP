@@ -72,7 +72,8 @@ pub fn classify(method: &Method, path: &str) -> Option<(&'static str, &'static s
         if last == "export" { "export" } else { "view" }
     } else {
         match last {
-            "publish" | "approve" | "reject" | "decline" | "unpublish" | "rollback" => "publish",
+            // Handing a request to an approver is part of deciding it (P13-B5).
+            "publish" | "approve" | "reject" | "decline" | "unpublish" | "rollback" | "assign" => "publish",
             "submit" | "cancel" => "submit",
             _ => "edit",
         }
@@ -182,6 +183,11 @@ mod tests {
             Some(("proof", "submit"))
         );
         assert_eq!(c(Method::GET, "/v1/admin/shared"), Some(("content", "view")));
+        assert_eq!(
+            c(Method::POST, "/v1/admin/approvals/assign"),
+            Some(("publishing", "publish"))
+        );
+        assert_eq!(c(Method::GET, "/v1/admin/approval-rules"), None);
         // Their own account and owner settings aren't areas.
         for path in [
             "/v1/admin/me",

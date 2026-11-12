@@ -399,6 +399,11 @@ async fn book_action(
                     "A different reviewer must approve your own request (maker-checker).",
                 ));
             }
+            if let Some(at) = row.review_requested_at {
+                // Approval rules (P13-B5): who approves, how many approvals, assignment.
+                let request = crate::authority::request_key("pricing", &site.id.to_string(), at);
+                crate::authority::gate(pool, &session, "pricing", &request).await?;
+            }
             let number = row.published_number + 1;
             let mut tx = pool.begin().await?;
             sqlx::query(

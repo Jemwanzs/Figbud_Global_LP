@@ -953,6 +953,11 @@ async fn action(
                     "A different reviewer must approve your own request (maker-checker).",
                 ));
             }
+            if let Some(at) = row.review_requested_at {
+                // Approval rules (P13-B5): who approves, how many approvals, assignment.
+                let request = crate::authority::request_key("proof", &id.to_string(), at);
+                crate::authority::gate(pool, &session, "proof", &request).await?;
+            }
             let mut errors = doc.publish_errors();
             if row.draft_sites.is_empty() {
                 errors.push(field(

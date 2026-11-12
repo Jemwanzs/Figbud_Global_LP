@@ -5,7 +5,13 @@ import { LoaderCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useId, useState } from "react";
 
-import { type AdminUser, adminFetch, describePasskeyError, hasRole } from "@/lib/admin-client";
+import {
+  adminFetch,
+  type AdminUser,
+  ApprovalRecorded,
+  describePasskeyError,
+  hasRole,
+} from "@/lib/admin-client";
 
 import { ActionButton } from "./action-button";
 
@@ -74,6 +80,10 @@ export function SiteLifecycle({
       setNote("");
       router.refresh();
     } catch (err) {
+      if (err instanceof ApprovalRecorded) {
+        setMessage({ tone: "ok", text: err.message });
+        return;
+      }
       setMessage({ tone: "error", text: describePasskeyError(err) });
     } finally {
       setBusy(null);

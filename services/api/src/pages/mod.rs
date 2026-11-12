@@ -762,6 +762,8 @@ async fn revision_action(
                     "A different reviewer must approve your own change (maker-checker).",
                 ));
             }
+            // Approval rules (P13-B5): who approves, how many approvals, assignment.
+            crate::authority::gate(&state.pool, &session, "page", &revision.to_string()).await?;
             let doc = decode(document.clone())?;
             if weigh(&state.pool, page.site_id, doc).await?.over() {
                 return Err(ApiError::Conflict(

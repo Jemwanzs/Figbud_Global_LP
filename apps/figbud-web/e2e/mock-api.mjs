@@ -174,6 +174,24 @@ const approvalQueue = [
   },
 ];
 
+// Approval rules and assignments (authority.rs, P13-B5). Kept per owner who
+// saved them (the real API has one set), so tests in parallel workers never
+// see or change each other's rules.
+const APPROVAL_KINDS = [
+  ["page", "Pages"],
+  ["hero", "Hero designs"],
+  ["brand", "Brand and logos"],
+  ["campaign", "Campaigns"],
+  ["proof", "Customer proof"],
+  ["article", "Articles"],
+  ["pricing", "Price books"],
+  ["payroll", "Payroll Calculator rules"],
+  ["site_status", "Website status"],
+];
+const approvalRulesBy = new Map(); // owner email -> { kind -> { approvers, people, stages } }
+const rulesOf = (user) => approvalRulesBy.get(user.email) ?? {};
+const approvalAssignments = new Map(); // `${kind}:${request}` -> { id, name }
+
 const drafts = new Map(); // editorial articles by id
 // Synthetic enquiries for the inbox (no real people).
 const enquiries = [
@@ -712,6 +730,20 @@ function siteRoutes(path, req, body, user, send) {
     return forbidden("maker-checker: someone else must decide your request.");
   if (decision === "approve" && site.status !== pending.from_status)
     return conflict("The status changed since this was requested.");
+  const rule = rulesOf(user).site_status;
+  if (decision === "approve" && rule?.stages === 2) {
+    if (pending.first_approval === user.id)
+      return conflict("You've already approved this. It needs a second approver: someone else.");
+    if (!pending.first_approval) {
+      pending.first_approval = user.id;
+      return send(202, {
+        error: {
+          code: "approval_recorded",
+          message: "Your approval is recorded (1 of 2). It's published when a second approver approves it.",
+        },
+      });
+    }
+  }
   Object.assign(pending, {
     decision: { approve: "approved", reject: "rejected", cancel: "cancelled" }[decision],
     decided_by: user.name,
@@ -5897,9 +5929,77 @@ function admin(req, res, url, body, send, raw) {
       .filter((item) => item.sites.every((s) => seesSlug(user, s.slug)))
       .map((item) => {
         const mine = item.requested_by === user.name;
-        return { ...item, mine, can_decide: reviewer && (!mine || user.role === "owner") };
+        const assigned = approvalAssignments.get(`${item.kind}:${item.id}`) ?? null;
+        return {
+          ...item,
+          mine,
+          can_decide:
+            reviewer &&
+            (!mine || user.role === "owner") &&
+            (!assigned || assigned.id === user.id || user.role === "owner"),
+          request: item.id,
+          approvals: 0,
+          needed: 1,
+          approved_by: [],
+          assigned_to: assigned,
+          approvers: rulesOf(user)[item.kind]?.approvers ?? "reviewer",
+        };
       });
     return send(200, { items, waiting_for_you: items.filter((i) => i.can_decide).length });
+  }
+  if (path === "approval-rules") {
+    if (RANKS[user.role] < RANKS.reviewer)
+      return send(403, { error: { code: "forbidden", message: "Forbidden." } });
+    return send(200, {
+      kinds: APPROVAL_KINDS.map(([kind, label]) => {
+        const rule = rulesOf(user)[kind] ?? { approvers: "reviewer", people: [], stages: 1 };
+        return { kind, label, approvers: rule.approvers, people: rule.people, stages: rule.stages };
+      }),
+      approvers: [...users.values()]
+        .filter((u) => !u.disabled_at && (u.role === "owner" || u.role === "reviewer"))
+        .map((u) => ({ id: u.id, name: u.name, role: u.role })),
+    });
+  }
+  const ruleFor = /^approval-rules\/([a-z_]+)$/.exec(path);
+  if (ruleFor) {
+    if (user.role !== "owner") return send(403, { error: { code: "forbidden", message: "Forbidden." } });
+    if (!sessionInfo.get(readCookie(req))?.verified)
+      return send(403, { error: { code: "forbidden", message: "Please confirm it's you first." } });
+    if (!APPROVAL_KINDS.some(([k]) => k === ruleFor[1]))
+      return send(404, { error: { code: "not_found", message: "Not found." } });
+    if (body.approvers === "people" && !body.people?.length)
+      return send(422, {
+        error: {
+          code: "validation",
+          message: "Choose at least one approver.",
+          fields: [{ field: "people", code: "invalid", message: "Choose at least one approver." }],
+        },
+      });
+    const rule = {
+      approvers: body.approvers,
+      people: body.approvers === "people" ? [...new Set(body.people)] : [],
+      stages: body.stages,
+    };
+    approvalRulesBy.set(user.email, { ...rulesOf(user), [ruleFor[1]]: rule });
+    record(user, "admin.approval_rule_changed", { kind: ruleFor[1] });
+    return send(200, { kind: ruleFor[1], rule });
+  }
+  if (path === "approvals/assign") {
+    if (RANKS[user.role] < RANKS.reviewer)
+      return send(403, { error: { code: "forbidden", message: "Forbidden." } });
+    const item = approvalQueue.find((i) => i.kind === body.kind && i.id === body.request);
+    if (!item) return send(404, { error: { code: "not_found", message: "Not found." } });
+    const key = `${item.kind}:${item.id}`;
+    if (!body.to) {
+      approvalAssignments.delete(key);
+      return send(200, { request: item.id, assigned_to: null });
+    }
+    const to = [...users.values()].find((u) => u.id === body.to && !u.disabled_at);
+    if (!to || RANKS[to.role] < RANKS.reviewer)
+      return send(409, { error: { code: "conflict", message: "They can't approve this." } });
+    approvalAssignments.set(key, { id: to.id, name: to.name });
+    record(user, "approval.assigned", { title: item.title, to_name: to.name });
+    return send(200, { request: item.id, assigned_to: { id: to.id, name: to.name } });
   }
 
   // --- Enquiries inbox (services/api/src/admin/enquiries.rs) ---

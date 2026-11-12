@@ -598,6 +598,13 @@ async fn publish(
             "A different reviewer must approve your own edits (maker-checker).",
         ));
     }
+    // Approval rules (P13-B5); the request is the article as submitted (or last edited).
+    let request = crate::authority::request_key(
+        "article",
+        &id.to_string(),
+        article.submitted_at.unwrap_or(article.updated_at),
+    );
+    crate::authority::gate(&state.pool, &session, "article", &request).await?;
     let at = body.and_then(|b| b.0.published_at).unwrap_or_else(Utc::now);
     if at < Utc::now() - Duration::minutes(5) {
         return Err(ApiError::BadRequest("publication time cannot be in the past"));
