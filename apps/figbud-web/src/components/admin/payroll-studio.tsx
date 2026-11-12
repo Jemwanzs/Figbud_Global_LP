@@ -1,6 +1,11 @@
 "use client";
 
-import { PayrollCalculator, PayrollError, type PayrollInput, type PayrollResult } from "@figbud/site-kit";
+import {
+  PayrollCalculator,
+  PayrollError,
+  type PayrollInput,
+  type PayrollResult,
+} from "@figbud/site-kit/payroll-calculator";
 import { cn } from "@figbud/ui";
 import { CheckCircle2, Plus, ShieldAlert, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";

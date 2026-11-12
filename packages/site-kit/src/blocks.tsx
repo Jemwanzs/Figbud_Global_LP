@@ -6,10 +6,9 @@ import { GuidedDemo } from "./guided-demo";
 import { GUIDED_STEPS } from "./guided-steps";
 import { type DemoKind, ModuleCatalogue, type ModuleItem, ProductDemo } from "./product-demos";
 import { enquiryFormCopy, type EnquiryProduct } from "./enquiry";
-import { EnquiryForm } from "./enquiry-form";
 import { HeroSignal } from "./hero-signal";
+import { LazyEnquiryForm, LazyReferralForm } from "./lazy-blocks";
 import { NumberedStory } from "./numbered-story";
-import { ReferralForm } from "./referral-form";
 
 /** The website's own mark, for demonstrations that show it (the scroll story's hub). */
 export type BrandMark = ReactNode;
@@ -476,7 +475,7 @@ function Block({
               <Suspense
                 fallback={<div className="fb-panel h-[52rem] rounded-[var(--radius-panel)]" aria-hidden />}
               >
-                <EnquiryForm
+                <LazyEnquiryForm
                   locale="en"
                   copy={enquiryFormCopy}
                   privacyHref={enquiry.privacyHref}
@@ -499,7 +498,7 @@ function Block({
           {section.heading && <Heading>{section.heading}</Heading>}
           {section.intro && <p className="mt-4 max-w-2xl text-muted">{section.intro}</p>}
           <div className={cn((section.heading || section.intro) && "mt-8")}>
-            <ReferralForm
+            <LazyReferralForm
               endpoint={resolve?.("/referral-submit")}
               contactPhone={section.contact_phone}
               preview={mode === "preview"}

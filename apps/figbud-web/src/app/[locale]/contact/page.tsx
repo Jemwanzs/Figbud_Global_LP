@@ -1,5 +1,5 @@
 import { localizePath } from "@figbud/i18n";
-import { EnquiryForm } from "@figbud/site-kit";
+import { EnquiryForm } from "@figbud/site-kit/enquiry-form";
 import { Container } from "@figbud/ui";
 import type { Metadata } from "next";
 import { Suspense } from "react";

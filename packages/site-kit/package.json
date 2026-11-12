@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "sideEffects": [
+    "*.css"
+  ],
   "description": "Shared building blocks for FigBud Next.js sites: security headers, locale routing, cross-site links and product-site chrome",
   "exports": {
     ".": "./src/index.ts",
@@ -10,7 +13,13 @@
     "./enquiry": "./src/enquiry.ts",
     "./phone": "./src/phone.ts",
     "./server": "./src/server.ts",
-    "./styles.css": "./src/styles.css"
+    "./styles.css": "./src/styles.css",
+    "./enquiry-form": "./src/enquiry-form.tsx",
+    "./referral-form": "./src/referral-form.tsx",
+    "./coming-soon": "./src/coming-soon.tsx",
+    "./payroll-calculator": "./src/payroll-calculator.tsx",
+    "./forms": "./src/forms.tsx",
+    "./public-pricing": "./src/public-pricing.tsx"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

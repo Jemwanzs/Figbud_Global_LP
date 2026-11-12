@@ -2,14 +2,13 @@ import type { ProductSlug } from "@figbud/brand";
 import {
   BrandLogo,
   CampaignSlot,
-  ComingSoon,
+  LazyComingSoon,
   JsonLd,
   PageBlocks,
   ProductLogo,
   ProductHero,
   ProofMetrics,
-  PayrollSources,
-  PublicPricing,
+  LazyPublicPricing,
   Testimonials,
   TrustedBy,
   breadcrumbLd,
@@ -20,6 +19,7 @@ import {
   websiteLd,
 } from "@figbud/site-kit";
 import { isEnquiryProduct } from "@figbud/site-kit/enquiry";
+import { PayrollSources } from "@figbud/site-kit/payroll-calculator";
 
 /** Products the brand registry knows, whose official marks the pages can show. */
 const KNOWN_PRODUCTS: string[] = ["zirahr", "jasiri", "expense_now", "ziwa"];
@@ -28,7 +28,7 @@ import { ArrowRight } from "lucide-react";
 import type { Metadata, ResolvingMetadata } from "next";
 import { notFound } from "next/navigation";
 
-import { WebsitePayrollCalculator } from "@/components/public-payroll-calculator";
+import { LazyPayrollCalculator as WebsitePayrollCalculator } from "@/components/lazy-payroll-calculator";
 import {
   canonicalUrl,
   enquiryHref,
@@ -154,7 +154,7 @@ async function PricingPage({
             services you need. Your quotation confirms the figures.
           </p>
           <div className="mt-stack">
-            <PublicPricing
+            <LazyPublicPricing
               book={book}
               endpoint={pageHref(site.slug, ownDomain, "pricing-calculate")}
               quoteHref={enquire}
@@ -246,7 +246,7 @@ export default async function SitePage({ params }: PageProps<"/[site]/[[...path]
       return (
         <>
           <CampaignSlot placement="home_hero" className="block" />
-          <ComingSoon
+          <LazyComingSoon
             name={site.name}
             tagline={site.tagline}
             description={site.description}

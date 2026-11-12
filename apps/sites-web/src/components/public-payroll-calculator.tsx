@@ -6,7 +6,7 @@ import {
   type PayrollInput,
   type PayrollResult,
   type PublicPayrollCalculator,
-} from "@figbud/site-kit";
+} from "@figbud/site-kit/payroll-calculator";
 import { useCallback } from "react";
 
 /** The website's calculator, asking this website's own endpoint. */

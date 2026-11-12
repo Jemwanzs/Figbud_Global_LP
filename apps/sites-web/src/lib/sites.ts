@@ -7,10 +7,10 @@ import {
   type PageDocument,
   type PriceBook,
   type PrivacySettings,
-  type PublicPayrollCalculator,
   type PublicProof,
   type PublishedHero,
 } from "@figbud/site-kit";
+import type { PublicPayrollCalculator } from "@figbud/site-kit/payroll-calculator";
 import {
   fetchBrandPng,
   fetchListedSites,

@@ -1,6 +1,7 @@
 "use client";
 
-import { CountrySelect, type CountryCode, countries } from "@figbud/site-kit";
+import { CountrySelect } from "@figbud/site-kit/forms";
+import { type CountryCode, countries } from "@figbud/site-kit/phone";
 import { cn } from "@figbud/ui";
 import { CircleAlert, CircleCheck, Info, TriangleAlert, X } from "lucide-react";
 import Link from "next/link";
