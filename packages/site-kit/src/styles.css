@@ -1415,3 +1415,55 @@ body:has(main [data-section="call_to_action"]:last-child) footer {
     height: 64%;
   }
 }
+
+/* Two-stage enquiry form (owner's brief, 13 Nov 2026): a floating divider
+   between the stages, about 70% of their height, fading at both ends, with
+   the 01 → 02 indicator at its middle. It takes the product colour once the
+   second stage is active. Wide screens only. */
+.fb-enquiry-divider {
+  position: absolute;
+  inset-inline-start: 50%;
+  top: 15%;
+  height: 70%;
+  width: 1px;
+  pointer-events: none;
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    color-mix(in srgb, var(--text) 20%, transparent) 25%,
+    color-mix(in srgb, var(--text) 20%, transparent) 75%,
+    transparent
+  );
+  transition: background 200ms ease-out;
+}
+.fb-enquiry-divider[data-active] {
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    color-mix(in srgb, var(--product) 70%, transparent) 25%,
+    color-mix(in srgb, var(--product) 70%, transparent) 75%,
+    transparent
+  );
+}
+.fb-enquiry-step {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  translate: -50% -50%;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.3rem 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: 9999px;
+  background: var(--surface);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.7rem;
+  color: var(--text-subtle);
+  white-space: nowrap;
+}
+@media (prefers-reduced-motion: reduce) {
+  .fb-enquiry-divider {
+    transition: none;
+  }
+}

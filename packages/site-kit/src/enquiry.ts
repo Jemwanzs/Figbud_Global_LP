@@ -177,4 +177,9 @@ export async function submitEnquiry(
   return { ok: false, reason: "server" };
 }
 
-export { type EnquiryFormCopy, enquiryFormCopy } from "./enquiry-copy";
+export {
+  type EnquiryFormCopy,
+  type EnquiryStagesCopy,
+  enquiryFormCopy,
+  enquiryStagesCopy,
+} from "./enquiry-copy";

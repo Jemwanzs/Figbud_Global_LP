@@ -641,10 +641,21 @@ const axe = async (page: Page) =>
       .analyze()
   ).violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`);
 
-test("ZiraHR's demo call opens the same enquiry form on ZiraHR, without leaving it", async ({ page }) => {
-  let sent: Record<string, unknown> | null = null;
+test("ZiraHR's demo call opens the two-stage enquiry form on ZiraHR, and one complete enquiry is sent", async ({
+  page,
+  isMobile,
+}) => {
+  // Two stages in one card (owner's brief, 13 Nov 2026).
+  const sent: Record<string, unknown>[] = [];
+  let failNext = true;
   await page.route("**/v1/enquiries", async (route) => {
-    sent = route.request().postDataJSON();
+    sent.push(route.request().postDataJSON());
+    // The first attempt fails (a recoverable error): nothing typed may be lost.
+    if (failNext) {
+      failNext = false;
+      await route.fulfill({ status: 503, json: { error: { code: "unavailable", message: "Try again." } } });
+      return;
+    }
     await route.fulfill({ status: 201, json: { reference: "ZR-DEMO-0001", status: "received" } });
   });
   await page.goto("/zirahr");
@@ -656,22 +667,95 @@ test("ZiraHR's demo call opens the same enquiry form on ZiraHR, without leaving 
   await expect(page).toHaveURL(new RegExp(`^${origin}/zirahr/contact\\?kind=demo_request#enquire$`));
   const form = page.locator("#enquire form");
   await expect(form).toBeVisible();
+  const one = form.locator("[data-stage-one]");
+  const two = form.locator("[data-stage-two]");
   // The product is ZiraHR, fixed: no product choice to make.
   await expect(form.getByLabel("Product")).toHaveCount(0);
   await expect(form.getByRole("radio", { name: "Request a demo" })).toBeChecked();
+  await expect(one.getByRole("heading", { name: /Let's get acquainted/ })).toBeVisible();
+  // The second stage waits, inactive, until the first is right.
+  await expect(two).toHaveAttribute("inert", "");
+  if (isMobile) {
+    await expect(two).toBeHidden();
+    await expect(form.getByText("Step 1 of 2")).toBeVisible();
+  } else {
+    await expect(two.getByRole("heading", { name: /Tell us more/ })).toBeVisible();
+    await expect(form.locator(".fb-enquiry-divider")).toBeVisible();
+    // Side by side, the first on the left.
+    expect((await two.boundingBox())!.x).toBeGreaterThan((await one.boundingBox())!.x + 200);
+  }
   expect(await axe(page)).toEqual([]);
 
+  // Nothing filled in: it says what's needed and stays on the first stage.
   await expect(async () => {
-    await form.getByLabel("Full name").fill("Libbie Sonia");
-    await expect(form.getByLabel("Full name")).toHaveValue("Libbie Sonia", { timeout: 1_000 });
+    await one.getByRole("button", { name: "Continue" }).click();
+    await expect(one.getByText("This field is required.").first()).toBeVisible({ timeout: 1_000 });
   }).toPass();
-  await form.getByLabel("Work email").fill("libbie@mfano.co.ke");
-  await form.getByLabel("Company or organisation").fill("Mfano Ltd");
-  await form.getByRole("checkbox").check();
-  await form.getByRole("button", { name: "Send enquiry" }).click();
-  await expect(page.getByText("Thank you. We've received your enquiry.")).toBeVisible();
+  await expect(two).toHaveAttribute("inert", "");
+  await one.getByLabel("Full name").fill("Libbie Sonia");
+  await one.getByLabel("Work email").fill("libbie@");
+  await one.getByLabel("Company or organisation").fill("Mfano Ltd");
+  await one.getByRole("button", { name: "Continue" }).click();
+  await expect(one.getByText("Enter a valid email address")).toBeVisible();
+  await expect(two).toHaveAttribute("inert", "");
+  await one.getByLabel("Work email").fill("libbie@mfano.co.ke");
+  await one.getByRole("button", { name: "Continue" }).click();
+
+  // The second stage is active, and focus has moved into it.
+  await expect(two).not.toHaveAttribute("inert");
+  await expect.poll(() => two.evaluate((el) => el.contains(document.activeElement))).toBe(true);
+  if (isMobile) {
+    await expect(form.getByText("Step 2 of 2")).toBeVisible();
+    await expect(one).toBeHidden();
+  } else await expect(one.getByRole("button", { name: "Continue" })).toHaveCount(0);
+  // Company size only where it helps: a general question doesn't ask for it.
+  await expect(two.getByLabel("Company size")).toBeVisible();
+  if (isMobile) {
+    await two.getByRole("button", { name: "Back to your details" }).click();
+    await expect(one).toBeVisible();
+  }
+  await one.locator("label", { hasText: "General question" }).click();
+  await expect(one.getByRole("radio", { name: "General question" })).toBeChecked();
+  if (isMobile) await one.getByRole("button", { name: "Continue" }).click();
+  await expect(two.getByLabel("Company size")).toHaveCount(0);
+  if (isMobile) {
+    await two.getByRole("button", { name: "Back to your details" }).click();
+  }
+  await one.locator("label", { hasText: "Request a demo" }).click();
+  await expect(one.getByRole("radio", { name: "Request a demo" })).toBeChecked();
+  if (isMobile) await one.getByRole("button", { name: "Continue" }).click();
+  await two.getByLabel("Company size").selectOption({ index: 2 });
+
+  // Editing the first stage after moving on: a mistake there is caught before sending.
+  if (!isMobile) {
+    await one.getByLabel("Work email").fill("not-an-email");
+    await two.getByRole("checkbox").check();
+    await two.getByRole("button", { name: "Send enquiry" }).click();
+    await expect(one.getByText("Enter a valid email address")).toBeVisible();
+    expect(sent).toHaveLength(0);
+    await one.getByLabel("Work email").fill("libbie@mfano.co.ke");
+    await one.getByRole("button", { name: "Continue" }).click();
+  }
+  await two.getByRole("checkbox").check();
+
+  // A recoverable failure keeps everything; the retry sends one enquiry (same key), only then the thanks.
+  await two.getByRole("button", { name: "Send enquiry" }).click();
+  await expect(form.getByText("Something went wrong")).toBeVisible();
+  await expect(page.getByText("You're all set!")).toHaveCount(0);
+  await expect(two.getByRole("checkbox")).toBeChecked();
+  await two.getByRole("button", { name: "Send enquiry" }).click();
+  await expect(page.getByText("You're all set! Your enquiry is on its way.")).toBeVisible();
   await expect(page.getByText("ZR-DEMO-0001")).toBeVisible();
-  expect(sent).toMatchObject({ kind: "demo_request", product: "zirahr", source_path: "/zirahr/contact" });
+  expect(sent).toHaveLength(2);
+  expect(sent[1]).toMatchObject({
+    kind: "demo_request",
+    product: "zirahr",
+    name: "Libbie Sonia",
+    email: "libbie@mfano.co.ke",
+    company: "Mfano Ltd",
+    source_path: "/zirahr/contact",
+  });
+  expect(sent[1]!.company_size).not.toBe("");
   expect(new URL(page.url()).origin).toBe(origin);
 });
 

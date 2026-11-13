@@ -5,7 +5,7 @@ import { type ReactNode, Suspense } from "react";
 import { GuidedDemo } from "./guided-demo";
 import { GUIDED_STEPS } from "./guided-steps";
 import { type DemoKind, ModuleCatalogue, type ModuleItem, ProductDemo } from "./product-demos";
-import { enquiryFormCopy, type EnquiryProduct } from "./enquiry";
+import { enquiryFormCopy, enquiryStagesCopy, type EnquiryProduct } from "./enquiry";
 import { HeroSignal } from "./hero-signal";
 import { LazyEnquiryForm, LazyReferralForm } from "./lazy-blocks";
 import { NumberedStory } from "./numbered-story";
@@ -484,20 +484,25 @@ function Block({
       );
     case "enquiry_form":
       return (
-        <div id="enquire" className="grid scroll-mt-32 gap-8 @5xl:grid-cols-12 @5xl:gap-12">
-          <div className="@5xl:col-span-4">
-            {section.heading && <Heading>{section.heading}</Heading>}
-            {section.intro && <p className="mt-4 text-lead text-muted">{section.intro}</p>}
-          </div>
-          <div className="@5xl:col-span-8">
+        // The introduction above the two-stage card, both the section's width:
+        // no empty column beside the form (owner's brief, 13 Nov 2026).
+        <div id="enquire" className="mx-auto max-w-6xl scroll-mt-32">
+          {(section.heading || section.intro) && (
+            <div className="max-w-2xl">
+              {section.heading && <Heading>{section.heading}</Heading>}
+              {section.intro && <p className="mt-3 text-lead text-muted">{section.intro}</p>}
+            </div>
+          )}
+          <div className={cn((section.heading || section.intro) && "mt-8")}>
             {enquiry ? (
               // The form reads ?kind= from the address, which is request-time data.
               <Suspense
-                fallback={<div className="fb-panel h-[52rem] rounded-[var(--radius-panel)]" aria-hidden />}
+                fallback={<div className="fb-panel h-[40rem] rounded-[var(--radius-panel)]" aria-hidden />}
               >
                 <LazyEnquiryForm
                   locale="en"
                   copy={enquiryFormCopy}
+                  stages={enquiryStagesCopy}
                   privacyHref={enquiry.privacyHref}
                   apiOrigin={enquiry.apiOrigin}
                   product={enquiry.product}

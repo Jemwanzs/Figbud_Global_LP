@@ -73,3 +73,21 @@ export const enquiryFormCopy = {
 };
 
 export type EnquiryFormCopy = typeof enquiryFormCopy;
+
+/**
+ * The two-stage form's wording (owner's brief, 13 Nov 2026), on product
+ * websites. Passing it to `EnquiryForm` turns the stages on; without it, the
+ * form is one column, as on the corporate contact page.
+ */
+export const enquiryStagesCopy = {
+  oneTitle: "Let's get acquainted",
+  oneLead: "A few details, and we're off!",
+  twoTitle: "Tell us more",
+  twoLead: "Almost there. What can we help you achieve?",
+  continue: "Continue",
+  back: "Back to your details",
+  step: "Step {n} of 2",
+  successTitle: "You're all set! Your enquiry is on its way.",
+};
+
+export type EnquiryStagesCopy = typeof enquiryStagesCopy;

@@ -77,6 +77,7 @@ Shared fields live in `packages/site-kit/src/forms.tsx` (components) and `phone.
   - Numbers are validated for their own country with libphonenumber metadata (shared calling codes such as +1 are resolved by the chosen country). Then they're sent and stored in E.164 (`+254712345678`); the API re-validates with the Rust port.
   - Choosing a country in the form sets an *empty* phone's country; a number already typed keeps its own.
   - "Add another number" appears only once the first number is valid (up to `max`, two on enquiry forms).
+  - Two-stage enquiry form (UI-EF1): pass `stages` (`enquiryStagesCopy`) to `EnquiryForm` for the staged card. The second stage uses `inert` while inactive (never just styling), unlocks only after the first validates, and receives focus; the divider (`.fb-enquiry-divider`) is wide screens only; phones show one stage with a progress bar. Keep every field in the one `<form>`, so one enquiry is sent.
   - A new number starts in the first one's country and can change it. The same number twice is refused.
   - Explicitly clearing the first number removes the others, and they're never sent. A number that's only temporarily invalid while being edited keeps the others.
 - **Flags:** flag emoji where the system has them. Where it doesn't (Windows), the corporate site loads a small flag-only font (Twemoji Country Flags via `country-flag-emoji-polyfill`, Twemoji artwork CC-BY 4.0), self-hosted and fetched only when a flag is shown.
