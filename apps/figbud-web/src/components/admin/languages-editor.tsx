@@ -40,10 +40,13 @@ export function LanguagesEditor({
   data,
   coverage,
   emails,
+  usage = {},
 }: {
   data: LanguagesAdmin;
   coverage: Coverage;
   emails: Partial<Record<string, LanguageEmails>>;
+  /** The websites that have switched each language on (Websites → a website → Languages, P7-L1). */
+  usage?: Partial<Record<string, string[]>>;
 }) {
   return (
     <ul className="mt-8 grid gap-5">
@@ -53,6 +56,7 @@ export function LanguagesEditor({
           review={l}
           coverage={coverage[l.code]}
           emails={emails[l.code] ?? []}
+          usedOn={usage[l.code] ?? []}
           canEdit={data.can_edit}
         />
       ))}
@@ -64,11 +68,13 @@ function LanguageRow({
   review,
   coverage,
   emails,
+  usedOn,
   canEdit,
 }: {
   review: LocaleReview;
   coverage: Coverage[Code];
   emails: LanguageEmails;
+  usedOn: string[];
   canEdit: boolean;
 }) {
   const router = useRouter();
@@ -174,6 +180,11 @@ function LanguageRow({
           {published ? "Published · indexed" : "Draft · not indexed"}
         </span>
       </div>
+      <p className="mt-2 text-sm text-muted" data-used-on="">
+        {usedOn.length
+          ? `Switched on for: ${usedOn.join(", ")}.`
+          : "No website has switched it on (Websites → a website → Languages)."}
+      </p>
       <div className="mt-4">
         <p className="text-sm text-muted">{`${coverage.translated} of ${coverage.total} texts translated (${percent}%)`}</p>
         <span aria-hidden className="mt-1.5 block h-1.5 overflow-hidden rounded-full bg-surface-2">

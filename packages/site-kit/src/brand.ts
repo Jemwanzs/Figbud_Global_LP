@@ -4,6 +4,8 @@
  * itself at `/brand/assets/{id}` (see `brandAssetRoute` in ./server).
  */
 
+import type { SiteLanguages } from "@figbud/i18n";
+
 import type { StudioTheme } from "./site-theme";
 import type { SiteSeo } from "./seo";
 
@@ -88,6 +90,10 @@ export interface WebsiteSettings {
   theme_draft?: SiteTheme | null;
   /** Published themes, newest first, for rollback (kept by the API; Studio only). */
   theme_history?: { published_at: string; by?: string | null; theme: SiteTheme }[];
+  /** The website's languages (P7-L1); unset means `builtInLanguages` for its kind. */
+  languages?: SiteLanguages | null;
+  /** Saved in the Studio, not published; only the Studio ever receives it. */
+  languages_draft?: SiteLanguages | null;
   /** Home page motion (UI-MO2): optional, slow product rotation. */
   motion?: { product_rotation: boolean; rotation_seconds: number };
   /** Our Platforms on the corporate home page (UI-MO5). */

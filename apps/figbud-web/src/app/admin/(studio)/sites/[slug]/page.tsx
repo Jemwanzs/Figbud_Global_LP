@@ -1,10 +1,11 @@
 import { buttonClasses } from "@figbud/ui";
 import {
   Calculator,
-  FileStack,
   Contrast,
+  FileStack,
   GalleryHorizontal,
   Images,
+  Languages,
   Palette,
   PanelBottom,
   PanelsTopLeft,
@@ -87,6 +88,10 @@ async function Site({ params }: Pick<PageProps<"/admin/sites/[slug]">, "params">
         <Link href={`/admin/sites/${site.slug}/footer`} className={buttonClasses("secondary", "md")}>
           <PanelBottom aria-hidden className="size-4" />
           Footer
+        </Link>
+        <Link href={`/admin/sites/${site.slug}/languages`} className={buttonClasses("secondary", "md")}>
+          <Languages aria-hidden className="size-4" />
+          Languages
         </Link>
         <Link href={`/admin/sites/${site.slug}/seo`} className={buttonClasses("secondary", "md")}>
           <SearchCheck aria-hidden className="size-4" />

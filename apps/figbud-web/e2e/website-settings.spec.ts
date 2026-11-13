@@ -417,6 +417,80 @@ test("Studio: ZiraHR's section bands follow its palette, with scoped overrides, 
   expect(theme).toEqual({});
 });
 
+test("Studio: each website chooses its languages, drafted and published, opening only in a reviewed one", async ({
+  page,
+  request,
+}, testInfo) => {
+  // P7-L1 (owner's brief, 14 Nov 2026). Shared mock data: Jasiri LMS only, put back at the end.
+  test.skip(testInfo.project.name !== "desktop", "edited from the desktop project");
+  test.setTimeout(120_000);
+  const API = "http://localhost:3199";
+  const languagesOf = async (slug: string) =>
+    (
+      (await (await request.get(`${API}/v1/sites`)).json()) as {
+        slug: string;
+        settings: { languages?: unknown };
+      }[]
+    ).find((s) => s.slug === slug)!.settings.languages ?? null;
+  await signInAsOwner(page);
+  await page.goto("/admin/sites/jasiri");
+  await page.locator("#studio-main").getByRole("link", { name: "Languages", exact: true }).click();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Languages");
+  const english = page.getByRole("checkbox", { name: /English/ });
+  await expect(english).toBeChecked();
+  await expect(english).toBeDisabled();
+  // Product websites stay in English until their pages can be translated.
+  await expect(page.locator("[data-languages-live]")).toHaveText("Now: English; opens in English.");
+
+  // French on, as the fallback; it can't be the default before its review.
+  await page.getByRole("checkbox", { name: /French/ }).check();
+  const opensIn = page.getByLabel("Opens in (default)");
+  // Playwright treats options as enabled; the attribute is what the browser honours.
+  await expect(opensIn.locator('option[value="fr"]')).toHaveAttribute("disabled", "");
+  await page.getByLabel("When a text isn't translated").selectOption("fr");
+  await page.getByRole("button", { name: "Save draft" }).click();
+  await expect(page.getByRole("status")).toContainText("Draft saved.");
+  expect(await languagesOf("jasiri")).toBeNull();
+
+  page.once("dialog", (d) => d.accept());
+  await page.getByRole("button", { name: "Publish", exact: true }).click();
+  await expect(page.getByRole("status")).toContainText("Published.");
+  expect(await languagesOf("jasiri")).toEqual({ enabled: ["en", "fr"], default: "en", fallback: "fr" });
+
+  // The shared Languages page shows which websites use each language.
+  await page.goto("/admin/settings/languages");
+  const french = page.locator('[data-locale="fr"] [data-used-on]');
+  await expect(french).toContainText("Jasiri LMS");
+  await expect(french).toContainText("FigBud Global");
+  await expect(page.locator('[data-locale="zh"] [data-used-on]')).not.toContainText("Jasiri LMS");
+
+  // FigBud Global: a draft changes nothing for visitors, and is discarded.
+  await page.goto("/admin/sites/figbud/languages");
+  await expect(page.getByRole("checkbox", { name: /Chinese/ })).toBeChecked();
+  await page.getByRole("checkbox", { name: /Chinese/ }).uncheck();
+  await expect(page.locator("[data-languages-next]")).not.toContainText("Chinese");
+  await page.getByRole("button", { name: "Save draft" }).click();
+  await expect(page.getByRole("status")).toContainText("Draft saved.");
+  expect(await languagesOf("figbud")).toBeNull();
+  await page.getByRole("button", { name: "Discard draft" }).click();
+  await expect(page.getByRole("status")).toContainText("Draft discarded.");
+  await expect(page.getByRole("checkbox", { name: /Chinese/ })).toBeChecked();
+  const results = await new AxeBuilder({ page: await themeSettled(page) })
+    .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
+    .analyze();
+  expect(
+    results.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`),
+  ).toEqual([]);
+
+  // Put Jasiri LMS back to English only.
+  await page.goto("/admin/sites/jasiri/languages");
+  await page.getByRole("checkbox", { name: /French/ }).uncheck();
+  page.once("dialog", (d) => d.accept());
+  await page.getByRole("button", { name: "Publish", exact: true }).click();
+  await expect(page.getByRole("status")).toContainText("Published.");
+  expect(await languagesOf("jasiri")).toEqual({ enabled: ["en"], default: "en", fallback: "en" });
+});
+
 test("Studio: the Studio's own appearance is drafted, checked, published, applied and restored", async ({
   page,
 }, testInfo) => {

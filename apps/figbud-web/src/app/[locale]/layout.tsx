@@ -17,6 +17,7 @@ import { notFound } from "next/navigation";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { getDictionary } from "@/i18n/get-dictionary";
+import { figbudLanguages, publishedLocales } from "@/lib/locales";
 import { getPrivacySettings } from "@/lib/privacy";
 import {
   getBrands,
@@ -149,6 +150,8 @@ export default async function LocaleLayout({ children, params }: LayoutProps<"/[
               products={dict.products}
               brands={brands}
               previews={await getNavPreviews(locale, dict.common.navPreviews)}
+              languages={(await figbudLanguages()).enabled}
+              reviewed={await publishedLocales()}
             />
             <CampaignSlot
               placement="below_nav"

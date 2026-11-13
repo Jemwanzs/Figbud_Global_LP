@@ -1,9 +1,11 @@
 "use client";
 
 import type { ProductSlug } from "@figbud/brand";
+import type { Locale } from "@figbud/i18n";
 import {
   BrandLogo,
   type BrandProfile,
+  LanguageSwitcher,
   NavPreview,
   type NavPreviewContent,
   ProductIdentity,
@@ -32,6 +34,7 @@ export function SiteHeader({
   brand,
   links,
   cta,
+  languages,
 }: {
   name: string;
   homeHref: string;
@@ -41,6 +44,8 @@ export function SiteHeader({
   links: NavLink[];
   /** Absent while the website isn't taking enquiries. */
   cta?: NavLink | null;
+  /** The languages this website shows visitors (the shared selector, P7-L1). */
+  languages: readonly Locale[];
 }) {
   const pathname = usePathname();
   // Own-domain requests are rewritten internally; compare the visible address.
@@ -99,6 +104,15 @@ export function SiteHeader({
           </nav>
         )}
         <div className="ms-auto flex items-center gap-2 sm:gap-3">
+          {/* The same selector as FigBud Global's, in this website's colours; it stays on this website. */}
+          <LanguageSwitcher
+            locale="en"
+            pathname={current}
+            labels={{ label: "Language", inReview: "In review" }}
+            available={languages}
+            reviewed={languages}
+            hrefFor={() => pathname}
+          />
           <ThemeToggle labels={{ toLight: "Switch to light theme", toDark: "Switch to dark theme" }} />
           {cta && (
             <a href={cta.href} className={buttonClasses("product", "md")}>

@@ -576,6 +576,58 @@ pub struct WebsiteSettings {
     /// Published themes, newest first, for rollback. Kept by the API: what an
     /// editor sends is ignored.
     pub theme_history: Vec<ThemeVersion>,
+    /// The website's languages (P7-L1, owner's brief, 14 Nov 2026). Unset
+    /// means its built-in ones: all five on FigBud Global, English on a
+    /// product website.
+    pub languages: Option<Languages>,
+    /// Saved in the Studio but not published.
+    pub languages_draft: Option<Languages>,
+}
+
+/// The languages every website can offer (packages/i18n `locales`), in order.
+pub const SUPPORTED_LANGUAGES: [&str; 5] = ["en", "sw", "fr", "ar", "zh"];
+
+/// A website's languages: which it offers, which it opens in, and which fills
+/// in text that isn't translated yet (then English). English, the language
+/// every page is written in, is always offered.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct Languages {
+    pub enabled: Vec<String>,
+    pub default: String,
+    pub fallback: String,
+}
+
+fn check_languages(errors: &mut Vec<FieldError>, l: &mut Languages, field: &'static str) {
+    for code in [&mut l.default, &mut l.fallback]
+        .into_iter()
+        .chain(l.enabled.iter_mut())
+    {
+        *code = code.trim().to_ascii_lowercase();
+    }
+    let known = |c: &String| SUPPORTED_LANGUAGES.contains(&c.as_str());
+    if !l.enabled.iter().all(known) || !known(&l.default) || !known(&l.fallback) {
+        errors.push(FieldError {
+            field,
+            code: "unknown",
+            message: "Choose from the supported languages.",
+        });
+        return;
+    }
+    // Once each, in the usual order, English always included.
+    let chosen: Vec<String> = SUPPORTED_LANGUAGES
+        .iter()
+        .filter(|c| **c == "en" || l.enabled.iter().any(|e| e == *c))
+        .map(|c| (*c).to_owned())
+        .collect();
+    l.enabled = chosen;
+    if !l.enabled.contains(&l.default) || !l.enabled.contains(&l.fallback) {
+        errors.push(FieldError {
+            field,
+            code: "not_enabled",
+            message: "The default and fallback languages must be switched on for this website.",
+        });
+    }
 }
 
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
@@ -704,6 +756,14 @@ impl WebsiteSettings {
                 message: "Between 6 and 20 seconds, so visitors have time to read.",
             });
         }
+        for (languages, field) in [
+            (&mut self.languages, "languages"),
+            (&mut self.languages_draft, "languages_draft"),
+        ] {
+            if let Some(l) = languages {
+                check_languages(&mut e, l, field);
+            }
+        }
         check_nav_previews(&mut e, &mut self.nav_previews, "nav_previews");
         if let Some(draft) = &mut self.nav_previews_draft {
             check_nav_previews(&mut e, draft, "nav_previews");
@@ -741,6 +801,7 @@ impl WebsiteSettings {
             "showcase": self.showcase,
             "nav_previews": self.nav_previews,
             "section_themes": self.section_themes,
+            "languages": self.languages,
         })
     }
 }
@@ -846,6 +907,26 @@ async fn update(
     // Publishing a theme (or rolling one back) records who and when.
     next.theme_history = site.settings.theme_history.clone();
     let theme_published = next.theme != site.settings.theme;
+    let languages_published = next.languages != site.settings.languages;
+    // A website opens in English or a language published with a recorded
+    // review (P7-G2), never in an unreviewed one.
+    if languages_published
+        && let Some(l) = &next.languages
+        && l.default != "en"
+    {
+        let reviewed: Option<String> =
+            sqlx::query_scalar("SELECT code FROM locale_reviews WHERE code = $1 AND status = 'published'")
+                .bind(&l.default)
+                .fetch_optional(&state.pool)
+                .await?;
+        if reviewed.is_none() {
+            return Err(ApiError::Validation(vec![FieldError {
+                field: "languages",
+                code: "unreviewed",
+                message: "A website can open in a language only once its translation is reviewed and published (Settings & Security → Languages).",
+            }]));
+        }
+    }
     if theme_published {
         site_theme::remember(
             &mut next.theme_history,
@@ -875,6 +956,8 @@ async fn update(
         (true, false) => "site.enquiries_closed",
         (false, true) => "site.enquiries_opened",
         _ if theme_published => "site.theme_published",
+        _ if languages_published => "site.languages_published",
+        _ if next.languages_draft != site.settings.languages_draft => "site.languages_draft_saved",
         _ if next.theme_draft != site.settings.theme_draft => "site.theme_draft_saved",
         _ => "site.settings_updated",
     };
@@ -958,6 +1041,34 @@ mod tests {
             "light": { "background": "#ffffff", "surface": "#ffffff", "text": "#eeeeee", "text_muted": "#475569",
                        "action": "#0f172a", "action_text": "#ffffff", "accent_text": "#0f172a" } } }));
         assert_eq!(published.normalise(false).unwrap_err()[0].code, "contrast");
+    }
+
+    #[test]
+    fn languages_are_tidied_and_checked() {
+        let settings = |l: Value| WebsiteSettings::from_stored(json!({ "languages": l }));
+        let ok = settings(json!({ "enabled": ["FR", "sw", "fr"], "default": "en", "fallback": "fr" }))
+            .normalise(false)
+            .unwrap();
+        let l = ok.languages.as_ref().unwrap();
+        assert_eq!(l.enabled, ["en", "sw", "fr"]);
+        assert_eq!(ok.public()["languages"]["fallback"], "fr");
+        let code = |l: Value| settings(l).normalise(false).unwrap_err()[0].code;
+        assert_eq!(
+            code(json!({ "enabled": ["en", "de"], "default": "en", "fallback": "en" })),
+            "unknown"
+        );
+        assert_eq!(
+            code(json!({ "enabled": ["en"], "default": "ar", "fallback": "en" })),
+            "not_enabled"
+        );
+        // Drafts are checked too, and never reach the websites.
+        let draft = WebsiteSettings::from_stored(json!({
+            "languages_draft": { "enabled": ["en", "zh"], "default": "en", "fallback": "zh" }
+        }))
+        .normalise(false)
+        .unwrap();
+        assert!(draft.public().get("languages_draft").is_none());
+        assert!(draft.public()["languages"].is_null());
     }
 
     #[test]

@@ -423,6 +423,27 @@ test("ZiraHR's bands come from its palette in both modes, not a fixed colour (ow
   await expect.poll(() => band("--section-soft")).toBe("#f2e9da");
 });
 
+test("product websites have the shared language selector, staying on the website (P7-L1)", async ({
+  page,
+}) => {
+  await page.goto("/zirahr");
+  const header = page.getByRole("banner");
+  const selector = header.getByRole("button", { name: /^EN/ });
+  await expect(selector).toBeVisible();
+  await selector.click();
+  // English only until reviewed translations of its pages exist; the link stays on ZiraHR.
+  const options = header.getByRole("link", { name: /English/ });
+  await expect(options).toHaveCount(1);
+  await expect(options).toHaveAttribute("aria-current", "true");
+  await expect(options).toHaveAttribute("href", "/zirahr");
+  await expect(header.getByRole("link", { name: /Kiswahili|Français|العربية|中文/ })).toHaveCount(0);
+  const results = await new AxeBuilder({ page: await themeSettled(page) })
+    .include("header")
+    .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
+    .analyze();
+  expect(results.violations.map((v) => v.id)).toEqual([]);
+});
+
 test("images from the media library render responsively with their alt text", async ({ page, request }) => {
   // Mock fixture: Ziwa's published Platform page has a library image.
   await page.goto("/ziwa/platform");

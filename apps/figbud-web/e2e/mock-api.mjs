@@ -601,6 +601,7 @@ const publicSites = () =>
               "section_themes_draft",
               "theme_draft",
               "theme_history",
+              "languages_draft",
             ].includes(k),
         ),
       ),
@@ -4895,6 +4896,8 @@ function siteSettingsRoutes(slug, req, body, user, send) {
   next.section_themes ??= {};
   next.section_themes_draft ??= null;
   next.theme_draft ??= null;
+  next.languages ??= null;
+  next.languages_draft ??= null;
   // Kept by the API: what an editor sends is ignored (site_settings.rs update).
   next.theme_history = clone(site.settings.theme_history ?? []);
   const fields = [];
@@ -5140,11 +5143,46 @@ function siteSettingsRoutes(slug, req, body, user, send) {
       code: "corporate",
       message: "The corporate website always takes enquiries.",
     });
+  // A website's languages (site_settings.rs check_languages, P7-L1).
+  const LANGS = ["en", "sw", "fr", "ar", "zh"];
+  for (const [key, l] of [
+    ["languages", next.languages],
+    ["languages_draft", next.languages_draft],
+  ]) {
+    if (!l) continue;
+    const codes = [...(l.enabled ?? []), l.default, l.fallback].map((c) => String(c ?? "").toLowerCase());
+    if (!codes.every((c) => LANGS.includes(c))) {
+      fields.push({ field: key, code: "unknown", message: "Choose from the supported languages." });
+      continue;
+    }
+    l.enabled = LANGS.filter((c) => c === "en" || l.enabled.map((e) => e.toLowerCase()).includes(c));
+    if (!l.enabled.includes(l.default) || !l.enabled.includes(l.fallback))
+      fields.push({
+        field: key,
+        code: "not_enabled",
+        message: "The default and fallback languages must be switched on for this website.",
+      });
+  }
+  const languagesPublished =
+    JSON.stringify(next.languages) !== JSON.stringify(site.settings.languages ?? null);
+  if (
+    !fields.length &&
+    languagesPublished &&
+    next.languages &&
+    next.languages.default !== "en" &&
+    localeReviews.find((r) => r.code === next.languages.default)?.status !== "published"
+  )
+    fields.push({
+      field: "languages",
+      code: "unreviewed",
+      message:
+        "A website can open in a language only once its translation is reviewed and published (Settings & Security → Languages).",
+    });
   if (fields.length)
     return send(422, { error: { code: "validation", message: "Some fields need attention.", fields } });
   next.footer.note = next.footer.note?.trim() || null;
   next.enquiries.closed_message = next.enquiries.closed_message?.trim() || null;
-  const studioTheme = (t) => JSON.stringify([t?.palette, t?.light, t?.dark, t?.gradients]);
+  const studioTheme = (t) => JSON.stringify([t?.palette, t?.light, t?.dark, t?.gradients, t?.bands]);
   const themePublished = studioTheme(next.theme) !== studioTheme(site.settings.theme);
   if (themePublished)
     next.theme_history = [
@@ -5158,9 +5196,13 @@ function siteSettingsRoutes(slug, req, body, user, send) {
         ? "site.enquiries_opened"
         : themePublished
           ? "site.theme_published"
-          : JSON.stringify(next.theme_draft) !== JSON.stringify(site.settings.theme_draft ?? null)
-            ? "site.theme_draft_saved"
-            : "site.settings_updated";
+          : languagesPublished
+            ? "site.languages_published"
+            : JSON.stringify(next.languages_draft) !== JSON.stringify(site.settings.languages_draft ?? null)
+              ? "site.languages_draft_saved"
+              : JSON.stringify(next.theme_draft) !== JSON.stringify(site.settings.theme_draft ?? null)
+                ? "site.theme_draft_saved"
+                : "site.settings_updated";
   audit.unshift({
     id: randomBytes(8).toString("hex"),
     action,

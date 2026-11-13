@@ -1,3 +1,5 @@
+import { builtInLanguages } from "@figbud/i18n";
+import { fetchListedSites } from "@figbud/site-kit/server";
 import type { Metadata } from "next";
 import { Suspense } from "react";
 
@@ -9,6 +11,7 @@ import {
 } from "@/components/admin/languages-editor";
 import { StudioSkeleton } from "@/components/admin/studio-states";
 import { adminGet, requireAdmin } from "@/lib/admin-server";
+import { apiBase } from "@/lib/products";
 import { translationCoverage } from "@/lib/translation-coverage";
 
 export const metadata: Metadata = { title: "Languages" };
@@ -38,17 +41,25 @@ async function Languages() {
       ),
     ),
   );
+  // Which websites have switched each language on (their own Languages pages, P7-L1).
+  const usage: Record<string, string[]> = {};
+  for (const site of (await fetchListedSites(apiBase)) ?? []) {
+    for (const code of site.settings?.languages?.enabled ?? builtInLanguages(site.kind).enabled) {
+      (usage[code] ??= []).push(site.name);
+    }
+  }
   return (
     <>
       <h1 className="font-display text-3xl font-semibold tracking-tight text-text">Languages</h1>
       <p className="mt-2 max-w-3xl text-muted">
-        FigBud Global&apos;s translations. A language stays a draft (it can be read, but search engines
-        don&apos;t index it, and missing texts show in English) until a native-speaker review is recorded and
-        an owner publishes it. Published languages appear in search results, the sitemap and language
-        alternates, and visitors who write in them get their acknowledgement email in that language (English
-        until then).
+        The languages every website chooses from (each website switches them on in its own Languages page);
+        the coverage counts FigBud Global&apos;s own texts. A language stays a draft (it can be read, but
+        search engines don&apos;t index it, and missing texts show in English) until a native-speaker review
+        is recorded and an owner publishes it. Published languages appear in search results, the sitemap and
+        language alternates, and visitors who write in them get their acknowledgement email in that language
+        (English until then).
       </p>
-      <LanguagesEditor data={data} coverage={translationCoverage()} emails={emails} />
+      <LanguagesEditor data={data} coverage={translationCoverage()} emails={emails} usage={usage} />
     </>
   );
 }

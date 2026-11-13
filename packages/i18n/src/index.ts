@@ -85,8 +85,14 @@ export function hreflangAlternates(
 }
 
 /** Negotiates a locale from an `Accept-Language` header value. */
-export function negotiateLocale(acceptLanguage: string | null | undefined): Locale {
-  if (!acceptLanguage) return defaultLocale;
+export function negotiateLocale(
+  acceptLanguage: string | null | undefined,
+  /** Languages a visitor may be sent to without choosing (default: reviewed ones). */
+  allowed: readonly Locale[] = indexableLocales,
+  /** Where visitors go when nothing matches (a website's default language). */
+  otherwise: Locale = defaultLocale,
+): Locale {
+  if (!acceptLanguage) return otherwise;
   const ranked = acceptLanguage
     .split(",")
     .map((part) => {
@@ -99,9 +105,9 @@ export function negotiateLocale(acceptLanguage: string | null | undefined): Loca
 
   for (const { range } of ranked) {
     const base = range.split("-")[0] ?? "";
-    if (isLocale(base) && isIndexable(base)) return base;
+    if (isLocale(base) && allowed.includes(base)) return base;
   }
-  return defaultLocale;
+  return otherwise;
 }
 
 export type DeepPartial<T> = {
@@ -129,4 +135,56 @@ export function mergeDictionary<T extends object>(base: T, overlay: DeepPartial<
     }
   }
   return result as T;
+}
+
+/**
+ * A website's languages (Studio → a website → Languages, P7-L1, owner's
+ * brief, 14 Nov 2026): the ones it offers, the one it opens in and the one
+ * that fills in text not translated yet (then English, the language every
+ * page is written in). Stored in its settings; unset means `builtInLanguages`.
+ */
+export interface SiteLanguages {
+  enabled: Locale[];
+  default: Locale;
+  fallback: Locale;
+}
+
+export type SiteKind = "corporate" | "product";
+
+/** What a website offers before anyone sets its languages: FigBud Global its five, a product website English. */
+export function builtInLanguages(kind: SiteKind): SiteLanguages {
+  return {
+    enabled: kind === "corporate" ? [...locales] : [defaultLocale],
+    default: defaultLocale,
+    fallback: defaultLocale,
+  };
+}
+
+/**
+ * The languages a website shows visitors now. `reviewed` are those published
+ * with a recorded review (P7-G2). FigBud Global lists its unreviewed ones as
+ * "In review" (decision D9); a product website shows only reviewed ones
+ * (owner, 14 Nov 2026). A website opens only in English or a reviewed
+ * language, and falls back only to one it shows.
+ */
+export function liveLanguages(
+  config: Partial<SiteLanguages> | null | undefined,
+  kind: SiteKind,
+  reviewed: readonly string[],
+): SiteLanguages {
+  const chosen = pageLocales([defaultLocale, ...(config?.enabled ?? builtInLanguages(kind).enabled)]);
+  const isReviewed = (l: Locale) => l === defaultLocale || reviewed.includes(l);
+  const enabled = kind === "corporate" ? chosen : chosen.filter(isReviewed);
+  const pick = (l: unknown, also: (l: Locale) => boolean) =>
+    typeof l === "string" && isLocale(l) && enabled.includes(l) && also(l) ? l : defaultLocale;
+  return {
+    enabled,
+    default: pick(config?.default, isReviewed),
+    fallback: pick(config?.fallback, () => true),
+  };
+}
+
+/** Where a text is looked for: the language itself, the website's fallback, then English. */
+export function fallbackChain(locale: Locale, fallback: Locale): Locale[] {
+  return [...new Set<Locale>([locale, fallback, defaultLocale])];
 }

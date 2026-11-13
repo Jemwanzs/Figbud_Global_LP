@@ -254,6 +254,18 @@ Settings & Security → **Languages**: Kiswahili, French, Arabic and Chinese for
 - **Publish:** owners only, and only with a recorded review (the API and a database check both refuse otherwise). A published language is indexed and listed in the sitemap and `hreflang`; **Back to draft** takes it out again. Drafts can still be read, fall back to English where untranslated, and carry `noindex`.
 - **Where it runs:** `locale_reviews` (migration 33), `services/api/src/locales.rs` (`GET /v1/locales`, `GET`/`POST /v1/admin/locales…`, audited as `locale.published`, `locale.unpublished`, `locale.review_recorded`). The corporate site reads the published list through `publishedLocales()` (`apps/figbud-web/src/lib/locales.ts`), cached for minutes; without the API it uses the languages published in code (English).
 
+## Each website's languages (P7-L1, 14 Nov 2026)
+
+Websites → a website → **Languages**. One language model for every website: the languages and their reviews are shared (Settings & Security → Languages, above); each website chooses from them, and never changes another's.
+
+- **Choices:** which languages the website offers (English, the language every page is written in, is always on), the one it opens in, and the fallback for text not translated yet (then English, so nothing is blank or shows a raw key). Each language shows whether it is reviewed and published.
+- **Rules:** a website opens only in English or a reviewed language (the API refuses others, `languages`/`unreviewed`). FigBud Global lists unreviewed languages as "In review" and keeps them out of search (decision D9); product websites show only reviewed ones (owner, 14 Nov 2026). Product websites stay in English until their pages can be translated (P7-L2): the Studio says so, and their selector offers only pages that exist.
+- **Publishing:** Save draft, Publish (with a confirmation), Discard draft. Drafts never reach the websites. Version-checked and audited (`site.languages_draft_saved`, `site.languages_published`). Nothing set means the built-in languages: all five on FigBud Global, English on a product website.
+- **FigBud Global follows its own:** its selector and mobile menu list only the languages switched on; addresses in a switched-off language go to the same page in its default language; a first visit opens in a saved choice it still offers, else the visitor's browser language if reviewed, else its default; sitemaps and `hreflang` list languages that are both reviewed and switched on; untranslated text comes from its fallback language, then English.
+- **Product websites:** the same selector as FigBud Global (globe, language code, native names, the current one marked, in the website's own colours, keyboard accessible). It stays on the website and never sends visitors to FigBud Global.
+- **Settings & Security → Languages** shows which websites have switched each language on.
+- **Where it runs:** `languages` and `languages_draft` in the website's settings (`services/api/src/site_settings.rs`); `builtInLanguages`, `liveLanguages`, `fallbackChain` and `negotiateLocale` in `@figbud/i18n`; `localeProxy` in `@figbud/site-kit` with `apps/figbud-web/src/proxy.ts` (refreshed each minute) and `figbudLanguages()` in `apps/figbud-web/src/lib/locales.ts`; the renderer's `RENDERED_LANGUAGES`.
+
 ## Appearance & themes: the Studio's own colours (UI-AP1, 12 Nov 2026)
 
 Settings & Security → **Appearance & themes**. This changes the Admin Studio only; websites have their own themes (Colours & themes, below).

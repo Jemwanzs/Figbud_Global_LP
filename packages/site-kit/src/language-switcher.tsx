@@ -25,12 +25,21 @@ export function LanguageSwitcher({
   pathname,
   labels,
   className,
+  available = locales,
+  hrefFor,
+  reviewed,
 }: {
   locale: Locale;
   /** Current path without the locale prefix. */
   pathname: string;
   labels: LanguageLabels;
   className?: string;
+  /** The languages this website offers (its Languages page, P7-L1); all by default. */
+  available?: readonly Locale[];
+  /** Where a language's version of this page is (default: `/{locale}{pathname}`). */
+  hrefFor?: (code: Locale) => string;
+  /** Languages published with a recorded review; the others say "In review" (default: as in code). */
+  reviewed?: readonly string[];
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -60,12 +69,12 @@ export function LanguageSwitcher({
         {/* Dropdowns use the opposite theme (InverseTheme). */}
         <InverseTheme className="fb-panel fb-rise rounded-2xl p-1.5 text-text shadow-[var(--shadow-elevated)] [animation-duration:.3s]">
           <ul>
-            {locales.map((code) => {
+            {available.map((code) => {
               const info = localeInfo[code];
               return (
                 <li key={code}>
                   <Link
-                    href={localizePath(code, pathname)}
+                    href={hrefFor ? hrefFor(code) : localizePath(code, pathname)}
                     hrefLang={info.tag}
                     lang={info.tag}
                     aria-current={code === locale ? "true" : undefined}
@@ -76,7 +85,7 @@ export function LanguageSwitcher({
                     className="flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm text-muted transition-colors hover:bg-surface-2 hover:text-text aria-[current]:text-text"
                   >
                     <span className="flex-1">{info.label}</span>
-                    {info.status === "draft" && (
+                    {(reviewed ? !reviewed.includes(code) : info.status === "draft") && (
                       <span className="text-[0.7rem] text-subtle">{labels.inReview}</span>
                     )}
                     {code === locale && <Check aria-hidden className="size-4 text-accent" />}

@@ -94,7 +94,8 @@ export function WebsiteSettingsForm({
     setMessage(null);
     try {
       const saved = await adminFetch<WebsiteSettingsAdmin>(`sites/${slug}/settings`, {
-        settings: form,
+        // Everything this page doesn't edit (theme, languages, drafts…) goes back as stored.
+        settings: { ...data.settings, ...form },
         version,
       });
       setVersion(saved.version);

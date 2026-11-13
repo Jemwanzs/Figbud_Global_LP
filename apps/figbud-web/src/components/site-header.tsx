@@ -31,6 +31,10 @@ type HeaderProps = {
   brands: Record<string, BrandProfile | null>;
   /** Published hover previews by menu key (UI-NAV2); links without one have none. */
   previews?: Record<string, NavPreviewContent>;
+  /** The languages FigBud Global offers (Websites → FigBud Global → Languages, P7-L1). */
+  languages?: readonly Locale[];
+  /** Languages published with a recorded review; the others say "In review". */
+  reviewed?: readonly string[];
 };
 
 const navItems = [
@@ -41,7 +45,15 @@ const navItems = [
   { key: "contact", path: routes.contact },
 ] as const;
 
-export function SiteHeader({ locale, common, products, brands, previews = {} }: HeaderProps) {
+export function SiteHeader({
+  locale,
+  common,
+  products,
+  brands,
+  previews = {},
+  languages = locales,
+  reviewed,
+}: HeaderProps) {
   const pathname = usePathname();
   const current = stripLocale(pathname);
   // Articles are separate in each language (their own addresses), so other
@@ -118,6 +130,8 @@ export function SiteHeader({ locale, common, products, brands, previews = {} }: 
             pathname={switchPath}
             labels={common.language}
             className="hidden md:block"
+            available={languages}
+            reviewed={reviewed}
           />
           <Link
             href={localizePath(locale, routes.search)}
@@ -146,6 +160,7 @@ export function SiteHeader({ locale, common, products, brands, previews = {} }: 
             brands={brands}
             isActive={isActive}
             previews={previews}
+            languages={languages}
           />
         </div>
       </div>
@@ -285,6 +300,7 @@ function MobileMenu({
   brands,
   isActive,
   previews = {},
+  languages = locales,
 }: HeaderProps & { pathname: string; isActive: (path: string) => boolean }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const open = () => dialogRef.current?.showModal();
@@ -391,7 +407,7 @@ function MobileMenu({
               {common.language.label}
             </h2>
             <ul className="mt-3 flex flex-wrap gap-2">
-              {locales.map((code) => (
+              {languages.map((code) => (
                 <li key={code}>
                   <Link
                     href={localizePath(code, /^\/blog\/[^/]+$/.test(pathname) ? "/blog" : pathname)}

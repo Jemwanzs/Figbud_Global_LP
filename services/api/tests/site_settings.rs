@@ -388,3 +388,94 @@ async fn themes_publish_with_history_and_stay_on_their_website() {
         .await
         .ok();
 }
+
+#[tokio::test]
+async fn each_website_has_its_own_languages_and_opens_only_in_a_reviewed_one() {
+    // P7-L1 (owner's brief, 14 Nov 2026). Jasiri LMS only: nothing else reads its languages.
+    let Some(pool) = database().await else { return };
+    let url = std::env::var("TEST_DATABASE_URL").unwrap();
+    let app = app_with(pool.clone(), config(&url));
+    const SITE: &str = "/v1/admin/sites/jasiri/settings";
+    sqlx::query("UPDATE sites SET settings = '{}'::jsonb WHERE slug = 'jasiri'")
+        .execute(&pool)
+        .await
+        .unwrap();
+    let reviewer = admin(&pool, "reviewer").await;
+    let (_, read) = call(&app, "GET", SITE, Some(&reviewer), None).await;
+    assert!(read["settings"]["languages"].is_null(), "built-in until set");
+    let mut settings = read["settings"].clone();
+    let mut version = read["version"].clone();
+
+    // A draft: saved, audited, never on the website.
+    settings["languages_draft"] = json!({ "enabled": ["fr", "en"], "default": "en", "fallback": "fr" });
+    let (status, saved) = call(
+        &app,
+        "POST",
+        SITE,
+        Some(&reviewer),
+        Some(json!({ "settings": settings, "version": version })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{saved}");
+    assert_eq!(
+        saved["settings"]["languages_draft"]["enabled"],
+        json!(["en", "fr"])
+    );
+    version = saved["version"].clone();
+    let (_, sites) = call(&app, "GET", "/v1/sites", None, None).await;
+    let jasiri = |sites: &Value| {
+        sites
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|s| s["slug"] == "jasiri")
+            .unwrap()
+            .clone()
+    };
+    assert!(jasiri(&sites)["settings"]["languages"].is_null());
+    assert!(jasiri(&sites)["settings"].get("languages_draft").is_none());
+
+    // Opening in French needs French reviewed and published first.
+    settings = saved["settings"].clone();
+    settings["languages"] = json!({ "enabled": ["en", "fr"], "default": "fr", "fallback": "en" });
+    settings["languages_draft"] = Value::Null;
+    let (status, body) = call(
+        &app,
+        "POST",
+        SITE,
+        Some(&reviewer),
+        Some(json!({ "settings": settings, "version": version })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
+    assert_eq!(body["error"]["fields"][0]["code"], "unreviewed");
+
+    // In English, with French on: published and on the website.
+    settings["languages"]["default"] = json!("en");
+    let (status, saved) = call(
+        &app,
+        "POST",
+        SITE,
+        Some(&reviewer),
+        Some(json!({ "settings": settings, "version": version })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{saved}");
+    let (_, sites) = call(&app, "GET", "/v1/sites", None, None).await;
+    assert_eq!(
+        jasiri(&sites)["settings"]["languages"],
+        json!({ "enabled": ["en", "fr"], "default": "en", "fallback": "en" })
+    );
+    let audited: i64 = sqlx::query_scalar(
+        "SELECT count(*) FROM audit_log a JOIN sites s ON s.id = a.site_id
+          WHERE s.slug = 'jasiri' AND a.action IN ('site.languages_draft_saved', 'site.languages_published')",
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert_eq!(audited, 2);
+    sqlx::query("UPDATE sites SET settings = '{}'::jsonb WHERE slug = 'jasiri'")
+        .execute(&pool)
+        .await
+        .unwrap();
+}

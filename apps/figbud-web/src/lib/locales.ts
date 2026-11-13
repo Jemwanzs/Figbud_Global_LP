@@ -1,6 +1,15 @@
 import "server-only";
 
-import { type Locale, defaultLocale, indexableLocales, isLocale, pageLocales } from "@figbud/i18n";
+import {
+  type Locale,
+  type SiteLanguages,
+  defaultLocale,
+  indexableLocales,
+  isLocale,
+  liveLanguages,
+  pageLocales,
+} from "@figbud/i18n";
+import { fetchListedSites } from "@figbud/site-kit/server";
 import { cacheLife, cacheTag } from "next/cache";
 
 import { type PageMetadataInput, apiOrigin, pageMetadata } from "./site";
@@ -32,7 +41,28 @@ export async function publishedLocales(): Promise<Locale[]> {
   }
 }
 
-/** `pageMetadata` with the published languages. */
+/**
+ * FigBud Global's languages as visitors get them (Websites → FigBud Global →
+ * Languages, P7-L1): the ones switched on, the one it opens in and the
+ * fallback for text not translated yet. All five until someone changes them.
+ */
+export async function figbudLanguages(): Promise<SiteLanguages> {
+  "use cache";
+  cacheLife("minutes");
+  cacheTag("sites");
+  cacheTag("locales");
+  const sites = await fetchListedSites(base);
+  const config = sites?.find((s) => s.slug === "figbud")?.settings?.languages;
+  return liveLanguages(config, "corporate", await publishedLocales());
+}
+
+/** Languages in search results, sitemaps and `hreflang`: reviewed, and switched on. */
+export async function indexedLocales(): Promise<Locale[]> {
+  const [published, { enabled }] = await Promise.all([publishedLocales(), figbudLanguages()]);
+  return published.filter((l) => enabled.includes(l));
+}
+
+/** `pageMetadata` with the languages that are indexed. */
 export async function localizedMetadata(input: Omit<PageMetadataInput, "languages">) {
-  return pageMetadata({ ...input, languages: await publishedLocales() });
+  return pageMetadata({ ...input, languages: await indexedLocales() });
 }
