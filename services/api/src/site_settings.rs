@@ -74,8 +74,11 @@ pub struct Footer {
     /// Titled columns of links, in order.
     pub groups: Vec<FooterGroup>,
     pub cta: FooterCta,
-    /// Verified official profiles only; none are shown until added.
+    /// Verified official profiles only. An empty address shows the icon,
+    /// not linked; with none, the websites show the common networks unlinked.
     pub social: Vec<SocialLink>,
+    /// No social icons at all (owner's brief, 13 Nov 2026).
+    pub hide_social_icons: bool,
     pub contact: FooterContact,
     /// Hide the footer's columns (the legal links and copyright always stay).
     pub hidden: bool,
@@ -120,13 +123,18 @@ pub enum SocialNetwork {
     Instagram,
     Youtube,
     Tiktok,
+    /// Google Play (owner's brief, 13 Nov 2026), for an app when there is one.
+    Android,
+    /// The App Store, likewise.
+    Apple,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct SocialLink {
     pub network: SocialNetwork,
-    /// An https:// address of the official profile.
+    /// An https:// address of the official profile. Empty: the icon shows,
+    /// not linked, until the address is added (owner's brief, 13 Nov 2026).
     pub href: String,
 }
 
@@ -140,7 +148,7 @@ pub struct FooterContact {
 
 /// Beside the identity column and the fixed Legal & Support column.
 const MAX_FOOTER_GROUPS: usize = 3;
-const MAX_SOCIAL: usize = 6;
+const MAX_SOCIAL: usize = 8;
 
 /// A footer destination: a page path, which may carry a query and an anchor
 /// ("/contact?kind=demo_request#enquire"), or an https:// address.
@@ -251,13 +259,13 @@ fn check_footer(e: &mut Vec<FieldError>, footer: &mut Footer) {
         e.push(FieldError {
             field: "footer.social",
             code: "too_many",
-            message: "Up to six profiles.",
+            message: "Up to eight profiles.",
         });
     }
     let mut networks = std::collections::HashSet::new();
     for profile in footer.social.iter_mut() {
         profile.href = profile.href.trim().to_owned();
-        if !profile.href.starts_with("https://") || !valid_link(&profile.href) {
+        if !profile.href.is_empty() && (!profile.href.starts_with("https://") || !valid_link(&profile.href)) {
             e.push(FieldError {
                 field: "footer.social",
                 code: "href",
@@ -1075,7 +1083,11 @@ mod tests {
                     { "label": "FigBud Global", "href": "https://figbud.example/en" },
                 ] }],
                 "cta": { "heading": "Ready?", "label": "Book a demo", "href": "/contact?kind=demo_request#enquire" },
-                "social": [{ "network": "linkedin", "href": "https://www.linkedin.com/company/example" }],
+                "social": [
+                    { "network": "linkedin", "href": "https://www.linkedin.com/company/example" },
+                    // Shown, not linked yet: no address.
+                    { "network": "android", "href": " " },
+                ],
                 "contact": { "email": " Hello@Example.com ", "phone": "+254 798 993 404" },
             },
             "footer_draft": { "tagline": "Unpublished footer", "hidden": true },
@@ -1090,6 +1102,8 @@ mod tests {
         assert_eq!(footer.groups[0].title, "Platform");
         assert!(footer.cta.show, "the call to action shows unless switched off");
         assert_eq!(footer.contact.email.as_deref(), Some("hello@example.com"));
+        assert_eq!(footer.social[1].network, SocialNetwork::Android);
+        assert_eq!(footer.social[1].href, "");
         assert!(!footer.hidden);
         let public = settings.public();
         assert_eq!(

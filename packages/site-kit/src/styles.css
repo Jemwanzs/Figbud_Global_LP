@@ -1366,3 +1366,52 @@ body:has(main [data-section="call_to_action"]:last-child) footer {
     transition: none;
   }
 }
+
+/* Major section headings: a short accent line above them, in the website's
+   product colour, so it follows the configured theme in light and dark
+   (owner's brief, 13 Nov 2026: 44–56 px wide, about 2 px tall, 12–16 px above). */
+.fb-heading-accent {
+  display: block;
+  width: 3rem;
+  height: 2px;
+  margin-bottom: 0.875rem;
+  border-radius: 9999px;
+  background: var(--product);
+}
+
+/* Footer (owner's brief, 13 Nov 2026): floating vertical dividers between the
+   columns on wide screens, about 60% of the row's height, fading at both ends
+   into the footer, never touching text. Half the column gap before each. */
+.fb-footer-row {
+  --fb-footer-gap: 3rem;
+}
+.fb-footer-nav {
+  --fb-footer-column-gap: 2.5rem;
+}
+@media (min-width: 64rem) {
+  .fb-footer-divided {
+    position: relative;
+  }
+  .fb-footer-divided::before {
+    content: "";
+    position: absolute;
+    inset-inline-start: calc(var(--fb-footer-column-gap, 2.5rem) / -2);
+    top: 18%;
+    height: 60%;
+    width: 1px;
+    pointer-events: none;
+    background: linear-gradient(
+      to bottom,
+      transparent,
+      color-mix(in srgb, var(--text) 18%, transparent) 30%,
+      color-mix(in srgb, var(--text) 18%, transparent) 70%,
+      transparent
+    );
+  }
+  /* Between the identity column and the links: half the row's gap. */
+  .fb-footer-nav.fb-footer-divided::before {
+    inset-inline-start: calc(var(--fb-footer-gap) / -2);
+    top: 8%;
+    height: 64%;
+  }
+}

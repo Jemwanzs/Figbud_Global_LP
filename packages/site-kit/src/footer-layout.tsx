@@ -3,6 +3,7 @@ import { ArrowRight, ArrowUpRight, Mail, Phone } from "lucide-react";
 import type { ReactNode } from "react";
 
 import type { FooterSocialNetwork } from "./brand";
+import { SocialIcon } from "./social-icons";
 
 /*
  * One footer for every FigBud website (owner's brief, 7 Nov 2026): a call to
@@ -11,6 +12,12 @@ import type { FooterSocialNetwork } from "./brand";
  * bottom bar. Each website supplies its own content and branding; this only
  * lays it out. It follows the global theme through the design tokens, and the
  * panel takes the opposite theme like every contrasting surface.
+ *
+ * Premium footer (owner's brief, 13 Nov 2026): floating vertical dividers
+ * between columns on wide screens (`.fb-footer-divided`), column headings with
+ * a short accent line, links that turn to the accent with a growing underline,
+ * and an icon row where a network without an address is shown, not linked
+ * (no pointer, not focusable) until one is added in the Studio.
  */
 
 export const SOCIAL_NAMES: Record<FooterSocialNetwork, string> = {
@@ -20,6 +27,8 @@ export const SOCIAL_NAMES: Record<FooterSocialNetwork, string> = {
   instagram: "Instagram",
   youtube: "YouTube",
   tiktok: "TikTok",
+  android: "Google Play",
+  apple: "App Store",
 };
 
 export interface FooterLinkItem {
@@ -31,6 +40,8 @@ export interface FooterLinkItem {
   badge?: string;
   /** A product's colour dot (`data-product`). */
   product?: string;
+  /** A little more weight, for the footer's main action (such as booking a demo). */
+  emphasis?: boolean;
 }
 
 export interface FooterColumnSpec {
@@ -58,6 +69,7 @@ export interface FooterLayoutProps {
   /** Always shown, even when the columns are hidden. */
   legal: FooterColumnSpec;
   contact?: { email?: string | null; phone?: string | null };
+  /** An empty address shows the icon without a link. */
   social?: { network: FooterSocialNetwork; href: string }[];
   /** Hide the identity and link columns; the legal links and copyright stay. */
   hidden?: boolean;
@@ -75,7 +87,11 @@ const COLUMNS: Record<number, string> = {
 };
 
 const linkClass =
-  "group/link inline-flex min-h-10 items-center gap-1.5 rounded-md text-sm text-muted transition-colors duration-200 hover:text-text focus-visible:ring-2 focus-visible:ring-[var(--focus)] focus-visible:outline-none";
+  "group/link inline-flex min-h-10 cursor-pointer items-center gap-1.5 rounded-md text-sm text-muted transition-colors duration-200 hover:text-product-text focus-visible:text-product-text focus-visible:ring-2 focus-visible:ring-[var(--focus)] focus-visible:outline-none";
+
+/** The label: moves a couple of pixels and gains an underline on hover or focus. */
+const labelClass =
+  "bg-[linear-gradient(currentColor,currentColor)] bg-[length:0%_1px] bg-[position:0_100%] bg-no-repeat pb-0.5 transition-[background-size,translate] duration-200 ease-out group-hover/link:translate-x-0.5 group-hover/link:bg-[length:100%_1px] group-focus-visible/link:bg-[length:100%_1px] motion-reduce:transition-none rtl:bg-[position:100%_100%] rtl:group-hover/link:-translate-x-0.5";
 
 function FooterLink({ link, newTab }: { link: FooterLinkItem; newTab: string }) {
   return (
@@ -83,12 +99,10 @@ function FooterLink({ link, newTab }: { link: FooterLinkItem; newTab: string }) 
       href={link.href}
       target={link.external ? "_blank" : undefined}
       rel={link.external ? "noopener" : undefined}
-      className={linkClass}
+      className={cn(linkClass, link.emphasis && "font-medium text-text")}
     >
       {link.product && <span aria-hidden className="size-1.5 shrink-0 rounded-full bg-product" />}
-      <span className="transition-transform duration-200 group-hover/link:translate-x-0.5 rtl:group-hover/link:-translate-x-0.5">
-        {link.label}
-      </span>
+      <span className={labelClass}>{link.label}</span>
       {link.badge && (
         <span className="rounded-full border border-line px-2 py-0.5 text-[0.7rem] leading-none text-subtle">
           {link.badge}
@@ -107,11 +121,23 @@ function FooterLink({ link, newTab }: { link: FooterLinkItem; newTab: string }) 
   );
 }
 
-function FooterColumn({ column, newTab }: { column: FooterColumnSpec; newTab: string }) {
+function FooterColumn({
+  column,
+  newTab,
+  divided,
+}: {
+  column: FooterColumnSpec;
+  newTab: string;
+  /** A floating divider before it, on wide screens. */
+  divided: boolean;
+}) {
   return (
-    <div data-footer-column={column.title}>
-      <h2 className="text-xs font-medium tracking-[0.16em] text-subtle uppercase">{column.title}</h2>
-      <ul className="mt-3 space-y-0.5">
+    <div data-footer-column={column.title} className={cn("min-w-0", divided && "fb-footer-divided")}>
+      <h2 className="font-display text-xs font-semibold tracking-[0.12em] text-text uppercase">
+        {column.title}
+      </h2>
+      <span aria-hidden className="mt-2.5 block h-0.5 w-8 rounded-full bg-product" />
+      <ul className="mt-3.5 space-y-0.5">
         {column.links.map((link) => (
           <li key={`${link.href}-${link.label}`} data-product={link.product}>
             <FooterLink link={link} newTab={newTab} />
@@ -191,8 +217,8 @@ export function FooterLayout({
       <div className="border-t border-line">
         <div className="mx-auto max-w-[92rem] px-5 sm:px-8 md:px-10 lg:px-16">
           {!hidden && (
-            <div className="grid gap-10 py-12 lg:grid-cols-12 lg:gap-8 lg:py-14">
-              <div className="lg:col-span-4">
+            <div className="fb-footer-row grid gap-10 py-12 lg:grid-cols-12 lg:gap-x-12 lg:py-14">
+              <div className="min-w-0 lg:col-span-4">
                 {identity}
                 {tagline && <p className="mt-5 font-display text-lg font-medium text-text">{tagline}</p>}
                 {description && (
@@ -219,24 +245,38 @@ export function FooterLayout({
                   </ul>
                 )}
                 {social.length > 0 && (
-                  <ul aria-label={labels.social} className="mt-5 flex flex-wrap gap-2">
-                    {social.map((profile) => (
-                      <li key={profile.network}>
-                        <a
-                          href={profile.href}
-                          target="_blank"
-                          rel="noopener me"
-                          className="group/social inline-flex min-h-10 items-center gap-1.5 rounded-full border border-line px-3.5 text-sm text-muted transition-colors duration-200 hover:border-accent/50 hover:text-text focus-visible:ring-2 focus-visible:ring-[var(--focus)] focus-visible:outline-none"
-                        >
-                          {SOCIAL_NAMES[profile.network]}
-                          <ArrowUpRight
-                            aria-hidden
-                            className="size-3.5 transition-transform duration-200 group-hover/social:translate-x-0.5 group-hover/social:-translate-y-0.5 rtl:-scale-x-100"
-                          />
-                          <span className="sr-only">({labels.opensInNewTab})</span>
-                        </a>
-                      </li>
-                    ))}
+                  <ul aria-label={labels.social} className="mt-6 flex flex-wrap gap-2.5">
+                    {social.map((profile) => {
+                      const name = SOCIAL_NAMES[profile.network];
+                      return (
+                        <li key={profile.network} data-social={profile.network}>
+                          {profile.href ? (
+                            <a
+                              href={profile.href}
+                              target="_blank"
+                              rel="noopener me"
+                              title={name}
+                              className="grid size-10 cursor-pointer place-items-center rounded-full border border-line bg-surface/60 text-muted transition-[color,background-color,border-color,translate] duration-200 ease-out hover:-translate-y-0.5 hover:border-product/40 hover:bg-product-soft hover:text-product-text focus-visible:ring-2 focus-visible:ring-[var(--focus)] focus-visible:outline-none motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+                            >
+                              <SocialIcon network={profile.network} className="size-4" />
+                              <span className="sr-only">
+                                {name} ({labels.opensInNewTab})
+                              </span>
+                            </a>
+                          ) : (
+                            // Not linked yet: a mark, not a control (no pointer, not focusable).
+                            <span
+                              role="img"
+                              aria-label={name}
+                              title={name}
+                              className="grid size-10 cursor-default place-items-center rounded-full border border-line/70 text-subtle"
+                            >
+                              <SocialIcon network={profile.network} className="size-4" />
+                            </span>
+                          )}
+                        </li>
+                      );
+                    })}
                   </ul>
                 )}
               </div>
@@ -244,12 +284,17 @@ export function FooterLayout({
               <nav
                 aria-label={labels.links}
                 className={cn(
-                  "grid grid-cols-2 gap-x-6 gap-y-9 sm:grid-cols-3 lg:col-span-8",
+                  "fb-footer-nav fb-footer-divided grid grid-cols-2 gap-x-6 gap-y-9 border-t border-line pt-9 sm:grid-cols-3 lg:col-span-8 lg:gap-x-10 lg:border-t-0 lg:pt-0",
                   COLUMNS[Math.min(all.length, 4)],
                 )}
               >
-                {all.map((column) => (
-                  <FooterColumn key={column.title} column={column} newTab={labels.opensInNewTab} />
+                {all.map((column, i) => (
+                  <FooterColumn
+                    key={column.title}
+                    column={column}
+                    newTab={labels.opensInNewTab}
+                    divided={i > 0}
+                  />
                 ))}
               </nav>
             </div>

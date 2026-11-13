@@ -501,6 +501,15 @@ Object.assign(sites.find((s) => s.slug === "zirahr").settings, {
 // The admin row has no settings: they have their own endpoint (sites/{slug}/settings).
 // Ziwa LMS's brown and ivory section bands (migration 14).
 sites[4].settings.theme = { brand_section: "#4e2d17", soft_section: "#fdf9f4" };
+// Ziwa LMS lists a linked profile and an app store page without an address
+// yet (shown, not linked); ZiraHR lists none, so the common networks show unlinked.
+sites[4].settings.footer = {
+  ...sites[4].settings.footer,
+  social: [
+    { network: "linkedin", href: "https://www.linkedin.com/company/example" },
+    { network: "apple", href: "" },
+  ],
+};
 // A published Brand & Theme Studio theme (site_theme.rs) on Expense Now, so the
 // renderer's tests see it applied there and nowhere else. Synthetic colours,
 // contrast-checked like the API would.
@@ -5010,7 +5019,8 @@ function siteSettingsRoutes(slug, req, body, user, send) {
         message: "The button goes to a page path such as /contact, or an https:// address.",
       });
     for (const profile of footer.social ?? [])
-      if (!/^https:\/\/[^\s<>"']+$/.test(String(profile.href ?? "").trim()))
+      // An empty address shows the icon without a link (site_settings.rs).
+      if (String(profile.href ?? "").trim() && !/^https:\/\/[^\s<>"']+$/.test(String(profile.href).trim()))
         fields.push({
           field: "footer.social",
           code: "href",

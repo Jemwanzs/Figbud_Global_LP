@@ -39,7 +39,8 @@ export interface SiteLink {
 }
 
 /** Must match `SocialNetwork` in `services/api/src/site_settings.rs`. */
-export type FooterSocialNetwork = "linkedin" | "x" | "facebook" | "instagram" | "youtube" | "tiktok";
+export type FooterSocialNetwork =
+  "linkedin" | "x" | "facebook" | "instagram" | "youtube" | "tiktok" | "android" | "apple";
 
 /**
  * A website's footer (Studio → a website → Footer; owner's brief, 7 Nov 2026).
@@ -59,7 +60,10 @@ export interface SiteFooterSettings {
     label?: string | null;
     href?: string | null;
   };
+  /** An empty address shows the icon without a link, until one is added. */
   social?: { network: FooterSocialNetwork; href: string }[];
+  /** No social icons at all; otherwise, with none configured, the common networks show unlinked. */
+  hide_social_icons?: boolean;
   contact?: { email?: string | null; phone?: string | null };
   hidden?: boolean;
 }

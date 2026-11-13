@@ -247,7 +247,7 @@ function ScrollStory({
       style={{ "--story-progress": 0, "--story-steps": count } as CSSProperties}
       className="fb-story relative"
     >
-      <div className="fb-story-pin sticky top-[var(--story-top,4.5rem)] flex flex-col gap-4 py-4 lg:grid lg:grid-cols-12 lg:items-start lg:gap-x-12 lg:gap-y-6 lg:py-4">
+      <div className="fb-story-pin sticky top-[var(--story-top,4.5rem)] flex flex-col gap-4 py-4 lg:grid lg:grid-cols-12 lg:items-start lg:gap-x-12 lg:gap-y-8 lg:py-4">
         {intro && <div className="fb-story-intro lg:col-span-12">{intro}</div>}
         {/* Compact: about 46rem at most, beside the words; the full width on phones. */}
         <div className="w-full lg:order-2 lg:col-span-7 lg:ms-auto lg:max-w-[46rem]">
@@ -270,8 +270,8 @@ function ScrollStory({
           </div>
           <p className="mt-2 text-xs text-subtle">Illustrative product activity · synthetic data</p>
         </div>
-        {/* Level with the top of the picture, not floating at its middle. */}
-        <div className="lg:order-1 lg:col-span-5 lg:pt-2">
+        {/* Centred against the picture beside it (owner's brief, 13 Nov 2026). */}
+        <div className="lg:order-1 lg:col-span-5 lg:self-center">
           {/* Where the story is: the current step, and a dot for each that jumps to it. */}
           <div className="fb-story-nav mb-4 flex items-center gap-3">
             <span className="font-mono text-sm text-product-text tabular-nums">

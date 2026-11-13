@@ -229,17 +229,34 @@ function evenColumns(count: number, usual: string, four: string) {
   return usual;
 }
 
-function Heading({ children, level = 2 }: { children: ReactNode; level?: 1 | 2 }) {
+/**
+ * A section heading. Major section headings carry a short accent line in the
+ * website's product colour above them (owner's brief, 13 Nov 2026: 48 by 2 px,
+ * 14 px above, left-aligned, theme-aware through `--product`). Headings with
+ * their own treatment (heroes, call-to-action panels, long text) leave it out.
+ */
+function Heading({
+  children,
+  level = 2,
+  accent = level === 2,
+}: {
+  children: ReactNode;
+  level?: 1 | 2;
+  accent?: boolean;
+}) {
   const Tag = level === 1 ? "h1" : "h2";
   return (
-    <Tag
-      className={cn(
-        "font-display font-semibold tracking-tight text-text",
-        level === 1 ? "text-display" : "text-title",
-      )}
-    >
-      {children}
-    </Tag>
+    <>
+      {accent && <span aria-hidden data-heading-accent="" className="fb-heading-accent" />}
+      <Tag
+        className={cn(
+          "font-display font-semibold tracking-tight text-text",
+          level === 1 ? "text-display" : "text-title",
+        )}
+      >
+        {children}
+      </Tag>
+    </>
   );
 }
 
@@ -274,7 +291,7 @@ function Block({
             </p>
           )}
           <div className="mt-4">
-            <Heading level={top}>
+            <Heading level={top} accent={false}>
               {section.heading}
               {section.accent && <span className="block text-product-text">{section.accent}</span>}
             </Heading>
@@ -323,7 +340,7 @@ function Block({
         <div>
           {section.heading && (
             <div className="mb-6">
-              <Heading>{section.heading}</Heading>
+              <Heading accent={false}>{section.heading}</Heading>
             </div>
           )}
           <Prose html={section.body_html} text={section.body} />
@@ -437,7 +454,7 @@ function Block({
             className="pointer-events-none absolute end-[-10%] -top-24 h-64 w-64 rounded-full bg-[radial-gradient(closest-side,var(--product-soft),transparent)]"
           />
           <div className="relative max-w-2xl">
-            <Heading>{section.heading}</Heading>
+            <Heading accent={false}>{section.heading}</Heading>
             {section.body && <p className="mt-4 text-muted">{section.body}</p>}
             <div className="mt-8">
               <Action cta={section.cta} mode={mode} resolve={resolve} primary />
@@ -530,7 +547,6 @@ function Block({
         section.layout === "split" ? (
           <div className="grid gap-8 @5xl:grid-cols-12 @5xl:items-center @5xl:gap-12">
             <div className="@5xl:col-span-4">
-              <span aria-hidden className="mb-5 block h-0.5 w-12 bg-product" />
               {section.heading && <Heading>{section.heading}</Heading>}
               {section.intro && <p className="mt-4 text-lead text-muted">{section.intro}</p>}
             </div>

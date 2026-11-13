@@ -4,6 +4,7 @@ import {
   CookieSettingsButton,
   type FooterColumnSpec,
   FooterLayout,
+  type FooterSocialNetwork,
   ProductIdentity,
   type SiteFooterSettings,
 } from "@figbud/site-kit";
@@ -12,6 +13,9 @@ import { cacheLife } from "next/cache";
 import { figbudOrigin } from "@/lib/sites";
 
 import type { NavLink } from "./site-header";
+
+/** Shown unlinked while a website lists no profiles (app stores only when added). */
+const DEFAULT_SOCIAL: FooterSocialNetwork[] = ["facebook", "instagram", "x", "linkedin"];
 
 /** The current year, cached so the footer stays part of the static shell. */
 async function currentYear() {
@@ -58,7 +62,16 @@ export async function SiteFooter({
     label: l.label,
     href: resolve(l.href),
     external: l.href.startsWith("https://"),
+    // The footer's main action (booking a demo) gets a little more weight.
+    emphasis: /kind=demo_request/.test(l.href),
   });
+  // With no profiles listed, the common networks show without links until
+  // their addresses are added in the Studio (owner's brief, 13 Nov 2026).
+  const social = settings?.hide_social_icons
+    ? []
+    : settings?.social?.length
+      ? settings.social
+      : DEFAULT_SOCIAL.map((network) => ({ network, href: "" }));
 
   const groups = settings?.groups ?? [];
   const legacy = settings?.links ?? [];
@@ -82,7 +95,7 @@ export async function SiteFooter({
     extra: (
       <CookieSettingsButton
         label="Cookie settings"
-        className="inline-flex min-h-10 cursor-pointer items-center rounded-md text-start text-sm text-muted transition-colors duration-200 hover:text-text focus-visible:ring-2 focus-visible:ring-[var(--focus)] focus-visible:outline-none"
+        className="inline-flex min-h-10 cursor-pointer items-center rounded-md text-start text-sm text-muted transition-colors duration-200 hover:text-product-text focus-visible:text-product-text focus-visible:ring-2 focus-visible:ring-[var(--focus)] focus-visible:outline-none"
       />
     ),
   };
@@ -122,7 +135,7 @@ export async function SiteFooter({
       columns={columns}
       legal={legal}
       contact={settings?.contact}
-      social={settings?.social}
+      social={social}
       hidden={settings?.hidden}
       copyright={`© ${year} FigBud Global. All rights reserved.`}
       note={
@@ -130,7 +143,7 @@ export async function SiteFooter({
           {name} is a product of{" "}
           <a
             href={corporate("")}
-            className="rounded text-muted underline underline-offset-4 transition-colors hover:text-text"
+            className="rounded text-muted underline underline-offset-4 transition-colors duration-200 hover:text-product-text focus-visible:ring-2 focus-visible:ring-[var(--focus)] focus-visible:outline-none"
           >
             FigBud Global
           </a>

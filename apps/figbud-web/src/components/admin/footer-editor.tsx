@@ -20,7 +20,7 @@ import type { WebsiteSettingsAdmin } from "./website-settings";
 
 const MAX_GROUPS = 3;
 const MAX_LINKS = 8;
-const MAX_SOCIAL = 6;
+const MAX_SOCIAL = 8;
 const NETWORKS = Object.keys(SOCIAL_NAMES) as FooterSocialNetwork[];
 
 /** What the fields hold: empty text rather than nothing. */
@@ -33,6 +33,7 @@ interface Form {
   email: string;
   phone: string;
   social: { network: FooterSocialNetwork; href: string }[];
+  hideSocial: boolean;
   /** The older single list, kept as it was until groups replace it. */
   links: SiteLink[];
 }
@@ -53,6 +54,7 @@ function toForm(f: SiteFooterSettings | null | undefined): Form {
     email: f?.contact?.email ?? "",
     phone: f?.contact?.phone ?? "",
     social: (f?.social ?? []).map((s) => ({ ...s })),
+    hideSocial: f?.hide_social_icons ?? false,
     links: f?.links ?? [],
   };
 }
@@ -74,6 +76,7 @@ function toSettings(form: Form): SiteFooterSettings {
     groups: form.groups,
     contact: { email: text(form.email), phone: text(form.phone) },
     social: form.social,
+    hide_social_icons: form.hideSocial,
     // Groups replace the older list, so it isn't shown twice.
     links: form.groups.length ? [] : form.links,
   };
@@ -489,9 +492,22 @@ export function FooterEditor({
         <div>
           <h2 className="font-semibold text-text">Social profiles</h2>
           <p className="mt-1 text-sm text-muted">
-            Official, verified profiles of {name} only. Nothing shows until a profile is added.
+            Official, verified profiles and app store pages of {name} only, shown as icons in the footer.
+            Leave the address empty to show the icon without a link for now: it becomes a link (opening in a
+            new tab) as soon as the address is added. With none listed, Facebook, Instagram, X and LinkedIn
+            show without links.
           </p>
         </div>
+        <label className="flex min-h-11 items-center gap-3 text-sm text-text">
+          <input
+            type="checkbox"
+            checked={!form.hideSocial}
+            disabled={disabled}
+            onChange={() => set({ hideSocial: !form.hideSocial })}
+            className="size-5 accent-[var(--action)]"
+          />
+          Show social icons in the footer
+        </label>
         <ul className="space-y-2">
           {form.social.map((profile, i) => (
             <li key={i} className="flex flex-wrap items-center gap-2">
@@ -519,7 +535,7 @@ export function FooterEditor({
                 value={profile.href}
                 maxLength={200}
                 disabled={disabled}
-                placeholder="https://…"
+                placeholder="https://… (optional for now)"
                 onChange={(e) =>
                   set({ social: form.social.map((s, j) => (j === i ? { ...s, href: e.target.value } : s)) })
                 }

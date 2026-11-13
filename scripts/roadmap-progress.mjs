@@ -117,6 +117,8 @@ const ROWS = {
   "UI-TH7": ["zirahr", "studio"],
   "UI-SS3": ["zirahr"],
   "P13-B6": ["studio"],
+  "UI-AC1": ["zirahr"],
+  "UI-FT2": ["zirahr", "figbud", "studio"],
   "UI-MO12": ["zirahr", "figbud"],
   "UI-MO11": ["zirahr"],
   "UI-MO9": ["figbud", "zirahr"],

@@ -158,6 +158,39 @@ test("navigation and offline pages follow the Studio's visibility settings", asy
   expect((await page.goto("/ziwa/legacy"))?.status()).toBe(404);
 });
 
+test("major section headings carry the accent line; heroes and call-to-action panels don't (13 Nov 2026)", async ({
+  page,
+}) => {
+  await page.goto("/zirahr/platform");
+  // Measured together, so entrance animations can't move one between readings.
+  const accents = await page.evaluate(() =>
+    [...document.querySelectorAll("main [data-heading-accent]")].map((accent) => {
+      const a = accent.getBoundingClientRect();
+      const heading = accent.nextElementSibling!;
+      const h = heading.getBoundingClientRect();
+      return {
+        tag: heading.tagName,
+        width: a.width,
+        height: a.height,
+        gap: h.top - a.bottom,
+        dx: h.left - a.left,
+      };
+    }),
+  );
+  expect(accents.length).toBeGreaterThan(2);
+  for (const a of accents) {
+    // 48 by 2 px, left-aligned with the heading right after it, 12–16 px above it.
+    expect(a).toMatchObject({ tag: "H2", width: 48, height: 2 });
+    expect(Math.abs(a.dx)).toBeLessThanOrEqual(1);
+    expect(a.gap).toBeGreaterThanOrEqual(12);
+    expect(a.gap).toBeLessThanOrEqual(16);
+  }
+  await expect(page.locator("main h1 ~ [data-heading-accent], main [data-heading-accent] + h1")).toHaveCount(
+    0,
+  );
+  await expect(page.locator('main [data-section="call_to_action"] [data-heading-accent]')).toHaveCount(0);
+});
+
 test.describe("ZiraHR footer (owner's brief, 7 Nov 2026)", () => {
   test("its own call to action, tagline and groups, named as a FigBud Global product", async ({ page }) => {
     await page.goto("/zirahr/about");
@@ -193,6 +226,77 @@ test.describe("ZiraHR footer (owner's brief, 7 Nov 2026)", () => {
     // Cookie settings open the existing preferences.
     await footer.getByRole("button", { name: "Cookie settings" }).click();
     await expect(page.getByRole("dialog", { name: "Cookie preferences" })).toBeVisible();
+  });
+
+  test("premium footer: accented column headings, floating dividers, link hover, and icons linked only when configured", async ({
+    page,
+    isMobile,
+  }) => {
+    // Owner's brief, 13 Nov 2026.
+    await page.goto("/zirahr/about");
+    const footer = page.getByRole("contentinfo");
+    // Each column heading has its short accent line underneath.
+    const accent = footer.locator('[data-footer-column="Platform"] h2 + span[aria-hidden]');
+    const box = (await accent.boundingBox())!;
+    expect(Math.round(box.width)).toBe(32);
+    expect(Math.round(box.height)).toBe(2);
+    // Floating dividers between columns on wide screens (part of the row, never full height); none on phones.
+    const divider = await footer.locator('[data-footer-column="Explore"]').evaluate((el) => {
+      const before = getComputedStyle(el, "::before");
+      return {
+        content: before.content,
+        height: parseFloat(before.height),
+        column: el.getBoundingClientRect().height,
+      };
+    });
+    if (isMobile) expect(["none", "normal"]).toContain(divider.content);
+    else {
+      expect(divider.content).not.toBe("none");
+      expect(divider.height / divider.column).toBeGreaterThan(0.5);
+      expect(divider.height / divider.column).toBeLessThan(0.7);
+    }
+    // Links turn to the accent with an underline on hover; the demo link carries a little more weight.
+    const overview = footer.getByRole("link", { name: "Platform overview" });
+    if (!isMobile) {
+      await overview.hover();
+      await expect
+        .poll(() =>
+          overview
+            .locator("span")
+            .first()
+            .evaluate((el) => getComputedStyle(el).backgroundSize),
+        )
+        .toBe("100% 1px");
+      expect(await overview.evaluate((el) => getComputedStyle(el).cursor)).toBe("pointer");
+    }
+    // ZiraHR lists no profiles yet: the common networks show, not linked, not focusable, no hand cursor.
+    const icons = footer.getByRole("list", { name: "ZiraHR on social media" });
+    for (const name of ["Facebook", "Instagram", "X", "LinkedIn"])
+      await expect(icons.getByRole("img", { name, exact: true })).toBeVisible();
+    await expect(icons.getByRole("link")).toHaveCount(0);
+    expect(
+      await icons
+        .locator("[data-social] > span")
+        .first()
+        .evaluate((el) => getComputedStyle(el).cursor),
+    ).toBe("default");
+    // App store icons only when a website adds them (ZiraHR is browser-based).
+    await expect(icons.getByRole("img", { name: /Google Play|App Store/ })).toHaveCount(0);
+
+    // A configured profile is a safe external link; one without an address stays a mark.
+    await page.goto("/ziwa");
+    const ziwa = page.getByRole("contentinfo").getByRole("list", { name: /on social media$/ });
+    const linkedin = ziwa.getByRole("link", { name: /LinkedIn/ });
+    await expect(linkedin).toHaveAttribute("href", "https://www.linkedin.com/company/example");
+    await expect(linkedin).toHaveAttribute("target", "_blank");
+    await expect(linkedin).toHaveAttribute("rel", /noopener/);
+    await expect(ziwa.getByRole("img", { name: "App Store" })).toBeVisible();
+    await expect(ziwa.getByRole("img", { name: "Facebook" })).toHaveCount(0);
+    const results = await new AxeBuilder({ page: await themeSettled(page) })
+      .include("footer")
+      .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
+      .analyze();
+    expect(results.violations.map((v) => v.id)).toEqual([]);
   });
 
   test("a page ending with its own call to action doesn't get a second one", async ({ page }) => {
