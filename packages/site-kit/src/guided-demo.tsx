@@ -4,7 +4,7 @@ import { cn } from "@figbud/ui";
 import { type CSSProperties, type ReactNode, createContext, useContext, useSyncExternalStore } from "react";
 
 import { type DemoState, useAutoDemo } from "./auto-demo";
-import { useScrollStory } from "./scroll-story";
+import { useScrollStory } from "./scroll-engine";
 
 /*
  * Smart scroll storytelling (owner's brief, 12 Nov 2026): a demonstration

@@ -6,7 +6,8 @@
 // year) and `@figbud/site-kit/server` (next.config.ts, proxy.ts).
 export * from "./brand";
 export * from "./nav-preview";
-export * from "./product-demos";
+// Demonstrations and the module tour load lazily (`lazy-blocks`): types only here (P2-18).
+export type { DemoKind, ModuleItem } from "./product-demos";
 export type { StoryMotion } from "./scroll-story";
 export * from "./blocks";
 export * from "./brand-logo";
@@ -25,11 +26,12 @@ export * from "./pricing";
 export * from "./lazy-blocks";
 export * from "./editorial-hero";
 export * from "./hero-kit";
-export * from "./product-heroes";
+// Designed heroes: `@figbud/site-kit/product-heroes`, or `LazyProductHero` (P2-18).
+export type { ProductHeroProps } from "./product-heroes";
 export * from "./product-header";
 export * from "./use-dismiss";
 export * from "./zirahr-modules";
 export * from "./numbered-story";
-export * from "./module-tour";
+export type { TourItem } from "./module-tour";
 export * from "./guided-demo";
 export * from "./guided-steps";

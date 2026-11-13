@@ -19,7 +19,9 @@
     "./coming-soon": "./src/coming-soon.tsx",
     "./payroll-calculator": "./src/payroll-calculator.tsx",
     "./forms": "./src/forms.tsx",
-    "./public-pricing": "./src/public-pricing.tsx"
+    "./public-pricing": "./src/public-pricing.tsx",
+    "./product-demos": "./src/product-demos.tsx",
+    "./product-heroes": "./src/product-heroes.tsx"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

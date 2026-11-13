@@ -1,5 +1,6 @@
 import { publicProducts } from "@figbud/brand";
-import { type HeroVariant, type PageDocument, PageBlocks, ProductHero } from "@figbud/site-kit";
+import { type HeroVariant, type PageDocument, PageBlocks } from "@figbud/site-kit";
+import { ProductHero } from "@figbud/site-kit/product-heroes";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";

@@ -6,7 +6,7 @@ import {
   JsonLd,
   PageBlocks,
   ProductLogo,
-  ProductHero,
+  LazyProductHero as ProductHero,
   ProofMetrics,
   LazyPublicPricing,
   Testimonials,

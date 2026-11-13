@@ -4,10 +4,15 @@ import { type ReactNode, Suspense } from "react";
 
 import { GuidedDemo } from "./guided-demo";
 import { GUIDED_STEPS } from "./guided-steps";
-import { type DemoKind, ModuleCatalogue, type ModuleItem, ProductDemo } from "./product-demos";
+import type { DemoKind, ModuleItem } from "./product-demos";
 import { enquiryFormCopy, enquiryStagesCopy, type EnquiryProduct } from "./enquiry";
 import { HeroSignal } from "./hero-signal";
-import { LazyEnquiryForm, LazyReferralForm } from "./lazy-blocks";
+import {
+  LazyEnquiryForm,
+  LazyModuleCatalogue as ModuleCatalogue,
+  LazyProductDemo as ProductDemo,
+  LazyReferralForm,
+} from "./lazy-blocks";
 import { NumberedStory } from "./numbered-story";
 
 /** The website's own mark, for demonstrations that show it (the scroll story's hub). */
