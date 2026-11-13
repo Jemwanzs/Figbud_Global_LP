@@ -667,6 +667,8 @@ test("ZiraHR's demo call opens the two-stage enquiry form on ZiraHR, and one com
   await expect(page).toHaveURL(new RegExp(`^${origin}/zirahr/contact\\?kind=demo_request#enquire$`));
   const form = page.locator("#enquire form");
   await expect(form).toBeVisible();
+  // POST, never GET: an early submission can't put anyone's details in a URL.
+  await expect(form).toHaveAttribute("method", "post");
   const one = form.locator("[data-stage-one]");
   const two = form.locator("[data-stage-two]");
   // The product is ZiraHR, fixed: no product choice to make.

@@ -7,7 +7,9 @@ import { AdminUnavailable } from "@/components/admin/admin-shell";
 import { StudioSkeleton } from "@/components/admin/studio-states";
 import type { SiteOption } from "@/components/admin/site-access-picker";
 import { type ApprovalRulesData, ApprovalRules } from "@/components/admin/approval-rules";
+import type { StudioRoleOption } from "@/components/admin/areas-editor";
 import { InviteAdminForm } from "@/components/admin/invite-admin-form";
+import { StudioRoles } from "@/components/admin/studio-roles";
 import { type PendingInvite, PendingInvites } from "@/components/admin/pending-invites";
 import { type SignInPolicyData, SignInPolicyEditor } from "@/components/admin/sign-in-policy";
 import { type TeamMember, TeamManager } from "@/components/admin/team-manager";
@@ -28,7 +30,7 @@ async function Team() {
   if (user === "unavailable") return <AdminUnavailable />;
   if (user.role !== "owner") redirect("/admin/settings");
   const [{ data }, invites, policy, rules] = await Promise.all([
-    adminGet<{ members: TeamMember[]; sites: SiteOption[] }>("team"),
+    adminGet<{ members: TeamMember[]; sites: SiteOption[]; studio_roles: StudioRoleOption[] }>("team"),
     adminGet<{ invites: PendingInvite[] }>("invites/pending"),
     adminGet<SignInPolicyData>("sign-in-policy"),
     adminGet<ApprovalRulesData>("approval-rules"),
@@ -60,10 +62,10 @@ async function Team() {
           Choose their role, websites and Studio areas, then send them the single-use link privately. They set
           up their own passkey or password when they open it; nobody else ever sees their password.
         </p>
-        <InviteAdminForm sites={data.sites} />
+        <InviteAdminForm sites={data.sites} roles={data.studio_roles} />
       </section>
       <div className="mt-10">
-        <TeamManager members={data.members} sites={data.sites} me={user.id} />
+        <TeamManager members={data.members} sites={data.sites} me={user.id} roles={data.studio_roles} />
       </div>
       <PendingInvites invites={invites.data?.invites ?? []} />
       {policy.data && (
@@ -71,6 +73,9 @@ async function Team() {
           <SignInPolicyEditor data={policy.data} />
         </div>
       )}
+      <div className="mt-8">
+        <StudioRoles roles={data.studio_roles} />
+      </div>
       {rules.data && (
         <div className="mt-8">
           <ApprovalRules data={rules.data} />

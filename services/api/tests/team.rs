@@ -608,3 +608,164 @@ async fn people_limited_to_areas_are_refused_elsewhere_by_the_api() {
     .unwrap();
     assert_eq!(changed, 2);
 }
+
+#[tokio::test]
+async fn named_studio_roles_are_given_to_people_and_kept_in_step() {
+    // P13-B3: saved, reusable roles. Owners only; a change reaches everyone linked.
+    let Some(t) = Team::new().await else { return };
+    let (_, owner) = t.admin("owner").await;
+    let (editor, editor_cookie) = t.admin("editor").await;
+    let (other, _) = t.admin("editor").await;
+    let name = format!("Pricing lead {}", t.run);
+
+    let areas = json!({ "pricing": ["edit", "submit"] });
+    assert_eq!(
+        t.call(
+            "POST",
+            "/v1/admin/studio-roles",
+            &editor_cookie,
+            Some(json!({ "name": name, "modules": areas }))
+        )
+        .await
+        .0,
+        StatusCode::FORBIDDEN
+    );
+    let (status, _) = t
+        .call(
+            "POST",
+            "/v1/admin/studio-roles",
+            &owner,
+            Some(json!({ "name": "x", "modules": areas })),
+        )
+        .await;
+    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
+    let (status, _) = t
+        .call(
+            "POST",
+            "/v1/admin/studio-roles",
+            &owner,
+            Some(json!({ "name": name, "modules": {} })),
+        )
+        .await;
+    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
+    let (status, role) = t
+        .call(
+            "POST",
+            "/v1/admin/studio-roles",
+            &owner,
+            Some(json!({ "name": format!(" {name} "), "modules": areas })),
+        )
+        .await;
+    assert_eq!(status, StatusCode::CREATED, "{role}");
+    assert_eq!(role["modules"], json!({ "pricing": ["view", "edit", "submit"] }));
+    let id = role["id"].as_str().unwrap().to_owned();
+    // Names are unique, whatever the case.
+    let (status, _) = t
+        .call(
+            "POST",
+            "/v1/admin/studio-roles",
+            &owner,
+            Some(json!({ "name": name.to_uppercase(), "modules": areas })),
+        )
+        .await;
+    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
+
+    // Given to two people: their areas come from the role.
+    for person in [editor, other] {
+        let (status, body) = t
+            .call(
+                "POST",
+                &format!("/v1/admin/team/{person}/modules"),
+                &owner,
+                Some(json!({ "modules": null, "role_id": id })),
+            )
+            .await;
+        assert_eq!(status, StatusCode::OK, "{body}");
+    }
+    let (_, team) = t.call("GET", "/v1/admin/team", &owner, None).await;
+    let member = |team: &Value, id: Uuid| {
+        team["members"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|m| m["id"] == json!(id))
+            .unwrap()
+            .clone()
+    };
+    assert_eq!(member(&team, editor)["studio_role"], json!(name));
+    let listed = team["studio_roles"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|r| r["id"] == json!(id))
+        .unwrap()
+        .clone();
+    assert_eq!(listed["members"], 2);
+    // The API enforces the areas: pricing yes, pages no.
+    assert_eq!(
+        t.call("GET", "/v1/admin/sites/figbud/pages", &editor_cookie, None)
+            .await
+            .0,
+        StatusCode::FORBIDDEN
+    );
+
+    // Changing the role changes everyone linked to it.
+    let (status, body) = t
+        .call(
+            "POST",
+            &format!("/v1/admin/studio-roles/{id}"),
+            &owner,
+            Some(json!({ "name": name, "modules": { "pricing": ["edit"], "pages": ["view"] } })),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    assert_eq!(body["people_updated"], 2);
+    let (_, team) = t.call("GET", "/v1/admin/team", &owner, None).await;
+    assert_eq!(
+        member(&team, other)["modules"],
+        json!({ "pages": ["view"], "pricing": ["view", "edit"] })
+    );
+    assert_ne!(
+        t.call("GET", "/v1/admin/sites/figbud/pages", &editor_cookie, None)
+            .await
+            .0,
+        StatusCode::FORBIDDEN
+    );
+
+    // Choosing areas by hand unlinks someone; deleting the role keeps the others' areas.
+    let (status, _) = t
+        .call(
+            "POST",
+            &format!("/v1/admin/team/{editor}/modules"),
+            &owner,
+            Some(json!({ "modules": { "seo": ["view"] } })),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK);
+    let (status, _) = t
+        .call(
+            "POST",
+            &format!("/v1/admin/studio-roles/{id}/delete"),
+            &owner,
+            Some(json!({})),
+        )
+        .await;
+    assert_eq!(status, StatusCode::NO_CONTENT);
+    let (_, team) = t.call("GET", "/v1/admin/team", &owner, None).await;
+    assert_eq!(member(&team, editor)["modules"], json!({ "seo": ["view"] }));
+    assert_eq!(
+        member(&team, other)["modules"],
+        json!({ "pages": ["view"], "pricing": ["view", "edit"] })
+    );
+    assert_eq!(member(&team, other)["studio_role"], Value::Null);
+    // A deleted role can't be given.
+    let (status, _) = t
+        .call(
+            "POST",
+            &format!("/v1/admin/team/{other}/modules"),
+            &owner,
+            Some(json!({ "modules": null, "role_id": id })),
+        )
+        .await;
+    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
+}

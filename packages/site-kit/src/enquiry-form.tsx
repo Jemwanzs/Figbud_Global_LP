@@ -624,6 +624,7 @@ export function EnquiryForm({
     const stepLabel = stages.step.replace("{n}", String(stage));
     return (
       <form
+        method="post"
         noValidate
         onSubmit={onSubmit}
         aria-labelledby={`${formId}-title`}
@@ -741,6 +742,7 @@ export function EnquiryForm({
 
   return (
     <form
+      method="post"
       noValidate
       onSubmit={onSubmit}
       aria-labelledby={`${formId}-title`}

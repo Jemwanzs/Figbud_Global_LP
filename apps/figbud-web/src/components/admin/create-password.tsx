@@ -126,7 +126,7 @@ export function CreatePassword() {
 
   if (step === "password") {
     return (
-      <form onSubmit={save} noValidate className="space-y-5" aria-label="Create password">
+      <form method="post" onSubmit={save} noValidate className="space-y-5" aria-label="Create password">
         <p role="status" className="text-sm text-muted">
           Thanks, that&apos;s you. {had ? "Choose a new password." : "Now choose your password."}
         </p>
@@ -155,7 +155,7 @@ export function CreatePassword() {
   }
 
   return (
-    <form onSubmit={verify} noValidate className="space-y-5">
+    <form method="post" onSubmit={verify} noValidate className="space-y-5">
       <div>
         <label htmlFor={`${uid}-email`} className="block text-sm font-medium text-text">
           Work email

@@ -87,7 +87,7 @@ export function InviteForm() {
   }
 
   return (
-    <form onSubmit={onSubmit} noValidate>
+    <form method="post" onSubmit={onSubmit} noValidate>
       <label htmlFor="admin-name" className="block text-sm font-medium text-text">
         Your name
       </label>

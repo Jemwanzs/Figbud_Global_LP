@@ -8,7 +8,7 @@ import { type AdminUser, AdminError, ROLE_LABELS, adminFetch } from "@/lib/admin
 import { sameValue } from "@/lib/form-state";
 
 import { ActionButton } from "./action-button";
-import { AreasEditor } from "./areas-editor";
+import { AreasEditor, type StudioRoleOption } from "./areas-editor";
 import { MemberSessions } from "./member-sessions";
 import {
   type AccessValue,
@@ -32,6 +32,9 @@ export interface TeamMember {
   passkeys?: number;
   /** Studio areas (P13-B3); null: every area within their role. */
   modules?: AdminUser["modules"];
+  /** The named Studio role their areas come from. */
+  studio_role_id?: string | null;
+  studio_role?: string | null;
 }
 
 const ROLES: AdminUser["role"][] = ["owner", "reviewer", "editor", "viewer"];
@@ -58,10 +61,13 @@ export function TeamManager({
   members,
   sites,
   me,
+  roles = [],
 }: {
   members: TeamMember[];
   sites: SiteOption[];
   me: string;
+  /** Saved Studio roles (P13-B3). */
+  roles?: StudioRoleOption[];
 }) {
   const [role, setRole] = useState("");
   const [site, setSite] = useState("");
@@ -114,14 +120,24 @@ export function TeamManager({
       </div>
       <ul className="space-y-4" aria-label="Team">
         {shown.map((member) => (
-          <Member key={member.id} member={member} sites={sites} self={member.id === me} />
+          <Member key={member.id} member={member} sites={sites} self={member.id === me} roles={roles} />
         ))}
       </ul>
     </>
   );
 }
 
-function Member({ member, sites, self }: { member: TeamMember; sites: SiteOption[]; self: boolean }) {
+function Member({
+  member,
+  sites,
+  self,
+  roles,
+}: {
+  member: TeamMember;
+  sites: SiteOption[];
+  self: boolean;
+  roles: StudioRoleOption[];
+}) {
   const [saved, setSaved] = useState<TeamMember>(member);
   const [value, setValue] = useState<AccessValue>(toValue(member));
   const [open, setOpen] = useState(false);
@@ -380,7 +396,14 @@ function Member({ member, sites, self }: { member: TeamMember; sites: SiteOption
               Save access
             </ActionButton>
           </div>
-          <AreasEditor id={saved.id} name={saved.name} role={saved.role} initial={saved.modules ?? null} />
+          <AreasEditor
+            id={saved.id}
+            name={saved.name}
+            role={saved.role}
+            initial={saved.modules ?? null}
+            initialRole={saved.studio_role_id ?? null}
+            roles={roles}
+          />
         </div>
       )}
       {message && (

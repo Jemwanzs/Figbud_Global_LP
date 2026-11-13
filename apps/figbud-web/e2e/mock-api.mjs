@@ -98,6 +98,21 @@ const needsTwoFactor = (role) => signInPolicy.two_factor_roles.includes(role);
 const NEEDS_TWO_FACTOR =
   "Your role needs two-factor with a password. Sign in with your passkey and turn on two-factor in Security & Authentication, or ask an owner.";
 const signInPolicy = JSON.parse(POLICY_START);
+// Named Studio roles (studio_roles.rs): saved areas, given to people and kept in step.
+const studioRoles = new Map(); // id -> { id, name, modules }
+const withView = (modules) =>
+  Object.fromEntries(
+    Object.entries(modules ?? {})
+      .filter(([, a]) => a.length)
+      .map(([m, a]) => [m, a.includes("view") ? a : ["view", ...a]]),
+  );
+const roleList = () =>
+  [...studioRoles.values()]
+    .map((r) => ({
+      ...r,
+      members: [...users.values()].filter((u) => u.studioRoleId === r.id && !u.disabled_at).length,
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name));
 const resets = new Map(); // token -> { email, expires }
 const lastRecovery = new Map(); // email -> token (read by e2e through /v1/__test/recovery)
 const totpStep = () => Math.floor(Date.now() / 30000);
@@ -5732,8 +5747,11 @@ function admin(req, res, url, body, send, raw) {
           has_password: Boolean(u.password),
           has_two_factor: Boolean(u.totp),
           passkeys: u.credentialId ? 1 : 0,
+          studio_role_id: u.studioRoleId ?? null,
+          studio_role: studioRoles.get(u.studioRoleId)?.name ?? null,
         })),
         sites: sites.map((s) => ({ site: s.slug, name: s.name, archived: Boolean(s.archived_at) })),
+        studio_roles: roleList(),
       });
     const recoveryFor = /^team\/([0-9a-f]+)\/recovery-link$/.exec(path);
     if (recoveryFor) {
@@ -5754,16 +5772,20 @@ function admin(req, res, url, body, send, raw) {
       if (!person) return send(404, { error: { code: "not_found", message: "Not found." } });
       if (person.role === "owner")
         return send(409, { error: { code: "conflict", message: "Owners always have every area." } });
-      const next = body.modules
-        ? Object.fromEntries(
-            Object.entries(body.modules)
-              .filter(([, a]) => a.length)
-              .map(([m, a]) => [m, a.includes("view") ? a : ["view", ...a]]),
-          )
-        : null;
+      const named = body.role_id ? studioRoles.get(body.role_id) : null;
+      if (body.role_id && !named)
+        return send(422, {
+          error: {
+            code: "validation",
+            message: "That role no longer exists.",
+            fields: [{ field: "role_id", code: "invalid", message: "That role no longer exists." }],
+          },
+        });
+      const next = named ? named.modules : body.modules ? withView(body.modules) : null;
       person.modules = next;
+      person.studioRoleId = named?.id ?? null;
       record(user, "admin.modules_changed", { email: person.email });
-      return send(200, { modules: next });
+      return send(200, { modules: next, studio_role_id: person.studioRoleId });
     }
     // Someone's sessions, and ending one (policy.rs).
     const memberSessions = /^team\/([0-9a-f]+)\/sessions$/.exec(path);
@@ -5876,6 +5898,51 @@ function admin(req, res, url, body, send, raw) {
     res.setHeader("set-cookie", "figbud_admin=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0");
     res.writeHead(204);
     return res.end();
+  }
+  // Named Studio roles (studio_roles.rs): owners only.
+  const roleFor = /^studio-roles(?:\/([0-9a-f]+))?(\/delete)?$/.exec(path);
+  if (roleFor) {
+    if (user.role !== "owner") return send(403, { error: { code: "forbidden", message: "Forbidden." } });
+    if (!roleFor[1] && req.method === "GET") return send(200, { roles: roleList() });
+    const existing = roleFor[1] ? studioRoles.get(roleFor[1]) : null;
+    if (roleFor[1] && !existing) return send(404, { error: { code: "not_found", message: "Not found." } });
+    if (roleFor[2]) {
+      studioRoles.delete(existing.id);
+      for (const u of users.values()) if (u.studioRoleId === existing.id) u.studioRoleId = null;
+      record(user, "admin.studio_role_deleted", { name: existing.name });
+      res.writeHead(204);
+      return res.end();
+    }
+    const invalid = (field, message) =>
+      send(422, { error: { code: "validation", message, fields: [{ field, code: "invalid", message }] } });
+    const name = String(body.name ?? "")
+      .trim()
+      .replace(/\s+/g, " ");
+    if (name.length < 2 || name.length > 60)
+      return invalid("name", "Give the role a name of 2 to 60 characters.");
+    const modules = withView(body.modules);
+    if (!Object.keys(modules).length) return invalid("modules", "Tick at least one area for the role.");
+    if (
+      [...studioRoles.values()].some(
+        (r) => r.id !== existing?.id && r.name.toLowerCase() === name.toLowerCase(),
+      )
+    )
+      return invalid("name", "There's already a role with that name.");
+    if (existing) {
+      Object.assign(existing, { name, modules });
+      let updated = 0;
+      for (const u of users.values())
+        if (u.studioRoleId === existing.id && u.role !== "owner") {
+          u.modules = modules;
+          updated++;
+        }
+      record(user, "admin.studio_role_changed", { name });
+      return send(200, { id: existing.id, name, modules, people_updated: updated });
+    }
+    const role = { id: randomBytes(8).toString("hex"), name, modules };
+    studioRoles.set(role.id, role);
+    record(user, "admin.studio_role_created", { name });
+    return send(201, { ...role, members: 0 });
   }
   // The sign-in policy (policy.rs): owners only; an owner always keeps a way in.
   if (path === "sign-in-policy") {

@@ -56,7 +56,7 @@ export function ForgotPasswordForm() {
   }
 
   return (
-    <form onSubmit={onSubmit} noValidate>
+    <form method="post" onSubmit={onSubmit} noValidate>
       <label htmlFor="forgot-email" className="block text-sm font-medium text-text">
         Work email
       </label>
@@ -165,7 +165,7 @@ export function ResetPasswordForm() {
   }
 
   return (
-    <form onSubmit={onSubmit} noValidate className="space-y-5">
+    <form method="post" onSubmit={onSubmit} noValidate className="space-y-5">
       <NewPasswordFields
         idPrefix="reset"
         password={password}

@@ -8,7 +8,7 @@ import { useState } from "react";
 import { type AdminUser, adminFetch, describePasskeyError, hasRole, validEmail } from "@/lib/admin-client";
 
 import { ActionButton } from "./action-button";
-import { type Areas, AreasPicker, tidy } from "./areas-editor";
+import { type Areas, AreasPicker, type StudioRoleOption, tidy } from "./areas-editor";
 import {
   type AccessValue,
   type SiteOption,
@@ -30,7 +30,14 @@ const ROLES = [
  * websites and Studio areas. They choose a passkey or a password when they
  * accept; nobody else ever sees their password.
  */
-export function InviteAdminForm({ sites = [] }: { sites?: SiteOption[] }) {
+export function InviteAdminForm({
+  sites = [],
+  roles = [],
+}: {
+  sites?: SiteOption[];
+  /** Saved Studio roles: their areas can be the starting point. */
+  roles?: StudioRoleOption[];
+}) {
   const router = useRouter();
   const [name, setName] = useState("");
   const [areas, setAreas] = useState<Areas | null>(null);
@@ -153,7 +160,13 @@ export function InviteAdminForm({ sites = [] }: { sites?: SiteOption[] }) {
         {role !== "owner" && (
           <fieldset>
             <legend className="text-sm font-medium text-text">Studio areas</legend>
-            <AreasPicker name={name.trim() || "this person"} role={role} value={areas} onChange={setAreas} />
+            <AreasPicker
+              name={name.trim() || "this person"}
+              role={role}
+              value={areas}
+              onChange={setAreas}
+              roles={roles}
+            />
           </fieldset>
         )}
         <div className="flex flex-col gap-3 border-t border-line pt-5 sm:flex-row sm:items-center sm:justify-between">

@@ -15,6 +15,7 @@ mod handlers;
 pub mod modules;
 pub mod policy;
 mod security;
+pub mod studio_roles;
 mod team;
 
 use std::{net::IpAddr, time::Duration};
@@ -37,6 +38,7 @@ pub fn router() -> axum::Router<SharedState> {
         .merge(enquiries::router())
         .merge(team::router())
         .merge(policy::router())
+        .merge(studio_roles::router())
         .merge(security::router())
 }
 

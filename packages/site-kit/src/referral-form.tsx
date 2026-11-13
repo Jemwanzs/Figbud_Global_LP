@@ -149,7 +149,12 @@ export function ReferralForm({
   );
 
   return (
-    <form onSubmit={submit} noValidate className="fb-panel rounded-[var(--radius-panel)] p-5 sm:p-8">
+    <form
+      method="post"
+      onSubmit={submit}
+      noValidate
+      className="fb-panel rounded-[var(--radius-panel)] p-5 sm:p-8"
+    >
       <fieldset>
         <legend className="font-semibold text-text">The business you&apos;re referring</legend>
         <div className="mt-3 grid gap-4 @xl:grid-cols-2">

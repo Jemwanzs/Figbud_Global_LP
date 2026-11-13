@@ -20,6 +20,14 @@ import { ActionButton } from "./action-button";
 
 export type Areas = Partial<Record<StudioArea, StudioAction[]>>;
 
+/** A named Studio role (P13-B3): saved areas, given to people and kept in step. */
+export interface StudioRoleOption {
+  id: string;
+  name: string;
+  modules: Areas;
+  members?: number;
+}
+
 const work: StudioAction[] = ["view", "edit", "submit"];
 /** Starting points for the roles in the owner's brief; every box can then be changed. */
 const PRESETS: { label: string; areas: Areas }[] = [
@@ -84,28 +92,69 @@ export function AreasEditor({
   name,
   role,
   initial,
+  initialRole = null,
+  roles: initialRoles = [],
 }: {
   id: string;
   name: string;
   role: AdminUser["role"];
   initial: Areas | null;
+  /** The named role their areas come from, if any. */
+  initialRole?: string | null;
+  /** Saved Studio roles to choose from. */
+  roles?: StudioRoleOption[];
 }) {
   const [saved, setSaved] = useState<Areas | null>(initial ? tidy(initial) : null);
   const [value, setValue] = useState<Areas | null>(saved);
+  // A named role keeps their areas in step with it; editing boxes by hand unlinks it.
+  const [savedRole, setSavedRole] = useState<string | null>(initialRole);
+  const [linked, setLinked] = useState<string | null>(initialRole);
+  const [roles, setRoles] = useState<StudioRoleOption[]>(initialRoles);
+  const [roleName, setRoleName] = useState("");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
   const changes = summary(saved, value === null ? null : tidy(value));
-  const changed = !sameValue(saved, value === null ? null : tidy(value));
+  const changed = !sameValue(saved, value === null ? null : tidy(value)) || linked !== savedRole;
   const empty = value !== null && Object.keys(tidy(value)).length === 0;
+  const linkedName = roles.find((r) => r.id === linked)?.name;
+
+  async function saveAsRole() {
+    if (value === null) return;
+    setBusy(true);
+    setMessage(null);
+    try {
+      const created = await adminFetch<StudioRoleOption>("studio-roles", {
+        name: roleName,
+        modules: tidy(value),
+      });
+      setRoles((r) => [...r, created].sort((a, b) => a.name.localeCompare(b.name)));
+      setValue(created.modules);
+      setLinked(created.id);
+      setRoleName("");
+      setMessage({ tone: "ok", text: `Role "${created.name}" saved. Save areas to give it to ${name}.` });
+    } catch (err) {
+      setMessage({
+        tone: "error",
+        text: err instanceof AdminError ? (err.fields[0]?.message ?? err.message) : "Something went wrong.",
+      });
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function save() {
     setBusy(true);
     setMessage(null);
     try {
       const next = value === null ? null : tidy(value);
-      const result = await adminFetch<{ modules: Areas | null }>(`team/${id}/modules`, { modules: next });
+      const result = await adminFetch<{ modules: Areas | null; studio_role_id: string | null }>(
+        `team/${id}/modules`,
+        linked ? { modules: null, role_id: linked } : { modules: next },
+      );
       setSaved(result.modules);
       setValue(result.modules);
+      setSavedRole(result.studio_role_id);
+      setLinked(result.studio_role_id);
       setMessage({ tone: "ok", text: "Areas saved. They apply from their next click." });
     } catch (err) {
       setMessage({
@@ -122,7 +171,48 @@ export function AreasEditor({
       <legend className="text-sm font-medium text-text">
         Studio areas<span className="sr-only"> for {name}</span>
       </legend>
-      <AreasPicker name={name} role={role} value={value} onChange={setValue} selectedFrom={saved} />
+      <AreasPicker
+        name={name}
+        role={role}
+        value={value}
+        onChange={(next) => {
+          setValue(next);
+          setLinked(null);
+        }}
+        selectedFrom={saved}
+        roles={roles}
+        onRole={(picked) => {
+          setValue(structuredClone(picked.modules));
+          setLinked(picked.id);
+        }}
+      />
+      {linkedName && (
+        <p className="mt-3 text-sm text-muted" data-linked-role="">
+          {`Uses the saved role "${linkedName}": changes to that role apply to ${name} too. Ticking a box here unlinks it.`}
+        </p>
+      )}
+      {value !== null && !linked && !empty && (
+        <div className="mt-4 flex flex-wrap items-end gap-2">
+          <label className="grid gap-1 text-xs text-muted">
+            Save these areas as a named role
+            <input
+              value={roleName}
+              maxLength={60}
+              onChange={(e) => setRoleName(e.target.value)}
+              placeholder="e.g. Regional content editor"
+              className="min-h-11 rounded-xl border border-line-strong bg-surface px-3 text-sm text-text"
+            />
+          </label>
+          <ActionButton
+            variant="secondary"
+            ready={roleName.trim().length >= 2}
+            busy={busy}
+            onClick={saveAsRole}
+          >
+            Save role<span className="sr-only"> from {name}&apos;s areas</span>
+          </ActionButton>
+        </div>
+      )}
       {changed && changes.length > 0 && (
         <div className="mt-4 rounded-xl bg-surface-2 p-3 text-sm" aria-live="polite">
           <p className="font-medium text-text">Changes to apply</p>
@@ -166,6 +256,8 @@ export function AreasPicker({
   value,
   onChange,
   selectedFrom,
+  roles = [],
+  onRole,
 }: {
   name: string;
   role: AdminUser["role"];
@@ -173,6 +265,10 @@ export function AreasPicker({
   onChange: (next: Areas | null) => void;
   /** What "Selected areas" starts from. */
   selectedFrom?: Areas | null;
+  /** Saved Studio roles, offered with the presets. */
+  roles?: StudioRoleOption[];
+  /** A saved role was chosen (otherwise its areas are copied, as a preset). */
+  onRole?: (role: StudioRoleOption) => void;
 }) {
   const uid = useId();
   const toggle = (area: StudioArea, action: StudioAction, on: boolean) => {
@@ -211,17 +307,34 @@ export function AreasPicker({
             <select
               value=""
               onChange={(e) => {
+                const saved = roles.find((r) => `role:${r.id}` === e.target.value);
+                if (saved) {
+                  if (onRole) onRole(saved);
+                  else onChange(structuredClone(saved.modules));
+                  return;
+                }
                 const preset = PRESETS.find((p) => p.label === e.target.value);
                 if (preset) onChange(structuredClone(preset.areas));
               }}
               className="min-h-11 rounded-xl border border-line-strong bg-surface px-3 text-sm text-text"
             >
               <option value="">A preset…</option>
-              {PRESETS.map((p) => (
-                <option key={p.label} value={p.label}>
-                  {p.label}
-                </option>
-              ))}
+              {roles.length > 0 && (
+                <optgroup label="Saved roles">
+                  {roles.map((r) => (
+                    <option key={r.id} value={`role:${r.id}`}>
+                      {r.name}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+              <optgroup label="Presets">
+                {PRESETS.map((p) => (
+                  <option key={p.label} value={p.label}>
+                    {p.label}
+                  </option>
+                ))}
+              </optgroup>
             </select>
           </label>
           <div className="mt-4 overflow-x-auto">

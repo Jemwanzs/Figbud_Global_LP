@@ -319,3 +319,78 @@ test("passwords without email: an owner adds an admin user, who joins with a pas
   await other.close();
   expect((await request.post("http://localhost:3199/test/reset-sign-in-policy")).ok()).toBe(true);
 });
+
+test("named Studio roles: saved from someone's areas, given to another, changed for both, deleted without losing areas", async ({
+  page,
+  browser,
+}) => {
+  // P13-B3: saved, reusable custom roles.
+  test.setTimeout(120_000);
+  await accept(page, `/admin/invite#token=${randomBytes(32).toString("hex")}`, "Ola Owner");
+  const run = randomBytes(3).toString("hex");
+  const join = async (name: string) => {
+    await page.goto("/admin");
+    await page.getByLabel("Work email").fill(`${name.split(" ")[0]!.toLowerCase()}-${run}@figbud.test`);
+    await page.getByRole("radio", { name: /^Editor/ }).check();
+    await page.getByRole("button", { name: "Create invite" }).click();
+    const link = (await page.getByRole("status").locator("code").textContent())!;
+    const context = await browser.newContext();
+    await accept(await context.newPage(), new URL(link).pathname + new URL(link).hash, name);
+    await context.close();
+  };
+  await join(`Ama ${run}`);
+  await join(`Ben ${run}`);
+  const roleName = `Pricing lead ${run}`;
+
+  await page.goto("/admin/settings/team");
+  const ama = page.getByRole("listitem", { name: `Ama ${run}` });
+  await ama.getByRole("button", { name: /Change access/ }).click();
+  await ama.getByRole("radio", { name: "Selected areas" }).check();
+  await ama.getByLabel("Start from").selectOption("Pricing manager");
+  await ama.getByLabel("Save these areas as a named role").fill(roleName);
+  await ama.getByRole("button", { name: /^Save role/ }).click();
+  await expect(ama.getByRole("status")).toContainText(`Role "${roleName}" saved`);
+  await expect(ama.locator("[data-linked-role]")).toContainText(roleName);
+  await ama.getByRole("button", { name: `Save areas for Ama ${run}` }).click();
+  await expect(ama.getByRole("status").filter({ hasText: "Areas saved" })).toBeVisible();
+
+  // Given to someone else from the same list.
+  await page.reload();
+  const ben = page.getByRole("listitem", { name: `Ben ${run}` });
+  await ben.getByRole("button", { name: /Change access/ }).click();
+  await ben.getByRole("radio", { name: "Selected areas" }).check();
+  await ben.getByLabel("Start from").selectOption({ label: roleName });
+  await expect(ben.locator("[data-linked-role]")).toContainText(roleName);
+  await ben.getByRole("button", { name: `Save areas for Ben ${run}` }).click();
+  await expect(ben.getByRole("status").filter({ hasText: "Areas saved" })).toBeVisible();
+
+  // Changing the role changes both.
+  await page.reload();
+  const roles = page.getByRole("region", { name: "Studio roles" });
+  const row = roles.getByRole("listitem", { name: roleName });
+  await expect(row).toContainText("2 people");
+  await row.getByRole("button", { name: `Edit the role ${roleName}` }).click();
+  await row.getByRole("checkbox", { name: "SEO: View" }).check();
+  await row.getByRole("button", { name: `Save role ${roleName}` }).click();
+  await expect(row.getByRole("status")).toContainText("2 people have the new areas");
+  await page.reload();
+  await ben.getByRole("button", { name: /Change access/ }).click();
+  await expect(ben.getByRole("checkbox", { name: "SEO: View" })).toBeChecked();
+
+  // Deleting it keeps their areas, unlinked.
+  page.once("dialog", (d) => d.accept());
+  await roles
+    .getByRole("listitem", { name: roleName })
+    .getByRole("button", { name: `Delete the role ${roleName}` })
+    .click();
+  await expect(roles.getByRole("listitem", { name: roleName })).toHaveCount(0);
+  await page.reload();
+  await ben.getByRole("button", { name: /Change access/ }).click();
+  await expect(ben.getByRole("checkbox", { name: "SEO: View" })).toBeChecked();
+  await expect(ben.locator("[data-linked-role]")).toHaveCount(0);
+
+  const results = await new AxeBuilder({ page: await themeSettled(page) })
+    .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
+    .analyze();
+  expect(results.violations.map((v) => v.id)).toEqual([]);
+});

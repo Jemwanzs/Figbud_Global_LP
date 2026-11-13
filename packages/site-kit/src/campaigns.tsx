@@ -998,6 +998,7 @@ function SpinToWin({ campaign, ctx, onBrand }: { campaign: LiveCampaign; ctx: Co
           </div>
         ) : (
           <form
+            method="post"
             noValidate
             onSubmit={(e) => {
               e.preventDefault();

@@ -119,6 +119,9 @@ pub fn normalise(mut modules: Modules) -> Result<Modules, Vec<FieldError>> {
 pub struct ModulesInput {
     /// `null`: every area within the role.
     pub modules: Option<Modules>,
+    /// A named Studio role (`studio_roles.rs`): its areas, kept in step with it.
+    #[serde(default)]
+    pub role_id: Option<uuid::Uuid>,
 }
 
 #[cfg(test)]

@@ -371,6 +371,8 @@ test("sign-in help: create a password from a way in you already have, with nothi
 }) => {
   await page.goto("/admin/login");
   await expect(page.getByText("Your workspace. Your way. Sign in securely.")).toBeVisible();
+  // POST, never GET: a submission before the page is interactive can't put the password in a URL.
+  await expect(page.locator("form:has(#admin-password)")).toHaveAttribute("method", "post");
   await page.getByRole("link", { name: "Create password" }).click();
   await expect(page).toHaveURL(/\/admin\/create-password$/);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Create or reset your password");

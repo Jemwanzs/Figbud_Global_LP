@@ -178,6 +178,7 @@ function WaitlistForm({ endpoint, product, early }: { endpoint: string; product:
 
   return (
     <form
+      method="post"
       onSubmit={submit}
       noValidate
       aria-label={early ? "Request early access" : "Join the waitlist"}

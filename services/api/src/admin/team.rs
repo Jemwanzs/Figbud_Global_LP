@@ -49,6 +49,9 @@ struct Member {
     passkeys: i64,
     /// Studio areas (P13-B3); `null`: every area within their role.
     modules: Option<Value>,
+    /// The named Studio role their areas come from, if any.
+    studio_role_id: Option<Uuid>,
+    studio_role: Option<String>,
 }
 
 async fn list(
@@ -60,7 +63,8 @@ async fn list(
         "SELECT id, email, name, role, all_sites, last_login_at, disabled_at, created_at,
                 password_hash IS NOT NULL AS has_password, totp_confirmed_at IS NOT NULL AS has_two_factor,
                 (SELECT count(*) FROM admin_passkeys p WHERE p.user_id = admin_users.id) AS passkeys,
-                modules
+                modules, studio_role_id,
+                (SELECT r.name FROM studio_roles r WHERE r.id = admin_users.studio_role_id) AS studio_role
            FROM admin_users
           ORDER BY disabled_at IS NOT NULL, CASE role WHEN 'owner' THEN 0 WHEN 'reviewer' THEN 1
                    WHEN 'editor' THEN 2 ELSE 3 END, name",
@@ -88,7 +92,10 @@ async fn list(
         .into_iter()
         .map(|(slug, name, archived_at)| json!({ "site": slug, "name": name, "archived": archived_at.is_some() }))
         .collect();
-    Ok(Json(json!({ "members": people, "sites": sites })))
+    let roles = super::studio_roles::list_roles(&state.pool).await?;
+    Ok(Json(
+        json!({ "members": people, "sites": sites, "studio_roles": roles }),
+    ))
 }
 
 #[derive(Deserialize)]
@@ -528,18 +535,39 @@ async fn set_modules(
     if t.role == Role::Owner {
         return Err(ApiError::Conflict("Owners always have every area."));
     }
-    let next = match input.modules {
-        None => None,
-        Some(m) => Some(super::modules::normalise(m).map_err(ApiError::Validation)?),
+    // A named role gives its areas (and keeps them in step); otherwise the areas chosen.
+    let (next, role_id) = match input.role_id {
+        Some(role_id) => {
+            let areas: Option<Value> = sqlx::query_scalar("SELECT modules FROM studio_roles WHERE id = $1")
+                .bind(role_id)
+                .fetch_optional(&state.pool)
+                .await?;
+            let areas = areas.ok_or(ApiError::Validation(vec![FieldError {
+                field: "role_id",
+                code: "invalid",
+                message: "That role no longer exists.",
+            }]))?;
+            let areas: super::modules::Modules =
+                serde_json::from_value(areas).map_err(|e| ApiError::Internal(format!("studio role: {e}")))?;
+            (Some(areas), Some(role_id))
+        }
+        None => match input.modules {
+            None => (None, None),
+            Some(m) => (
+                Some(super::modules::normalise(m).map_err(ApiError::Validation)?),
+                None,
+            ),
+        },
     };
     let before: Option<Value> = sqlx::query_scalar("SELECT modules FROM admin_users WHERE id = $1")
         .bind(id)
         .fetch_one(&state.pool)
         .await?;
     let value = next.as_ref().map(|m| json!(m));
-    sqlx::query("UPDATE admin_users SET modules = $2 WHERE id = $1")
+    sqlx::query("UPDATE admin_users SET modules = $2, studio_role_id = $3 WHERE id = $1")
         .bind(id)
         .bind(&value)
+        .bind(role_id)
         .execute(&state.pool)
         .await?;
     audit(
@@ -547,9 +575,9 @@ async fn set_modules(
         Some(session.user.id),
         "admin.modules_changed",
         Some(("admin_user", id.to_string())),
-        json!({ "email": t.email, "from": before, "to": value }),
+        json!({ "email": t.email, "from": before, "to": value, "studio_role": role_id }),
         None,
     )
     .await?;
-    Ok(Json(json!({ "modules": value })))
+    Ok(Json(json!({ "modules": value, "studio_role_id": role_id })))
 }

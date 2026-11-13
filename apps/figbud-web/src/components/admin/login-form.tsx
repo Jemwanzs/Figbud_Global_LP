@@ -54,6 +54,15 @@ export function LoginForm() {
     if (pending) codeInput.current?.focus();
   }, [pending, useRecovery]);
 
+  // Interactive: keep anything a password manager filled in before now, then
+  // allow sending (an earlier click would lose it to a full page load).
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    entered();
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- once, after reading what the browser filled in
+    setReady(true);
+  }, []);
+
   const signedIn = () => {
     setDone(true);
     setPassword("");
@@ -157,7 +166,7 @@ export function LoginForm() {
 
   if (pending) {
     return (
-      <form onSubmit={verify} noValidate>
+      <form method="post" onSubmit={verify} noValidate>
         <div className="flex items-start gap-3">
           <span
             aria-hidden
@@ -230,7 +239,8 @@ export function LoginForm() {
   }
 
   return (
-    <form ref={form} onSubmit={withPassword} noValidate>
+    // POST (never GET): even a submission before the page is interactive keeps the password out of URLs.
+    <form method="post" ref={form} onSubmit={withPassword} noValidate>
       <label htmlFor="admin-email" className="block text-sm font-medium text-text">
         Work email
       </label>
@@ -270,7 +280,8 @@ export function LoginForm() {
       {alert}
       <button
         type="submit"
-        disabled={busy !== null}
+        // Enabled once the page is interactive, so an early click never loses what was typed.
+        disabled={busy !== null || !ready}
         className={buttonClasses("primary", "lg", "mt-6 w-full")}
       >
         {busy === "password" ? (
