@@ -189,6 +189,8 @@ test("Studio: draft, preview, publish and the on/off switch", async ({ page, req
   // Shared mock data: edit it from one project only, and leave it as it was.
   test.skip(testInfo.project.name !== "desktop", "edited from the desktop project");
   test.setTimeout(120_000);
+  // Retry-safe: start from the previews as seeded, whatever an earlier attempt left.
+  expect((await request.post(`${API}/test/reset-nav-previews`)).ok()).toBe(true);
   const cdp = await page.context().newCDPSession(page);
   await cdp.send("WebAuthn.enable");
   await cdp.send("WebAuthn.addVirtualAuthenticator", {

@@ -6,6 +6,23 @@ import type { Page } from "@playwright/test";
  */
 export async function themeSettled(page: Page): Promise<Page> {
   await page.waitForFunction(() => !document.documentElement.hasAttribute("data-theme-switching"));
+  // One-off entrances (a page fading in after navigating) end first: contrast is
+  // measured on what stays on screen, not on text part-way through fading in.
+  await page
+    .waitForFunction(
+      () =>
+        !document
+          .getAnimations()
+          .some(
+            (a) =>
+              a instanceof CSSAnimation &&
+              a.playState === "running" &&
+              a.effect?.getTiming().iterations !== Infinity,
+          ),
+      undefined,
+      { timeout: 2_000 },
+    )
+    .catch(() => undefined);
   // A colour still easing (an element's own hover-style transition picking up the new
   // theme). Capped: some browsers keep restarting transitions on looping content, and
   // movement such as auto-advancing demonstrations doesn't count anyway.

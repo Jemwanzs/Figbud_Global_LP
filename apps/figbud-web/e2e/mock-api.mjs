@@ -6385,6 +6385,12 @@ function admin(req, res, url, body, send, raw) {
   return send(404, { error: { code: "not_found", message: "Not found." } });
 }
 
+// Every website's hover previews as seeded, for /test/reset-nav-previews.
+const NAV_PREVIEWS_START = sites.map((site) => ({
+  nav_previews: structuredClone(site.settings?.nav_previews ?? { enabled: true, items: [] }),
+  nav_previews_draft: structuredClone(site.settings?.nav_previews_draft ?? null),
+}));
+
 createServer(async (req, res) => {
   const chunks = [];
   for await (const chunk of req) chunks.push(chunk);
@@ -6523,6 +6529,12 @@ createServer(async (req, res) => {
   // Test-only: ZiraHR's price book back to its starting state (pricing.spec.ts); quotations stay.
   if (url.pathname === "/test/reset-pricing" && req.method === "POST") {
     pricingBooks.delete("zirahr");
+    return send(200, { ok: true });
+  }
+  // Test-only: every website's hover previews back to how they started (nav-previews.spec.ts).
+  if (url.pathname === "/test/reset-nav-previews" && req.method === "POST") {
+    for (const [i, start] of NAV_PREVIEWS_START.entries())
+      Object.assign(sites[i].settings, structuredClone(start));
     return send(200, { ok: true });
   }
   // Test-only: the sign-in policy back to its defaults (team.spec.ts).
