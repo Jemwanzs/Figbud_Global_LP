@@ -1,5 +1,5 @@
 import { type SiteLanguages, liveLanguages } from "@figbud/i18n";
-import { localeProxy } from "@figbud/site-kit/server";
+import { websiteLocaleProxy } from "@figbud/site-kit/server";
 import type { NextRequest } from "next/server";
 
 const apiBase = (
@@ -36,9 +36,9 @@ async function languages(): Promise<SiteLanguages | null> {
   return cached.languages;
 }
 
-/** Locale-less URLs redirect to a locale; switched-off languages to the default one. See `localeProxy`. */
+/** Locale-less URLs redirect to a locale; switched-off languages to the default one. See `websiteLocaleProxy`. */
 export async function proxy(request: NextRequest) {
-  return localeProxy(request, await languages());
+  return websiteLocaleProxy(request, await languages());
 }
 
 export const config = {

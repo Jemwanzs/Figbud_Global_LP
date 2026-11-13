@@ -9,7 +9,16 @@ import { type NextRequest, NextResponse } from "next/server";
  * sends visitors to the same page in its default language. Each app exports
  * it from `src/proxy.ts` with its own literal `config.matcher`.
  */
-export async function localeProxy(request: NextRequest, languages?: SiteLanguages | null) {
+export function localeProxy(request: NextRequest) {
+  return websiteLocaleProxy(request, null);
+}
+
+/**
+ * `localeProxy` for a website with its own languages (P7-L1). A separate
+ * name: Next.js calls a proxy with a second argument (its event), so the
+ * plain proxy must never read one.
+ */
+export function websiteLocaleProxy(request: NextRequest, languages: SiteLanguages | null) {
   const { pathname } = request.nextUrl;
   const [, first = "", ...rest] = pathname.split("/");
   const url = request.nextUrl.clone();

@@ -1,14 +1,24 @@
 import { NextRequest } from "next/server";
 import { describe, expect, it } from "vitest";
 
-import { localeProxy } from "./locale-proxy";
+import { localeProxy, websiteLocaleProxy } from "./locale-proxy";
 
 const request = (path: string, headers: Record<string, string> = {}) =>
   new NextRequest(new URL(path, "https://figbud.test"), { headers });
-const location = async (path: string, languages?: Parameters<typeof localeProxy>[1], h = {}) =>
-  (await localeProxy(request(path, h), languages))?.headers.get("location") ?? null;
+const location = async (path: string, languages?: Parameters<typeof websiteLocaleProxy>[1], h = {}) =>
+  (languages === undefined
+    ? localeProxy(request(path, h))
+    : websiteLocaleProxy(request(path, h), languages)
+  )?.headers.get("location") ?? null;
 
-describe("localeProxy with a website's languages (P7-L1)", () => {
+describe("websiteLocaleProxy (P7-L1)", () => {
+  it("leaves the plain proxy safe to export directly (Next.js passes it an event too)", () => {
+    const event = { waitUntil: () => {} } as unknown as never;
+    const proxy = localeProxy as (r: NextRequest, e: never) => ReturnType<typeof localeProxy>;
+    expect(proxy(request("/zh/about"), event)).toBeUndefined();
+    expect(proxy(request("/about"), event)?.headers.get("location")).toBe("https://figbud.test/en/about");
+  });
+
   const languages = { enabled: ["en", "sw", "fr"] as const, default: "en", fallback: "en" } as const;
   const own = { ...languages, enabled: [...languages.enabled] };
 
