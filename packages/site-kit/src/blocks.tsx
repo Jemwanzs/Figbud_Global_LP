@@ -672,16 +672,34 @@ export function PageBlocks({
                 Hidden
               </span>
             )}
-            <Block
-              section={section}
-              mode={mode}
-              top={i === 0 ? firstHeading : 2}
-              first={i === 0}
-              resolve={resolveHref}
-              mediaBase={mediaBase}
-              enquiry={enquiry}
-              mark={mark}
-            />
+            {section.tone === "brand" ? (
+              // A brand band is a dark band in either theme (owner's brief, 13 Nov
+              // 2026): its contents take the dark mode's colours (links, buttons,
+              // focus), while the band keeps the page mode's band colour.
+              <div data-theme="dark" className="contents">
+                <Block
+                  section={section}
+                  mode={mode}
+                  top={i === 0 ? firstHeading : 2}
+                  first={i === 0}
+                  resolve={resolveHref}
+                  mediaBase={mediaBase}
+                  enquiry={enquiry}
+                  mark={mark}
+                />
+              </div>
+            ) : (
+              <Block
+                section={section}
+                mode={mode}
+                top={i === 0 ? firstHeading : 2}
+                first={i === 0}
+                resolve={resolveHref}
+                mediaBase={mediaBase}
+                enquiry={enquiry}
+                mark={mark}
+              />
+            )}
           </section>
         ))}
     </div>

@@ -1,15 +1,19 @@
 "use client";
 
 import {
+  BAND_KEYS,
+  type BandKey,
   CORE_FIELDS,
   GRADIENT_PRESETS,
   type Gradient,
   type GradientPreset,
+  type BandColours,
   MODE_FIELDS,
   type ModeTokens,
   type SiteTheme,
   type StudioTheme,
   type ThemeMode,
+  bandColours,
   builtInTheme,
   contrast,
   gradientCss,
@@ -40,12 +44,13 @@ import type { WebsiteSettingsAdmin } from "./website-settings";
  */
 
 const MAX_SWATCHES = 16;
-const TABS = ["palette", "light", "dark", "gradients", "history"] as const;
+const TABS = ["palette", "light", "dark", "bands", "gradients", "history"] as const;
 type Tab = (typeof TABS)[number];
 const TAB_LABELS: Record<Tab, string> = {
   palette: "Palette",
   light: "Light mode",
   dark: "Dark mode",
+  bands: "Section bands",
   gradients: "Gradients",
   history: "History",
 };
@@ -101,7 +106,13 @@ function complete(slug: string, theme?: SiteTheme | null): StudioTheme {
     light: pick("light"),
     dark: pick("dark"),
     gradients,
+    bands: { light: cleanBands(theme?.bands?.light), dark: cleanBands(theme?.bands?.dark) },
   };
+}
+
+/** A mode's band overrides: valid colours only (an empty one inherits). */
+function cleanBands(b?: BandColours | null): BandColours {
+  return Object.fromEntries(BAND_KEYS.flatMap((k) => (isHex(b?.[k]) ? [[k, b[k]!.toLowerCase()]] : [])));
 }
 
 const clean = (m?: ModeTokens) =>
@@ -125,15 +136,23 @@ function compact(slug: string, form: StudioTheme): StudioTheme {
     if (gradientChanged || !sameValue(clean(form[mode]), clean(base[mode]))) out[mode] = clean(form[mode]);
   }
   if (Object.keys(gradients).length) out.gradients = gradients;
+  // Band overrides are the website's own choice: always kept as set.
+  const bands: NonNullable<StudioTheme["bands"]> = {};
+  for (const mode of ["light", "dark"] as const) {
+    const own = cleanBands(form.bands?.[mode]);
+    if (Object.keys(own).length) bands[mode] = own;
+  }
+  if (Object.keys(bands).length) out.bands = bands;
   return out;
 }
 
-/** The parts of the theme managed elsewhere (section band colours) stay as they are. */
+/** The Studio's part of a stored theme. */
 const studioPart = (t?: SiteTheme | null): StudioTheme => ({
   palette: t?.palette,
   light: t?.light,
   dark: t?.dark,
   gradients: t?.gradients,
+  bands: t?.bands,
 });
 
 export function ColourField({
@@ -303,6 +322,24 @@ function ThemePreview({
             Button
           </span>
         </div>
+        <div className="grid gap-3 @md:grid-cols-2">
+          {BAND_KEYS.map((key) => {
+            const band = bandColours(slug, form, mode)[key];
+            return (
+              <div
+                key={key}
+                data-preview-section-band={key}
+                className="rounded-xl p-4"
+                style={{ background: band.hex, color: band.text }}
+              >
+                <p className="font-semibold">{key === "brand" ? "Brand band" : "Soft band"}</p>
+                <p className="mt-1 text-sm" style={{ color: band.muted }}>
+                  Secondary text on the {key} band.
+                </p>
+              </div>
+            );
+          })}
+        </div>
         <div
           className={panel}
           style={{
@@ -444,6 +481,100 @@ function GradientEditor({
   );
 }
 
+/**
+ * One section band in one mode (owner's brief, 13 Nov 2026): what it inherits
+ * and from where, with a choice between that and the website's own colour.
+ */
+function BandField({
+  id,
+  mode,
+  bandKey,
+  inherited,
+  override,
+  palette,
+  disabled,
+  onChange,
+}: {
+  id: string;
+  mode: ThemeMode;
+  bandKey: BandKey;
+  /** What the band shows without an override. */
+  inherited: ReturnType<typeof bandColours>[BandKey];
+  override: string | null;
+  palette: StudioTheme["palette"];
+  disabled: boolean;
+  onChange: (value: string | null) => void;
+}) {
+  const custom = isHex(override);
+  const shown = custom ? override : inherited.hex;
+  const name = `${bandKey === "brand" ? "Brand band" : "Soft band"}, ${mode} mode`;
+  const ratio = contrast(inherited.text, shown);
+  return (
+    <fieldset data-band-field={`${mode}-${bandKey}`} className="grid gap-3 rounded-xl border border-line p-4">
+      <legend className="px-1 text-sm font-medium text-text">{name}</legend>
+      <div
+        aria-hidden
+        className="rounded-lg p-3 text-sm"
+        style={{ background: shown, color: inherited.text }}
+      >
+        <span className="font-semibold">A section on this band</span>
+        <span className="block" style={{ color: inherited.muted }}>
+          Secondary text
+        </span>
+      </div>
+      <p className="text-sm text-muted">
+        <span className="font-mono text-text">{shown}</span>
+        {" · "}
+        {custom ? (
+          <span className="font-medium text-text">Custom override</span>
+        ) : (
+          <>Brand default: {inherited.source}</>
+        )}
+        {` · text ${ratio.toFixed(2)}:1`}
+      </p>
+      <div role="radiogroup" aria-label={`${name}: colour`} className="flex flex-wrap gap-2">
+        {([false, true] as const).map((own) => (
+          <button
+            key={String(own)}
+            type="button"
+            role="radio"
+            aria-checked={custom === own}
+            disabled={disabled}
+            onClick={() => onChange(own ? inherited.hex : null)}
+            className={cn(
+              "min-h-11 rounded-xl border px-3 text-sm disabled:opacity-60",
+              custom === own ? "border-action bg-surface-2 text-text" : "border-line text-muted",
+            )}
+          >
+            {own ? "Custom override" : "Use brand default"}
+          </button>
+        ))}
+      </div>
+      {custom && (
+        <div className="flex flex-wrap items-end gap-3">
+          <ColourField
+            id={id}
+            label={`${name} colour`}
+            hint="Only this band, in this mode. The palette and other websites don't change."
+            value={override}
+            palette={palette}
+            disabled={disabled}
+            onChange={(v) => onChange(v || null)}
+          />
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={() => onChange(null)}
+            className="inline-flex min-h-11 items-center rounded-xl px-3 text-sm font-medium text-accent hover:bg-surface-2 disabled:opacity-40"
+          >
+            Reset to brand default<span className="sr-only"> ({name})</span>
+          </button>
+        </div>
+      )}
+    </fieldset>
+  );
+}
+
 export function ThemeStudio({
   slug,
   name,
@@ -484,19 +615,14 @@ export function ThemeStudio({
     setBusy(kind);
     setMessage(null);
     setFields([]);
-    // The section band colours (Navigation & enquiries) stay as published.
-    const bands = {
-      brand_section: settings.theme?.brand_section ?? null,
-      soft_section: settings.theme?.soft_section ?? null,
-    };
     try {
       const saved = await adminFetch<WebsiteSettingsAdmin>(`sites/${slug}/settings`, {
         // The rest of the document is sent back unchanged.
         settings:
           kind === "publish"
-            ? { ...settings, theme: { ...bands, ...stored }, theme_draft: null }
+            ? { ...settings, theme: stored, theme_draft: null }
             : kind === "draft"
-              ? { ...settings, theme_draft: { ...bands, ...stored } }
+              ? { ...settings, theme_draft: stored }
               : { ...settings, theme_draft: null },
         version,
       });
@@ -531,6 +657,11 @@ export function ThemeStudio({
 
   const setMode = (mode: ThemeMode, field: (typeof MODE_FIELDS)[number], value: string) =>
     setForm((f) => ({ ...f, [mode]: { ...f[mode], [field]: value || undefined } }));
+  const setBand = (mode: ThemeMode, key: BandKey, value: string | null) =>
+    setForm((f) => ({
+      ...f,
+      bands: { ...f.bands, [mode]: { ...f.bands?.[mode], [key]: value || undefined } },
+    }));
   const palette = form.palette ?? [];
   const setPalette = (next: NonNullable<StudioTheme["palette"]>) => setForm((f) => ({ ...f, palette: next }));
   const gradient = form.gradients?.[preset]?.[gradientMode] ?? null;
@@ -701,6 +832,34 @@ export function ThemeStudio({
                 ))}
               </div>
               {errorFor(`theme.${tab}`) && <p className="text-sm text-danger">{errorFor(`theme.${tab}`)}</p>}
+            </>
+          )}
+
+          {tab === "bands" && (
+            <>
+              <p className="text-sm text-muted">
+                The bands editors put behind page sections (Page builder, a section, Section style). Each
+                follows {name}&apos;s colours unless you give it its own: then it keeps that colour, for that
+                band and mode only, until you reset it.
+              </p>
+              <div className="grid gap-4">
+                {(["light", "dark"] as const).flatMap((mode) =>
+                  BAND_KEYS.map((key) => (
+                    <BandField
+                      key={`${mode}-${key}`}
+                      id={`${uid}-band-${mode}-${key}`}
+                      mode={mode}
+                      bandKey={key}
+                      inherited={bandColours(slug, { ...form, bands: {} }, mode)[key]}
+                      override={form.bands?.[mode]?.[key] ?? null}
+                      palette={palette}
+                      disabled={disabled}
+                      onChange={(v) => setBand(mode, key, v)}
+                    />
+                  )),
+                )}
+              </div>
+              {errorFor("theme.bands") && <p className="text-sm text-danger">{errorFor("theme.bands")}</p>}
             </>
           )}
 

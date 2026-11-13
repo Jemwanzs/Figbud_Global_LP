@@ -395,7 +395,7 @@ const seedSite = (n, slug, kind, name, tagline, category, template, status) => (
     navigation: { mode: "pages", items: [] },
     footer: { note: null, links: [] },
     enquiries: { open: true, closed_message: null },
-    theme: { brand_section: null, soft_section: null },
+    theme: {},
     motion: { product_rotation: false, rotation_seconds: 9 },
     showcase: { ...SHOWCASE_DEFAULT },
     nav_previews: { enabled: true, items: [] },
@@ -514,8 +514,10 @@ Object.assign(sites.find((s) => s.slug === "zirahr").settings, {
   },
 });
 // The admin row has no settings: they have their own endpoint (sites/{slug}/settings).
-// Ziwa LMS's brown and ivory section bands (migration 14).
-sites[4].settings.theme = { brand_section: "#4e2d17", soft_section: "#fdf9f4" };
+// Ziwa LMS's brown and ivory section bands (migration 14), as its band overrides (migration 40).
+sites[4].settings.theme = {
+  bands: { light: { brand: "#4e2d17", soft: "#fdf9f4" }, dark: { brand: "#4e2d17" } },
+};
 // Ziwa LMS lists a linked profile and an app store page without an address
 // yet (shown, not linked); ZiraHR lists none, so the common networks show unlinked.
 sites[4].settings.footer = {
@@ -529,8 +531,6 @@ sites[4].settings.footer = {
 // renderer's tests see it applied there and nowhere else. Synthetic colours,
 // contrast-checked like the API would.
 sites.find((s) => s.slug === "expense_now").settings.theme = {
-  brand_section: null,
-  soft_section: null,
   palette: [{ name: "Expense Orange", hex: "#ff7a00" }],
   dark: {
     background: "#1a1410",
@@ -4886,7 +4886,7 @@ function siteSettingsRoutes(slug, req, body, user, send) {
   next.navigation ??= { mode: "pages", items: [] };
   next.footer ??= { note: null, links: [] };
   next.enquiries ??= { open: true, closed_message: null };
-  next.theme ??= { brand_section: null, soft_section: null };
+  next.theme ??= {};
   next.motion ??= { product_rotation: false, rotation_seconds: 9 };
   next.showcase = { ...SHOWCASE_DEFAULT, ...next.showcase };
   next.nav_previews = { enabled: true, items: [], ...next.nav_previews };
@@ -5009,16 +5009,31 @@ function siteSettingsRoutes(slug, req, body, user, send) {
       code: "range",
       message: "Between 6 and 20 seconds, so visitors have time to read.",
     });
-  // The API also checks contrast (site_settings.rs); the mock checks the format.
-  for (const key of ["brand_section", "soft_section"]) {
-    const value = (next.theme[key] ?? "").trim().toLowerCase();
-    next.theme[key] = value || null;
-    if (value && !/^#[0-9a-f]{6}$/.test(value))
-      fields.push({
-        field: `theme.${key}`,
-        code: "format",
-        message: "Use a six-digit hex colour such as #4e2d17.",
-      });
+  // Section band overrides (site_theme.rs check_bands). The API also checks
+  // their contrast when published; the mock checks the format. The retired
+  // band fields are read and never kept.
+  for (const theme of [next.theme, next.theme_draft].filter(Boolean)) {
+    delete theme.brand_section;
+    delete theme.soft_section;
+    for (const mode of ["light", "dark"]) {
+      const band = theme.bands?.[mode];
+      if (!band) continue;
+      for (const key of ["brand", "soft"]) {
+        const value = String(band[key] ?? "")
+          .trim()
+          .toLowerCase();
+        if (!value) delete band[key];
+        else if (!/^#[0-9a-f]{6}$/.test(value)) {
+          fields.push({
+            field: "theme.bands",
+            code: "format",
+            message: "Use a six-digit hex colour such as #f7933a.",
+          });
+        } else band[key] = value;
+      }
+      if (!Object.keys(band).length) delete theme.bands[mode];
+    }
+    if (theme.bands && !Object.keys(theme.bands).length) delete theme.bands;
   }
   const linkOk = (href) => /^(\/(?!\/)[A-Za-z0-9/_.#-]*|https:\/\/[^\s<>"']+)$/.test(href ?? "");
   for (const [field, list] of [

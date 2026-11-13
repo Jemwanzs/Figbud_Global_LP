@@ -1,4 +1,4 @@
-import { PageBlocks, siteThemeCss, siteThemeStyle } from "@figbud/site-kit";
+import { PageBlocks, siteThemeCss } from "@figbud/site-kit";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -39,7 +39,6 @@ async function Preview({ params }: Pick<PageProps<"/admin/sites/[slug]/pages/[id
       <div
         data-product={KNOWN.includes(slug) ? slug : "figbud"}
         data-site={slug}
-        style={siteThemeStyle(data.site.theme)}
         className="min-h-dvh bg-bg text-text"
       >
         <div className="sticky top-0 z-10 border-b border-warning/40 bg-warning/10 px-5 py-2.5 text-center text-sm text-text backdrop-blur">

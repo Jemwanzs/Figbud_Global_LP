@@ -60,12 +60,29 @@ export interface GradientPair {
   dark?: Gradient | null;
 }
 
+/**
+ * A mode's section band colours (owner's brief, 13 Nov 2026). Unset means
+ * the band inherits from the theme (`bandColours`); a value is that
+ * website's own override for the band, in that mode only.
+ */
+export interface BandColours {
+  /** Behind "Brand band" sections. */
+  brand?: string | null;
+  /** Behind "Soft band" sections. */
+  soft?: string | null;
+}
+
+export const BAND_KEYS = ["brand", "soft"] as const;
+export type BandKey = (typeof BAND_KEYS)[number];
+
 /** The Studio's part of a website's theme (`settings.theme`). */
 export interface StudioTheme {
   palette?: Swatch[];
   light?: ModeTokens;
   dark?: ModeTokens;
   gradients?: Partial<Record<GradientPreset, GradientPair>>;
+  /** Section band overrides per mode; missing ones inherit. */
+  bands?: Partial<Record<ThemeMode, BandColours>>;
 }
 
 export const MODE_FIELDS = [
@@ -280,15 +297,85 @@ export function modeGradientCss(
   return out;
 }
 
-/** The website's published theme as a stylesheet, scoped to the website. */
+/** A mode's colours as the website uses them: its own when complete, else the built-in ones. */
+export const effectiveMode = (slug: string, theme: StudioTheme | null | undefined, mode: ThemeMode) => {
+  const own = theme?.[mode];
+  const built = builtInTheme(slug)[mode];
+  return (modeComplete(own) ? own : built) as ModeTokens & Record<(typeof CORE_FIELDS)[number], string>;
+};
+
+export interface BandColour {
+  hex: string;
+  /** The band's own override, rather than inherited. */
+  override: boolean;
+  /** Where an inherited colour comes from, for the Studio. */
+  source: string;
+  /** Text and secondary text on the band. */
+  text: string;
+  muted: string;
+}
+
+const MODE_NAME: Record<ThemeMode, string> = { light: "Light mode", dark: "Dark mode" };
+
+/**
+ * A mode's section bands (owner's brief, 13 Nov 2026): one palette for the
+ * whole website. Brand bands are a dark band in either mode, on the dark
+ * mode's cards and panels colour with its text; soft bands are the mode's own
+ * deeper surface, with its text. An override replaces just the colour, for
+ * that band and mode; removing it inherits the theme's current colour again.
+ */
+export function bandColours(
+  slug: string,
+  theme: StudioTheme | null | undefined,
+  mode: ThemeMode,
+): Record<BandKey, BandColour> {
+  const m = effectiveMode(slug, theme, mode);
+  const dark = effectiveMode(slug, theme, "dark");
+  const own = theme?.bands?.[mode] ?? {};
+  const pick = (key: BandKey, hex: string, source: string, text: string, muted: string): BandColour => {
+    const set = own[key];
+    return isHex(set)
+      ? { hex: set.toLowerCase(), override: true, source: "Custom override", text, muted }
+      : { hex: hex.toLowerCase(), override: false, source, text, muted };
+  };
+  return {
+    brand: pick("brand", dark.surface, "Dark mode → Cards and panels", dark.text, dark.text_muted),
+    soft: pick(
+      "soft",
+      mix(m.surface, m.text, SURFACE_2),
+      `${MODE_NAME[mode]} → Cards and panels, deeper`,
+      m.text,
+      m.text_muted,
+    ),
+  };
+}
+
+/** The band custom properties for a mode (`.fb-tone-brand`, `.fb-tone-soft`). */
+export function bandTokens(slug: string, theme: StudioTheme | null | undefined, mode: ThemeMode) {
+  const { brand, soft } = bandColours(slug, theme, mode);
+  return {
+    "--section-brand": brand.hex,
+    "--section-brand-text": brand.text.toLowerCase(),
+    "--section-brand-muted": brand.muted.toLowerCase(),
+    "--section-soft": soft.hex,
+  };
+}
+
+/**
+ * The website's published theme as a stylesheet, scoped to the website. The
+ * section bands are always included: with nothing published they come from
+ * the website's built-in colours.
+ */
 export function siteThemeCss(slug: string, theme?: StudioTheme | null): string {
-  if (!theme || !SLUG.test(slug)) return "";
+  if (!SLUG.test(slug)) return "";
+  theme ??= {};
   const blocks: string[] = [];
   for (const mode of ["dark", "light"] as const) {
     const declarations = Object.entries(themeTokens(theme[mode] ?? {})).map(([k, v]) => `${k}: ${v};`);
     for (const [preset, css] of Object.entries(modeGradientCss(slug, theme, mode))) {
       declarations.push(`--grad-${preset}: ${css};`);
     }
+    for (const [k, v] of Object.entries(bandTokens(slug, theme, mode))) declarations.push(`${k}: ${v};`);
     if (declarations.length)
       blocks.push(
         `${modeSelectors(slug, mode)} {\n  color-scheme: ${mode};\n  ${declarations.join("\n  ")}\n}`,
@@ -353,6 +440,16 @@ export function themeIssues(theme: StudioTheme): ThemeIssue[] {
       );
     }
     // Warnings: legible, but worth a look.
+    // Section band overrides: their text must stay readable.
+    for (const key of BAND_KEYS) {
+      const set = theme.bands?.[mode]?.[key];
+      if (!isHex(set)) continue;
+      const on = key === "brand" ? theme.dark : m;
+      if (!modeComplete(on)) continue;
+      const name = key === "brand" ? "Brand band" : "Soft band";
+      need(contrast(on.text, set), 4.5, `Text on the ${name.toLowerCase()} (${mode} mode)`);
+      need(contrast(on.text_muted, set), 4.5, `Secondary text on the ${name.toLowerCase()} (${mode} mode)`);
+    }
     if (contrast(m.action, bg) < 3)
       issues.push({
         mode,

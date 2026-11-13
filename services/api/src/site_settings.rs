@@ -24,11 +24,10 @@ use uuid::Uuid;
 
 use crate::{
     admin::{AdminSession, Role},
-    brand::config::{contrast, parse_hex},
     error::{ApiError, FieldError},
     privacy::valid_link,
     routes::SharedState,
-    site_theme::{self, Gradients, ModeTokens, Swatch, ThemeVersion},
+    site_theme::{self, Bands, Gradients, ModeTokens, Swatch, ThemeVersion},
     sites::audit_site,
 };
 
@@ -319,17 +318,18 @@ impl Default for Enquiries {
     }
 }
 
-/// A website's colours: the section bands editors can give page sections
-/// (P7-E1) and, from the Brand & Theme Studio (owner's brief, 11 Nov 2026),
-/// its palette, light and dark colours and gradients (`site_theme`). Unset
-/// means the website's built-in colours.
+/// A website's colours from the Brand & Theme Studio (owner's brief, 11 Nov
+/// 2026): its palette, light and dark colours, gradients and, since 13 Nov
+/// 2026, its section band overrides (`site_theme`). Unset means the website's
+/// built-in colours, and bands inherit from the theme.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Default)]
 #[serde(default, deny_unknown_fields)]
 pub struct Theme {
-    /// Behind "brand" sections, with white text on it (at least 4.5:1).
+    /// Retired (P7-E1 band colours, moved into `bands` by migration 40):
+    /// still read, so older versions in the history load, never written.
+    #[serde(skip_serializing)]
     pub brand_section: Option<String>,
-    /// Behind "soft" sections in light mode, with the theme's dark text
-    /// on it (at least 4.5:1); dark mode uses a deep tint of the brand band.
+    #[serde(skip_serializing)]
     pub soft_section: Option<String>,
     /// Named colours to choose from (the Studio's swatches).
     #[serde(skip_serializing_if = "Vec::is_empty")]
@@ -341,6 +341,9 @@ pub struct Theme {
     /// Gradient presets by where they're used (`GRADIENT_PRESETS`).
     #[serde(skip_serializing_if = "BTreeMap::is_empty")]
     pub gradients: Gradients,
+    /// Section band overrides per mode; missing ones inherit from the theme.
+    #[serde(skip_serializing_if = "Bands::is_empty")]
+    pub bands: Bands,
 }
 
 /// Motion on the website's home page (UI-MO2). Rotation is off unless an
@@ -616,39 +619,6 @@ fn check_section_themes(
     }
 }
 
-/// Body and muted text colours of the light theme (packages/brand/src/tokens.css).
-const LIGHT_TEXT: [&str; 2] = ["#0f172a", "#475569"];
-
-fn check_colour(
-    errors: &mut Vec<FieldError>,
-    value: &mut Option<String>,
-    field: &'static str,
-    against: &[&str],
-    message: &'static str,
-) {
-    *value = value
-        .as_deref()
-        .map(|v| v.trim().to_ascii_lowercase())
-        .filter(|v| !v.is_empty());
-    let Some(colour) = value.as_deref() else { return };
-    if parse_hex(colour).is_none() {
-        errors.push(FieldError {
-            field,
-            code: "format",
-            message: "Use a six-digit hex colour such as #4e2d17.",
-        });
-    } else if against
-        .iter()
-        .any(|text| contrast(colour, text).unwrap_or(0.0) < 4.5)
-    {
-        errors.push(FieldError {
-            field,
-            code: "contrast",
-            message,
-        });
-    }
-}
-
 fn check_links(errors: &mut Vec<FieldError>, links: &mut [Link], field: &'static str) {
     if links.len() > MAX_LINKS {
         errors.push(FieldError {
@@ -722,20 +692,6 @@ impl WebsiteSettings {
             &mut self.enquiries.closed_message,
             "enquiries.closed_message",
             300,
-        );
-        check_colour(
-            &mut e,
-            &mut self.theme.brand_section,
-            "theme.brand_section",
-            &["#ffffff"],
-            "Too light: white text on it must stay readable (at least 4.5:1).",
-        );
-        check_colour(
-            &mut e,
-            &mut self.theme.soft_section,
-            "theme.soft_section",
-            &LIGHT_TEXT,
-            "Too dark: the page's text on it must stay readable (at least 4.5:1).",
         );
         site_theme::check(&mut e, &mut self.theme, true);
         if let Some(draft) = &mut self.theme_draft {
@@ -993,11 +949,8 @@ mod tests {
         let public = settings.public();
         assert_eq!(public["theme"]["palette"][0]["hex"], "#f7933a");
         assert!(public.get("theme_draft").is_none() && public.get("theme_history").is_none());
-        // An empty theme stays as small as before.
-        assert_eq!(
-            WebsiteSettings::default().public()["theme"],
-            json!({ "brand_section": null, "soft_section": null })
-        );
+        // An empty theme stays empty.
+        assert_eq!(WebsiteSettings::default().public()["theme"], json!({}));
         let broken = WebsiteSettings::from_stored(json!({ "theme_draft": { "dark": { "text": "cream" } } }));
         assert_eq!(broken.normalise(false).unwrap_err()[0].field, "theme.dark");
         // Published, the same draft is refused for its contrast.
@@ -1008,35 +961,22 @@ mod tests {
     }
 
     #[test]
-    fn theme_colours_keep_text_readable() {
-        let theme = |brand: &str, soft: &str| WebsiteSettings {
-            theme: Theme {
-                brand_section: Some(brand.into()),
-                soft_section: Some(soft.into()),
-                ..Theme::default()
-            },
-            ..WebsiteSettings::default()
-        };
-        // Ziwa's brown and ivory.
-        let ok = theme(" #4E2D17 ", "#FDF9F4").normalise(false).unwrap();
-        assert_eq!(ok.theme.brand_section.as_deref(), Some("#4e2d17"));
-        let codes: Vec<_> = theme("#ffc642", "#4e2d17")
+    fn band_overrides_save_with_the_settings() {
+        let settings = |bands: Value| WebsiteSettings::from_stored(json!({ "theme": { "bands": bands } }));
+        // Ziwa's brown and ivory, as overrides.
+        let ok = settings(
+            json!({ "light": { "brand": " #4E2D17 ", "soft": "#FDF9F4" }, "dark": { "brand": "#4e2d17" } }),
+        )
+        .normalise(false)
+        .unwrap();
+        assert_eq!(ok.theme.bands.light.brand.as_deref(), Some("#4e2d17"));
+        let codes: Vec<_> = settings(json!({ "light": { "brand": "#ffc642" } }))
             .normalise(false)
             .unwrap_err()
             .iter()
             .map(|e| (e.field, e.code))
             .collect();
-        assert_eq!(
-            codes,
-            [
-                ("theme.brand_section", "contrast"),
-                ("theme.soft_section", "contrast")
-            ]
-        );
-        assert_eq!(
-            theme("brown", "#fff").normalise(false).unwrap_err()[0].code,
-            "format"
-        );
+        assert_eq!(codes, [("theme.bands", "contrast")]);
     }
 
     #[test]

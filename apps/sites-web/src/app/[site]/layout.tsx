@@ -9,7 +9,6 @@ import {
   enquiriesOpen,
   resolveNavPreviews,
   siteThemeCss,
-  siteThemeStyle,
   verificationMeta,
 } from "@figbud/site-kit";
 import { themeInitScript } from "@figbud/ui";
@@ -124,14 +123,11 @@ export default async function SiteLayout({ children, params }: LayoutProps<"/[si
             label: p.title,
             preview: previews[`/${p.path}`],
           }));
-  // Brand accents, plus the section band colours from the website's theme (P7-E1).
-  const colours = {
-    ...(site.brand
-      ? { "--product": site.brand.colors.primary, "--product-2": site.brand.colors.secondary }
-      : {}),
-    ...siteThemeStyle(site.settings?.theme),
-  } as CSSProperties;
-  // Its published Brand & Theme Studio colours, scoped to this website (validated hex only).
+  // Brand accents.
+  const colours = (
+    site.brand ? { "--product": site.brand.colors.primary, "--product-2": site.brand.colors.secondary } : {}
+  ) as CSSProperties;
+  // Its published Brand & Theme Studio colours and section bands, scoped to this website (validated hex only).
   const themeCss = siteThemeCss(slug, site.settings?.theme);
 
   return (

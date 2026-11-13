@@ -77,7 +77,10 @@ test("a website's published Brand & Theme Studio colours apply to it alone, in b
     await expect.poll(bodyColours).toEqual({ bg, action: "#ff7a00" });
   }
   await page.goto("/ziwa");
-  await expect(page.locator("style[data-site-theme]")).toHaveCount(0);
+  // Ziwa's stylesheet carries only its section bands: none of Expense Now's colours.
+  const ziwaCss = page.locator("style[data-site-theme]");
+  await expect(ziwaCss).toHaveCount(1);
+  expect(await ziwaCss.textContent()).not.toMatch(/--bg:|expense_now|#1a1410/);
   await expect.poll(bodyColours).not.toEqual(expect.objectContaining({ bg: "#1a1410" }));
 });
 
@@ -383,27 +386,41 @@ test("the Studio's menu, footer note and closed enquiries reach the website", as
 });
 
 test("sections styled in the Studio sit on the website's theme bands, in both themes", async ({ page }) => {
-  // Mock fixture: Ziwa's feature grid is on its brand band; Ziwa's theme is brown and ivory.
+  // Mock fixture: Ziwa's feature grid is on its brand band; Ziwa overrides its bands
+  // with its brown and ivory (migration 40 kept them as overrides).
   await page.goto("/ziwa");
   const band = page.locator('section[data-tone="brand"]');
+  const heading = band.getByRole("heading", { name: "Built for the whole journey" });
   await expect(band).toHaveCSS("background-color", "rgb(78, 45, 23)");
-  await expect(band.getByRole("heading", { name: "Built for the whole journey" })).toHaveCSS(
-    "color",
-    "rgb(255, 255, 255)",
-  );
-  // The brand band stays brown with white text in light mode.
+  // The band's contents take the dark mode's colours (its text, links and buttons).
+  await expect(heading).toHaveCSS("color", "rgb(248, 250, 252)");
+  // The brand band stays brown with the dark mode's text in light mode.
   await page.getByRole("button", { name: "Switch to light theme" }).click();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
   await expect(band).toHaveCSS("background-color", "rgb(78, 45, 23)");
-  await expect(band.getByRole("heading", { name: "Built for the whole journey" })).toHaveCSS(
-    "color",
-    "rgb(255, 255, 255)",
-  );
+  await expect(heading).toHaveCSS("color", "rgb(248, 250, 252)");
   const results = await new AxeBuilder({ page: await themeSettled(page) })
     .include('section[data-tone="brand"]')
     .withTags(["wcag2aa"])
     .analyze();
   expect(results.violations.map((v) => v.id)).toEqual([]);
+});
+
+test("ZiraHR's bands come from its palette in both modes, not a fixed colour (owner's brief, 13 Nov 2026)", async ({
+  page,
+}) => {
+  await page.goto("/zirahr");
+  const band = (name: string) =>
+    page.evaluate((n) => getComputedStyle(document.body).getPropertyValue(n).trim(), name);
+  // Brand band: the dark mode's cards and panels (Charcoal Mocha), whichever the mode.
+  await expect.poll(() => band("--section-brand")).toBe("#38302d");
+  await expect.poll(() => band("--section-brand-text")).toBe("#fff5e6");
+  // Soft band: each mode's own deeper surface (cards and panels, 6 % towards the text).
+  await expect.poll(() => band("--section-soft")).toBe("#443c38");
+  await page.getByRole("button", { name: "Switch to light theme" }).click();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+  await expect.poll(() => band("--section-brand")).toBe("#38302d");
+  await expect.poll(() => band("--section-soft")).toBe("#f2e9da");
 });
 
 test("images from the media library render responsively with their alt text", async ({ page, request }) => {

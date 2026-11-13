@@ -320,6 +320,103 @@ test("Studio: a product website's colours and themes are drafted, checked, previ
   await expect(publish).toBeDisabled();
 });
 
+test("Studio: ZiraHR's section bands follow its palette, with scoped overrides, drafted and published", async ({
+  page,
+  request,
+}, testInfo) => {
+  // Owner's brief, 13 Nov 2026. Shared mock data: edited from one project only and put back.
+  test.skip(testInfo.project.name !== "desktop", "edited from the desktop project");
+  test.setTimeout(120_000);
+  const API = "http://localhost:3199";
+  const published = async () =>
+    (
+      (await (await request.get(`${API}/v1/sites`)).json()) as {
+        slug: string;
+        settings: { theme?: Record<string, unknown> & { bands?: unknown; dark?: { surface?: string } } };
+      }[]
+    ).find((s) => s.slug === "zirahr")!.settings.theme ?? {};
+  await signInAsOwner(page);
+
+  // Navigation, footer & forms shows what the bands inherit, and where to change them.
+  await page.goto("/admin/sites/zirahr/website");
+  const summary = page.locator('[data-band="light-brand"]');
+  await expect(summary).toContainText("#38302d");
+  await expect(summary).toContainText("Brand default: Dark mode → Cards and panels");
+  await page.getByRole("link", { name: "Colours & themes" }).first().click();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Colours & themes");
+
+  // Changing the palette's colour moves every band that inherits it.
+  await page.getByRole("tab", { name: "Dark mode" }).click();
+  await page.getByLabel("Cards and panels", { exact: true }).fill("#3a2f2a");
+  await page.getByRole("tab", { name: "Section bands" }).click();
+  const lightBrand = page.locator('[data-band-field="light-brand"]');
+  const darkBrand = page.locator('[data-band-field="dark-brand"]');
+  await expect(lightBrand).toContainText("#3a2f2a");
+  await expect(darkBrand).toContainText("#3a2f2a");
+
+  // An override is scoped to its band and mode, and survives later palette changes.
+  await lightBrand.getByRole("radio", { name: "Custom override" }).click();
+  await page.getByLabel("Brand band, light mode colour", { exact: true }).fill("#4e2d17");
+  await expect(lightBrand).toContainText("Custom override");
+  await page.getByRole("tab", { name: "Dark mode" }).click();
+  await page.getByLabel("Cards and panels", { exact: true }).fill("#3b302b");
+  await page.getByRole("tab", { name: "Section bands" }).click();
+  await expect(lightBrand).toContainText("#4e2d17");
+  await expect(darkBrand).toContainText("#3b302b");
+  // The preview shows the band as the website will.
+  await page.getByRole("button", { name: "Light", exact: true }).click();
+  await expect(page.locator('[data-theme-preview] [data-preview-section-band="brand"]')).toHaveCSS(
+    "background-color",
+    "rgb(78, 45, 23)",
+  );
+
+  // A draft never reaches the website.
+  const before = await published();
+  await page.getByRole("button", { name: "Save draft" }).click();
+  await expect(page.getByRole("status")).toContainText("Draft saved.");
+  expect(await published()).toEqual(before);
+
+  // Published: the override and the new palette colour, nothing else.
+  await page.getByRole("button", { name: "Publish", exact: true }).click();
+  await expect(page.getByRole("status")).toContainText("Published.");
+  let theme = await published();
+  expect(theme.bands).toEqual({ light: { brand: "#4e2d17" } });
+  expect(theme.dark?.surface).toBe("#3b302b");
+
+  // Saving Navigation, footer & forms keeps the published theme as it is.
+  await page.goto("/admin/sites/zirahr/website");
+  await expect(page.locator('[data-band="light-brand"]')).toContainText("Custom override");
+  await expect(page.locator('[data-band="dark-brand"]')).toContainText("#3b302b");
+  const closed = page.getByLabel("Message while closed", { exact: true });
+  await closed.fill(`Back soon (${testInfo.retry}).`);
+  await page.getByRole("button", { name: "Save settings" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Saved." })).toBeVisible();
+  expect(await published()).toEqual(theme);
+  await closed.fill("");
+  await page.getByRole("button", { name: "Save settings" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Saved." })).toBeVisible();
+
+  // Resetting the override inherits the current palette colour again.
+  await page.goto("/admin/sites/zirahr/theme");
+  await page.getByRole("tab", { name: "Section bands" }).click();
+  await lightBrand.getByRole("button", { name: /Reset to brand default/ }).click();
+  await expect(lightBrand).toContainText("Brand default: Dark mode → Cards and panels");
+  await expect(lightBrand).toContainText("#3b302b");
+  const results = await new AxeBuilder({ page: await themeSettled(page) })
+    .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
+    .analyze();
+  expect(
+    results.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`),
+  ).toEqual([]);
+
+  // Put it back for other tests: the built-in colours, nothing stored.
+  await page.getByRole("button", { name: "Restore defaults" }).click();
+  await page.getByRole("button", { name: "Publish", exact: true }).click();
+  await expect(page.getByRole("status")).toContainText("Published.");
+  theme = await published();
+  expect(theme).toEqual({});
+});
+
 test("Studio: the Studio's own appearance is drafted, checked, published, applied and restored", async ({
   page,
 }, testInfo) => {

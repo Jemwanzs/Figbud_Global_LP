@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   BUILT_IN_THEMES,
+  bandColours,
   builtInTheme,
   contrast,
   derivedGradients,
@@ -72,7 +73,10 @@ describe("Brand & Theme Studio colours", () => {
     const dark = css.slice(css.indexOf('[data-theme="dark"] [data-site="ziwa"],'));
     expect(dark.split("{")[1]).not.toContain("--bg:");
     expect(siteThemeCss('x"] body, [y', builtInTheme("x"))).toBe("");
-    expect(siteThemeCss("ziwa", {})).toBe("");
+    // With nothing published, only the section bands, from the built-in colours.
+    const bare = siteThemeCss("ziwa", {});
+    expect(bare).toContain("--section-brand: #0f172a;");
+    expect(bare).not.toContain("--bg:");
   });
 
   it("derive every surface the components use", () => {
@@ -163,5 +167,34 @@ describe("Brand & Theme Studio colours", () => {
       mode: "dark",
       critical: true,
     });
+  });
+
+  it("give section bands the palette's colours, with overrides kept to their band and mode", () => {
+    // ZiraHR, nothing published: the brand band is the dark mode's cards and panels in both modes.
+    const light = bandColours("zirahr", null, "light");
+    expect(light.brand).toMatchObject({ hex: "#38302d", override: false, text: "#fff5e6" });
+    expect(light.brand.source).toBe("Dark mode → Cards and panels");
+    expect(bandColours("zirahr", null, "dark").brand.hex).toBe("#38302d");
+    // The soft band is each mode's deeper surface, with that mode's text.
+    expect(light.soft).toMatchObject({ hex: mix("#fff5e6", "#292625", 6), text: "#292625" });
+    expect(bandColours("zirahr", null, "dark").soft.hex).toBe(mix("#38302d", "#fff5e6", 6));
+    // Changing the palette's colour moves every inheriting band with it.
+    const recoloured: StudioTheme = {
+      ...BUILT_IN_THEMES.zirahr,
+      dark: { ...BUILT_IN_THEMES.zirahr.dark, surface: "#3a2f2a" },
+    };
+    expect(bandColours("zirahr", recoloured, "light").brand.hex).toBe("#3a2f2a");
+    // An override stays put while the palette changes, for that band and mode only.
+    const own = { ...recoloured, bands: { light: { brand: "#4E2D17" } } };
+    expect(bandColours("zirahr", own, "light").brand).toMatchObject({ hex: "#4e2d17", override: true });
+    expect(bandColours("zirahr", own, "dark").brand).toMatchObject({ hex: "#3a2f2a", override: false });
+    expect(siteThemeCss("zirahr", own)).toContain("--section-brand: #4e2d17;");
+    // Removing it inherits the current colour again.
+    expect(bandColours("zirahr", { ...own, bands: {} }, "light").brand.hex).toBe("#3a2f2a");
+    // An unreadable override blocks publishing.
+    const pale = { ...BUILT_IN_THEMES.zirahr, bands: { dark: { brand: "#f9f5ef" } } };
+    expect(themeIssues(pale).some((i) => i.critical && i.message.startsWith("Text on the brand band"))).toBe(
+      true,
+    );
   });
 });

@@ -160,20 +160,29 @@ async fn navigation_footer_and_enquiries_are_managed_per_website() {
     .await;
     assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY, "{body}");
 
-    // Ziwa's brown and ivory bands (migration 14) reach its website.
+    // Ziwa's brown and ivory bands (migration 14) became its band overrides
+    // (migration 40); ZiraHR's fixed brown is gone, so its bands follow its palette.
     let (_, sites) = call(&app, "GET", "/v1/sites", None, None).await;
-    let ziwa = sites
-        .as_array()
-        .unwrap()
-        .iter()
-        .find(|s| s["slug"] == "ziwa")
-        .unwrap()
-        .clone();
-    assert_eq!(ziwa["settings"]["theme"]["brand_section"], "#4e2d17");
-    assert_eq!(ziwa["settings"]["theme"]["soft_section"], "#fdf9f4");
-    // A band too light for white text is refused.
+    let site = |slug: &str| {
+        sites
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|s| s["slug"] == slug)
+            .unwrap()
+            .clone()
+    };
+    assert_eq!(
+        site("ziwa")["settings"]["theme"],
+        json!({ "bands": {
+            "light": { "brand": "#4e2d17", "soft": "#fdf9f4" },
+            "dark": { "brand": "#4e2d17" }
+        } })
+    );
+    assert_eq!(site("zirahr")["settings"]["theme"], json!({}));
+    // A band too light for its text is refused.
     let mut pale = settings.clone();
-    pale["theme"] = json!({ "brand_section": "#ffc642" });
+    pale["theme"] = json!({ "bands": { "light": { "brand": "#ffc642" } } });
     let (status, body) = call(
         &app,
         "POST",
@@ -183,6 +192,7 @@ async fn navigation_footer_and_enquiries_are_managed_per_website() {
     )
     .await;
     assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
+    assert_eq!(body["error"]["fields"][0]["field"], "theme.bands");
     assert_eq!(body["error"]["fields"][0]["code"], "contrast");
 
     // The websites see the settings.

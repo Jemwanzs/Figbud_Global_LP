@@ -143,7 +143,7 @@ Studio UI polish is a standing priority (P7-UX2): every milestone reviews the sc
 | Menu: website's pages / links I choose | website | Pages marked for navigation, or up to 8 chosen links (page paths or https:// addresses) | reviewer | immediately, audited |
 | Footer (P7-FT1) | website | Call to action (heading, description, button, destination, on or off); tagline and description; up to three link groups of up to 8 links, in order; contact email and phone; official social profiles; show or hide the columns. Legal & Support (policies and cookie settings) always stays. On FigBud Global, text replaces the approved wording on English pages only | reviewer | draft, then publish; audited. Social profiles (UI-FT2, 13 Nov 2026): up to eight, including Google Play and App Store; an empty address shows the icon without a link until one is added; "Show social icons in the footer" turns the row off |
 | Section style | section | Default, Brand band or Soft band, in the website's theme colours | editor (part of the draft) | when the draft is published |
-| Theme: brand and soft bands | website | Colours of the section bands; refused if text on them would be hard to read (4.5:1) | reviewer | immediately, audited |
+| Theme: brand and soft bands | website | Shown here as published, with where each colour comes from. Set in Colours & themes → Section bands (UI-BT2, 13 Nov 2026): inherited from the palette, or a custom override per band and mode | reviewer | draft, then publish (Colours & themes); audited |
 | Enquiries on / off | website | Off removes the enquiry button, shows a notice on the contact form and makes the API refuse the product (409 `enquiries_closed`); received enquiries are kept. The corporate website is always on | reviewer (confirms before closing) | immediately, audited as `site.enquiries_closed` / `site.enquiries_opened` |
 
 **Navigation, footer & forms** (P7-E2, 29 Oct 2026): Websites → a website → Navigation & forms. Settings live in `sites.settings` (validated by `services/api/src/site_settings.rs`; an empty document means the defaults), are read and saved at `GET/POST /v1/admin/sites/{slug}/settings` with a version check, and reach the websites through `GET /v1/sites` (`settings`). The editor suggests the website's published pages as destinations.
@@ -287,11 +287,17 @@ Websites → a product website → **Colours & themes** (also under Products & B
   - saves are checked against the version you opened, so two editors can't overwrite each other;
   - every draft and publish is in the audit log (`site.theme_draft_saved`, `site.theme_published`);
   - each website's theme is scoped to that website (`data-site`), so no colour leaks to another.
+- **Section bands (UI-BT2, 13 Nov 2026):** one palette for the whole website. The **brand band** is a dark band in either mode, on the dark mode's cards and panels colour, and its contents take the dark mode's colours (text, links, buttons, focus). The **soft band** is each mode's own deeper surface (cards and panels, 6 % towards the text), with that mode's text. The Section bands tab shows each band in each mode with its colour, hex value, where it comes from (such as "Dark mode → Cards and panels"), a live sample and its text contrast, and a choice of **Use brand default** or **Custom override**.
+  - An override applies to that band in that mode only; the palette and other websites don't change. It stays as set when the palette changes, and is marked "Custom override" here, in the preview and on Navigation, footer & forms.
+  - **Reset to brand default** removes the override: the band inherits the theme's current colour again.
+  - Overrides are drafted, checked (their text needs 4.5:1, in the Studio and the API), published and rolled back with the rest of the theme.
+  - Navigation, footer & forms → Theme shows the bands as published, with a link here. Saving that page no longer changes the theme: before, it sent only the two old band colours, which removed a published palette, colours and gradients and discarded a theme draft.
+  - The old band fields (`brand_section`, `soft_section`) are retired (migration 40). ZiraHR's fixed brown and warm white (migration 31) were dropped, so its bands follow its palette; other websites' colours (Ziwa's brown and ivory) became their overrides.
 - **Section styles** (Page builder → a section): besides Brand band, Soft band and Contrasting band, a section can be a Light surface or Dark surface (the same in either theme) or sit on the hero, band or call-to-action gradient.
 - **Where it runs:**
   - stored in the website's settings: `theme` (published), `theme_draft`, `theme_history`;
   - checked by `services/api/src/site_theme.rs`;
-  - turned into CSS by `siteThemeCss` in `@figbud/site-kit` (`site-theme.ts`), on the product renderer and in Studio previews;
+  - turned into CSS by `siteThemeCss` in `@figbud/site-kit` (`site-theme.ts`), on the product renderer and in Studio previews; the section bands (`bandColours`, `--section-brand`, `--section-brand-text`, `--section-brand-muted`, `--section-soft`) are always included, from the built-in colours when nothing is published;
   - built-in themes are `BUILT_IN_THEMES`, which a unit test keeps equal to `tokens.css`.
 
 ## Security & Authentication (P13, 5 Nov 2026)

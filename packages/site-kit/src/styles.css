@@ -675,28 +675,32 @@ body:has(main [data-section="call_to_action"]:last-child) footer {
   }
 }
 
-/* Section bands (P7-E1): a section editors give the "brand" or "soft" style
-   sits on a band in its website's theme colours (siteThemeStyle sets
-   --section-brand and --section-soft; the API checks their contrast). Blocks
-   inside use the same tokens, re-pointed here so their text stays readable. */
+/* Section bands: a section editors give the "brand" or "soft" style sits on
+   a band in its website's theme colours (owner's brief, 13 Nov 2026).
+   siteThemeCss sets --section-brand, --section-soft and the text on each, per
+   mode, from Colours & themes (inherited from the palette unless overridden;
+   the API checks their contrast). Blocks inside use the same tokens,
+   re-pointed here so their text stays readable. The literal fallbacks only
+   apply where no website styles are present. */
 .fb-tone {
   border-radius: var(--radius-panel, 1.75rem);
   padding: clamp(1.75rem, 5cqi, 3.5rem);
 }
 .fb-tone-brand {
-  --text: #ffffff;
-  --text-muted: rgb(255 255 255 / 0.8);
-  --text-subtle: rgb(255 255 255 / 0.7);
-  --line: rgb(255 255 255 / 0.16);
-  --line-strong: rgb(255 255 255 / 0.3);
-  --surface: rgb(255 255 255 / 0.07);
-  --surface-2: rgb(255 255 255 / 0.11);
-  --product-text: #ffffff;
+  --text: var(--section-brand-text, #ffffff);
+  --text-muted: var(--section-brand-muted, rgb(255 255 255 / 0.8));
+  --text-subtle: var(--section-brand-muted, rgb(255 255 255 / 0.7));
+  --line: color-mix(in srgb, var(--text) 16%, transparent);
+  --line-strong: color-mix(in srgb, var(--text) 30%, transparent);
+  --surface: color-mix(in srgb, var(--text) 7%, transparent);
+  --surface-2: color-mix(in srgb, var(--text) 11%, transparent);
+  --product-text: var(--text);
   background: var(--section-brand, #1e293b);
   color: var(--text);
 }
 .fb-tone-soft {
-  background: color-mix(in oklab, var(--section-brand, #1e293b) 32%, var(--bg));
+  /* The mode's own text: soft bands are a deeper surface of the same mode. */
+  background: var(--section-soft, color-mix(in oklab, var(--section-brand, #1e293b) 32%, var(--bg)));
   color: var(--text);
 }
 [data-theme="light"] .fb-tone-soft {

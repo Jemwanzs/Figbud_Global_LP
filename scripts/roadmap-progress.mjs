@@ -108,6 +108,7 @@ const ROWS = {
   "UI-ZP1": ["zirahr"],
   "UI-GR1": ["zirahr"],
   "UI-BT1": ["studio", "zirahr"],
+  "UI-BT2": ["studio", "zirahr"],
   "UI-HM1": ["studio", "zirahr"],
   "UI-TB1": ["studio", "figbud"],
   "UI-AP1": ["studio"],

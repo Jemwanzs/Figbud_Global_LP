@@ -221,21 +221,20 @@ test("Studio: Our Platforms controls, saved with the website's settings", async 
   expect((await listed()).intensity).toBe("subtle");
   // Saving Navigation & forms keeps Our Platforms as it is.
   await page.goto("/admin/sites/figbud/website");
-  // Different text on each attempt (a retry finds the last attempt's save), repeated until the
-  // form is ready to notice it.
-  const band = page.getByLabel("Soft band (light mode)", { exact: true });
-  const colour = `#fdf9f${testInfo.retry}`;
+  // A menu of its own (repeated until the form is ready to notice it), saved, then put back.
   const save = page.getByRole("button", { name: "Save settings" });
   await expect(async () => {
-    await band.fill("");
-    await band.fill(colour);
+    await page.getByRole("radio", { name: /Links I choose/ }).click();
     await expect(save).toBeEnabled({ timeout: 1_000 });
   }).toPass();
+  await page.getByRole("button", { name: "Add link to menu links" }).click();
+  await page.getByLabel("Menu links: link 1 label").fill("Platform");
+  await page.getByLabel("Menu links: link 1 address").fill("/platform");
   await save.click();
   await expect(page.getByRole("status").filter({ hasText: "Saved." })).toBeVisible();
   expect((await listed()).intensity).toBe("subtle");
-  await band.fill("");
-  await page.getByRole("button", { name: "Save settings" }).click();
+  await page.getByRole("radio", { name: /The website's pages/ }).click();
+  await save.click();
   await expect(page.getByRole("status").filter({ hasText: "Saved." })).toBeVisible();
 
   await page.goto("/admin/sites/figbud/platforms");

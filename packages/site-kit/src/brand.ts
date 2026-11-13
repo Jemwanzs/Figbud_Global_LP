@@ -82,7 +82,7 @@ export interface WebsiteSettings {
   /** Saved in the Studio, not published. */
   section_themes_draft?: Partial<Record<string, "follow" | "inverse">> | null;
   enquiries: { open: boolean; closed_message?: string | null };
-  /** Section band colours (P7-E1) and the Brand & Theme Studio's colours; unset means the built-in ones. */
+  /** The Brand & Theme Studio's colours, section bands included; unset means the built-in ones. */
   theme?: SiteTheme;
   /** The theme being edited in the Studio (only the Studio ever receives it). */
   theme_draft?: SiteTheme | null;
@@ -221,26 +221,12 @@ export function orderBySlug<T extends { slug: string }>(items: T[], order: strin
     .map(({ item }) => item);
 }
 
-export interface SiteTheme extends StudioTheme {
-  /** Behind "brand" sections, with white text on it. */
-  brand_section?: string | null;
-  /** Behind "soft" sections in light mode; dark mode uses a deep tint of the brand band. */
-  soft_section?: string | null;
-}
-
-const HEX = /^#[0-9a-f]{6}$/i;
-
 /**
- * CSS custom properties for a website's section bands, set on the element
- * that wraps its pages (the renderer, Studio previews). Only valid hex
- * colours pass, so nothing else reaches a style attribute.
+ * A website's theme (Colours & themes). The section bands are part of it
+ * (`bands`, owner's brief, 13 Nov 2026): they inherit from its colours unless
+ * overridden, and reach the website through `siteThemeCss`.
  */
-export function siteThemeStyle(theme?: SiteTheme | null): Record<string, string> {
-  const style: Record<string, string> = {};
-  if (theme?.brand_section && HEX.test(theme.brand_section)) style["--section-brand"] = theme.brand_section;
-  if (theme?.soft_section && HEX.test(theme.soft_section)) style["--section-soft"] = theme.soft_section;
-  return style;
-}
+export type SiteTheme = StudioTheme;
 
 /** Whether the website takes enquiries (open unless the Studio closed them). */
 export const enquiriesOpen = (site?: Pick<ListedSite, "settings"> | null) =>

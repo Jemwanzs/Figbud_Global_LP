@@ -8,9 +8,9 @@ import {
   type PageSection,
   type SectionTone,
   type SiteTheme,
+  bandColours,
   ZIRAHR_MODULES,
   siteThemeCss,
-  siteThemeStyle,
 } from "@figbud/site-kit";
 import { buttonClasses, cn } from "@figbud/ui";
 import {
@@ -248,8 +248,8 @@ function Items<T>({
 
 const TONES: { value: SectionTone | undefined; label: string; hint: string }[] = [
   { value: undefined, label: "Default", hint: "On the page background" },
-  { value: "brand", label: "Brand band", hint: "White text on the website's brand colour" },
-  { value: "soft", label: "Soft band", hint: "A light tint (a deep tint in dark mode)" },
+  { value: "brand", label: "Brand band", hint: "A dark band in either theme, from Colours & themes" },
+  { value: "soft", label: "Soft band", hint: "A gentle tint of the theme, from Colours & themes" },
   {
     value: "inverse",
     label: "Contrasting band",
@@ -281,20 +281,24 @@ const TONE_SWATCH: Partial<Record<SectionTone, string>> = {
   gradient_cta: "linear-gradient(140deg, var(--bg), var(--accent-soft), var(--action))",
 };
 
-/** A section's style: none, or a band in the website's theme colours (Navigation & forms → Theme). */
+/** A section's style: none, or a band in the website's theme colours (Colours & themes → Section bands). */
 function ToneField({
   tone,
   label,
+  slug,
   theme,
   disabled,
   onChange,
 }: {
   tone?: SectionTone;
   label: string;
+  slug: string;
   theme?: SiteTheme;
   disabled: boolean;
   onChange: (tone: SectionTone | undefined) => void;
 }) {
+  // The bands as the light theme shows them (the brand band is the same dark band in both).
+  const bands = bandColours(slug, theme, "light");
   return (
     <div className="mt-5 border-t border-line pt-4">
       <p className="text-sm font-medium text-text">Section style</p>
@@ -319,9 +323,9 @@ function ToneField({
                 style={{
                   background:
                     t.value === "brand"
-                      ? (theme?.brand_section ?? "#1e293b")
+                      ? bands.brand.hex
                       : t.value === "soft"
-                        ? (theme?.soft_section ?? "#f1f5f9")
+                        ? bands.soft.hex
                         : ((t.value && TONE_SWATCH[t.value]) ?? "transparent"),
                 }}
                 className="mt-0.5 size-4 shrink-0 rounded-full border border-line-strong"
@@ -1818,6 +1822,7 @@ export function PageEditor({ slug, user, initial }: { slug: string; user: AdminU
                         <ToneField
                           tone={section.tone}
                           label={blockLabel(section.type)}
+                          slug={slug}
                           theme={initial.site.theme}
                           disabled={!canEdit}
                           onChange={(tone) =>
@@ -1936,7 +1941,6 @@ export function PageEditor({ slug, user, initial }: { slug: string; user: AdminU
                 data-product={KNOWN.includes(slug) ? slug : "figbud"}
                 // The website's own surfaces, as on the live site (ZiraHR's warm palette).
                 data-site={slug}
-                style={siteThemeStyle(initial.site.theme)}
                 tabIndex={0}
                 role="group"
                 aria-label="Page preview (scrollable)"

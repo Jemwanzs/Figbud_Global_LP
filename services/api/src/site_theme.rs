@@ -140,6 +140,45 @@ pub struct GradientPair {
 
 pub type Gradients = BTreeMap<String, GradientPair>;
 
+/// A mode's section band overrides (owner's brief, 13 Nov 2026). Unset
+/// inherits from the theme (`bandColours` in packages/site-kit): the brand
+/// band from the dark mode's cards and panels, the soft band from the mode's
+/// deeper surface.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Default)]
+#[serde(default, deny_unknown_fields)]
+pub struct BandColours {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub brand: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub soft: Option<String>,
+}
+
+impl BandColours {
+    pub fn is_empty(&self) -> bool {
+        self.brand.is_none() && self.soft.is_none()
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Default)]
+#[serde(default, deny_unknown_fields)]
+pub struct Bands {
+    #[serde(skip_serializing_if = "BandColours::is_empty")]
+    pub light: BandColours,
+    #[serde(skip_serializing_if = "BandColours::is_empty")]
+    pub dark: BandColours,
+}
+
+impl Bands {
+    pub fn is_empty(&self) -> bool {
+        self.light.is_empty() && self.dark.is_empty()
+    }
+}
+
+/// Text and secondary text of the shared built-in modes (packages/brand/src/tokens.css),
+/// for checking a band when the website hasn't published that mode's colours.
+const BUILT_IN_LIGHT_TEXT: [&str; 2] = ["#0f172a", "#475569"];
+const BUILT_IN_DARK_TEXT: [&str; 2] = ["#f8fafc", "#cbd5e1"];
+
 /// A published theme kept for rollback: when, by whom, and what it was.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 #[serde(deny_unknown_fields)]
@@ -357,20 +396,10 @@ pub fn check(errors: &mut Vec<FieldError>, theme: &mut Theme, strict: bool) {
             message: "Gradients are for the hero, bands, demonstrations, calls to action and footer.",
         });
     }
-    if !strict {
-        for (value, field) in [
-            (&mut theme.brand_section, "theme.brand_section"),
-            (&mut theme.soft_section, "theme.soft_section"),
-        ] {
-            if let Some(v) = value {
-                if v.trim().is_empty() {
-                    *value = None;
-                } else {
-                    hex(errors, v, field);
-                }
-            }
-        }
-    }
+    // Retired with the section bands' move into the theme (migration 40).
+    theme.brand_section = None;
+    theme.soft_section = None;
+    check_bands(errors, theme, strict);
     theme
         .gradients
         .retain(|_, p| p.light.is_some() || p.dark.is_some());
@@ -386,6 +415,47 @@ pub fn check(errors: &mut Vec<FieldError>, theme: &mut Theme, strict: bool) {
     }
     check_mode(errors, &mut theme.light, &mut light, "theme.light", strict);
     check_mode(errors, &mut theme.dark, &mut dark, "theme.dark", strict);
+}
+
+/// Section band overrides: hex colours; published, their text must stay
+/// readable (4.5:1). A brand band carries the dark mode's text in either
+/// mode; a soft band its own mode's.
+fn check_bands(errors: &mut Vec<FieldError>, theme: &mut Theme, strict: bool) {
+    let texts = |m: &ModeTokens, built_in: [&'static str; 2]| -> Vec<String> {
+        match (&m.text, &m.text_muted) {
+            (Some(t), Some(muted)) => vec![t.clone(), muted.clone()],
+            _ => built_in.iter().map(|s| (*s).to_owned()).collect(),
+        }
+    };
+    let dark_text = texts(&theme.dark, BUILT_IN_DARK_TEXT);
+    let light_text = texts(&theme.light, BUILT_IN_LIGHT_TEXT);
+    let field = "theme.bands";
+    let mut failed = false;
+    for (band, own_text) in [
+        (&mut theme.bands.light, &light_text),
+        (&mut theme.bands.dark, &dark_text),
+    ] {
+        for (value, on) in [(&mut band.brand, &dark_text), (&mut band.soft, own_text)] {
+            let Some(v) = value else { continue };
+            if v.trim().is_empty() {
+                *value = None;
+                continue;
+            }
+            if !hex(errors, v, field) {
+                continue;
+            }
+            if strict && on.iter().any(|t| contrast(t, v).unwrap_or(0.0) < 4.5) {
+                failed = true;
+            }
+        }
+    }
+    if failed {
+        errors.push(FieldError {
+            field,
+            code: "contrast",
+            message: "A band colour leaves its text hard to read (under 4.5:1). Choose a deeper or lighter colour, or use the brand default.",
+        });
+    }
 }
 
 /// Keeps the newest published versions for rollback.
@@ -507,10 +577,42 @@ mod tests {
         t["gradients"]["hero"]["dark"]["angle"] = json!(400);
         assert_eq!(codes(theme(t), false), vec![("theme.dark", "gradient")]);
         let mut t = zirahr();
-        t["brand_section"] = json!("brown");
-        assert_eq!(codes(theme(t), false), vec![("theme.brand_section", "format")]);
+        t["bands"] = json!({ "dark": { "brand": "brown" } });
+        assert_eq!(codes(theme(t), false), vec![("theme.bands", "format")]);
         // Unknown fields aren't settings.
         assert!(serde_json::from_value::<Theme>(json!({ "light": { "glow": "#ffffff" } })).is_err());
+    }
+
+    #[test]
+    fn band_overrides_are_checked_and_drafts_keep_them() {
+        let mut t = zirahr();
+        t["bands"] = json!({ "light": { "brand": " #4E2D17 ", "soft": "" }, "dark": { "soft": "#43362e" } });
+        let mut ok = theme(t.clone());
+        let mut e = Vec::new();
+        check(&mut e, &mut ok, true);
+        assert!(e.is_empty(), "{e:?}");
+        assert_eq!(ok.bands.light.brand.as_deref(), Some("#4e2d17"));
+        assert_eq!(ok.bands.light.soft, None);
+        // Cream text on a pale band is refused when published, kept in a draft.
+        t["bands"] = json!({ "dark": { "brand": "#f9f5ef" } });
+        assert_eq!(codes(theme(t.clone()), true), vec![("theme.bands", "contrast")]);
+        assert!(codes(theme(t.clone()), false).is_empty());
+        t["bands"] = json!({ "light": { "soft": "ivory" } });
+        assert_eq!(codes(theme(t), false), vec![("theme.bands", "format")]);
+        // Without published colours, the built-in text is the measure.
+        let mut bare = theme(json!({ "bands": { "light": { "soft": "#fdf9f4" } } }));
+        let mut e = Vec::new();
+        check(&mut e, &mut bare, true);
+        assert!(e.is_empty(), "{e:?}");
+    }
+
+    #[test]
+    fn retired_band_colours_still_read_but_are_never_kept() {
+        let mut t = theme(json!({ "brand_section": "#5c3317", "soft_section": "#fff7ee" }));
+        let mut e = Vec::new();
+        check(&mut e, &mut t, true);
+        assert!(e.is_empty());
+        assert_eq!(serde_json::to_value(&t).unwrap(), json!({}));
     }
 
     #[test]
