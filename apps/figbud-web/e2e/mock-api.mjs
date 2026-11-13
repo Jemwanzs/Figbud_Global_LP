@@ -92,7 +92,11 @@ const POLICY_START = JSON.stringify({
   passkey_sign_in: true,
   passkey_only_roles: [],
   idle_minutes: null,
+  two_factor_roles: ["owner", "reviewer", "editor", "viewer"],
 });
+const needsTwoFactor = (role) => signInPolicy.two_factor_roles.includes(role);
+const NEEDS_TWO_FACTOR =
+  "Your role needs two-factor with a password. Sign in with your passkey and turn on two-factor in Security & Authentication, or ask an owner.";
 const signInPolicy = JSON.parse(POLICY_START);
 const resets = new Map(); // token -> { email, expires }
 const lastRecovery = new Map(); // email -> token (read by e2e through /v1/__test/recovery)
@@ -5187,6 +5191,7 @@ function admin(req, res, url, body, send, raw) {
       user_agent: req.headers["user-agent"] ?? null,
       created_at: new Date().toISOString(),
       verified: true,
+      passkeyChecked: method === "passkey" || method === "invite" ? Date.now() : 0,
     });
     record(user, action, action === "admin.login" ? { method } : {});
     res.setHeader("set-cookie", `figbud_admin=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=3600`);
@@ -5248,9 +5253,10 @@ function admin(req, res, url, body, send, raw) {
     const user = {
       id: randomBytes(8).toString("hex"),
       email: c.email,
-      name: c.name,
+      name: c.name === "New Admin" && invite?.name ? invite.name : c.name,
       role: invite?.role ?? "owner",
       grants: invite?.grants ?? null,
+      modules: invite?.modules ?? null,
       credentialId: body.credential.rawId,
       passkeys: [
         {
@@ -5264,6 +5270,56 @@ function admin(req, res, url, body, send, raw) {
     };
     users.set(user.email, user);
     return signIn(user, "admin.user_created");
+  }
+  // Accepting an invitation with a password instead of a passkey (handlers.rs).
+  if (path === "invites/accept/password") {
+    if (!/^[0-9a-f]{64}$/.test(body.token ?? "") || usedInvites.has(body.token))
+      return send(401, {
+        error: { code: "unauthorized", message: "This invite is invalid, used or expired." },
+      });
+    const invite = invites.get(body.token);
+    const email = invite?.email?.trim().toLowerCase() ?? `${body.token.slice(0, 10)}@figbud.test`;
+    if (users.has(email))
+      return send(409, {
+        error: {
+          code: "conflict",
+          message:
+            "You already have an account: use this invite to add a passkey, or sign in and change your password in Security & Authentication.",
+        },
+      });
+    const name = body.name?.trim() || invite?.name || "";
+    if (!name)
+      return send(422, {
+        error: {
+          code: "validation",
+          message: "Enter your name (up to 80 characters).",
+          fields: [{ field: "name", code: "required", message: "Enter your name (up to 80 characters)." }],
+        },
+      });
+    const problem = passwordProblem(body.password ?? "", email);
+    if (problem)
+      return send(422, {
+        error: {
+          code: "validation",
+          message: problem,
+          fields: [{ field: "password", code: "weak", message: problem }],
+        },
+      });
+    usedInvites.add(body.token);
+    const user = {
+      id: randomBytes(8).toString("hex"),
+      email,
+      name,
+      role: invite?.role ?? "owner",
+      grants: invite?.grants ?? null,
+      modules: invite?.modules ?? null,
+      password: body.password,
+      passwordAt: new Date().toISOString(),
+      passkeys: [],
+    };
+    users.set(user.email, user);
+    record(user, "admin.password_created", { with: "invite" });
+    return signIn(user, "admin.user_created", "invite");
   }
   if (path === "login/start") {
     // An unknown email gets the same kind of answer, with a credential no device has.
@@ -5290,7 +5346,7 @@ function admin(req, res, url, body, send, raw) {
     const BAD =
       "That email and password didn't work. After several attempts, password sign-in pauses for 15 minutes. You can also use a passkey or reset your password.";
     const account = users.get((body.email ?? "").trim().toLowerCase());
-    if (!account?.password || !account.totp || (account.lockedUntil ?? 0) > Date.now())
+    if (!account?.password || (account.lockedUntil ?? 0) > Date.now())
       return send(401, { error: { code: "unauthorized", message: BAD } });
     if (account.password !== body.password) {
       account.failures = (account.failures ?? 0) + 1;
@@ -5301,6 +5357,13 @@ function admin(req, res, url, body, send, raw) {
         record(account, "admin.password_locked");
       }
       return send(401, { error: { code: "unauthorized", message: BAD } });
+    }
+    // No two-factor set up: the sign-in policy decides whether the password is enough.
+    if (!account.totp) {
+      if (needsTwoFactor(account.role))
+        return send(401, { error: { code: "unauthorized", message: NEEDS_TWO_FACTOR } });
+      account.failures = 0;
+      return signIn(account, "admin.login", "password");
     }
     const { id } = ceremony("password_2fa", { email: account.email });
     return send(200, { two_factor: { pending: `${id}.${randomBytes(16).toString("hex")}` } });
@@ -5410,7 +5473,12 @@ function admin(req, res, url, body, send, raw) {
       return send(200, {
         available: true,
         verified: Boolean(info?.verified),
-        password: { set: Boolean(user.password), set_at: user.passwordAt ?? null },
+        password: {
+          set: Boolean(user.password),
+          set_at: user.passwordAt ?? null,
+          needs_two_factor: needsTwoFactor(user.role),
+        },
+        passkey_checked: Date.now() - (info?.passkeyChecked ?? 0) < 10 * 60000,
         two_factor: {
           enabled: Boolean(user.totp),
           confirmed_at: user.totpAt ?? null,
@@ -5469,6 +5537,7 @@ function admin(req, res, url, body, send, raw) {
           error: { code: "unauthorized", message: "The passkey could not be verified. Please try again." },
         });
       info.verified = true;
+      info.passkeyChecked = Date.now();
       return noContent();
     }
     if (path === "security/sessions/revoke-others") {
@@ -5546,7 +5615,26 @@ function admin(req, res, url, body, send, raw) {
       return send(200, { recovery_codes: newCodes() });
     }
     if (path === "security/password") {
-      if (!user.totp) return conflict("Set up two-factor first: a password alone can't open the Studio.");
+      const invalid = (field, code, message) =>
+        send(422, { error: { code: "validation", message, fields: [{ field, code, message }] } });
+      if (!user.password && !info?.verified) return needsCheck();
+      if (user.password) {
+        if (body.current_password !== undefined) {
+          if (body.current_password !== user.password)
+            return invalid("current_password", "invalid", "That isn't your current password.");
+        } else if (Date.now() - (info?.passkeyChecked ?? 0) >= 10 * 60000)
+          return invalid(
+            "current_password",
+            "required",
+            "Enter your current password, or confirm it's you with your passkey to reset it.",
+          );
+      }
+      if (!user.totp && needsTwoFactor(user.role))
+        return conflict(
+          "Your role needs two-factor with a password: set up two-factor first. An owner can change this in the sign-in policy (Users & access).",
+        );
+      if (body.current_password === body.password)
+        return invalid("password", "unchanged", "Choose a password different from your current one.");
       const problem = passwordProblem(body.password, user.email);
       if (problem)
         return send(422, {
@@ -5790,7 +5878,8 @@ function admin(req, res, url, body, send, raw) {
         email: u.email,
         role: u.role,
         passkeys: u.credentialId ? 1 : 0,
-        password: Boolean(u.password && u.totp),
+        password: Boolean(u.password),
+        two_factor: Boolean(u.totp),
       }));
     if (req.method === "GET")
       return send(200, {
@@ -5817,9 +5906,13 @@ function admin(req, res, url, body, send, raw) {
           ],
         },
       });
+    const twoFactorRoles = body.two_factor_roles ?? ["owner", "reviewer", "editor", "viewer"];
     const wayIn = (p) =>
       (p.passkeys > 0 && body.passkey_sign_in) ||
-      (p.password && body.password_sign_in && !body.passkey_only_roles.includes(p.role));
+      (p.password &&
+        body.password_sign_in &&
+        !body.passkey_only_roles.includes(p.role) &&
+        (p.two_factor || !twoFactorRoles.includes(p.role)));
     if (people.some((p) => p.role === "owner" && !wayIn(p)))
       return send(409, {
         error: { code: "conflict", message: "This would leave an owner without a way to sign in." },
@@ -5831,6 +5924,7 @@ function admin(req, res, url, body, send, raw) {
         body.passkey_only_roles.includes(r),
       ),
       idle_minutes: body.idle_minutes ?? null,
+      two_factor_roles: ["owner", "reviewer", "editor", "viewer"].filter((r) => twoFactorRoles.includes(r)),
     });
     record(user, "admin.sign_in_policy_changed", {});
     return send(200, {
@@ -5882,6 +5976,8 @@ function admin(req, res, url, body, send, raw) {
     invites.set(token, {
       role: body.role,
       grants,
+      name: body.name ?? null,
+      modules: body.role === "owner" ? null : (body.modules ?? null),
       id: token.slice(0, 16),
       email: body.email,
       created_at: new Date().toISOString(),

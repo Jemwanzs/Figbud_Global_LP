@@ -27,6 +27,7 @@ import {
 
 import { ActionButton } from "./action-button";
 import { LocalTime } from "./local-time";
+import { NewPasswordFields, newPasswordReady } from "./new-password-fields";
 import { PasswordField } from "./password-field";
 
 export interface SecurityOverview {
@@ -34,7 +35,9 @@ export interface SecurityOverview {
   available: boolean;
   /** Identity checked recently, which sensitive changes need. */
   verified: boolean;
-  password: { set: boolean; set_at: string | null };
+  password: { set: boolean; set_at: string | null; needs_two_factor: boolean };
+  /** A passkey confirmed it's them in the last few minutes (a forgotten password can be reset). */
+  passkey_checked: boolean;
   two_factor: { enabled: boolean; confirmed_at: string | null; recovery_codes_left: number };
   passkeys: { id: string; label: string; created_at: string; last_used_at: string | null }[];
   sessions: {
@@ -186,8 +189,11 @@ export function SecuritySettings({ data, email }: { data: SecurityOverview; emai
   const [copied, setCopied] = useState(false);
 
   // Password and passkeys.
+  const [current, setCurrent] = useState("");
   const [password, setPassword] = useState("");
   const [repeat, setRepeat] = useState("");
+  const [triedPassword, setTriedPassword] = useState(false);
+  const [currentError, setCurrentError] = useState<string | null>(null);
   const [label, setLabel] = useState("");
 
   const locked = !data.verified;
@@ -261,19 +267,36 @@ export function SecuritySettings({ data, email }: { data: SecurityOverview; emai
       return "Two-factor is off.";
     });
 
-  const savePassword = () =>
-    run("password", async () => {
-      if (password !== repeat) {
-        setFieldError("The two passwords don't match.");
-        return;
+  const savePassword = () => {
+    setTriedPassword(true);
+    setCurrentError(null);
+    if (!newPasswordReady(password, repeat, email)) return;
+    if (data.password.set && !current && !data.passkey_checked) {
+      setCurrentError("Enter your current password, or confirm with your passkey to reset it.");
+      return;
+    }
+    return run("password", async () => {
+      try {
+        await adminFetch("security/password", {
+          password,
+          ...(data.password.set && current ? { current_password: current } : {}),
+        });
+      } catch (err) {
+        if (err instanceof AdminError && err.fields[0]?.field === "current_password") {
+          setCurrentError(err.fields[0].message);
+          return;
+        }
+        throw err;
       }
-      await adminFetch("security/password", { password });
+      setCurrent("");
       setPassword("");
       setRepeat("");
+      setTriedPassword(false);
       return data.password.set
         ? "Password changed. Your other devices were signed out."
-        : "Password created. You can now sign in with it and your authenticator app on any device.";
+        : "Password created successfully. You can now sign in to FigBud Studio.";
     });
+  };
 
   const removePassword = () =>
     run("remove-password", async () => {
@@ -560,50 +583,72 @@ export function SecuritySettings({ data, email }: { data: SecurityOverview; emai
         status={data.password.set ? <On>Set</On> : <Off>Not set</Off>}
       >
         <p className="text-sm text-muted">
-          Sign in from any authorised phone or computer, even without a passkey on it. Two-factor is always
-          required with it.
+          Sign in from any authorised phone or computer, even without a passkey on it. It&apos;s stored only
+          as a secure hash: nobody, owners included, can see it.{" "}
+          {data.password.needs_two_factor
+            ? "Your role also needs two-factor with it."
+            : "Two-factor adds a second step when you sign in with it: turn it on above for extra protection."}
         </p>
         {data.password.set_at && (
           <p className="mt-2 text-sm text-subtle">
             Last changed <LocalTime iso={data.password.set_at} />
           </p>
         )}
-        {data.two_factor.enabled ? (
+        {data.two_factor.enabled || !data.password.needs_two_factor ? (
           <form
-            className="mt-4 grid gap-4 sm:grid-cols-2"
+            aria-label={data.password.set ? "Change password" : "Create password"}
+            className="mt-4 grid max-w-xl gap-4"
             noValidate
             onSubmit={(e) => {
               e.preventDefault();
               void savePassword();
             }}
           >
-            <PasswordField
-              id={`${uid}-password`}
-              label="New password"
-              value={password}
-              onChange={setPassword}
-              autoComplete="new-password"
-              describedBy={`${uid}-password-hint`}
-              invalid={Boolean(fieldError) && !setup}
+            {data.password.set && (
+              <div>
+                <PasswordField
+                  id={`${uid}-current`}
+                  label="Current password"
+                  value={current}
+                  onChange={(v) => {
+                    setCurrent(v);
+                    setCurrentError(null);
+                  }}
+                  autoComplete="current-password"
+                  invalid={Boolean(currentError)}
+                  describedBy={currentError ? `${uid}-current-error` : `${uid}-current-hint`}
+                />
+                {currentError ? (
+                  <p id={`${uid}-current-error`} className="mt-2 text-sm text-danger">
+                    {currentError}
+                  </p>
+                ) : (
+                  <p id={`${uid}-current-hint`} className="mt-2 text-sm text-subtle">
+                    {data.passkey_checked
+                      ? "You've just confirmed with your passkey, so you can reset it without the current one."
+                      : "Forgotten it? Confirm with your passkey (above), then set a new one here."}
+                  </p>
+                )}
+              </div>
+            )}
+            <NewPasswordFields
+              idPrefix={`${uid}-new`}
+              password={password}
+              confirm={repeat}
+              onPassword={setPassword}
+              onConfirm={setRepeat}
+              email={email}
+              showErrors={triedPassword}
+              serverError={fieldError && !setup ? fieldError : null}
             />
-            <PasswordField
-              id={`${uid}-repeat`}
-              label="Repeat new password"
-              value={repeat}
-              onChange={setRepeat}
-              autoComplete="new-password"
-            />
-            <p id={`${uid}-password-hint`} className="text-sm text-subtle sm:col-span-2">
-              At least 12 characters. A short phrase is easiest to remember.
-            </p>
-            {fieldError && !setup && <p className="text-sm text-danger sm:col-span-2">{fieldError}</p>}
-            <div className="flex flex-wrap gap-2 sm:col-span-2">
+            <div className="flex flex-wrap gap-2">
               <ActionButton
                 type="submit"
-                ready={!locked && Boolean(password && repeat)}
+                ready={(data.password.set || !locked) && Boolean(password && repeat)}
                 busy={busy === "password"}
+                hint={!data.password.set && locked ? "Confirm it's you first" : undefined}
               >
-                {data.password.set ? "Change password" : "Create password"}
+                {data.password.set ? "Save new password" : "Create password"}
               </ActionButton>
               {data.password.set && data.passkeys.length > 0 && (
                 <ActionButton
@@ -619,7 +664,8 @@ export function SecuritySettings({ data, email }: { data: SecurityOverview; emai
           </form>
         ) : (
           <p className="mt-4 rounded-xl bg-surface-2 p-3 text-sm text-muted">
-            Set up two-factor first: a password alone can&apos;t open the Studio.
+            Your role needs two-factor with a password: set up two-factor first. An owner can change this in
+            the sign-in policy.
           </p>
         )}
       </Section>

@@ -18,7 +18,7 @@ import { sameValue } from "@/lib/form-state";
 
 import { ActionButton } from "./action-button";
 
-type Areas = Partial<Record<StudioArea, StudioAction[]>>;
+export type Areas = Partial<Record<StudioArea, StudioAction[]>>;
 
 const work: StudioAction[] = ["view", "edit", "submit"];
 /** Starting points for the roles in the owner's brief; every box can then be changed. */
@@ -44,7 +44,7 @@ const PRESETS: { label: string; areas: Areas }[] = [
   { label: "Viewer / auditor", areas: Object.fromEntries(STUDIO_AREAS.map((a) => [a, ["view"]])) },
 ];
 
-const tidy = (areas: Areas): Areas =>
+export const tidy = (areas: Areas): Areas =>
   Object.fromEntries(
     Object.entries(areas)
       .map(([a, actions]) => {
@@ -90,7 +90,6 @@ export function AreasEditor({
   role: AdminUser["role"];
   initial: Areas | null;
 }) {
-  const uid = useId();
   const [saved, setSaved] = useState<Areas | null>(initial ? tidy(initial) : null);
   const [value, setValue] = useState<Areas | null>(saved);
   const [busy, setBusy] = useState(false);
@@ -98,13 +97,6 @@ export function AreasEditor({
   const changes = summary(saved, value === null ? null : tidy(value));
   const changed = !sameValue(saved, value === null ? null : tidy(value));
   const empty = value !== null && Object.keys(tidy(value)).length === 0;
-
-  const toggle = (area: StudioArea, action: StudioAction, on: boolean) =>
-    setValue((v) => {
-      const current = v?.[area] ?? [];
-      const next = on ? [...current, action] : current.filter((a) => a !== action && !(action === "view"));
-      return { ...v, [area]: next };
-    });
 
   async function save() {
     setBusy(true);
@@ -130,13 +122,73 @@ export function AreasEditor({
       <legend className="text-sm font-medium text-text">
         Studio areas<span className="sr-only"> for {name}</span>
       </legend>
+      <AreasPicker name={name} role={role} value={value} onChange={setValue} selectedFrom={saved} />
+      {changed && changes.length > 0 && (
+        <div className="mt-4 rounded-xl bg-surface-2 p-3 text-sm" aria-live="polite">
+          <p className="font-medium text-text">Changes to apply</p>
+          <ul className="mt-1 list-disc ps-5 text-muted">
+            {changes.map((c) => (
+              <li key={c}>{c}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+      <div className="mt-4 flex flex-wrap items-center gap-3">
+        <ActionButton
+          ready={changed && !empty}
+          busy={busy}
+          hint={empty ? "Tick at least one area, or choose every area" : changed ? undefined : "No changes"}
+          onClick={save}
+        >
+          Save areas<span className="sr-only"> for {name}</span>
+        </ActionButton>
+        {message && (
+          <p
+            role={message.tone === "error" ? "alert" : "status"}
+            className={cn("text-sm", message.tone === "error" ? "text-danger" : "text-success")}
+          >
+            {message.text}
+          </p>
+        )}
+      </div>
+    </fieldset>
+  );
+}
+
+/**
+ * The areas grid on its own: every area within the role, or selected areas
+ * with their actions, from presets or one by one. Used for a person's areas
+ * and when inviting someone.
+ */
+export function AreasPicker({
+  name,
+  role,
+  value,
+  onChange,
+  selectedFrom,
+}: {
+  name: string;
+  role: AdminUser["role"];
+  value: Areas | null;
+  onChange: (next: Areas | null) => void;
+  /** What "Selected areas" starts from. */
+  selectedFrom?: Areas | null;
+}) {
+  const uid = useId();
+  const toggle = (area: StudioArea, action: StudioAction, on: boolean) => {
+    const current = value?.[area] ?? [];
+    const next = on ? [...current, action] : current.filter((a) => a !== action && !(action === "view"));
+    onChange({ ...value, [area]: next });
+  };
+  return (
+    <>
       <div className="mt-2 flex flex-wrap gap-4 text-sm">
         <label className="flex items-center gap-2">
           <input
             type="radio"
             name={`${uid}-mode`}
             checked={value === null}
-            onChange={() => setValue(null)}
+            onChange={() => onChange(null)}
             className="size-4 accent-[var(--accent)]"
           />
           Every area their role allows
@@ -146,7 +198,7 @@ export function AreasEditor({
             type="radio"
             name={`${uid}-mode`}
             checked={value !== null}
-            onChange={() => setValue(saved ?? {})}
+            onChange={() => onChange(selectedFrom ?? {})}
             className="size-4 accent-[var(--accent)]"
           />
           Selected areas
@@ -160,7 +212,7 @@ export function AreasEditor({
               value=""
               onChange={(e) => {
                 const preset = PRESETS.find((p) => p.label === e.target.value);
-                if (preset) setValue(structuredClone(preset.areas));
+                if (preset) onChange(structuredClone(preset.areas));
               }}
               className="min-h-11 rounded-xl border border-line-strong bg-surface px-3 text-sm text-text"
             >
@@ -214,34 +266,6 @@ export function AreasEditor({
           </p>
         </>
       )}
-      {changed && changes.length > 0 && (
-        <div className="mt-4 rounded-xl bg-surface-2 p-3 text-sm" aria-live="polite">
-          <p className="font-medium text-text">Changes to apply</p>
-          <ul className="mt-1 list-disc ps-5 text-muted">
-            {changes.map((c) => (
-              <li key={c}>{c}</li>
-            ))}
-          </ul>
-        </div>
-      )}
-      <div className="mt-4 flex flex-wrap items-center gap-3">
-        <ActionButton
-          ready={changed && !empty}
-          busy={busy}
-          hint={empty ? "Tick at least one area, or choose every area" : changed ? undefined : "No changes"}
-          onClick={save}
-        >
-          Save areas<span className="sr-only"> for {name}</span>
-        </ActionButton>
-        {message && (
-          <p
-            role={message.tone === "error" ? "alert" : "status"}
-            className={cn("text-sm", message.tone === "error" ? "text-danger" : "text-success")}
-          >
-            {message.text}
-          </p>
-        )}
-      </div>
-    </fieldset>
+    </>
   );
 }

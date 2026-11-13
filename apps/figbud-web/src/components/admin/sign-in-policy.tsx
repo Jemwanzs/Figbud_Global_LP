@@ -14,6 +14,8 @@ export interface SignInPolicy {
   passkey_sign_in: boolean;
   passkey_only_roles: AdminUser["role"][];
   idle_minutes: number | null;
+  /** Roles whose password sign-in also needs an authenticator code. */
+  two_factor_roles: AdminUser["role"][];
 }
 
 export interface PolicyPerson {
@@ -23,6 +25,7 @@ export interface PolicyPerson {
   role: AdminUser["role"];
   passkeys: number;
   password: boolean;
+  two_factor: boolean;
 }
 
 export interface SignInPolicyData {
@@ -39,14 +42,14 @@ const ROLES: AdminUser["role"][] = ["owner", "reviewer", "editor", "viewer"];
 const duration = (minutes: number) =>
   minutes < 60 ? `${minutes} minutes` : minutes === 60 ? "1 hour" : `${minutes / 60} hours`;
 
-/** The same rule as the API (`policy.rs`): a way in that the policy allows. */
-function wayIn(policy: SignInPolicy, person: PolicyPerson, passwordsWork: boolean) {
+/** The same rule as the API (`policy.rs`, `way_in`): a way in that the policy allows. */
+function wayIn(policy: SignInPolicy, person: PolicyPerson, codesWork: boolean) {
   const passkey = person.passkeys > 0 && policy.passkey_sign_in;
   const password =
     person.password &&
-    passwordsWork &&
     policy.password_sign_in &&
-    !policy.passkey_only_roles.includes(person.role);
+    !policy.passkey_only_roles.includes(person.role) &&
+    (person.two_factor ? codesWork : !policy.two_factor_roles.includes(person.role));
   return passkey || password;
 }
 
@@ -75,6 +78,12 @@ export function SignInPolicyEditor({ data }: { data: SignInPolicyData }) {
       passkey_only_roles: draft.passkey_only_roles.includes(role)
         ? draft.passkey_only_roles.filter((r) => r !== role)
         : ROLES.filter((r) => r === role || draft.passkey_only_roles.includes(r)),
+    });
+  const toggleTwoFactor = (role: AdminUser["role"]) =>
+    set({
+      two_factor_roles: draft.two_factor_roles.includes(role)
+        ? draft.two_factor_roles.filter((r) => r !== role)
+        : ROLES.filter((r) => r === role || draft.two_factor_roles.includes(r)),
     });
 
   async function save() {
@@ -122,9 +131,9 @@ export function SignInPolicyEditor({ data }: { data: SignInPolicyData }) {
             Sign-in policy
           </h2>
           <p className="mt-1 max-w-3xl text-sm text-muted">
-            Every way in is already two-factor: a passkey is the device plus its PIN or fingerprint, and a
-            password always needs an authenticator code. For the strongest protection, a role can be required
-            to use passkeys, which can&apos;t be phished.
+            A passkey is already two factors: the device plus its PIN or fingerprint. A password can also ask
+            for an authenticator code, for the roles you choose. For the strongest protection, a role can be
+            required to use passkeys, which can&apos;t be phished. Passwords are stored only as secure hashes.
           </p>
         </div>
       </div>
@@ -153,8 +162,8 @@ export function SignInPolicyEditor({ data }: { data: SignInPolicyData }) {
         </div>
         {!data.passwords_available && (
           <p className="mt-2 text-xs text-subtle">
-            Password sign-in isn&apos;t available on this server yet (it needs its secrets key), so only
-            passkeys count as a way in for now.
+            Authenticator codes can&apos;t be checked on this server yet (it needs its secrets key), so
+            passwords only work for roles that don&apos;t need two-factor.
           </p>
         )}
       </fieldset>
@@ -174,9 +183,34 @@ export function SignInPolicyEditor({ data }: { data: SignInPolicyData }) {
                 onChange={() => toggleRole(role)}
               />
               {ROLE_LABELS[role]}
+              <span className="sr-only"> must use a passkey</span>
             </label>
           ))}
         </div>
+      </fieldset>
+
+      <fieldset className="mt-6" disabled={!draft.password_sign_in}>
+        <legend className="text-sm font-medium text-text">Roles that need two-factor with a password</legend>
+        <div className="mt-2 flex flex-wrap gap-2">
+          {ROLES.map((role) => (
+            <label
+              key={role}
+              className="flex min-h-11 items-center gap-2 rounded-xl border border-line px-3 text-sm text-text has-[:disabled]:opacity-60"
+            >
+              <input
+                type="checkbox"
+                className={box}
+                checked={draft.two_factor_roles.includes(role)}
+                onChange={() => toggleTwoFactor(role)}
+              />
+              {ROLE_LABELS[role]}
+              <span className="sr-only"> needs two-factor</span>
+            </label>
+          ))}
+        </div>
+        <p className="mt-2 text-xs text-subtle">
+          Recommended for owners and reviewers. Their recovery links always need two-factor.
+        </p>
       </fieldset>
 
       <label className="mt-6 grid max-w-xs gap-1 text-sm font-medium text-text">

@@ -71,13 +71,18 @@ export function LoginForm() {
     }
     setBusy("password");
     try {
-      const result = await adminFetch<{ two_factor: { pending: string } }>("password/login", {
-        email,
-        password,
-      });
-      setPending(result.two_factor.pending);
+      const result = await adminFetch<{ two_factor?: { pending: string }; user?: unknown }>(
+        "password/login",
+        { email, password },
+      );
       // Verified: it isn't needed again, so it isn't kept in memory.
       setPassword("");
+      // Where the sign-in policy doesn't ask for two-factor (and none is set up), that's it.
+      if (!result.two_factor) {
+        signedIn();
+        return;
+      }
+      setPending(result.two_factor.pending);
     } catch (err) {
       setError(err instanceof AdminError ? err.message : "Something went wrong. Please try again.");
     } finally {
@@ -296,8 +301,8 @@ export function LoginForm() {
       <p className="mt-3 text-center text-xs text-subtle">Your fingerprint, face or screen lock.</p>
       {/* The same links for everyone: nothing here reveals how an account signs in. */}
       <p className="mt-5 flex flex-wrap justify-center gap-x-4 gap-y-1 text-sm">
-        <Link href="/admin/sign-in-help#set-up-password" className="text-accent hover:underline">
-          Set up a password
+        <Link href="/admin/create-password" className="text-accent hover:underline">
+          Create password
         </Link>
         <Link href="/admin/sign-in-help" className="text-accent hover:underline">
           Need help signing in?

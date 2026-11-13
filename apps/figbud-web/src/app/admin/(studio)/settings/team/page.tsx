@@ -7,6 +7,7 @@ import { AdminUnavailable } from "@/components/admin/admin-shell";
 import { StudioSkeleton } from "@/components/admin/studio-states";
 import type { SiteOption } from "@/components/admin/site-access-picker";
 import { type ApprovalRulesData, ApprovalRules } from "@/components/admin/approval-rules";
+import { InviteAdminForm } from "@/components/admin/invite-admin-form";
 import { type PendingInvite, PendingInvites } from "@/components/admin/pending-invites";
 import { type SignInPolicyData, SignInPolicyEditor } from "@/components/admin/sign-in-policy";
 import { type TeamMember, TeamManager } from "@/components/admin/team-manager";
@@ -50,6 +51,17 @@ async function Team() {
         need you to have confirmed it&apos;s you recently. Below, you can see and end anyone&apos;s sessions,
         set how everyone signs in, and decide who approves each kind of change.
       </p>
+      {/* Add admin user (owner's brief, 13 Nov 2026): only owners create accounts, by invitation. */}
+      <section aria-labelledby="add-admin" className="fb-panel mt-8 rounded-[var(--radius-panel)] p-5 sm:p-6">
+        <h2 id="add-admin" className="font-display text-xl font-semibold text-text">
+          Add admin user
+        </h2>
+        <p className="mt-1 mb-5 max-w-3xl text-sm text-muted">
+          Choose their role, websites and Studio areas, then send them the single-use link privately. They set
+          up their own passkey or password when they open it; nobody else ever sees their password.
+        </p>
+        <InviteAdminForm sites={data.sites} />
+      </section>
       <div className="mt-10">
         <TeamManager members={data.members} sites={data.sites} me={user.id} />
       </div>
@@ -64,13 +76,6 @@ async function Team() {
           <ApprovalRules data={rules.data} />
         </div>
       )}
-      <p className="mt-8 text-sm text-subtle">
-        To add someone, create an invite from the{" "}
-        <Link href="/admin" className="text-accent underline underline-offset-2">
-          Overview
-        </Link>
-        ; you can choose their websites there too.
-      </p>
     </>
   );
 }

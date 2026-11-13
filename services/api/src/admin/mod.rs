@@ -376,8 +376,10 @@ pub async fn create_session_via(
 ) -> Result<String, sqlx::Error> {
     let token = new_token();
     sqlx::query(
-        "INSERT INTO admin_sessions (id, token_hash, user_id, ip_hash, user_agent, expires_at, auth_method, verified_until)
-         VALUES ($1, $2, $3, $4, $5, now() + make_interval(secs => $6), $7, now() + interval '10 minutes')",
+        "INSERT INTO admin_sessions (id, token_hash, user_id, ip_hash, user_agent, expires_at, auth_method, verified_until,
+                                     passkey_verified_until)
+         VALUES ($1, $2, $3, $4, $5, now() + make_interval(secs => $6), $7, now() + interval '10 minutes',
+                 CASE WHEN $7 IN ('passkey', 'invite') THEN now() + interval '10 minutes' END)",
     )
     .bind(Uuid::now_v7())
     .bind(token_hash(&token))
@@ -428,6 +430,7 @@ pub async fn authenticate(pool: &PgPool, token: &str) -> Result<Option<AdminSess
             AND CASE s.auth_method
                   WHEN 'passkey' THEN p.passkey_sign_in
                   WHEN 'password' THEN p.password_sign_in AND NOT (u.role = ANY(p.passkey_only_roles))
+                       AND NOT (u.role = ANY(p.two_factor_roles) AND u.totp_confirmed_at IS NULL)
                   ELSE true
                 END
       RETURNING s.id AS session_id, u.id, u.email, u.name, u.role, u.all_sites, u.last_login_at,

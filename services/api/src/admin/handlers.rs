@@ -29,6 +29,7 @@ pub fn router() -> Router<SharedState> {
     Router::new()
         .route("/v1/admin/invites/accept/start", post(accept_start))
         .route("/v1/admin/invites/accept/finish", post(accept_finish))
+        .route("/v1/admin/invites/accept/password", post(accept_with_password))
         .route("/v1/admin/login/start", post(login_start))
         .route("/v1/admin/login/finish", post(login_finish))
         .route("/v1/admin/logout", post(logout))
@@ -97,13 +98,13 @@ async fn accept_start(
     Json(body): Json<AcceptStart>,
 ) -> Result<impl IntoResponse, ApiError> {
     let ctx = public(&state, &headers, peer)?;
-    let invite: Option<(Uuid, String)> = sqlx::query_as(
-        "SELECT id, email FROM admin_invites WHERE token_hash = $1 AND used_at IS NULL AND revoked_at IS NULL AND expires_at > now()",
+    let invite: Option<(Uuid, String, Option<String>)> = sqlx::query_as(
+        "SELECT id, email, name FROM admin_invites WHERE token_hash = $1 AND used_at IS NULL AND revoked_at IS NULL AND expires_at > now()",
     )
     .bind(token_hash(body.token.trim()))
     .fetch_optional(&state.pool)
     .await?;
-    let (invite_id, email) =
+    let (invite_id, email, invited_name) =
         invite.ok_or(ApiError::Unauthorized("This invite is invalid, used or expired."))?;
 
     // A re-invite for an existing user adds a passkey (e.g. a new device).
@@ -123,7 +124,13 @@ async fn accept_start(
             (id, name, Some(registered))
         }
         None => {
-            let name = body.name.as_deref().map(str::trim).unwrap_or_default();
+            let name = body
+                .name
+                .as_deref()
+                .map(str::trim)
+                .filter(|n| !n.is_empty())
+                .or(invited_name.as_deref())
+                .unwrap_or_default();
             if name.is_empty() || name.chars().count() > 80 {
                 return Err(ApiError::BadRequest(
                     "please enter your name (up to 80 characters)",
@@ -186,42 +193,17 @@ async fn accept_finish(
 
     let mut tx = state.pool.begin().await?;
     // Claiming the invite inside the transaction makes it strictly single-use.
-    let claimed: Option<(String, String, Option<Value>)> = sqlx::query_as(
-        "UPDATE admin_invites SET used_at = now()
-          WHERE id = $1 AND used_at IS NULL AND revoked_at IS NULL AND expires_at > now()
-      RETURNING email, role, site_grants",
-    )
-    .bind(invite_id)
-    .fetch_optional(&mut *tx)
-    .await?;
-    let (email, role, site_grants) =
-        claimed.ok_or(ApiError::Unauthorized("This invite is invalid, used or expired."))?;
+    let claimed = claim_invite(&mut tx, invite_id).await?;
     if !reg.existing {
-        sqlx::query("INSERT INTO admin_users (id, email, name, role) VALUES ($1, $2, $3, $4)")
-            .bind(reg.user_id)
-            .bind(&email)
-            .bind(name.as_deref().unwrap_or(&email))
-            .bind(&role)
-            .execute(&mut *tx)
-            .await?;
-        // Website access chosen in the invite (websites deleted since are skipped).
-        if let Some(Value::Array(grants)) = site_grants {
-            let granted: Vec<(Uuid, Role)> = grants
-                .iter()
-                .filter_map(|g| {
-                    let site = g["site_id"].as_str().and_then(|s| Uuid::parse_str(s).ok())?;
-                    Some((site, Role::parse(g["role"].as_str()?)?))
-                })
-                .collect();
-            let exists: Vec<Uuid> = sqlx::query_scalar("SELECT id FROM sites WHERE id = ANY($1)")
-                .bind(granted.iter().map(|(s, _)| *s).collect::<Vec<_>>())
-                .fetch_all(&mut *tx)
-                .await?;
-            let granted: Vec<(Uuid, Role)> =
-                granted.into_iter().filter(|(s, _)| exists.contains(s)).collect();
-            super::team::store_grants(&mut tx, reg.user_id, Some(&granted), None).await?;
-        }
+        create_member(
+            &mut tx,
+            reg.user_id,
+            &claimed,
+            name.as_deref().unwrap_or(&claimed.email),
+        )
+        .await?;
     }
+    let (email, role) = (claimed.email, claimed.role);
     sqlx::query("INSERT INTO admin_passkeys (id, user_id, credential_id, passkey) VALUES ($1, $2, $3, $4)")
         .bind(Uuid::now_v7())
         .bind(reg.user_id)
@@ -248,6 +230,172 @@ async fn accept_finish(
     // An invitation's first session, so a newcomer can set up a way in the
     // sign-in policy allows, whichever that is (P13-B4).
     signed_in(&state, ctx, reg.user_id, "invite").await
+}
+
+/// An invitation, claimed: strictly single-use inside the transaction.
+struct ClaimedInvite {
+    email: String,
+    role: String,
+    site_grants: Option<Value>,
+    modules: Option<Value>,
+}
+
+async fn claim_invite(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    invite_id: Uuid,
+) -> Result<ClaimedInvite, ApiError> {
+    let claimed: Option<(String, String, Option<Value>, Option<Value>)> = sqlx::query_as(
+        "UPDATE admin_invites SET used_at = now()
+          WHERE id = $1 AND used_at IS NULL AND revoked_at IS NULL AND expires_at > now()
+      RETURNING email, role, site_grants, modules",
+    )
+    .bind(invite_id)
+    .fetch_optional(&mut **tx)
+    .await?;
+    let (email, role, site_grants, modules) =
+        claimed.ok_or(ApiError::Unauthorized("This invite is invalid, used or expired."))?;
+    Ok(ClaimedInvite {
+        email,
+        role,
+        site_grants,
+        modules,
+    })
+}
+
+/// The new person, with the websites and Studio areas chosen in the invite
+/// (websites deleted since are skipped).
+async fn create_member(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    user_id: Uuid,
+    invite: &ClaimedInvite,
+    name: &str,
+) -> Result<(), ApiError> {
+    sqlx::query("INSERT INTO admin_users (id, email, name, role, modules) VALUES ($1, $2, $3, $4, $5)")
+        .bind(user_id)
+        .bind(&invite.email)
+        .bind(name)
+        .bind(&invite.role)
+        .bind(invite.modules.as_ref().filter(|_| invite.role != "owner"))
+        .execute(&mut **tx)
+        .await?;
+    if let Some(Value::Array(grants)) = &invite.site_grants {
+        let granted: Vec<(Uuid, Role)> = grants
+            .iter()
+            .filter_map(|g| {
+                let site = g["site_id"].as_str().and_then(|s| Uuid::parse_str(s).ok())?;
+                Some((site, Role::parse(g["role"].as_str()?)?))
+            })
+            .collect();
+        let exists: Vec<Uuid> = sqlx::query_scalar("SELECT id FROM sites WHERE id = ANY($1)")
+            .bind(granted.iter().map(|(s, _)| *s).collect::<Vec<_>>())
+            .fetch_all(&mut **tx)
+            .await?;
+        let granted: Vec<(Uuid, Role)> = granted.into_iter().filter(|(s, _)| exists.contains(s)).collect();
+        super::team::store_grants(tx, user_id, Some(&granted), None).await?;
+    }
+    Ok(())
+}
+
+#[derive(Deserialize)]
+struct AcceptWithPassword {
+    token: String,
+    name: Option<String>,
+    password: String,
+}
+
+/// Accepting an invitation by creating a password instead of a passkey
+/// (owner's brief, 13 Nov 2026). The single-use, expiring invitation from an
+/// owner is the identity check. Where the person's role needs two-factor
+/// with a password, the first session lets them set it up; until then the
+/// password alone won't sign them in.
+async fn accept_with_password(
+    State(state): State<SharedState>,
+    ConnectInfo(peer): ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
+    Json(body): Json<AcceptWithPassword>,
+) -> Result<Response, ApiError> {
+    let ctx = public(&state, &headers, peer)?;
+    const INVALID: ApiError = ApiError::Unauthorized("This invite is invalid, used or expired.");
+    let invite: Option<(Uuid, String, Option<String>)> = sqlx::query_as(
+        "SELECT id, email, name FROM admin_invites
+          WHERE token_hash = $1 AND used_at IS NULL AND revoked_at IS NULL AND expires_at > now()",
+    )
+    .bind(token_hash(body.token.trim()))
+    .fetch_optional(&state.pool)
+    .await?;
+    let (invite_id, email, invited_name) = invite.ok_or(INVALID)?;
+    // A password is for a new account; someone who already has one adds a passkey instead.
+    let existing: bool =
+        sqlx::query_scalar("SELECT EXISTS (SELECT 1 FROM admin_users WHERE lower(email) = $1)")
+            .bind(&email)
+            .fetch_one(&state.pool)
+            .await?;
+    if existing {
+        return Err(ApiError::Conflict(
+            "You already have an account: use this invite to add a passkey, or sign in and change your password in Security & Authentication.",
+        ));
+    }
+    let name = body
+        .name
+        .as_deref()
+        .map(str::trim)
+        .filter(|n| !n.is_empty())
+        .or(invited_name.as_deref())
+        .unwrap_or_default()
+        .to_owned();
+    if name.is_empty() || name.chars().count() > 80 {
+        return Err(ApiError::Validation(vec![crate::error::FieldError {
+            field: "name",
+            code: "required",
+            message: "Enter your name (up to 80 characters).",
+        }]));
+    }
+    // A weak password doesn't use up the invite.
+    if let Some(problem) = super::credentials::password_problem(&body.password, &email, &name) {
+        return Err(ApiError::Validation(vec![crate::error::FieldError {
+            field: "password",
+            code: "weak",
+            message: problem,
+        }]));
+    }
+    let password: String = body
+        .password
+        .chars()
+        .take(super::credentials::MAX_PASSWORD + 1)
+        .collect();
+    let hash = tokio::task::spawn_blocking(move || super::credentials::hash_password(&password))
+        .await
+        .map_err(|e| ApiError::Internal(format!("password hash: {e}")))?
+        .map_err(ApiError::Internal)?;
+    let user_id = Uuid::now_v7();
+    let mut tx = state.pool.begin().await?;
+    let claimed = claim_invite(&mut tx, invite_id).await?;
+    create_member(&mut tx, user_id, &claimed, &name).await?;
+    sqlx::query("UPDATE admin_users SET password_hash = $2, password_set_at = now() WHERE id = $1")
+        .bind(user_id)
+        .bind(&hash)
+        .execute(&mut *tx)
+        .await?;
+    tx.commit().await?;
+    audit(
+        &state.pool,
+        Some(user_id),
+        "admin.user_created",
+        Some(("invite", invite_id.to_string())),
+        json!({ "email": claimed.email, "role": claimed.role, "with": "password" }),
+        Some(&ctx.ip_hash),
+    )
+    .await?;
+    audit(
+        &state.pool,
+        Some(user_id),
+        "admin.password_created",
+        None,
+        json!({ "with": "invite" }),
+        Some(&ctx.ip_hash),
+    )
+    .await?;
+    signed_in(&state, ctx, user_id, "invite").await
 }
 
 #[derive(Deserialize)]
@@ -461,6 +609,12 @@ async fn me(session: AdminSession) -> Json<Value> {
 struct NewInvite {
     email: String,
     role: String,
+    /// Their name, as the owner knows it; they can change it when accepting.
+    #[serde(default)]
+    name: Option<String>,
+    /// Studio areas (P13-B3); omitted or null means every area within the role.
+    #[serde(default)]
+    modules: Option<super::modules::Modules>,
     /// Selected websites (P7-F1); omitted or null means every website.
     #[serde(default)]
     sites: Option<Vec<super::team::GrantInput>>,
@@ -482,6 +636,14 @@ async fn invite(
         Some(sites) => Some(super::team::resolve_grants(&state.pool, role, sites).await?),
         None => None,
     };
+    let name = body.name.as_deref().map(str::trim).filter(|n| !n.is_empty());
+    if name.is_some_and(|n| n.chars().count() > 80) {
+        return Err(ApiError::BadRequest("name is too long"));
+    }
+    let modules = match body.modules {
+        Some(m) if role != Role::Owner => Some(super::modules::normalise(m).map_err(ApiError::Validation)?),
+        _ => None,
+    };
     let (url, expires_at) = create_invite_for(
         &state.pool,
         admin,
@@ -491,6 +653,16 @@ async fn invite(
         sites.as_deref(),
     )
     .await?;
+    // The owner's details for the newcomer, applied when they accept.
+    if name.is_some() || modules.is_some() {
+        sqlx::query("UPDATE admin_invites SET name = $2, modules = $3 WHERE token_hash = $1")
+            // This invite exactly: its token is in the link's fragment.
+            .bind(token_hash(url.split("#token=").nth(1).unwrap_or_default()))
+            .bind(name)
+            .bind(modules.as_ref().map(|m| json!(m)))
+            .execute(&state.pool)
+            .await?;
+    }
     Ok((
         StatusCode::CREATED,
         Json(json!({ "invite_url": url, "expires_at": expires_at })),

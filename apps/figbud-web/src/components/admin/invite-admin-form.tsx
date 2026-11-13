@@ -8,6 +8,7 @@ import { useState } from "react";
 import { type AdminUser, adminFetch, describePasskeyError, hasRole, validEmail } from "@/lib/admin-client";
 
 import { ActionButton } from "./action-button";
+import { type Areas, AreasPicker, tidy } from "./areas-editor";
 import {
   type AccessValue,
   type SiteOption,
@@ -23,9 +24,16 @@ const ROLES = [
   { value: "owner", label: "Owner", hint: "Everything, including people" },
 ] as const;
 
-/** Owner-only: creates a single-use invite link to send privately. */
+/**
+ * Owner-only: adds an admin user (owner's brief, 13 Nov 2026) with a
+ * single-use, expiring invite link to send privately: their name, role,
+ * websites and Studio areas. They choose a passkey or a password when they
+ * accept; nobody else ever sees their password.
+ */
 export function InviteAdminForm({ sites = [] }: { sites?: SiteOption[] }) {
   const router = useRouter();
+  const [name, setName] = useState("");
+  const [areas, setAreas] = useState<Areas | null>(null);
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<AdminUser["role"]>("editor");
   const [access, setAccess] = useState<AccessValue>({ all: true, sites: {} });
@@ -46,11 +54,16 @@ export function InviteAdminForm({ sites = [] }: { sites?: SiteOption[] }) {
       const created = await adminFetch<{ invite_url: string; expires_at: string }>("invites", {
         email,
         role,
+        ...(name.trim() ? { name: name.trim() } : {}),
         // Omitted means every website (owners always have every website).
         ...(role !== "owner" && !scope.all_sites ? { sites: scope.sites } : {}),
+        // Omitted means every area their role allows.
+        ...(role !== "owner" && areas !== null ? { modules: tidy(areas) } : {}),
       });
       setInvite({ url: created.invite_url, expires: new Date(created.expires_at).toUTCString() });
       setEmail("");
+      setName("");
+      setAreas(null);
       setAccess({ all: true, sites: {} });
       router.refresh();
     } catch (err) {
@@ -63,6 +76,20 @@ export function InviteAdminForm({ sites = [] }: { sites?: SiteOption[] }) {
   return (
     <div>
       <form onSubmit={onSubmit} className="grid gap-6">
+        <div>
+          <label htmlFor="invite-name" className="block text-sm font-medium text-text">
+            Full name <span className="font-normal text-subtle">(optional)</span>
+          </label>
+          <input
+            id="invite-name"
+            type="text"
+            autoComplete="off"
+            maxLength={80}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="mt-2 min-h-12 w-full rounded-xl border border-line-strong bg-surface px-4 text-text"
+          />
+        </div>
         <div>
           <label htmlFor="invite-email" className="block text-sm font-medium text-text">
             Work email
@@ -123,13 +150,30 @@ export function InviteAdminForm({ sites = [] }: { sites?: SiteOption[] }) {
         {sites.length > 0 && (
           <SiteAccessPicker role={role} sites={sites} value={access} onChange={setAccess} />
         )}
+        {role !== "owner" && (
+          <fieldset>
+            <legend className="text-sm font-medium text-text">Studio areas</legend>
+            <AreasPicker name={name.trim() || "this person"} role={role} value={areas} onChange={setAreas} />
+          </fieldset>
+        )}
         <div className="flex flex-col gap-3 border-t border-line pt-5 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-subtle">The link works once and expires after 7 days.</p>
           <ActionButton
             type="submit"
-            ready={validEmail(email) && accessIssue === null}
+            ready={
+              validEmail(email) &&
+              accessIssue === null &&
+              !(areas !== null && Object.keys(tidy(areas)).length === 0)
+            }
             busy={busy}
-            hint={!validEmail(email) ? "Enter their work email" : (accessIssue ?? undefined)}
+            hint={
+              !validEmail(email)
+                ? "Enter their work email"
+                : (accessIssue ??
+                  (areas !== null && Object.keys(tidy(areas)).length === 0
+                    ? "Tick at least one area, or choose every area"
+                    : undefined))
+            }
             icon={<UserPlus aria-hidden className="size-4" />}
           >
             Create invite
@@ -143,7 +187,10 @@ export function InviteAdminForm({ sites = [] }: { sites?: SiteOption[] }) {
       )}
       {invite && (
         <div role="status" className="mt-5 rounded-xl border border-success/30 bg-success/10 p-4 text-sm">
-          <p className="font-medium text-text">Invite created. Send this link privately; it works once.</p>
+          <p className="font-medium text-text">
+            Invite created. Send this link privately; it works once. They choose a passkey or a password when
+            they open it.
+          </p>
           <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
             <code className="min-w-0 flex-1 truncate rounded-lg bg-surface px-3 py-2 font-mono text-xs text-muted">
               {invite.url}

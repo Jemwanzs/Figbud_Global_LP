@@ -1,14 +1,20 @@
-//! Password sign-in with mandatory two-factor, password recovery and each
-//! administrator's Security & Authentication settings (P13-A). Passkeys keep
-//! working exactly as before and are never affected by a password lockout.
+//! Password sign-in, password management and recovery, and each
+//! administrator's Security & Authentication settings (P13-A; database-driven
+//! passwords, owner's brief of 13 Nov 2026). Passwords live in PostgreSQL as
+//! Argon2id hashes; no email provider is needed to create, change or use one.
+//! Passkeys keep working exactly as before and are never affected by a
+//! password lockout, nor removed when a password is set.
 //!
-//! - A password can only exist alongside confirmed two-factor (also a database
-//!   constraint), so a password alone never opens a session.
+//! - Two-factor with a password is the sign-in policy's choice per role
+//!   (`two_factor_roles`, every role by default). Where it's required and not
+//!   set up, the password doesn't open a session.
 //! - Sign-in errors are the same whether or not the account exists.
-//! - Sensitive changes need a recent identity check ([`AdminSession::verified`]):
-//!   a fresh sign-in, a passkey, or password plus two-factor.
-//! - A recovery link changes only the password. Two-factor is still required
-//!   afterwards, and accounts without two-factor can't be recovered by link.
+//! - A first password needs a recent identity check (a fresh sign-in or a
+//!   passkey). Changing it needs the current password, or a passkey check
+//!   in the last few minutes (a forgotten password, reset with the passkey).
+//! - Recovery links come from an owner, inside the Studio (or by email where
+//!   that's set up), change only the password, and are single-use. For owners
+//!   and reviewers they need two-factor and last an hour.
 
 use std::{
     net::SocketAddr,
@@ -48,6 +54,9 @@ const MAX_FAILURES: i32 = 5;
 const LOCK_MINUTES: f64 = 15.0;
 const RESET_LINK_MINUTES: f64 = 60.0;
 const OWNER_LINK_HOURS: f64 = 24.0;
+/// Owners and reviewers: shorter-lived recovery links (stronger verification).
+const PRIVILEGED_LINK_HOURS: f64 = 1.0;
+const NEEDS_TWO_FACTOR: &str = "Your role needs two-factor with a password. Sign in with your passkey and turn on two-factor in Security & Authentication, or ask an owner.";
 /// How long an identity check lasts for sensitive changes.
 const VERIFIED_MINUTES: f64 = 10.0;
 const ISSUER: &str = "FigBud Studio";
@@ -125,6 +134,7 @@ struct Credentials {
     id: Uuid,
     email: String,
     name: String,
+    role: String,
     password_hash: Option<String>,
     locked: bool,
     disabled: bool,
@@ -136,7 +146,7 @@ struct Credentials {
 macro_rules! credentials_where {
     ($condition:literal) => {
         concat!(
-            "SELECT id, email, name, password_hash,
+            "SELECT id, email, name, role, password_hash,
                     COALESCE(password_locked_until > now(), false) AS locked,
                     disabled_at IS NOT NULL AS disabled,
                     totp_secret, totp_last_step, totp_confirmed_at IS NOT NULL AS has_two_factor
@@ -221,7 +231,7 @@ async fn password_login(
     ConnectInfo(peer): ConnectInfo<SocketAddr>,
     headers: HeaderMap,
     Json(body): Json<PasswordLogin>,
-) -> Result<impl IntoResponse, ApiError> {
+) -> Result<Response, ApiError> {
     let ctx = public(&state, &headers, peer)?;
     // Oversized input never reaches the hash, and is treated like any wrong password.
     let password: String = body.password.chars().take(cred::MAX_PASSWORD + 1).collect();
@@ -231,7 +241,7 @@ async fn password_login(
     let Some(account) = account else {
         return Err(ApiError::Unauthorized(BAD_LOGIN));
     };
-    if account.disabled || account.locked || account.password_hash.is_none() || !account.has_two_factor {
+    if account.disabled || account.locked || account.password_hash.is_none() {
         return Err(ApiError::Unauthorized(BAD_LOGIN));
     }
     if !matches {
@@ -240,6 +250,31 @@ async fn password_login(
     }
     // Said only once the password is proven, so it reveals nothing to anyone else.
     super::policy::check_sign_in(&state.pool, account.id, super::policy::Method::Password).await?;
+    if !account.has_two_factor {
+        // No second factor set up: the policy decides whether the password is enough.
+        if super::policy::load(&state.pool)
+            .await?
+            .needs_two_factor(&account.role)
+        {
+            return Err(ApiError::Unauthorized(NEEDS_TWO_FACTOR));
+        }
+        sqlx::query(
+            "UPDATE admin_users SET password_failed_attempts = 0, password_locked_until = NULL WHERE id = $1",
+        )
+        .bind(account.id)
+        .execute(&state.pool)
+        .await?;
+        audit(
+            &state.pool,
+            Some(account.id),
+            "admin.login",
+            None,
+            json!({ "method": "password" }),
+            Some(&ctx.ip_hash),
+        )
+        .await?;
+        return signed_in(&state, ctx, account.id, "password").await;
+    }
     // The password was right; nothing is signed in until the second factor is.
     let secret = new_token();
     let challenge_id = store_challenge(
@@ -251,9 +286,7 @@ async fn password_login(
         json!({ "token_hash": hex::encode(token_hash(&secret)) }),
     )
     .await?;
-    Ok(Json(
-        json!({ "two_factor": { "pending": format!("{challenge_id}.{secret}") } }),
-    ))
+    Ok(Json(json!({ "two_factor": { "pending": format!("{challenge_id}.{secret}") } })).into_response())
 }
 
 #[derive(Deserialize)]
@@ -482,7 +515,7 @@ async fn reset(
     .await?;
     let user_id = user_id.ok_or(ApiError::Unauthorized(BAD_RESET))?;
     let account = credentials_by_id(&state.pool, user_id).await?;
-    if account.disabled || !account.has_two_factor {
+    if account.disabled || !recoverable(&state.pool, &account).await? {
         return Err(ApiError::Unauthorized(BAD_RESET));
     }
     // A weak password doesn't use up the link.
@@ -538,8 +571,23 @@ async fn reset(
     Ok(StatusCode::NO_CONTENT)
 }
 
+fn privileged(role: &str) -> bool {
+    role == "owner" || role == "reviewer"
+}
+
+/// Whether a recovery link may set this account's password: owners and
+/// reviewers need two-factor (so the link alone never opens their account);
+/// others need two-factor, or a role the policy lets sign in with a password alone.
+async fn recoverable(pool: &PgPool, account: &Credentials) -> Result<bool, sqlx::Error> {
+    if account.has_two_factor {
+        return Ok(true);
+    }
+    Ok(!privileged(&account.role) && !super::policy::load(pool).await?.needs_two_factor(&account.role))
+}
+
 /// For when email isn't available: an owner creates a link to pass on, like
-/// an invite. It only changes the password, so it gives the owner no way in.
+/// an invite, through the Studio. It only changes the password, so it gives
+/// the owner no way in.
 async fn owner_recovery_link(
     State(state): State<SharedState>,
     session: AdminSession,
@@ -548,29 +596,31 @@ async fn owner_recovery_link(
     session.require(Role::Owner)?;
     session.require_verified()?;
     let admin = admin_config(&state)?;
-    let target: Option<(String, bool, bool)> = sqlx::query_as(
-        "SELECT email, disabled_at IS NOT NULL, totp_confirmed_at IS NOT NULL FROM admin_users WHERE id = $1",
-    )
-    .bind(id)
-    .fetch_optional(&state.pool)
-    .await?;
-    let (email, disabled, two_factor) = target.ok_or(ApiError::NotFound)?;
-    if disabled {
+    let exists: bool = sqlx::query_scalar("SELECT EXISTS (SELECT 1 FROM admin_users WHERE id = $1)")
+        .bind(id)
+        .fetch_one(&state.pool)
+        .await?;
+    if !exists {
+        return Err(ApiError::NotFound);
+    }
+    let account = credentials_by_id(&state.pool, id).await?;
+    let email = account.email.clone();
+    if account.disabled {
         return Err(ApiError::Conflict("This person's access is disabled."));
     }
-    if !two_factor {
-        return Err(ApiError::Conflict(
-            "This person hasn't set up two-factor, so a password can't be recovered. Send them a new invite instead: it adds a passkey for this account.",
-        ));
+    if !recoverable(&state.pool, &account).await? {
+        return Err(ApiError::Conflict(if privileged(&account.role) {
+            "Owners and reviewers need two-factor before a password can be recovered by link. If they have a passkey, they can reset their password with it; otherwise send them a new invite, which adds a passkey."
+        } else {
+            "Their role needs two-factor with a password, and they haven't set it up. If they have a passkey, they can reset their password with it; otherwise send them a new invite, which adds a passkey."
+        }));
     }
-    let url = recovery_link(
-        &state.pool,
-        admin,
-        id,
-        Some(session.user.id),
-        OWNER_LINK_HOURS * 60.0,
-    )
-    .await?;
+    let hours = if privileged(&account.role) {
+        PRIVILEGED_LINK_HOURS
+    } else {
+        OWNER_LINK_HOURS
+    };
+    let url = recovery_link(&state.pool, admin, id, Some(session.user.id), hours * 60.0).await?;
     audit(
         &state.pool,
         Some(session.user.id),
@@ -582,7 +632,7 @@ async fn owner_recovery_link(
     .await?;
     Ok((
         StatusCode::CREATED,
-        Json(json!({ "recovery_url": url, "hours": OWNER_LINK_HOURS })),
+        Json(json!({ "recovery_url": url, "hours": hours })),
     ))
 }
 
@@ -624,6 +674,12 @@ async fn overview(
             .bind(user)
             .fetch_one(&state.pool)
             .await?;
+    let passkey_checked: bool = sqlx::query_scalar(
+        "SELECT COALESCE(passkey_verified_until > now(), false) FROM admin_sessions WHERE id = $1",
+    )
+    .bind(session.session_id)
+    .fetch_one(&state.pool)
+    .await?;
     let codes_left: i64 = sqlx::query_scalar(
         "SELECT count(*) FROM admin_recovery_codes WHERE user_id = $1 AND used_at IS NULL",
     )
@@ -669,7 +725,14 @@ async fn overview(
     Ok(Json(json!({
         "available": admin.secrets_key.is_some(),
         "verified": session.verified,
-        "password": { "set": password_set_at.is_some(), "set_at": password_set_at },
+        "password": {
+            "set": password_set_at.is_some(),
+            "set_at": password_set_at,
+            // The sign-in policy for their role (P13-B4): a password also needs two-factor.
+            "needs_two_factor": super::policy::load(&state.pool).await?.needs_two_factor(session.user.role.as_str()),
+        },
+        // A passkey confirmed it's them in the last few minutes: a forgotten password can be reset.
+        "passkey_checked": passkey_checked,
         "two_factor": {
             "enabled": two_factor_at.is_some(),
             "confirmed_at": two_factor_at,
@@ -775,6 +838,13 @@ async fn verify_passkey_finish(
         .map_err(|_| ApiError::Unauthorized("The passkey could not be verified. Please try again."))?;
     update_passkey(&state, session.user.id, &result).await?;
     mark_verified(&state.pool, session.session_id).await?;
+    sqlx::query(
+        "UPDATE admin_sessions SET passkey_verified_until = now() + make_interval(mins => $2) WHERE id = $1",
+    )
+    .bind(session.session_id)
+    .bind(VERIFIED_MINUTES as i32)
+    .execute(&state.pool)
+    .await?;
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -884,9 +954,13 @@ async fn two_factor_remove(
 ) -> Result<impl IntoResponse, ApiError> {
     session.require_verified()?;
     let account = credentials_by_id(&state.pool, session.user.id).await?;
-    if account.password_hash.is_some() {
+    if account.password_hash.is_some()
+        && super::policy::load(&state.pool)
+            .await?
+            .needs_two_factor(&account.role)
+    {
         return Err(ApiError::Conflict(
-            "A password always needs two-factor. Remove the password first, or set up a new authenticator.",
+            "Your role needs two-factor with a password. Remove the password first, or set up a new authenticator.",
         ));
     }
     let mut tx = state.pool.begin().await?;
@@ -942,19 +1016,70 @@ async fn recovery_codes(
 #[derive(Deserialize)]
 struct SetPassword {
     password: String,
+    /// Needed to change an existing password, unless a passkey was checked
+    /// in the last few minutes (a forgotten password).
+    #[serde(default)]
+    current_password: Option<String>,
 }
 
 /// Creates or changes the password. Other sessions end; this one stays.
+/// Passkeys are untouched.
 async fn set_password(
     State(state): State<SharedState>,
+    ConnectInfo(peer): ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
     session: AdminSession,
     Json(body): Json<SetPassword>,
 ) -> Result<impl IntoResponse, ApiError> {
-    session.require_verified()?;
     let account = credentials_by_id(&state.pool, session.user.id).await?;
-    if !account.has_two_factor {
+    let passkey_checked: bool = sqlx::query_scalar(
+        "SELECT COALESCE(passkey_verified_until > now(), false) FROM admin_sessions WHERE id = $1",
+    )
+    .bind(session.session_id)
+    .fetch_one(&state.pool)
+    .await?;
+    match (&account.password_hash, &body.current_password) {
+        // Creating one: a recent identity check (a fresh sign-in, or a passkey).
+        (None, _) => session.require_verified()?,
+        // Changing one: the current password proves it's them.
+        (Some(_), Some(current)) => {
+            let current: String = current.chars().take(cred::MAX_PASSWORD + 1).collect();
+            if account.locked || !verify_blocking(account.password_hash.clone(), current).await? {
+                let ip = crate::rate_limit::client_ip(&headers, peer, state.config.trust_proxy);
+                let (ip_hash, _) = super::client_meta(&state, &headers, ip);
+                record_failure(&state.pool, account.id, &ip_hash, "current_password").await?;
+                return Err(field(
+                    "current_password",
+                    "invalid",
+                    "That isn't your current password.",
+                ));
+            }
+        }
+        // Forgotten: a passkey checked in the last few minutes.
+        (Some(_), None) if passkey_checked => {}
+        (Some(_), None) => {
+            return Err(field(
+                "current_password",
+                "required",
+                "Enter your current password, or confirm it's you with your passkey to reset it.",
+            ));
+        }
+    }
+    // A password the policy wouldn't let them use isn't stored: two-factor first.
+    if !account.has_two_factor
+        && super::policy::load(&state.pool)
+            .await?
+            .needs_two_factor(&account.role)
+    {
         return Err(ApiError::Conflict(
-            "Set up two-factor first: a password alone can't open the Studio.",
+            "Your role needs two-factor with a password: set up two-factor first. An owner can change this in the sign-in policy (Users & access).",
+        ));
+    }
+    if body.current_password.as_deref() == Some(body.password.as_str()) {
+        return Err(field(
+            "password",
+            "unchanged",
+            "Choose a password different from your current one.",
         ));
     }
     if let Some(problem) = cred::password_problem(&body.password, &account.email, &account.name) {
@@ -1001,7 +1126,9 @@ async fn set_password(
             "admin.password_created"
         },
         None,
-        json!({}),
+        json!({ "with": if account.password_hash.is_none() { "identity_check" }
+                       else if body.current_password.is_some() { "current_password" }
+                       else { "passkey" } }),
         None,
     )
     .await?;

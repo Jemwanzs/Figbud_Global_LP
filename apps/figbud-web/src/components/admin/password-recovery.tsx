@@ -7,7 +7,7 @@ import { useState, useSyncExternalStore } from "react";
 
 import { AdminError, adminFetch, validEmail } from "@/lib/admin-client";
 
-import { PasswordField } from "./password-field";
+import { NewPasswordFields, newPasswordReady } from "./new-password-fields";
 
 /** Asks for a recovery link. The answer is the same whether or not the account exists. */
 export function ForgotPasswordForm() {
@@ -105,14 +105,15 @@ export function ResetPasswordForm() {
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [tried, setTried] = useState(false);
+  const [fieldError, setFieldError] = useState<string | null>(null);
 
   async function onSubmit(event: React.FormEvent) {
     event.preventDefault();
     setError(null);
-    if (password !== repeat) {
-      setError("The two passwords don't match.");
-      return;
-    }
+    setFieldError(null);
+    setTried(true);
+    if (!newPasswordReady(password, repeat)) return;
     setBusy(true);
     try {
       await adminFetch("password/reset", { token, password });
@@ -120,11 +121,14 @@ export function ResetPasswordForm() {
       window.history.replaceState(null, "", "/admin/reset-password");
       setDone(true);
     } catch (err) {
-      setError(
-        err instanceof AdminError
-          ? (err.fields[0]?.message ?? err.message)
-          : "Something went wrong. Please try again.",
-      );
+      if (err instanceof AdminError && err.fields[0]?.field === "password")
+        setFieldError(err.fields[0].message);
+      else
+        setError(
+          err instanceof AdminError
+            ? (err.fields[0]?.message ?? err.message)
+            : "Something went wrong. Please try again.",
+        );
     } finally {
       setBusy(false);
     }
@@ -138,7 +142,8 @@ export function ResetPasswordForm() {
           Your password has changed
         </p>
         <p className="mt-3 leading-relaxed text-muted">
-          You were signed out everywhere. Sign in with your new password and your authenticator app.
+          You were signed out everywhere. Sign in with your new password (and your authenticator app, if you
+          use one).
         </p>
         <Link href="/admin/login" className={buttonClasses("primary", "lg", "mt-6 w-full")}>
           Go to sign in
@@ -161,23 +166,14 @@ export function ResetPasswordForm() {
 
   return (
     <form onSubmit={onSubmit} noValidate className="space-y-5">
-      <PasswordField
-        id="new-password"
-        label="New password"
-        value={password}
-        onChange={setPassword}
-        autoComplete="new-password"
-        describedBy="new-password-hint"
-      />
-      <p id="new-password-hint" className="-mt-3 text-sm text-subtle">
-        At least 12 characters. A short phrase is easiest to remember.
-      </p>
-      <PasswordField
-        id="repeat-password"
-        label="Repeat new password"
-        value={repeat}
-        onChange={setRepeat}
-        autoComplete="new-password"
+      <NewPasswordFields
+        idPrefix="reset"
+        password={password}
+        confirm={repeat}
+        onPassword={setPassword}
+        onConfirm={setRepeat}
+        showErrors={tried}
+        serverError={fieldError}
       />
       {error && (
         <p role="alert" className="text-sm text-danger">

@@ -319,25 +319,25 @@ async fn set_role(
     }
     // Every owner keeps a way in the sign-in policy allows (P13-B4).
     if role == Role::Owner {
-        let (passkeys, password): (i64, bool) = sqlx::query_as(
+        let (passkeys, password, two_factor): (i64, bool, bool) = sqlx::query_as(
             "SELECT (SELECT count(*) FROM admin_passkeys p WHERE p.user_id = u.id),
-                    password_hash IS NOT NULL AND totp_confirmed_at IS NOT NULL
+                    password_hash IS NOT NULL, totp_confirmed_at IS NOT NULL
                FROM admin_users u WHERE id = $1",
         )
         .bind(id)
         .fetch_one(&state.pool)
         .await?;
-        let works = state
-            .config
-            .admin
-            .as_ref()
-            .is_some_and(|a| a.secrets_key.is_some());
+        let ways = super::policy::Ways {
+            passkeys,
+            password,
+            two_factor,
+        };
         if !super::policy::load(&state.pool)
             .await?
-            .way_in("owner", passkeys, password, works)
+            .way_in("owner", ways, super::policy::codes_work(&state))
         {
             return Err(ApiError::Conflict(
-                "Under the sign-in policy, they'd have no way to sign in as an owner. They need a passkey (or a password with two-factor, where passwords are on) first.",
+                "Under the sign-in policy, they'd have no way to sign in as an owner. They need a passkey (or a password the policy allows) first.",
             ));
         }
     }

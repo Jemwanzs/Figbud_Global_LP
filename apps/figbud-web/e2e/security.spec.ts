@@ -90,9 +90,9 @@ async function enrol(page: Page) {
   const codes = await page.getByTestId("recovery-codes").locator("li").allTextContents();
   await page.getByRole("button", { name: "I've saved them" }).click();
   await page.getByLabel("New password", { exact: true }).fill(PASSWORD);
-  await page.getByLabel("Repeat new password", { exact: true }).fill(PASSWORD);
+  await page.getByLabel("Confirm new password", { exact: true }).fill(PASSWORD);
   await page.getByRole("button", { name: "Create password" }).click();
-  await expect(page.getByRole("status").filter({ hasText: "Password created." })).toBeVisible();
+  await expect(page.getByRole("status").filter({ hasText: "Password created successfully" })).toBeVisible();
   return { secret, codes };
 }
 
@@ -136,16 +136,16 @@ test("enrol, then sign in from a new phone with password and two-factor; session
   // Weak passwords are refused with a reason; show/hide works.
   const field = page.getByLabel("New password", { exact: true });
   await field.fill("short");
-  await page.getByLabel("Repeat new password", { exact: true }).fill("short");
+  await page.getByLabel("Confirm new password", { exact: true }).fill("short");
   await page.getByRole("button", { name: "Create password" }).click();
-  await expect(page.getByText("Use at least 12 characters.").last()).toBeVisible();
+  await expect(page.getByText("Use at least 12 characters.").first()).toBeVisible();
   await expect(field).toHaveAttribute("type", "password");
   await page.getByRole("button", { name: "Show new password" }).click();
   await expect(field).toHaveAttribute("type", "text");
   await field.fill(PASSWORD);
-  await page.getByLabel("Repeat new password", { exact: true }).fill(PASSWORD);
+  await page.getByLabel("Confirm new password", { exact: true }).fill(PASSWORD);
   await page.getByRole("button", { name: "Create password" }).click();
-  await expect(page.getByRole("status").filter({ hasText: "Password created." })).toBeVisible();
+  await expect(page.getByRole("status").filter({ hasText: "Password created successfully" })).toBeVisible();
 
   // A new phone, with no passkey on it.
   const { context, page: mobile } = await phone(browser);
@@ -240,6 +240,12 @@ test("forgot password: the same answer for anyone, a single-use link, and two-fa
   await other.goto("/admin/login");
   await other.getByRole("link", { name: "Forgot password?" }).click();
   await expect(other.getByRole("heading", { level: 1 })).toHaveText("Forgot your password?");
+  // A passkey comes first; email is one option among others.
+  await expect(other.getByRole("link", { name: "Reset with your passkey" })).toHaveAttribute(
+    "href",
+    "/admin/create-password",
+  );
+  await other.getByText("Or get a link by email").click();
   expect(await axe(other)).toEqual([]);
   await other.locator("#forgot-email").fill(`nobody-${randomBytes(4).toString("hex")}@figbud.test`);
   await other.getByRole("button", { name: "Send recovery link" }).click();
@@ -248,6 +254,7 @@ test("forgot password: the same answer for anyone, a single-use link, and two-fa
   const forUnknown = await answer.textContent();
 
   await other.goto("/admin/forgot-password");
+  await other.getByText("Or get a link by email").click();
   await other.locator("#forgot-email").fill(email);
   await other.getByRole("button", { name: "Send recovery link" }).click();
   await expect(other.getByRole("status")).toHaveText(forUnknown!);
@@ -260,16 +267,16 @@ test("forgot password: the same answer for anyone, a single-use link, and two-fa
 
   await other.goto(`/admin/reset-password#token=${token}`);
   await other.getByLabel("New password", { exact: true }).fill("short");
-  await other.getByLabel("Repeat new password", { exact: true }).fill("different");
+  await other.getByLabel("Confirm new password", { exact: true }).fill("different");
   await other.getByRole("button", { name: "Save new password" }).click();
-  await expect(other.locator("p[role=alert]")).toHaveText("The two passwords don't match.");
-  await other.getByLabel("Repeat new password", { exact: true }).fill("short");
+  await expect(other.getByText("The passwords don't match.")).toBeVisible();
+  await other.getByLabel("Confirm new password", { exact: true }).fill("short");
   await other.getByRole("button", { name: "Save new password" }).click();
-  await expect(other.locator("p[role=alert]")).toContainText("Use at least 12 characters.");
+  await expect(other.getByText("Use at least 12 characters.").first()).toBeVisible();
 
   const fresh = "copper meadow compass";
   await other.getByLabel("New password", { exact: true }).fill(fresh);
-  await other.getByLabel("Repeat new password", { exact: true }).fill(fresh);
+  await other.getByLabel("Confirm new password", { exact: true }).fill(fresh);
   await other.getByRole("button", { name: "Save new password" }).click();
   await expect(other.getByRole("status")).toContainText("Your password has changed");
   expect(other.url()).not.toContain("token=");
@@ -282,7 +289,7 @@ test("forgot password: the same answer for anyone, a single-use link, and two-fa
   await other.goto("/admin/login");
   await other.goto(`/admin/reset-password#token=${token}`);
   await other.getByLabel("New password", { exact: true }).fill("another fine passphrase");
-  await other.getByLabel("Repeat new password", { exact: true }).fill("another fine passphrase");
+  await other.getByLabel("Confirm new password", { exact: true }).fill("another fine passphrase");
   await other.getByRole("button", { name: "Save new password" }).click();
   await expect(other.locator("p[role=alert]")).toContainText("invalid, used or expired");
 
@@ -324,7 +331,7 @@ test("repeated failures pause password sign-in, but a passkey still works; passk
   await page.goto("/admin/settings/security");
   await expect(page.getByRole("heading", { name: "Confirm it's you" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Register this device" })).toBeDisabled();
-  await expect(page.getByRole("button", { name: "Change password" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Save new password" })).toBeDisabled();
   await page.getByRole("button", { name: "Confirm with passkey" }).click();
   await expect(page.getByRole("status").filter({ hasText: "that's confirmed" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Confirm it's you" })).toHaveCount(0);
@@ -359,19 +366,26 @@ test("owners can create a recovery link for someone with two-factor", async ({ p
   await context.close();
 });
 
-test("sign-in help: set up a password from a way in you already have, with nothing about any account revealed", async ({
+test("sign-in help: create a password from a way in you already have, with nothing about any account revealed", async ({
   page,
 }) => {
   await page.goto("/admin/login");
   await expect(page.getByText("Your workspace. Your way. Sign in securely.")).toBeVisible();
-  await page.getByRole("link", { name: "Set up a password" }).click();
-  await expect(page).toHaveURL(/\/admin\/sign-in-help#set-up-password$/);
+  await page.getByRole("link", { name: "Create password" }).click();
+  await expect(page).toHaveURL(/\/admin\/create-password$/);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Create or reset your password");
+  await expect(page.getByRole("button", { name: "Confirm with your passkey" })).toBeVisible();
+  await page.goto("/admin/sign-in-help");
   await expect(page.getByRole("heading", { level: 2, name: "Set up a password" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Sign in with your passkey" })).toHaveAttribute(
+  await expect(page.getByRole("link", { name: "Create password" })).toHaveAttribute(
     "href",
-    "/admin/login",
+    "/admin/create-password",
   );
-  await expect(page.getByRole("link", { name: "Reset it by email" })).toHaveAttribute(
+  await expect(page.getByRole("link", { name: "Reset it with your passkey" })).toHaveAttribute(
+    "href",
+    "/admin/create-password",
+  );
+  await expect(page.getByRole("link", { name: "ask for a link by email" })).toHaveAttribute(
     "href",
     "/admin/forgot-password",
   );
@@ -379,4 +393,26 @@ test("sign-in help: set up a password from a way in you already have, with nothi
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
     .analyze();
   expect(results.violations.map((v) => v.id)).toEqual([]);
+});
+
+test("create password: a passkey confirms who it is; a role that needs two-factor is sent to set it up first", async ({
+  page,
+}) => {
+  // Owner's brief, 13 Nov 2026. Owners need two-factor with a password by default.
+  const email = await join(page);
+  await page.goto("/admin/create-password");
+  await page.getByLabel("Work email").fill(email);
+  await page.getByRole("button", { name: "Confirm with your passkey" }).click();
+  await expect(page.getByText("Your role needs two-factor with a password")).toBeVisible();
+  await expect(page.getByRole("link", { name: "Open Security & Authentication" })).toHaveAttribute(
+    "href",
+    "/admin/settings/security",
+  );
+  // An address with no passkey on this device gets nowhere, and isn't told whether it exists.
+  await page.goto("/admin/create-password");
+  await page.getByLabel("Work email").fill(`nobody-${randomBytes(4).toString("hex")}@figbud.test`);
+  await page.getByRole("button", { name: "Confirm with your passkey" }).click();
+  await expect(page.locator("p[role=alert]")).toBeVisible();
+  await expect(page.getByLabel("New password", { exact: true })).toHaveCount(0);
+  expect(await axe(page)).toEqual([]);
 });

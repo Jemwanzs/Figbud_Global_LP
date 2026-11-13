@@ -7,6 +7,9 @@ import { themeSettled } from "./theme-settled";
 // Per-website permissions (P7-F1) against e2e/mock-api.mjs: an owner invites
 // an editor limited to ZiraHR, then gives them every website.
 
+// Two tests change the shared sign-in policy, so this file's tests run one after another.
+test.describe.configure({ mode: "default" });
+
 test.beforeEach(({ browserName }, testInfo) => {
   test.skip(browserName !== "chromium", "virtual authenticators are a Chromium DevTools feature");
   test.skip(testInfo.project.name !== "desktop", "adds people to shared mock data from the desktop project");
@@ -207,13 +210,13 @@ test("Users & access: the sign-in policy, previewed and saved; ending one of som
   await policy.getByRole("checkbox", { name: "Password with two-factor" }).check();
 
   // Editors must use passkeys (Efe has one), and an hour without use signs people out.
-  await policy.getByRole("checkbox", { name: "Editor" }).check();
+  await policy.getByRole("checkbox", { name: "Editor must use a passkey" }).check();
   await policy.getByLabel("Sign out after inactivity").selectOption("60");
   await expect(policy.getByTestId("policy-impact")).not.toContainText("Efe Editor");
   await save.click();
   await expect(policy.getByRole("status")).toContainText("Sign-in policy saved");
   await page.reload();
-  await expect(policy.getByRole("checkbox", { name: "Editor" })).toBeChecked();
+  await expect(policy.getByRole("checkbox", { name: "Editor must use a passkey" })).toBeChecked();
   await expect(policy.getByLabel("Sign out after inactivity")).toHaveValue("60");
 
   // Efe's devices: one session, ended on its own; their next click asks them to sign in.
@@ -233,5 +236,86 @@ test("Users & access: the sign-in policy, previewed and saved; ending one of som
     .analyze();
   expect(results.violations.map((v) => v.id)).toEqual([]);
   await context.close();
+  expect((await request.post("http://localhost:3199/test/reset-sign-in-policy")).ok()).toBe(true);
+});
+
+test("passwords without email: an owner adds an admin user, who joins with a password, signs in with it and changes it", async ({
+  page,
+  browser,
+  request,
+}) => {
+  // Owner's brief, 13 Nov 2026 (database-driven passwords). Retry-safe: the policy starts from its defaults.
+  test.setTimeout(120_000);
+  expect((await request.post("http://localhost:3199/test/reset-sign-in-policy")).ok()).toBe(true);
+  await accept(page, `/admin/invite#token=${randomBytes(32).toString("hex")}`, "Kai Owner");
+  const run = randomBytes(3).toString("hex");
+  const first = "granite river lantern";
+  const second = "copper meadow compass";
+
+  // The owner lets editors sign in with a password alone.
+  await page.goto("/admin/settings/team");
+  const policy = page.getByRole("region", { name: "Sign-in policy" });
+  await policy.getByRole("checkbox", { name: "Editor needs two-factor" }).uncheck();
+  await policy.getByRole("button", { name: "Save sign-in policy" }).click();
+  await expect(policy.getByRole("status")).toContainText("Sign-in policy saved");
+
+  // Add admin user: name, role, Studio areas; a single-use link to send privately.
+  const add = page.getByRole("region", { name: "Add admin user" });
+  await add.getByLabel("Full name").fill("Nia Editor");
+  const email = `nia-${run}@figbud.test`;
+  await add.getByLabel("Work email").fill(email);
+  await add.getByRole("radio", { name: /^Editor/ }).check();
+  await add.getByRole("radio", { name: "Selected areas" }).check();
+  await add.getByLabel("Start from").selectOption("Pricing manager");
+  await add.getByRole("button", { name: "Create invite" }).click();
+  const link = (await add.getByRole("status").locator("code").textContent())!;
+
+  // They join with a password: checked as they type, and again by the API.
+  const context = await browser.newContext();
+  const nia = await context.newPage();
+  await nia.goto(new URL(link).pathname + new URL(link).hash);
+  await nia.getByRole("button", { name: "Create a password instead" }).click();
+  await nia.getByLabel("Password", { exact: true }).fill("short");
+  await nia.getByLabel("Confirm password", { exact: true }).fill("shorter");
+  await nia.getByRole("button", { name: "Create password and sign in" }).click();
+  await expect(nia.getByText("Use at least 12 characters.").first()).toBeVisible();
+  await expect(nia.getByText("The passwords don't match.")).toBeVisible();
+  await nia.getByRole("button", { name: "Show password" }).click();
+  await expect(nia.getByLabel("Password", { exact: true })).toHaveAttribute("type", "text");
+  await nia.getByLabel("Password", { exact: true }).fill(first);
+  await nia.getByLabel("Confirm password", { exact: true }).fill(first);
+  await expect(nia.getByText(/Password strength: (Good|Strong)/)).toBeVisible();
+  await nia.getByRole("button", { name: "Create password and sign in" }).click();
+  await expect(nia.getByRole("heading", { level: 1 })).toHaveText("Welcome, Nia");
+  await context.close();
+
+  // Another device: email and password, nothing else (the policy doesn't ask editors for two-factor).
+  const other = await browser.newContext();
+  const phone = await other.newPage();
+  await phone.goto("/admin/login");
+  await phone.getByLabel("Work email").fill(email);
+  await phone.getByLabel("Password", { exact: true }).fill(first);
+  await phone.getByRole("button", { name: "Continue with password" }).click();
+  await expect(phone.getByRole("heading", { level: 1 })).toHaveText("Welcome, Nia");
+
+  // Changing it needs the current password.
+  await phone.goto("/admin/settings/security");
+  const form = phone.getByRole("form", { name: "Change password" });
+  await form.getByLabel("New password", { exact: true }).fill(second);
+  await form.getByLabel("Confirm new password", { exact: true }).fill(second);
+  await form.getByRole("button", { name: "Save new password" }).click();
+  await expect(form.getByText("Enter your current password")).toBeVisible();
+  await form.getByLabel("Current password", { exact: true }).fill("not my password");
+  await form.getByRole("button", { name: "Save new password" }).click();
+  await expect(form.getByText("That isn't your current password.")).toBeVisible();
+  await form.getByLabel("Current password", { exact: true }).fill(first);
+  await form.getByRole("button", { name: "Save new password" }).click();
+  await expect(phone.getByRole("status").filter({ hasText: "Password changed" })).toBeVisible();
+
+  const results = await new AxeBuilder({ page: await themeSettled(phone) })
+    .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
+    .analyze();
+  expect(results.violations.map((v) => v.id)).toEqual([]);
+  await other.close();
   expect((await request.post("http://localhost:3199/test/reset-sign-in-policy")).ok()).toBe(true);
 });

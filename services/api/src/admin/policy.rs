@@ -1,9 +1,10 @@
 //! The organisation's sign-in policy (P13-B4), set by owners in Users &
 //! access: which ways in are on (passkeys, password with two-factor), which
-//! roles must use a passkey, and how long an unused session lasts. Every way
-//! in is already two-factor (a passkey is the device plus its PIN or
-//! biometric; a password always needs an authenticator code), so the
-//! per-role choice is the stronger one: passkeys only, which resist phishing.
+//! roles must use a passkey, which roles need an authenticator code with a
+//! password (every role by default; owner's brief, 13 Nov 2026), and how long
+//! an unused session lasts. A passkey is already two factors (the device plus
+//! its PIN or biometric); passkeys-only for a role is the strongest choice,
+//! since passkeys resist phishing.
 //!
 //! Enforced in three places: before a session starts (`check_sign_in`),
 //! for every request when the session is read (`authenticate` joins the
@@ -54,6 +55,15 @@ pub struct Policy {
     pub passkey_sign_in: bool,
     pub passkey_only_roles: Vec<String>,
     pub idle_minutes: Option<i32>,
+    /// Roles whose password sign-in also needs an authenticator code.
+    #[serde(default = "every_role")]
+    pub two_factor_roles: Vec<String>,
+}
+
+fn every_role() -> Vec<String> {
+    ["owner", "reviewer", "editor", "viewer"]
+        .map(String::from)
+        .to_vec()
 }
 
 impl Default for Policy {
@@ -63,8 +73,17 @@ impl Default for Policy {
             passkey_sign_in: true,
             passkey_only_roles: Vec::new(),
             idle_minutes: None,
+            two_factor_roles: every_role(),
         }
     }
+}
+
+/// Someone's ways in, for checking them against a policy.
+#[derive(Clone, Copy, Debug)]
+pub struct Ways {
+    pub passkeys: i64,
+    pub password: bool,
+    pub two_factor: bool,
 }
 
 /// How a session was started (`admin_sessions.auth_method`).
@@ -100,12 +119,24 @@ impl Policy {
         }
     }
 
+    /// Whether a password for `role` also needs an authenticator code.
+    pub fn needs_two_factor(&self, role: &str) -> bool {
+        self.two_factor_roles.iter().any(|r| r == role)
+    }
+
     /// Whether someone has a way in this policy allows. A password counts
-    /// only where password sign-in can work (it needs two-factor, and the
-    /// server's secrets key to check the codes).
-    pub fn way_in(&self, role: &str, passkeys: i64, password: bool, passwords_work: bool) -> bool {
-        (passkeys > 0 && self.allows(role, Method::Passkey).is_ok())
-            || (password && passwords_work && self.allows(role, Method::Password).is_ok())
+    /// only where it can be used: with two-factor set up, the server must be
+    /// able to check codes (its secrets key); without it, the role mustn't
+    /// need two-factor.
+    pub fn way_in(&self, role: &str, ways: Ways, codes_work: bool) -> bool {
+        let password = ways.password
+            && self.allows(role, Method::Password).is_ok()
+            && if ways.two_factor {
+                codes_work
+            } else {
+                !self.needs_two_factor(role)
+            };
+        (ways.passkeys > 0 && self.allows(role, Method::Passkey).is_ok()) || password
     }
 
     fn check(&self) -> Result<(), Vec<FieldError>> {
@@ -117,7 +148,12 @@ impl Policy {
                 message: "Keep at least one way to sign in turned on.",
             });
         }
-        if self.passkey_only_roles.iter().any(|r| Role::parse(r).is_none()) {
+        if self
+            .passkey_only_roles
+            .iter()
+            .chain(&self.two_factor_roles)
+            .any(|r| Role::parse(r).is_none())
+        {
             errors.push(FieldError {
                 field: "passkey_only_roles",
                 code: "invalid",
@@ -141,13 +177,18 @@ impl Policy {
         self.passkey_only_roles
             .sort_by_key(|r| order.iter().position(|o| o == r));
         self.passkey_only_roles.dedup();
+        self.two_factor_roles.retain(|r| order.contains(&r.as_str()));
+        self.two_factor_roles
+            .sort_by_key(|r| order.iter().position(|o| o == r));
+        self.two_factor_roles.dedup();
         self
     }
 }
 
 pub async fn load(pool: &PgPool) -> Result<Policy, sqlx::Error> {
     Ok(sqlx::query_as(
-        "SELECT password_sign_in, passkey_sign_in, passkey_only_roles, idle_minutes FROM admin_sign_in_policy",
+        "SELECT password_sign_in, passkey_sign_in, passkey_only_roles, idle_minutes, two_factor_roles
+           FROM admin_sign_in_policy",
     )
     .fetch_optional(pool)
     .await?
@@ -174,13 +215,24 @@ struct Person {
     role: String,
     passkeys: i64,
     password: bool,
+    two_factor: bool,
+}
+
+impl Person {
+    fn ways(&self) -> Ways {
+        Ways {
+            passkeys: self.passkeys,
+            password: self.password,
+            two_factor: self.two_factor,
+        }
+    }
 }
 
 async fn people(pool: &PgPool) -> Result<Vec<Person>, sqlx::Error> {
     sqlx::query_as(
         "SELECT id, name, email, role,
                 (SELECT count(*) FROM admin_passkeys p WHERE p.user_id = u.id) AS passkeys,
-                (password_hash IS NOT NULL AND totp_confirmed_at IS NOT NULL) AS password
+                password_hash IS NOT NULL AS password, totp_confirmed_at IS NOT NULL AS two_factor
            FROM admin_users u
           WHERE disabled_at IS NULL
           ORDER BY CASE role WHEN 'owner' THEN 0 WHEN 'reviewer' THEN 1 WHEN 'editor' THEN 2 ELSE 3 END, name",
@@ -189,7 +241,8 @@ async fn people(pool: &PgPool) -> Result<Vec<Person>, sqlx::Error> {
     .await
 }
 
-fn passwords_work(state: &SharedState) -> bool {
+/// Whether the server can check authenticator codes (its secrets key is set).
+pub fn codes_work(state: &SharedState) -> bool {
     state
         .config
         .admin
@@ -211,7 +264,8 @@ async fn show(
     Ok(Json(json!({
         "policy": load(&state.pool).await?,
         "people": people(&state.pool).await?,
-        "passwords_available": passwords_work(&state),
+        "passwords_available": codes_work(&state),
+        "codes_available": codes_work(&state),
         "idle_choices": IDLE_CHOICES,
         "updated_at": updated.as_ref().map(|u| u.0),
         "updated_by": updated.and_then(|u| u.1),
@@ -227,17 +281,17 @@ async fn save(
     session.require_verified()?;
     input.check().map_err(ApiError::Validation)?;
     let next = input.tidy();
-    let works = passwords_work(&state);
+    let works = codes_work(&state);
 
     // Never leave an owner without a way in.
     let everyone = people(&state.pool).await?;
     if everyone
         .iter()
         .filter(|p| p.role == "owner")
-        .any(|p| !next.way_in(&p.role, p.passkeys, p.password, works))
+        .any(|p| !next.way_in(&p.role, p.ways(), works))
     {
         return Err(ApiError::Conflict(
-            "This would leave an owner without a way to sign in. Each owner needs a way in that stays turned on: a passkey, or a password with two-factor.",
+            "This would leave an owner without a way to sign in. Each owner needs a way in that stays turned on: a passkey, or a password (with two-factor where the policy asks for it).",
         ));
     }
     // Nor sign out the owner making the change.
@@ -256,13 +310,14 @@ async fn save(
     sqlx::query(
         "UPDATE admin_sign_in_policy
             SET password_sign_in = $1, passkey_sign_in = $2, passkey_only_roles = $3,
-                idle_minutes = $4, updated_at = now(), updated_by = $5",
+                idle_minutes = $4, updated_at = now(), updated_by = $5, two_factor_roles = $6",
     )
     .bind(next.password_sign_in)
     .bind(next.passkey_sign_in)
     .bind(&next.passkey_only_roles)
     .bind(next.idle_minutes)
     .bind(session.user.id)
+    .bind(&next.two_factor_roles)
     .execute(&mut *tx)
     .await?;
     // Sessions started a way that's no longer allowed end now (the session
@@ -274,12 +329,14 @@ async fn save(
             AND CASE s.auth_method
                   WHEN 'passkey' THEN NOT $1
                   WHEN 'password' THEN NOT $2 OR u.role = ANY($3)
+                       OR (u.role = ANY($4) AND u.totp_confirmed_at IS NULL)
                   ELSE false
                 END",
     )
     .bind(next.passkey_sign_in)
     .bind(next.password_sign_in)
     .bind(&next.passkey_only_roles)
+    .bind(&next.two_factor_roles)
     .execute(&mut *tx)
     .await?
     .rows_affected();
@@ -287,7 +344,7 @@ async fn save(
 
     let locked_out: Vec<&str> = everyone
         .iter()
-        .filter(|p| !next.way_in(&p.role, p.passkeys, p.password, works))
+        .filter(|p| !next.way_in(&p.role, p.ways(), works))
         .map(|p| p.email.as_str())
         .collect();
     audit(
@@ -428,15 +485,28 @@ mod tests {
 
     #[test]
     fn a_password_only_counts_where_password_sign_in_can_work() {
+        let ways = |passkeys, password, two_factor| Ways {
+            passkeys,
+            password,
+            two_factor,
+        };
         let p = Policy::default();
-        assert!(p.way_in("owner", 1, false, false));
-        assert!(!p.way_in("owner", 0, true, false));
-        assert!(p.way_in("owner", 0, true, true));
+        assert!(p.way_in("owner", ways(1, false, false), false));
+        // Two-factor needs the server to check codes; without it, the role mustn't need it.
+        assert!(!p.way_in("owner", ways(0, true, true), false));
+        assert!(p.way_in("owner", ways(0, true, true), true));
+        assert!(!p.way_in("owner", ways(0, true, false), true));
+        let relaxed = Policy {
+            two_factor_roles: vec!["owner".into()],
+            ..Policy::default()
+        };
+        assert!(relaxed.way_in("editor", ways(0, true, false), false));
+        assert!(!relaxed.way_in("owner", ways(0, true, false), false));
         let no_passkeys = Policy {
             passkey_sign_in: false,
             ..Policy::default()
         };
-        assert!(!no_passkeys.way_in("owner", 2, false, true));
+        assert!(!no_passkeys.way_in("owner", ways(2, false, false), true));
     }
 
     #[test]

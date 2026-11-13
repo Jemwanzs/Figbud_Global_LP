@@ -9,7 +9,7 @@ export default function AdminInvitePage() {
   return (
     <AuthCard
       title="Welcome to FigBud Admin"
-      lead="Create a passkey to sign in. There is no password: your device keeps the key, protected by your fingerprint, face or screen lock."
+      lead="Choose how you'll sign in: a passkey (recommended: your device keeps it, protected by your fingerprint, face or screen lock) or a password."
     >
       <InviteForm />
     </AuthCard>

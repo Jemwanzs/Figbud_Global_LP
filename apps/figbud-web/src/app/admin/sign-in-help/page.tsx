@@ -23,26 +23,34 @@ export default function SignInHelpPage() {
           </h2>
           <ol className="mt-2 list-decimal space-y-1.5 ps-5">
             <li>
-              <Link href="/admin/login" className={link}>
-                Sign in with your passkey
+              Open{" "}
+              <Link href="/admin/create-password" className={link}>
+                Create password
               </Link>{" "}
-              (your fingerprint, face or screen lock).
+              and confirm it&apos;s you with your passkey (your fingerprint, face or screen lock).
             </li>
-            <li>Open Settings &amp; Security → Security &amp; Authentication.</li>
-            <li>Turn on two-factor with an authenticator app, then create your password.</li>
+            <li>Choose your password. Nothing is sent by email.</li>
           </ol>
-          <p className="mt-2">From then on you can sign in with either. Your passkeys keep working.</p>
+          <p className="mt-2">
+            From then on you can sign in with either; your passkeys keep working. If your role needs
+            two-factor with a password, you&apos;ll be asked to turn it on first. New to the Studio? Create
+            your password from your invitation link.
+          </p>
         </section>
         <section aria-labelledby="h-forgot">
           <h2 id="h-forgot" className="font-medium text-text">
             Forgot your password?
           </h2>
           <p className="mt-2">
-            <Link href="/admin/forgot-password" className={link}>
-              Reset it by email
+            <Link href="/admin/create-password" className={link}>
+              Reset it with your passkey
             </Link>
-            , or sign in with your passkey and change it in Security &amp; Authentication. You&apos;ll still
-            need your authenticator app.
+            . Without a passkey, an owner can create a one-time recovery link for you; where the Studio sends
+            email, you can also{" "}
+            <Link href="/admin/forgot-password" className={link}>
+              ask for a link by email
+            </Link>
+            .
           </p>
         </section>
         <section aria-labelledby="h-lost">
