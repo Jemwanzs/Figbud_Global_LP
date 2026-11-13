@@ -9,6 +9,7 @@ function LogoImage({
   asset,
   theme,
   solo,
+  plate,
   height,
   maxWidth,
   alt,
@@ -17,6 +18,8 @@ function LogoImage({
   asset: BrandAsset;
   theme: "dark" | "light" | "both";
   solo: boolean;
+  /** Always on a plate of this background (a fixed surface with only the other file). */
+  plate?: "dark" | "light";
   height: number;
   maxWidth?: number;
   alt: string;
@@ -37,6 +40,7 @@ function LogoImage({
         theme === "dark" && "fb-brand-on-dark",
         theme === "light" && "fb-brand-on-light",
         solo && "fb-brand-solo",
+        plate && `fb-brand-solo fb-brand-plate-${plate}`,
       )}
     >
       {/* eslint-disable-next-line @next/next/no-img-element -- immutable, pre-sized brand files */}
@@ -82,13 +86,16 @@ export function BrandLogo({
 }) {
   if (!hasLogo(pair)) return <>{fallback}</>;
   if (on) {
-    const asset = on === "dark" ? (pair.on_dark ?? pair.on_light) : (pair.on_light ?? pair.on_dark);
+    const own = on === "dark" ? pair.on_dark : pair.on_light;
+    const asset = own ?? (on === "dark" ? pair.on_light : pair.on_dark);
     return (
       <span className={cn("inline-flex shrink-0 items-center", className)}>
         <LogoImage
           asset={asset!}
           theme="both"
           solo={false}
+          // Only the other background's file: shown on its own background, never altered.
+          plate={own ? undefined : on === "dark" ? "light" : "dark"}
           height={height}
           maxWidth={maxWidth}
           alt={alt}

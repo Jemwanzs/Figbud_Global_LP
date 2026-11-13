@@ -314,7 +314,8 @@ Websites → a website → **Hero Design Studio**. The rules are in [HEROES.md](
 - **Variant cards:** live preview frames, "Live" and "Selected to publish" badges, and Preview, Edit, Duplicate, Select for publishing and Remove.
 - **The website's own hero (UI-HM1):** always listed first. It's what the website shows with no design published: a product website's home page hero section (edited in the Page builder), FigBud Global's built-in hero. It's labelled Live when it is, and can be selected and published like a design (stored as a published "none", with its own version for rollback).
 - **Preview:** a Light / Dark switch for every frame, and a full-screen preview with desktop, tablet and phone sizes.
-- **Edit panel:** shows only the chosen design's settings.
+- **Edit panel:** shows only the chosen design's settings. FigBud Global's platform heroes (05–09) add light and dark behaviour, badges, a product checklist with ordering, and colour pickers with per-colour reset. **Reset to default** and **Discard changes** ask first.
+- **Pause motion:** holds every preview frame still; the saved setting is unchanged.
 - **Publishing:** Save draft, Ask for approval, Approve and publish or Decline. Version history has "Roll back to this".
 - **API:**
   - Studio: `GET /v1/admin/sites/{slug}/hero`; `POST …/hero/draft`; `POST …/hero/{submit|publish|reject|rollback}`.

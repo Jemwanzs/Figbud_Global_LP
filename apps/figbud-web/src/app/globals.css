@@ -53,3 +53,58 @@ html[data-studio] {
     transform: translateX(-100%);
   }
 }
+
+/* Platform heroes (owner's brief, 13 Nov 2026): gentle, composited motion
+   only (transform, opacity, stroke offset), paced by the Studio's speed and
+   off when the hero's motion is off or the visitor prefers reduced motion. */
+@media (prefers-reduced-motion: no-preference) {
+  .fb-platform-hero[data-motion="on"] .fb-ph-card {
+    animation: fb-ph-float calc(7s * var(--ph-pace, 1)) ease-in-out infinite;
+    animation-delay: calc(var(--ph-i, 0) * -1.3s);
+  }
+  .fb-platform-hero[data-motion="on"] .fb-ph-line {
+    animation: fb-ph-flow calc(4s * var(--ph-pace, 1)) linear infinite;
+  }
+  .fb-platform-hero[data-motion="on"] .fb-ph-ring {
+    animation: fb-ph-turn calc(80s * var(--ph-pace, 1)) linear infinite;
+  }
+  .fb-platform-hero[data-motion="on"] .fb-ph-wave {
+    animation: fb-ph-drift calc(20s * var(--ph-pace, 1)) ease-in-out infinite alternate;
+  }
+  .fb-platform-hero[data-motion="on"] .fb-ph-glow {
+    animation: fb-ph-breathe calc(9s * var(--ph-pace, 1)) ease-in-out infinite;
+  }
+  .fb-platform-hero[data-motion="on"] .fb-ph-stack {
+    animation: fb-ph-float calc(9s * var(--ph-pace, 1)) ease-in-out infinite;
+  } /* A product being read holds still, so its card and description stay under the pointer. */
+  .fb-platform-hero
+    [data-picture]:has(.fb-ph-card:is(:hover, :focus-visible))
+    :is(.fb-ph-card, .fb-ph-stack) {
+    animation-play-state: paused;
+  }
+}
+@keyframes fb-ph-float {
+  50% {
+    transform: translateY(calc(-6px * var(--ph-depth, 1)));
+  }
+}
+@keyframes fb-ph-flow {
+  to {
+    stroke-dashoffset: -6;
+  }
+}
+@keyframes fb-ph-turn {
+  to {
+    rotate: 1turn;
+  }
+}
+@keyframes fb-ph-drift {
+  to {
+    transform: translateX(-12%);
+  }
+}
+@keyframes fb-ph-breathe {
+  50% {
+    opacity: 0.65;
+  }
+}

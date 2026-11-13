@@ -114,7 +114,8 @@ test("ZiraHR: edit, select, approve and publish one hero, then roll back", async
   await expect(page.locator("[data-variant]")).toHaveCount(5);
   await expect(page.locator("[data-variant]").first()).toHaveAttribute("data-variant", "own");
   await expect(page.locator('[data-variant="own"]')).toContainText("ZiraHR's own hero");
-  if (!before) {
+  // A retry of this serial group runs after this test has published (and returned to the own hero).
+  if (!before && test.info().retry === 0) {
     await expect(page.getByText("Nothing published · the website keeps its current hero")).toBeVisible();
     await expect(page.locator('[data-variant="own"]').getByText("Live", { exact: true })).toBeVisible();
   }

@@ -10,7 +10,35 @@ import { useEffect, useRef, useState } from "react";
  */
 
 export type HeroDesign =
-  "ecosystem" | "cinematic" | "universe" | "edition" | "workforce" | "payroll" | "journey" | "chapters";
+  | "ecosystem"
+  | "cinematic"
+  | "universe"
+  | "edition"
+  | "workforce"
+  | "payroll"
+  | "journey"
+  | "chapters"
+  // FigBud Global's platform heroes (owner's brief, 13 Nov 2026).
+  | "emerald"
+  | "digital"
+  | "ecosystem_light"
+  | "orbit"
+  | "dark_enterprise";
+
+/** Colours a platform hero lets an editor override (`PALETTE_KEYS` in heroes.rs). */
+export const HERO_PALETTE_KEYS = [
+  "background",
+  "background_2",
+  "heading",
+  "accent",
+  "text",
+  "button",
+  "button_text",
+  "card",
+  "card_border",
+  "glow",
+] as const;
+export type HeroPaletteKey = (typeof HERO_PALETTE_KEYS)[number];
 
 export interface HeroConfig {
   eyebrow?: string | null;
@@ -29,6 +57,14 @@ export interface HeroConfig {
   accent: "brand" | "blue" | "violet" | "neutral";
   mobile_layout: "stacked" | "compact";
   background_image_id?: string | null;
+  /** Platform heroes: the design's own look ("design") or the website's light or dark mode ("site"). */
+  theme_mode?: "design" | "site";
+  /** Short trust statements under the buttons; none keeps the approved ones. */
+  badges?: string[];
+  /** Products shown, in order (registry slugs); none shows every listed product. */
+  products?: string[];
+  /** Colour overrides (`#rrggbb`); a missing key keeps the design's own. */
+  palette?: Partial<Record<HeroPaletteKey, string>>;
 }
 
 export interface HeroVariant {
@@ -54,12 +90,28 @@ export const DEFAULT_HERO_CONFIG: HeroConfig = {
   align: "start",
   accent: "brand",
   mobile_layout: "stacked",
+  theme_mode: "design",
 };
 
 type Field = keyof HeroConfig;
 const TEXT: Field[] = ["eyebrow", "headline", "headline_accent", "lead"];
 const CTA: Field[] = ["primary_label", "primary_href", "secondary_label", "secondary_href"];
 const LOOK: Field[] = ["motion", "speed", "intensity", "height", "accent", "mobile_layout"];
+/** Platform heroes: everything above, plus their own colours, theme, badges and products. */
+const PLATFORM: Field[] = [
+  ...TEXT,
+  ...CTA,
+  "motion",
+  "speed",
+  "intensity",
+  "height",
+  "align",
+  "mobile_layout",
+  "theme_mode",
+  "badges",
+  "products",
+  "palette",
+];
 
 /** Each design's description and the settings it exposes (its structure stays fixed). */
 export const HERO_DESIGNS: Record<HeroDesign, { name: string; summary: string; fields: Field[] }> = {
@@ -103,6 +155,32 @@ export const HERO_DESIGNS: Record<HeroDesign, { name: string; summary: string; f
     name: "People, in Chapters",
     summary: "Editorial: an oversized headline, a numbered index of the modules and layered record sheets.",
     fields: [...TEXT, ...CTA, "motion", "speed", "height"],
+  },
+  emerald: {
+    name: "Emerald Innovation",
+    summary: "Deep green, a luminous layered platform and floating product cards with soft connections.",
+    fields: PLATFORM,
+  },
+  digital: {
+    name: "Digital Future",
+    summary: "Navy and violet with cyan light: a glowing platform hub, illuminated cards and digital waves.",
+    fields: PLATFORM,
+  },
+  ecosystem_light: {
+    name: "Connected Ecosystem · Light",
+    summary: "Warm cream, green and blue: the products on an orbit around FigBud, with a status card.",
+    fields: PLATFORM,
+  },
+  orbit: {
+    name: "Enterprise Orbit",
+    summary:
+      "Bright ivory with orange orbits: the FigBud platform, connected product cards and their status.",
+    fields: PLATFORM,
+  },
+  dark_enterprise: {
+    name: "Dark Enterprise",
+    summary: "Deep charcoal with restrained orange light: a layered platform and connected product cards.",
+    fields: PLATFORM,
   },
 };
 

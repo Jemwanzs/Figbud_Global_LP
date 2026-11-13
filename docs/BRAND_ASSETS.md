@@ -49,7 +49,7 @@ The same images are the websites' built-in fallbacks (`public/favicon.ico`, `ico
 | `jasiri-horizontal-on-light-proposed.png` | The Jasiri artwork with its white lettering recoloured to ink; the purple and green accents are unchanged. |
 | `expense-now-*-official.svg` | The approved Expense Now identity (section 3), built by `scripts/brand/expense_now/build.py`. |
 
-**Until light-background versions are approved,** the light theme shows the official dark-background logo on a small dark plate. Nothing is recoloured without approval.
+**Until light-background versions are approved,** the light theme shows the official dark-background logo on a small dark plate. Nothing is recoloured without approval. The same applies on fixed-colour surfaces that ignore the page theme, such as a light hero design shown on a dark page (13 Nov 2026).
 
 ## 3. Expense Now: approved identity (30 October 2026)
 

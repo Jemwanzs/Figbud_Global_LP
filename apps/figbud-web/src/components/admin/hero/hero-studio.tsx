@@ -1,14 +1,26 @@
 "use client";
 
-import { DEFAULT_HERO_CONFIG, HERO_DESIGNS, type HeroConfig, type HeroVariant } from "@figbud/site-kit";
+import { publicProducts } from "@figbud/brand";
+import {
+  DEFAULT_HERO_CONFIG,
+  HERO_DESIGNS,
+  HERO_PALETTE_KEYS,
+  type HeroConfig,
+  type HeroPaletteKey,
+  type HeroVariant,
+} from "@figbud/site-kit";
 import { cn } from "@figbud/ui";
 import {
+  ArrowDown,
+  ArrowUp,
   Copy,
   ExternalLink,
   Eye,
   Maximize2,
   Monitor,
   Moon,
+  Pause,
+  Play,
   Pencil,
   Smartphone,
   Sun,
@@ -23,6 +35,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { AdminError, ApprovalRecorded, type FieldError, adminFetch } from "@/lib/admin-client";
 import { useSavedBaseline, useUnsavedChangesWarning } from "@/lib/form-state";
 
+import { PALETTE_LABELS, PLATFORM_LOOKS, isPlatformDesign } from "../../home/heroes/platform-looks";
 import { ActionButton } from "../action-button";
 import type { HeroAdmin } from "./hero-types";
 
@@ -90,6 +103,8 @@ export function HeroStudio({ data, isOwner }: { data: HeroAdmin; isOwner: boolea
   const [draft, setDraft] = useState(data.draft);
   const [version, setVersion] = useState(data.draft_version);
   const [theme, setTheme] = useState<Theme>("dark");
+  // Preview only: hold the motion still (the variant's own setting is unchanged).
+  const [still, setStill] = useState(false);
   const [preview, setPreview] = useState<{ id: string; device: Device } | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -114,7 +129,7 @@ export function HeroStudio({ data, isOwner }: { data: HeroAdmin; isOwner: boolea
   }, [preview]);
 
   const src = (id: string, mode: Theme = theme) =>
-    `/admin/hero-preview/${slug}/${id}?theme=${mode}&v=${version}`;
+    `/admin/hero-preview/${slug}/${id}?theme=${mode}&v=${version}${still ? "&motion=off" : ""}`;
   const live = data.published;
   const ownName = `${data.site.name}'s own hero`;
   const editable = data.can_edit;
@@ -240,10 +255,19 @@ export function HeroStudio({ data, isOwner }: { data: HeroAdmin; isOwner: boolea
         <span className="text-xs text-muted">
           {live ? `Live: ${live.name} · version ${data.published_number}` : `Live: ${ownName}`}
         </span>
+        <button
+          type="button"
+          aria-pressed={still}
+          onClick={() => setStill((s) => !s)}
+          className="ms-auto inline-flex min-h-10 items-center gap-1.5 rounded-full border border-line bg-surface-2 px-3 text-sm text-muted hover:text-text"
+        >
+          {still ? <Play aria-hidden className="size-4" /> : <Pause aria-hidden className="size-4" />}
+          {still ? "Play motion" : "Pause motion"}
+        </button>
         <div
           role="radiogroup"
           aria-label="Preview theme"
-          className="ms-auto inline-flex gap-1 rounded-full border border-line bg-surface-2 p-1"
+          className="inline-flex gap-1 rounded-full border border-line bg-surface-2 p-1"
         >
           {(["light", "dark"] as const).map((t) => (
             <button
@@ -440,6 +464,18 @@ export function HeroStudio({ data, isOwner }: { data: HeroAdmin; isOwner: boolea
         >
           <div className="flex items-center justify-between gap-3">
             <h2 className="font-semibold text-text">{`Edit · ${HERO_DESIGNS[editingVariant.design].name}`}</h2>
+            {editable && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (!window.confirm(`Reset "${editingVariant.name}" to the design's defaults?`)) return;
+                  update(editingVariant.id, { config: { ...DEFAULT_HERO_CONFIG } });
+                }}
+                className="ms-auto min-h-10 rounded-lg px-3 text-sm font-medium text-accent hover:bg-accent-soft/60"
+              >
+                Reset to default
+              </button>
+            )}
             <button
               type="button"
               aria-label="Close editor"
@@ -504,7 +540,159 @@ export function HeroStudio({ data, isOwner }: { data: HeroAdmin; isOwner: boolea
               ["stacked", "Stacked"],
               ["compact", "Compact"],
             ])}
+            {choice("theme_mode", "Light and dark mode", [
+              ["design", "Keep the design's own look"],
+              ["site", "Follow the website's mode"],
+            ])}
           </div>
+          {editFields.includes("badges") && (
+            <fieldset className="mt-5">
+              <legend className="text-xs font-medium text-muted">
+                Badges under the buttons (empty keeps the approved ones)
+              </legend>
+              <div className="mt-1 grid gap-2 sm:grid-cols-3">
+                {[0, 1, 2].map((i) => (
+                  <input
+                    key={i}
+                    aria-label={`Badge ${i + 1}`}
+                    maxLength={40}
+                    disabled={!editable}
+                    value={editingVariant.config.badges?.[i] ?? ""}
+                    onChange={(e) => {
+                      const next = [0, 1, 2].map((j) =>
+                        j === i ? e.target.value : (editingVariant.config.badges?.[j] ?? ""),
+                      );
+                      setConfig(editingVariant.id, { badges: next.some((b) => b.trim()) ? next : [] });
+                    }}
+                    className={field}
+                  />
+                ))}
+              </div>
+            </fieldset>
+          )}
+          {editFields.includes("products") && (
+            <fieldset className="mt-5">
+              <legend className="text-xs font-medium text-muted">
+                Products shown, in order (none ticked shows every listed product)
+              </legend>
+              <ul className="mt-1 grid gap-1.5">
+                {(() => {
+                  const chosen = editingVariant.config.products ?? [];
+                  const order = [
+                    ...chosen.flatMap((s) => publicProducts.filter((p) => p.slug === s)),
+                    ...publicProducts.filter((p) => !chosen.includes(p.slug)),
+                  ];
+                  const move = (slug: string, by: number) => {
+                    const i = chosen.indexOf(slug);
+                    const next = [...chosen];
+                    const j = i + by;
+                    if (i < 0 || j < 0 || j >= next.length) return;
+                    [next[i], next[j]] = [next[j]!, next[i]!];
+                    setConfig(editingVariant.id, { products: next });
+                  };
+                  return order.map((p) => {
+                    const on = chosen.includes(p.slug);
+                    return (
+                      <li key={p.slug} className="flex items-center gap-2">
+                        <label className="flex min-h-10 flex-1 items-center gap-2 text-sm text-text">
+                          <input
+                            type="checkbox"
+                            checked={on}
+                            disabled={!editable}
+                            onChange={() =>
+                              setConfig(editingVariant.id, {
+                                products: on ? chosen.filter((s) => s !== p.slug) : [...chosen, p.slug],
+                              })
+                            }
+                            className="size-5 accent-[var(--accent)]"
+                          />
+                          {p.name}
+                        </label>
+                        {on && (
+                          <>
+                            <button
+                              type="button"
+                              aria-label={`Move ${p.name} up`}
+                              disabled={!editable || chosen.indexOf(p.slug) === 0}
+                              onClick={() => move(p.slug, -1)}
+                              className="inline-flex size-9 items-center justify-center rounded-lg text-muted hover:bg-surface-2 disabled:opacity-40"
+                            >
+                              <ArrowUp aria-hidden className="size-4" />
+                            </button>
+                            <button
+                              type="button"
+                              aria-label={`Move ${p.name} down`}
+                              disabled={!editable || chosen.indexOf(p.slug) === chosen.length - 1}
+                              onClick={() => move(p.slug, 1)}
+                              className="inline-flex size-9 items-center justify-center rounded-lg text-muted hover:bg-surface-2 disabled:opacity-40"
+                            >
+                              <ArrowDown aria-hidden className="size-4" />
+                            </button>
+                          </>
+                        )}
+                      </li>
+                    );
+                  });
+                })()}
+              </ul>
+            </fieldset>
+          )}
+          {editFields.includes("palette") && isPlatformDesign(editingVariant.design) && (
+            <fieldset className="mt-5">
+              <legend className="text-xs font-medium text-muted">
+                {editingVariant.config.theme_mode === "site"
+                  ? "Colours (following the website's mode: an override here still applies)"
+                  : "Colours (the design's own; change any, or reset it)"}
+              </legend>
+              <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                {HERO_PALETTE_KEYS.map((key: HeroPaletteKey) => {
+                  const design = PLATFORM_LOOKS[editingVariant.design as keyof typeof PLATFORM_LOOKS];
+                  const own = editingVariant.config.palette?.[key];
+                  const id = `${uid}-colour-${key}`;
+                  return (
+                    <div key={key} className="flex items-center gap-2">
+                      <input
+                        id={id}
+                        type="color"
+                        disabled={!editable}
+                        aria-describedby={own ? undefined : `${id}-hint`}
+                        value={own ?? design.palette[key]}
+                        onChange={(e) =>
+                          setConfig(editingVariant.id, {
+                            palette: { ...editingVariant.config.palette, [key]: e.target.value },
+                          })
+                        }
+                        className="h-10 w-12 shrink-0 cursor-pointer rounded-lg border border-line bg-surface"
+                      />
+                      <span className="min-w-0 flex-1 text-sm text-text">
+                        <label htmlFor={id}>{PALETTE_LABELS[key]}</label>
+                        {!own && (
+                          <span id={`${id}-hint`} className="block text-xs text-subtle">
+                            Design default
+                          </span>
+                        )}
+                      </span>
+                      {own && (
+                        <button
+                          type="button"
+                          disabled={!editable}
+                          onClick={() => {
+                            const rest = Object.fromEntries(
+                              Object.entries(editingVariant.config.palette ?? {}).filter(([k]) => k !== key),
+                            );
+                            setConfig(editingVariant.id, { palette: rest });
+                          }}
+                          className="min-h-9 rounded-lg px-2 text-xs font-medium text-accent hover:bg-accent-soft/60"
+                        >
+                          Reset<span className="sr-only"> {PALETTE_LABELS[key]}</span>
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </fieldset>
+          )}
           {editFields.includes("motion") && (
             <label className="mt-4 inline-flex min-h-10 items-center gap-2 text-sm text-text">
               <input
@@ -554,6 +742,20 @@ export function HeroStudio({ data, isOwner }: { data: HeroAdmin; isOwner: boolea
                 onClick={save}
               >
                 Save draft
+              </ActionButton>
+            )}
+            {editable && dirty && (
+              <ActionButton
+                variant="ghost"
+                ready
+                onClick={() => {
+                  if (!window.confirm("Discard your unsaved changes?")) return;
+                  setDraft(data.draft);
+                  markSaved(data.draft);
+                  setMessage({ tone: "ok", text: "Changes discarded: back to the saved draft." });
+                }}
+              >
+                Discard changes
               </ActionButton>
             )}
             {!review && editable && (

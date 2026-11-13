@@ -41,7 +41,7 @@ async function Preview({
   const user = await requireAdmin();
   if (user === "unavailable") return <AdminUnavailable standalone />;
   const { slug, variant: id } = await params;
-  const { theme } = await searchParams;
+  const { theme, motion } = await searchParams;
   if (!SLUG.test(slug) || !ID.test(id)) notFound();
   const { status, data } = await adminGet<HeroAdmin>(`sites/${slug}/hero`);
   if (status === 404 || !data) notFound();
@@ -80,8 +80,11 @@ async function Preview({
       </>
     );
   }
-  const variant: HeroVariant | undefined = data.draft.variants.find((v) => v.id === id);
-  if (!variant) notFound();
+  const found: HeroVariant | undefined = data.draft.variants.find((v) => v.id === id);
+  if (!found) notFound();
+  // `?motion=off`: the Studio's "Pause motion" holds this frame still; the saved setting is unchanged.
+  const variant: HeroVariant =
+    motion === "off" ? { ...found, config: { ...found.config, motion: false } } : found;
   return (
     <>
       {/* This frame's theme only: nothing is written to the visitor's preferences. */}

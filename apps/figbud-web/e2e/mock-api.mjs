@@ -3921,7 +3921,17 @@ function pricingRoutes(path, req, body, user, send) {
 // Mirrors services/api/src/heroes.rs: each website's own hero collection,
 // drafts, approval, exactly one published variant, versions and rollback.
 const HERO_DESIGNS = {
-  figbud: ["ecosystem", "cinematic", "universe", "edition"],
+  figbud: [
+    "ecosystem",
+    "cinematic",
+    "universe",
+    "edition",
+    "emerald",
+    "digital",
+    "ecosystem_light",
+    "orbit",
+    "dark_enterprise",
+  ],
   zirahr: ["workforce", "payroll", "journey", "chapters"],
 };
 const HERO_NAMES = {
@@ -3933,7 +3943,24 @@ const HERO_NAMES = {
   journey: "The Employee Journey",
   edition: "The FigBud Edition",
   chapters: "People, in Chapters",
+  emerald: "Emerald Innovation",
+  digital: "Digital Future",
+  ecosystem_light: "Connected Ecosystem · Light",
+  orbit: "Enterprise Orbit",
+  dark_enterprise: "Dark Enterprise",
 };
+const HERO_PALETTE_KEYS = [
+  "background",
+  "background_2",
+  "heading",
+  "accent",
+  "text",
+  "button",
+  "button_text",
+  "card",
+  "card_border",
+  "glow",
+];
 const HERO_DEFAULT = {
   motion: true,
   speed: "normal",
@@ -3942,6 +3969,10 @@ const HERO_DEFAULT = {
   align: "start",
   accent: "brand",
   mobile_layout: "stacked",
+  theme_mode: "design",
+  badges: [],
+  products: [],
+  palette: {},
 };
 // Payroll Calculator (services/api/src/payroll): one engine, dated rules, the
 // verification gate, approval and the public switch. Rates are percentages.
@@ -4303,6 +4334,32 @@ function heroRoutes(slug, action, req, body, user, send) {
             message:
               "Buttons go to a page path such as /contact, a section such as #platforms, or an https:// address.",
           });
+      const c = v.config ?? {};
+      if (c.badges) c.badges = c.badges.map((b) => String(b).trim()).filter(Boolean);
+      if ((c.badges ?? []).length > 3 || (c.badges ?? []).some((b) => b.length > 40))
+        fields.push({
+          field: "badges",
+          code: "length",
+          message: "Up to three short statements (40 characters each).",
+        });
+      const prods = c.products ?? [];
+      if (
+        prods.length > 6 ||
+        new Set(prods).size !== prods.length ||
+        prods.some((p) => !/^[a-z0-9_]{1,30}$/.test(p))
+      )
+        fields.push({ field: "products", code: "invalid", message: "Choose up to six products, each once." });
+      for (const [key, value] of Object.entries(c.palette ?? {})) {
+        c.palette[key] = String(value).trim().toLowerCase();
+        if (!HERO_PALETTE_KEYS.includes(key) || !/^#[0-9a-f]{6}$/.test(c.palette[key])) {
+          fields.push({
+            field: "palette",
+            code: "invalid",
+            message: "Colours are hex values such as #f7933a, for the listed parts of the design.",
+          });
+          break;
+        }
+      }
       if ((v.config?.headline ?? "").length > 90)
         fields.push({
           field: "headline",

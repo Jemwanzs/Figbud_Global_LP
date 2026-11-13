@@ -347,7 +347,22 @@ async fn a_design_added_later_is_offered_once_in_a_saved_draft() {
     figbud_api::heroes::offer_added_designs(&pool).await.unwrap();
     let now = draft().await;
     let list = variants(&now);
-    assert_eq!(list.len(), 4);
+    // The editorial design, then the five platform heroes (13 Nov 2026), each once.
+    assert_eq!(list.len(), 9);
+    let added: Vec<_> = list[4..]
+        .iter()
+        .map(|(_, design, name)| (design.as_str(), name.as_str()))
+        .collect();
+    assert_eq!(
+        added,
+        [
+            ("emerald", "05 · Emerald Innovation"),
+            ("digital", "06 · Digital Future"),
+            ("ecosystem_light", "07 · Connected Ecosystem · Light"),
+            ("orbit", "08 · Enterprise Orbit"),
+            ("dark_enterprise", "09 · Dark Enterprise"),
+        ]
+    );
     assert_eq!(
         list[3],
         (

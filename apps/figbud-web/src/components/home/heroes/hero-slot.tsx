@@ -7,6 +7,8 @@ import type { Dictionary } from "@/i18n/get-dictionary";
 import { Hero } from "../hero";
 import { CinematicHero } from "./cinematic-hero";
 import { EditionHero } from "./edition-hero";
+import { PlatformHero } from "./platform-hero";
+import { isPlatformDesign } from "./platform-looks";
 import { UniverseHero } from "./universe-hero";
 
 /**
@@ -35,5 +37,8 @@ export function HeroSlot({
     );
   if (hero?.design === "universe") return <UniverseHero {...props} config={hero.config} />;
   if (hero?.design === "edition") return <EditionHero {...props} config={hero.config} />;
+  // The five platform heroes (owner's brief, 13 Nov 2026).
+  if (hero && isPlatformDesign(hero.design))
+    return <PlatformHero {...props} design={hero.design} config={hero.config} />;
   return <Hero {...props} config={hero?.design === "ecosystem" ? hero.config : undefined} />;
 }

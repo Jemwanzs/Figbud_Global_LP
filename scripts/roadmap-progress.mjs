@@ -132,6 +132,7 @@ const ROWS = {
   "P10-V1": ["figbud", "zirahr"],
   // Hero collections: ZiraHR's designs are the ZiraHR website's; other products are on hold.
   "P12-H5": ["zirahr", "studio"],
+  "P12-H7": ["figbud", "studio"],
   "P12-H6": [],
 };
 

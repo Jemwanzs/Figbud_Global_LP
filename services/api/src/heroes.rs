@@ -36,7 +36,21 @@ use crate::{
 
 /// Each website's hero collection, in order (the first is the default).
 pub const DESIGNS: &[(&str, &[&str])] = &[
-    ("figbud", &["ecosystem", "cinematic", "universe", "edition"]),
+    (
+        "figbud",
+        &[
+            "ecosystem",
+            "cinematic",
+            "universe",
+            "edition",
+            // Owner's brief, 13 Nov 2026: five platform heroes.
+            "emerald",
+            "digital",
+            "ecosystem_light",
+            "orbit",
+            "dark_enterprise",
+        ],
+    ),
     ("zirahr", &["workforce", "payroll", "journey", "chapters"]),
 ];
 
@@ -45,6 +59,11 @@ pub const DESIGNS: &[(&str, &[&str])] = &[
 const ADDED: &[(&str, &str, &str)] = &[
     ("figbud", "edition", "hero.edition_added"),
     ("zirahr", "chapters", "hero.chapters_added"),
+    ("figbud", "emerald", "hero.emerald_added"),
+    ("figbud", "digital", "hero.digital_added"),
+    ("figbud", "ecosystem_light", "hero.ecosystem_light_added"),
+    ("figbud", "orbit", "hero.orbit_added"),
+    ("figbud", "dark_enterprise", "hero.dark_enterprise_added"),
 ];
 
 pub fn designs_for(slug: &str) -> &'static [&'static str] {
@@ -55,7 +74,7 @@ pub fn designs_for(slug: &str) -> &'static [&'static str] {
         .unwrap_or(&[])
 }
 
-const MAX_VARIANTS: usize = 9;
+const MAX_VARIANTS: usize = 12;
 
 /// The website's own hero (owner's brief, 12 Nov 2026): the hero it renders
 /// without a published design (a product website's home page hero section,
@@ -118,6 +137,32 @@ pub enum MobileLayout {
     Compact,
 }
 
+/// How a hero meets the website's light and dark modes (owner's brief, 13 Nov
+/// 2026): its own intended look whatever the visitor chose, or the website's.
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum ThemeMode {
+    #[default]
+    Design,
+    Site,
+}
+
+/// Colours a platform hero lets an editor override; each has the design's default.
+pub const PALETTE_KEYS: [&str; 10] = [
+    "background",
+    "background_2",
+    "heading",
+    "accent",
+    "text",
+    "button",
+    "button_text",
+    "card",
+    "card_border",
+    "glow",
+];
+const MAX_BADGES: usize = 3;
+const MAX_PRODUCTS: usize = 6;
+
 /// A variant's settings. Unset text keeps the design's approved copy.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 #[serde(default, deny_unknown_fields)]
@@ -139,6 +184,14 @@ pub struct HeroConfig {
     pub mobile_layout: MobileLayout,
     /// Background image from the website's media library (designs that use one).
     pub background_image_id: Option<Uuid>,
+    /// Platform heroes: the design's own look, or the website's light or dark mode.
+    pub theme_mode: ThemeMode,
+    /// Short trust statements under the buttons; none keeps the approved ones.
+    pub badges: Vec<String>,
+    /// Products shown, in order (registry slugs); none shows every listed product.
+    pub products: Vec<String>,
+    /// Colour overrides (`PALETTE_KEYS`, `#rrggbb`); a missing key keeps the design's.
+    pub palette: std::collections::BTreeMap<String, String>,
 }
 
 impl Default for HeroConfig {
@@ -160,6 +213,10 @@ impl Default for HeroConfig {
             accent: Accent::Brand,
             mobile_layout: MobileLayout::Stacked,
             background_image_id: None,
+            theme_mode: ThemeMode::Design,
+            badges: Vec::new(),
+            products: Vec::new(),
+            palette: std::collections::BTreeMap::new(),
         }
     }
 }
@@ -209,6 +266,12 @@ pub fn design_name(design: &str) -> &'static str {
         "journey" => "The Employee Journey",
         "edition" => "The FigBud Edition",
         "chapters" => "People, in Chapters",
+        "emerald" => "Emerald Innovation",
+        "digital" => "Digital Future",
+        // The live hero is "Connected Ecosystem"; this light, orbital one is its own design.
+        "ecosystem_light" => "Connected Ecosystem · Light",
+        "orbit" => "Enterprise Orbit",
+        "dark_enterprise" => "Dark Enterprise",
         _ => "Hero",
     }
 }
@@ -239,7 +302,7 @@ impl HeroDraft {
         let designs = designs_for(slug);
         let mut e = Vec::new();
         if self.variants.is_empty() || self.variants.len() > MAX_VARIANTS {
-            e.push(field("variants", "count", "Keep between 1 and 9 hero variants."));
+            e.push(field("variants", "count", "Keep between 1 and 12 hero variants."));
         }
         let mut ids = std::collections::HashSet::new();
         for v in &mut self.variants {
@@ -298,6 +361,48 @@ impl HeroDraft {
                     "length",
                     "Button labels up to 32 characters.",
                 ));
+            }
+            for badge in &mut c.badges {
+                *badge = badge.trim().to_owned();
+            }
+            c.badges.retain(|b| !b.is_empty());
+            if c.badges.len() > MAX_BADGES || c.badges.iter().any(|b| b.chars().count() > 40) {
+                e.push(field(
+                    "badges",
+                    "length",
+                    "Up to three short statements (40 characters each).",
+                ));
+            }
+            let mut seen = std::collections::HashSet::new();
+            if c.products.len() > MAX_PRODUCTS
+                || c.products.iter().any(|p| {
+                    p.is_empty()
+                        || p.len() > 30
+                        || !p
+                            .bytes()
+                            .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'_')
+                        || !seen.insert(p.clone())
+                })
+            {
+                e.push(field(
+                    "products",
+                    "invalid",
+                    "Choose up to six products, each once.",
+                ));
+            }
+            for (key, value) in &mut c.palette {
+                *value = value.trim().to_ascii_lowercase();
+                let hex = value.len() == 7
+                    && value.starts_with('#')
+                    && value[1..].bytes().all(|b| b.is_ascii_hexdigit());
+                if !PALETTE_KEYS.contains(&key.as_str()) || !hex {
+                    e.push(field(
+                        "palette",
+                        "invalid",
+                        "Colours are hex values such as #f7933a, for the listed parts of the design.",
+                    ));
+                    break;
+                }
             }
             for href in [&c.primary_href, &c.secondary_href].into_iter().flatten() {
                 let anchor = href.starts_with('#') && href.len() > 1 && href.len() <= 60;
@@ -834,7 +939,20 @@ mod tests {
     fn each_website_starts_with_its_own_collection() {
         let figbud = HeroDraft::starting("figbud");
         let designs: Vec<_> = figbud.variants.iter().map(|v| v.design.as_str()).collect();
-        assert_eq!(designs, ["ecosystem", "cinematic", "universe", "edition"]);
+        assert_eq!(
+            designs,
+            [
+                "ecosystem",
+                "cinematic",
+                "universe",
+                "edition",
+                "emerald",
+                "digital",
+                "ecosystem_light",
+                "orbit",
+                "dark_enterprise"
+            ]
+        );
         assert_eq!(figbud.selected, "v1");
         assert_eq!(figbud.variants[0].name, "01 · Connected Ecosystem");
         let zirahr = HeroDraft::starting("zirahr");
@@ -870,6 +988,50 @@ mod tests {
         assert!(codes.contains(&("primary_href", "href")));
         assert!(codes.contains(&("lead", "length")));
         assert!(codes.contains(&("selected", "missing")));
+    }
+
+    #[test]
+    fn platform_heroes_check_their_colours_badges_and_products() {
+        let mut d = HeroDraft::starting("figbud");
+        let designs: Vec<_> = d.variants.iter().map(|v| v.design.as_str()).collect();
+        assert_eq!(designs.len(), 9);
+        assert!(designs.contains(&"emerald") && designs.contains(&"dark_enterprise"));
+        assert_eq!(d.variants[6].name, "07 · Connected Ecosystem · Light");
+        let c = &mut d.variants[4].config;
+        c.theme_mode = ThemeMode::Site;
+        c.badges = vec![" Built in Kenya ".into(), "".into()];
+        c.products = vec!["zirahr".into(), "jasiri".into()];
+        c.palette.insert("accent".into(), " #F7933A ".into());
+        let ok = d.clone().normalise("figbud").unwrap();
+        let c = &ok.variants[4].config;
+        assert_eq!(c.badges, ["Built in Kenya"]);
+        assert_eq!(c.palette["accent"], "#f7933a");
+        let snapshot = ok.snapshot().unwrap();
+        assert!(snapshot.is_object());
+        for (key, value) in [("accent", "orange"), ("url", "#ffffff")] {
+            let mut bad = d.clone();
+            bad.variants[4].config.palette = [(key.to_owned(), value.to_owned())].into();
+            let codes: Vec<_> = bad
+                .normalise("figbud")
+                .unwrap_err()
+                .iter()
+                .map(|e| e.code)
+                .collect();
+            assert_eq!(codes, ["invalid"], "{key}");
+        }
+        let mut bad = d.clone();
+        bad.variants[4].config.products = vec!["zirahr".into(), "zirahr".into()];
+        assert!(bad.normalise("figbud").is_err());
+        let mut bad = d.clone();
+        bad.variants[4].config.badges = vec!["x".repeat(41)];
+        assert!(bad.normalise("figbud").is_err());
+        // Old drafts without the new settings still read.
+        let old: Variant = serde_json::from_value(
+            json!({ "id": "v1", "design": "ecosystem", "name": "Hero", "config": { "motion": true } }),
+        )
+        .unwrap();
+        assert_eq!(old.config.theme_mode, ThemeMode::Design);
+        assert!(old.config.palette.is_empty());
     }
 
     #[test]

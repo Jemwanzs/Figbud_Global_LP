@@ -1467,3 +1467,12 @@ body:has(main [data-section="call_to_action"]:last-child) footer {
     transition: none;
   }
 }
+
+/* A fixed surface (BrandLogo `on`) whose own file is missing: the other
+   background's file on a plate of that background, never altered. */
+.fb-brand-plate-dark {
+  background: var(--fb-ink);
+}
+.fb-brand-plate-light {
+  background: var(--fb-paper);
+}
