@@ -28,16 +28,30 @@ const contrast = (a: string, b: string) => {
 };
 
 const DARK = ':root,\n[data-theme="dark"],';
-const LIGHT = '\n[data-theme="light"],\n[data-theme="dark"] [data-tone="inverse"]';
+const LIGHT =
+  '\n[data-theme="light"],\n[data-theme="dark"] :is([data-tone="inverse"], [data-tone-dark="inverse"])';
 const dark = block(DARK);
 const light = block(LIGHT);
 
 describe("contrasting surfaces (UI-TH3)", () => {
   const selectors = (start: string) => css.slice(css.indexOf(start), css.indexOf("{", css.indexOf(start)));
   it("take the other theme's colours, and the page's own again inside two", () => {
-    expect(selectors(DARK)).toContain('[data-theme="light"] [data-tone="inverse"]');
-    expect(selectors(DARK)).toContain('[data-theme="dark"] [data-tone="inverse"] [data-tone="inverse"]');
-    expect(selectors(LIGHT)).toContain('[data-theme="light"] [data-tone="inverse"] [data-tone="inverse"]');
+    const lightInverse = '[data-theme="light"] :is([data-tone="inverse"], [data-tone-light="inverse"])';
+    const darkInverse = '[data-theme="dark"] :is([data-tone="inverse"], [data-tone-dark="inverse"])';
+    expect(selectors(DARK)).toContain(lightInverse);
+    expect(selectors(DARK)).toContain(`${darkInverse} [data-tone="inverse"]`);
+    expect(selectors(LIGHT)).toContain(`${lightInverse} [data-tone="inverse"]`);
+  });
+
+  it("count a section inverted on one theme only (a home band kept light or dark) as inverse there", () => {
+    // data-tone-light: dark on the light theme; data-tone-dark: light on the dark theme.
+    const first = (start: string) => selectors(start).split(",\n");
+    expect(first(DARK)).toContain(
+      '[data-theme="light"] :is([data-tone="inverse"], [data-tone-light="inverse"])',
+    );
+    expect(first(LIGHT)).toContain(
+      '[data-theme="dark"] :is([data-tone="inverse"], [data-tone-dark="inverse"])',
+    );
   });
 });
 
