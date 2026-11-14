@@ -1,11 +1,12 @@
 "use client";
 
 import {
+  type BandLook,
   type BandTone,
   HOME_SECTIONS,
   type HomeSection,
   type SectionThemes,
-  sectionTones,
+  sectionLooks,
 } from "@figbud/site-kit";
 import { cn, fieldClasses } from "@figbud/ui";
 import { ExternalLink } from "lucide-react";
@@ -27,12 +28,29 @@ const clean = (themes: Partial<Record<string, BandTone>> | null | undefined): Se
     Object.entries(themes ?? {}).filter(([key]) => (ALL as readonly string[]).includes(key)),
   ) as SectionThemes;
 
-/** The page's bands in one global theme, as a strip: dark or light swatches in order. */
-function Strip({ theme, tones }: { theme: "dark" | "light"; tones: Partial<Record<HomeSection, BandTone>> }) {
-  const dark = (tone: BandTone) => (theme === "dark") === (tone === "follow");
-  const rows: { label: string; isDark: boolean }[] = [
-    { label: "Hero (follows the global theme)", isDark: theme === "dark" },
-    ...HOME_SECTIONS.map((s) => ({ label: s.label, isDark: dark(tones[s.key] ?? "follow") })),
+/** Every style a section can have (owner's brief, 14 Nov 2026). */
+const CHOICES: { value: Choice; label: string }[] = [
+  { value: "auto", label: "Auto (alternates)" },
+  { value: "light", label: "Light" },
+  { value: "dark", label: "Dark" },
+  { value: "brand", label: "Brand band" },
+  { value: "soft", label: "Soft band" },
+  { value: "follow", label: "Same as the visitor's theme" },
+  { value: "inverse", label: "Opposite of the visitor's theme" },
+];
+
+const LOOK_LABEL: Record<BandLook, string> = {
+  light: "Light",
+  dark: "Dark",
+  brand: "Brand band",
+  soft: "Soft band",
+};
+
+/** The page's bands in one global theme, as a strip: each section's look, in order. */
+function Strip({ theme, looks }: { theme: "dark" | "light"; looks: Partial<Record<HomeSection, BandLook>> }) {
+  const rows: { label: string; look: BandLook }[] = [
+    { label: "Hero (follows the global theme)", look: theme },
+    ...HOME_SECTIONS.map((s) => ({ label: s.label, look: looks[s.key] ?? theme })),
   ];
   return (
     <figure className="min-w-0 flex-1">
@@ -43,14 +61,25 @@ function Strip({ theme, tones }: { theme: "dark" | "light"; tones: Partial<Recor
         {rows.map((row) => (
           <li
             key={row.label}
-            data-band-dark={row.isDark || undefined}
+            data-band-dark={
+              row.look === "dark" ||
+              row.look === "brand" ||
+              (row.look === "soft" && theme === "dark") ||
+              undefined
+            }
+            data-look={row.look}
             className={cn(
               "flex items-center justify-between gap-3 px-4 py-2.5 text-xs",
-              row.isDark ? "bg-[#020617] text-[#f8fafc]" : "bg-[#f8fafc] text-[#0f172a]",
+              row.look === "light" && "bg-[#f8fafc] text-[#0f172a]",
+              row.look === "dark" && "bg-[#020617] text-[#f8fafc]",
+              // The website's own band colours (Colours & themes → Section bands).
+              row.look === "brand" && "bg-[#1e293b] text-[#f8fafc]",
+              row.look === "soft" &&
+                (theme === "dark" ? "bg-[#1e293b]/60 text-[#f8fafc]" : "bg-[#e2e8f0] text-[#0f172a]"),
             )}
           >
             <span>{row.label}</span>
-            <span className="opacity-70">{row.isDark ? "Dark" : "Light"}</span>
+            <span className="opacity-70">{LOOK_LABEL[row.look]}</span>
           </li>
         ))}
       </ol>
@@ -78,7 +107,8 @@ export function SectionThemesEditor({ slug, data }: { slug: string; data: Websit
   const { dirty, markSaved } = useSavedBaseline(form);
   useUnsavedChangesWarning(canEdit && dirty);
   const unpublished = !sameValue(form, published);
-  const tones = sectionTones(ALL, form);
+  const onLight = sectionLooks(ALL, form, "light");
+  const onDark = sectionLooks(ALL, form, "dark");
 
   const choose = (key: HomeSection, choice: Choice) =>
     setForm((f) => {
@@ -127,9 +157,11 @@ export function SectionThemesEditor({ slug, data }: { slug: string; data: Websit
       <section className="fb-panel rounded-[var(--radius-panel)] p-5 sm:p-6">
         <h2 className="font-semibold text-text">Each section</h2>
         <p className="mt-1 text-sm text-muted">
-          Automatic alternates with the section before it, starting opposite the hero. Sections that
-          aren&apos;t on the page (customer proof before anything is published) are skipped, so neighbours
-          never match.
+          Auto alternates with the section before it, starting opposite the hero, in the visitor&apos;s light
+          or dark theme. Sections that aren&apos;t on the page (Trusted By and customer proof before anything
+          is published) are skipped, so neighbours never match. Light and Dark keep a section that way in both
+          themes; the brand and soft bands use the colours in Colours &amp; themes → Section bands. Keep Auto
+          unless a section&apos;s design needs a particular background.
         </p>
         <ul className="mt-4 divide-y divide-line">
           {HOME_SECTIONS.map((section) => {
@@ -139,7 +171,7 @@ export function SectionThemesEditor({ slug, data }: { slug: string; data: Websit
                 <label htmlFor={`${uid}-${section.key}`} className="min-w-0 flex-1 text-sm text-text">
                   {section.label}
                   <span className="block text-xs text-subtle">
-                    {`Now: ${tones[section.key] === "inverse" ? "opposite the global theme" : "follows the global theme"}`}
+                    {`Now: ${LOOK_LABEL[onLight[section.key] ?? "light"].toLowerCase()} on the light theme, ${LOOK_LABEL[onDark[section.key] ?? "dark"].toLowerCase()} on the dark theme`}
                   </span>
                 </label>
                 <select
@@ -149,9 +181,11 @@ export function SectionThemesEditor({ slug, data }: { slug: string; data: Websit
                   onChange={(e) => choose(section.key, e.target.value as Choice)}
                   className={fieldClasses("min-h-11 w-full px-3 sm:w-64")}
                 >
-                  <option value="auto">Automatic (alternate)</option>
-                  <option value="follow">Follow the global theme</option>
-                  <option value="inverse">Opposite the global theme</option>
+                  {CHOICES.map((c) => (
+                    <option key={c.value} value={c.value}>
+                      {c.label}
+                    </option>
+                  ))}
                 </select>
               </li>
             );
@@ -165,8 +199,8 @@ export function SectionThemesEditor({ slug, data }: { slug: string; data: Websit
           How the home page&apos;s bands fall for each visitor, with these choices.
         </p>
         <div className="mt-4 flex flex-col gap-4 sm:flex-row">
-          <Strip theme="dark" tones={tones} />
-          <Strip theme="light" tones={tones} />
+          <Strip theme="dark" looks={onDark} />
+          <Strip theme="light" looks={onLight} />
         </div>
       </section>
 
@@ -188,6 +222,17 @@ export function SectionThemesEditor({ slug, data }: { slug: string; data: Websit
             onClick={() => save("publish")}
           >
             Publish
+          </ActionButton>
+          <ActionButton
+            variant="ghost"
+            ready={Object.keys(form).length > 0}
+            hint="Every section alternates automatically"
+            onClick={() => {
+              setForm({});
+              setMessage({ tone: "ok", text: "Every section is on Auto. Save or publish to keep it." });
+            }}
+          >
+            Restore automatic alternation
           </ActionButton>
           <a
             href="/en"

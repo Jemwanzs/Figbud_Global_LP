@@ -53,8 +53,11 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
   ]);
   // Alternating bands (UI-TH6): the hero follows the global theme, Our Platforms
   // takes the opposite, and the sections on the page alternate from there.
+  // Trusted By is its own band (owner's brief, 14 Nov 2026), once a published
+  // organisation has a logo to show.
   const present: HomeSection[] = [
     "platforms",
+    ...(proof.organizations.some((o) => o.logo) ? (["trusted"] as const) : []),
     "philosophy",
     "africa",
     "engineer",
@@ -87,7 +90,7 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
         />
       </Suspense>
       <Suspense>
-        <TrustedBySection tone={tone.platforms} locale={locale} dict={dict} proof={proof} />
+        <TrustedBySection tone={tone.trusted} locale={locale} dict={dict} proof={proof} />
       </Suspense>
       <Suspense>
         <PhilosophySection tone={tone.philosophy} locale={locale} dict={dict} />

@@ -7,7 +7,10 @@
  *
  * `data-tone="inverse"` marks a contrasting surface (UI-TH3): it takes the
  * other theme's colours, so a light panel on a dark page becomes a dark panel
- * on a light page. Inside two of them, the page's own theme returns. One theme
+ * on a light page. Inside two of them, the page's own theme returns.
+ * `data-tone-light="inverse"` / `data-tone-dark="inverse"` invert on that
+ * theme only (a home band kept dark, or light, whatever the visitor's theme;
+ * `section-themes.ts`). One theme
  * engine: these follow `html[data-theme]` through CSS alone, so nothing waits
  * for JavaScript and nothing flashes on load.
  */
@@ -43,8 +46,8 @@
 
 :root,
 [data-theme="dark"],
-[data-theme="light"] [data-tone="inverse"],
-[data-theme="dark"] [data-tone="inverse"] [data-tone="inverse"],
+[data-theme="light"] :is([data-tone="inverse"], [data-tone-light="inverse"]),
+[data-theme="dark"] :is([data-tone="inverse"], [data-tone-dark="inverse"]) [data-tone="inverse"],
 [data-studio][data-theme="dark"] [data-site-preview] {
   color-scheme: dark;
   /* Studio-only tokens fall back to the accent everywhere else. */
@@ -81,8 +84,8 @@
 }
 
 [data-theme="light"],
-[data-theme="dark"] [data-tone="inverse"],
-[data-theme="light"] [data-tone="inverse"] [data-tone="inverse"],
+[data-theme="dark"] :is([data-tone="inverse"], [data-tone-dark="inverse"]),
+[data-theme="light"] :is([data-tone="inverse"], [data-tone-light="inverse"]) [data-tone="inverse"],
 [data-studio][data-theme="light"] [data-site-preview] {
   color-scheme: light;
   --action: initial;
@@ -194,36 +197,60 @@
    home page) takes the band's colours: the light-background text on a light
    band over a dark page, the dark-background text on a dark band over a light
    page; inside two bands, the page's own again. */
-[data-theme="dark"] [data-tone="inverse"] [data-product="zirahr"],
-[data-theme="light"] [data-tone="inverse"] [data-tone="inverse"] [data-product="zirahr"] {
+[data-theme="dark"] :is([data-tone="inverse"], [data-tone-dark="inverse"]) [data-product="zirahr"],
+[data-theme="light"]
+  :is([data-tone="inverse"], [data-tone-light="inverse"])
+  [data-tone="inverse"]
+  [data-product="zirahr"] {
   --product-text: #9a4f17;
 }
-[data-theme="light"] [data-tone="inverse"] [data-product="zirahr"],
-[data-theme="dark"] [data-tone="inverse"] [data-tone="inverse"] [data-product="zirahr"] {
+[data-theme="light"] :is([data-tone="inverse"], [data-tone-light="inverse"]) [data-product="zirahr"],
+[data-theme="dark"]
+  :is([data-tone="inverse"], [data-tone-dark="inverse"])
+  [data-tone="inverse"]
+  [data-product="zirahr"] {
   --product-text: #f9a65c;
 }
-[data-theme="dark"] [data-tone="inverse"] [data-product="jasiri"],
-[data-theme="light"] [data-tone="inverse"] [data-tone="inverse"] [data-product="jasiri"] {
+[data-theme="dark"] :is([data-tone="inverse"], [data-tone-dark="inverse"]) [data-product="jasiri"],
+[data-theme="light"]
+  :is([data-tone="inverse"], [data-tone-light="inverse"])
+  [data-tone="inverse"]
+  [data-product="jasiri"] {
   --product-text: #15803d;
 }
-[data-theme="light"] [data-tone="inverse"] [data-product="jasiri"],
-[data-theme="dark"] [data-tone="inverse"] [data-tone="inverse"] [data-product="jasiri"] {
+[data-theme="light"] :is([data-tone="inverse"], [data-tone-light="inverse"]) [data-product="jasiri"],
+[data-theme="dark"]
+  :is([data-tone="inverse"], [data-tone-dark="inverse"])
+  [data-tone="inverse"]
+  [data-product="jasiri"] {
   --product-text: #4ade80;
 }
-[data-theme="dark"] [data-tone="inverse"] [data-product="ziwa"],
-[data-theme="light"] [data-tone="inverse"] [data-tone="inverse"] [data-product="ziwa"] {
+[data-theme="dark"] :is([data-tone="inverse"], [data-tone-dark="inverse"]) [data-product="ziwa"],
+[data-theme="light"]
+  :is([data-tone="inverse"], [data-tone-light="inverse"])
+  [data-tone="inverse"]
+  [data-product="ziwa"] {
   --product-text: #a8480c;
 }
-[data-theme="light"] [data-tone="inverse"] [data-product="ziwa"],
-[data-theme="dark"] [data-tone="inverse"] [data-tone="inverse"] [data-product="ziwa"] {
+[data-theme="light"] :is([data-tone="inverse"], [data-tone-light="inverse"]) [data-product="ziwa"],
+[data-theme="dark"]
+  :is([data-tone="inverse"], [data-tone-dark="inverse"])
+  [data-tone="inverse"]
+  [data-product="ziwa"] {
   --product-text: #fb7a1a;
 }
-[data-theme="dark"] [data-tone="inverse"] [data-product="expense_now"],
-[data-theme="light"] [data-tone="inverse"] [data-tone="inverse"] [data-product="expense_now"] {
+[data-theme="dark"] :is([data-tone="inverse"], [data-tone-dark="inverse"]) [data-product="expense_now"],
+[data-theme="light"]
+  :is([data-tone="inverse"], [data-tone-light="inverse"])
+  [data-tone="inverse"]
+  [data-product="expense_now"] {
   --product-text: #a84f00;
 }
-[data-theme="light"] [data-tone="inverse"] [data-product="expense_now"],
-[data-theme="dark"] [data-tone="inverse"] [data-tone="inverse"] [data-product="expense_now"] {
+[data-theme="light"] :is([data-tone="inverse"], [data-tone-light="inverse"]) [data-product="expense_now"],
+[data-theme="dark"]
+  :is([data-tone="inverse"], [data-tone-dark="inverse"])
+  [data-tone="inverse"]
+  [data-product="expense_now"] {
   --product-text: #ff8a1f;
 }
 
@@ -315,52 +342,92 @@
 }
 
 /* Product text on contrasting surfaces follows the surface, not the page. */
-[data-theme="dark"] [data-product="zirahr"] [data-tone="inverse"],
-[data-theme="dark"][data-product="zirahr"] [data-tone="inverse"],
-[data-theme="light"] [data-product="zirahr"] [data-tone="inverse"] [data-tone="inverse"],
-[data-theme="light"][data-product="zirahr"] [data-tone="inverse"] [data-tone="inverse"] {
+[data-theme="dark"] [data-product="zirahr"] :is([data-tone="inverse"], [data-tone-dark="inverse"]),
+[data-theme="dark"][data-product="zirahr"] :is([data-tone="inverse"], [data-tone-dark="inverse"]),
+[data-theme="light"]
+  [data-product="zirahr"]
+  :is([data-tone="inverse"], [data-tone-light="inverse"])
+  [data-tone="inverse"],
+[data-theme="light"][data-product="zirahr"]
+  :is([data-tone="inverse"], [data-tone-light="inverse"])
+  [data-tone="inverse"] {
   --product-text: #9a4f17;
 }
-[data-theme="light"] [data-product="zirahr"] [data-tone="inverse"],
-[data-theme="light"][data-product="zirahr"] [data-tone="inverse"],
-[data-theme="dark"] [data-product="zirahr"] [data-tone="inverse"] [data-tone="inverse"],
-[data-theme="dark"][data-product="zirahr"] [data-tone="inverse"] [data-tone="inverse"] {
+[data-theme="light"] [data-product="zirahr"] :is([data-tone="inverse"], [data-tone-light="inverse"]),
+[data-theme="light"][data-product="zirahr"] :is([data-tone="inverse"], [data-tone-light="inverse"]),
+[data-theme="dark"]
+  [data-product="zirahr"]
+  :is([data-tone="inverse"], [data-tone-dark="inverse"])
+  [data-tone="inverse"],
+[data-theme="dark"][data-product="zirahr"]
+  :is([data-tone="inverse"], [data-tone-dark="inverse"])
+  [data-tone="inverse"] {
   --product-text: #f9a65c;
 }
-[data-theme="dark"] [data-product="jasiri"] [data-tone="inverse"],
-[data-theme="dark"][data-product="jasiri"] [data-tone="inverse"],
-[data-theme="light"] [data-product="jasiri"] [data-tone="inverse"] [data-tone="inverse"],
-[data-theme="light"][data-product="jasiri"] [data-tone="inverse"] [data-tone="inverse"] {
+[data-theme="dark"] [data-product="jasiri"] :is([data-tone="inverse"], [data-tone-dark="inverse"]),
+[data-theme="dark"][data-product="jasiri"] :is([data-tone="inverse"], [data-tone-dark="inverse"]),
+[data-theme="light"]
+  [data-product="jasiri"]
+  :is([data-tone="inverse"], [data-tone-light="inverse"])
+  [data-tone="inverse"],
+[data-theme="light"][data-product="jasiri"]
+  :is([data-tone="inverse"], [data-tone-light="inverse"])
+  [data-tone="inverse"] {
   --product-text: #15803d;
 }
-[data-theme="light"] [data-product="jasiri"] [data-tone="inverse"],
-[data-theme="light"][data-product="jasiri"] [data-tone="inverse"],
-[data-theme="dark"] [data-product="jasiri"] [data-tone="inverse"] [data-tone="inverse"],
-[data-theme="dark"][data-product="jasiri"] [data-tone="inverse"] [data-tone="inverse"] {
+[data-theme="light"] [data-product="jasiri"] :is([data-tone="inverse"], [data-tone-light="inverse"]),
+[data-theme="light"][data-product="jasiri"] :is([data-tone="inverse"], [data-tone-light="inverse"]),
+[data-theme="dark"]
+  [data-product="jasiri"]
+  :is([data-tone="inverse"], [data-tone-dark="inverse"])
+  [data-tone="inverse"],
+[data-theme="dark"][data-product="jasiri"]
+  :is([data-tone="inverse"], [data-tone-dark="inverse"])
+  [data-tone="inverse"] {
   --product-text: #4ade80;
 }
-[data-theme="dark"] [data-product="ziwa"] [data-tone="inverse"],
-[data-theme="dark"][data-product="ziwa"] [data-tone="inverse"],
-[data-theme="light"] [data-product="ziwa"] [data-tone="inverse"] [data-tone="inverse"],
-[data-theme="light"][data-product="ziwa"] [data-tone="inverse"] [data-tone="inverse"] {
+[data-theme="dark"] [data-product="ziwa"] :is([data-tone="inverse"], [data-tone-dark="inverse"]),
+[data-theme="dark"][data-product="ziwa"] :is([data-tone="inverse"], [data-tone-dark="inverse"]),
+[data-theme="light"]
+  [data-product="ziwa"]
+  :is([data-tone="inverse"], [data-tone-light="inverse"])
+  [data-tone="inverse"],
+[data-theme="light"][data-product="ziwa"]
+  :is([data-tone="inverse"], [data-tone-light="inverse"])
+  [data-tone="inverse"] {
   --product-text: #a8480c;
 }
-[data-theme="light"] [data-product="ziwa"] [data-tone="inverse"],
-[data-theme="light"][data-product="ziwa"] [data-tone="inverse"],
-[data-theme="dark"] [data-product="ziwa"] [data-tone="inverse"] [data-tone="inverse"],
-[data-theme="dark"][data-product="ziwa"] [data-tone="inverse"] [data-tone="inverse"] {
+[data-theme="light"] [data-product="ziwa"] :is([data-tone="inverse"], [data-tone-light="inverse"]),
+[data-theme="light"][data-product="ziwa"] :is([data-tone="inverse"], [data-tone-light="inverse"]),
+[data-theme="dark"]
+  [data-product="ziwa"]
+  :is([data-tone="inverse"], [data-tone-dark="inverse"])
+  [data-tone="inverse"],
+[data-theme="dark"][data-product="ziwa"]
+  :is([data-tone="inverse"], [data-tone-dark="inverse"])
+  [data-tone="inverse"] {
   --product-text: #fb7a1a;
 }
-[data-theme="dark"] [data-product="expense_now"] [data-tone="inverse"],
-[data-theme="dark"][data-product="expense_now"] [data-tone="inverse"],
-[data-theme="light"] [data-product="expense_now"] [data-tone="inverse"] [data-tone="inverse"],
-[data-theme="light"][data-product="expense_now"] [data-tone="inverse"] [data-tone="inverse"] {
+[data-theme="dark"] [data-product="expense_now"] :is([data-tone="inverse"], [data-tone-dark="inverse"]),
+[data-theme="dark"][data-product="expense_now"] :is([data-tone="inverse"], [data-tone-dark="inverse"]),
+[data-theme="light"]
+  [data-product="expense_now"]
+  :is([data-tone="inverse"], [data-tone-light="inverse"])
+  [data-tone="inverse"],
+[data-theme="light"][data-product="expense_now"]
+  :is([data-tone="inverse"], [data-tone-light="inverse"])
+  [data-tone="inverse"] {
   --product-text: #a84f00;
 }
-[data-theme="light"] [data-product="expense_now"] [data-tone="inverse"],
-[data-theme="light"][data-product="expense_now"] [data-tone="inverse"],
-[data-theme="dark"] [data-product="expense_now"] [data-tone="inverse"] [data-tone="inverse"],
-[data-theme="dark"][data-product="expense_now"] [data-tone="inverse"] [data-tone="inverse"] {
+[data-theme="light"] [data-product="expense_now"] :is([data-tone="inverse"], [data-tone-light="inverse"]),
+[data-theme="light"][data-product="expense_now"] :is([data-tone="inverse"], [data-tone-light="inverse"]),
+[data-theme="dark"]
+  [data-product="expense_now"]
+  :is([data-tone="inverse"], [data-tone-dark="inverse"])
+  [data-tone="inverse"],
+[data-theme="dark"][data-product="expense_now"]
+  :is([data-tone="inverse"], [data-tone-dark="inverse"])
+  [data-tone="inverse"] {
   --product-text: #ff8a1f;
 }
 
@@ -381,8 +448,11 @@
  */
 [data-theme="dark"] [data-site="zirahr"],
 [data-site="zirahr"] [data-theme="dark"],
-[data-theme="light"] [data-site="zirahr"] [data-tone="inverse"],
-[data-theme="dark"] [data-site="zirahr"] [data-tone="inverse"] [data-tone="inverse"] {
+[data-theme="light"] [data-site="zirahr"] :is([data-tone="inverse"], [data-tone-light="inverse"]),
+[data-theme="dark"]
+  [data-site="zirahr"]
+  :is([data-tone="inverse"], [data-tone-dark="inverse"])
+  [data-tone="inverse"] {
   color-scheme: dark;
   --bg: #292625;
   --bg-elevated: #2f2a28;
@@ -419,8 +489,11 @@
 }
 [data-theme="light"] [data-site="zirahr"],
 [data-site="zirahr"] [data-theme="light"],
-[data-theme="dark"] [data-site="zirahr"] [data-tone="inverse"],
-[data-theme="light"] [data-site="zirahr"] [data-tone="inverse"] [data-tone="inverse"] {
+[data-theme="dark"] [data-site="zirahr"] :is([data-tone="inverse"], [data-tone-dark="inverse"]),
+[data-theme="light"]
+  [data-site="zirahr"]
+  :is([data-tone="inverse"], [data-tone-light="inverse"])
+  [data-tone="inverse"] {
   color-scheme: light;
   --bg: #f9f5ef;
   --bg-elevated: #fffbf6;

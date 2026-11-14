@@ -706,6 +706,15 @@ body:has(main [data-section="call_to_action"]:last-child) footer {
 [data-theme="light"] .fb-tone-soft {
   background: var(--section-soft, #f1f5f9);
 }
+/* FigBud Global's home bands (section-themes.ts): a brand band in the
+   visitor's mode's brand colour (its content takes the dark colours, as on
+   product websites), or the soft band of the visitor's mode. */
+[data-band="brand"] {
+  background: var(--page-section-brand, var(--section-brand, #1e293b));
+}
+[data-band="soft"] {
+  background: var(--section-soft, var(--surface-2));
+}
 /* Contrasting band (UI-TH3): its colour reaches both edges of the window from
    a layer behind it, one surface with no seam. The website's full-width main
    area clips it (`overflow-x-clip` on <main>), so it never widens the page.

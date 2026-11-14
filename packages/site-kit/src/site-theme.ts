@@ -214,8 +214,9 @@ function modeSelectors(slug: string, mode: ThemeMode) {
   return [
     `[data-theme="${mode}"] ${site}`,
     `${site} [data-theme="${mode}"]`,
-    `[data-theme="${other}"] ${site} [data-tone="inverse"]`,
-    `[data-theme="${mode}"] ${site} [data-tone="inverse"] [data-tone="inverse"]`,
+    // A section inverted on one theme only (a home band kept light or dark) counts as inverse there.
+    `[data-theme="${other}"] ${site} :is([data-tone="inverse"], [data-tone-${other}="inverse"])`,
+    `[data-theme="${mode}"] ${site} :is([data-tone="inverse"], [data-tone-${mode}="inverse"]) [data-tone="inverse"]`,
   ].join(",\n");
 }
 
@@ -380,6 +381,11 @@ export function siteThemeCss(slug: string, theme?: StudioTheme | null): string {
       blocks.push(
         `${modeSelectors(slug, mode)} {\n  color-scheme: ${mode};\n  ${declarations.join("\n  ")}\n}`,
       );
+    // The brand band for the visitor's mode, set once on the page so a band
+    // whose content takes the dark colours still shows the mode's own colour.
+    blocks.push(
+      `[data-theme="${mode}"] [data-site="${slug}"] {\n  --page-section-brand: ${bandTokens(slug, theme, mode)["--section-brand"]};\n}`,
+    );
   }
   return blocks.join("\n");
 }

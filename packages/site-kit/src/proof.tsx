@@ -128,7 +128,8 @@ export function TrustedBy({
               title={`${o.name}: visit their website`}
               className={cn(
                 plate,
-                "focus-visible:outline-focus transition-[translate,box-shadow] duration-[var(--motion-base)] ease-out-expo hover:-translate-y-0.5 hover:shadow-[0_14px_30px_-18px_rgb(2_6_23/0.45)] focus-visible:outline-2 focus-visible:outline-offset-2 motion-reduce:hover:translate-y-0",
+                // The website's own accent on hover (FigBud's, or the product's).
+                "focus-visible:outline-focus transition-[translate,box-shadow,border-color] duration-[var(--motion-base)] ease-out-expo hover:-translate-y-0.5 hover:border-[color:var(--product,var(--accent))] hover:shadow-[0_14px_30px_-18px_rgb(2_6_23/0.45)] focus-visible:outline-2 focus-visible:outline-offset-2 motion-reduce:hover:translate-y-0",
               )}
             >
               {logo}

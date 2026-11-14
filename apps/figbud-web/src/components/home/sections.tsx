@@ -251,15 +251,11 @@ export function EngineerSection({ dict, tone }: SectionProps) {
 
 /** Trusted By logos (Studio → Content & Marketing); nothing renders until one is published. */
 export function TrustedBySection({ dict, proof, tone }: SectionProps & { proof: PublicProof }) {
-  if (!proof.organizations.length) return null;
+  if (!proof.organizations.some((o) => o.logo)) return null;
   return (
-    // On Our Platforms' band: the logos belong with the platforms.
-    <div {...bandProps(tone)} data-band-shared="platforms" className={BAND}>
-      <TrustedBy
-        organizations={proof.organizations}
-        labels={dict.home.proof.trustedBy}
-        className="border-t border-line pt-section-sm pb-section-sm"
-      />
+    // Its own band, alternating with Our Platforms (owner's brief, 14 Nov 2026).
+    <div {...bandProps(tone)} className={cn("py-section-sm", BAND)}>
+      <TrustedBy organizations={proof.organizations} labels={dict.home.proof.trustedBy} />
     </div>
   );
 }

@@ -326,6 +326,15 @@ Websites → any website → **Colours & themes** (also under Products & Brandin
   - turned into CSS by `siteThemeCss` in `@figbud/site-kit` (`site-theme.ts`), on the product renderer and in Studio previews; the section bands (`bandColours`, `--section-brand`, `--section-brand-text`, `--section-brand-muted`, `--section-soft`) are always included, from the built-in colours when nothing is published;
   - built-in themes are `BUILT_IN_THEMES`, which a unit test keeps equal to `tokens.css`.
 
+## Section themes: FigBud Global's home bands (UI-TH6, UI-TH7, 14 Nov 2026)
+
+Websites → FigBud Global → Section themes (FigBud Global only; product websites set each section's style in the page editor, UI-AL1).
+
+- **Per section:** Auto (alternates; the default), Light, Dark, Brand band, Soft band, Same as the visitor's theme, Opposite of the visitor's theme. Trusted By and customer proof are listed but only count once something is published.
+- **Auto** alternates from the hero (which follows the visitor's theme), counting only the sections on the page. Light and Dark stay that way on both themes, and the sections after them alternate from them on each.
+- **Colours** come from the website's published Colours & themes: the light and dark themes, and the brand and soft Section bands (where custom band colours are set and contrast-checked). Nothing is coloured here.
+- **Preview** for visitors on each theme; **Save draft** (visitors keep the published themes), **Publish**, **Restore automatic alternation**. Version-checked and audited with the website's settings; the API accepts only the home page's sections and these styles.
+
 ## Security & Authentication (P13, 5 Nov 2026)
 
 Settings → **Security & Authentication** (also in the account menu), for every role and only for one's own account. The rules are in [SECURITY.md](SECURITY.md).

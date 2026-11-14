@@ -641,11 +641,18 @@ fn check_languages(errors: &mut Vec<FieldError>, l: &mut Languages, field: &'sta
 pub enum SectionTone {
     Follow,
     Inverse,
+    /// Light or dark whatever the visitor's theme (owner's brief, 14 Nov 2026).
+    Light,
+    Dark,
+    /// The website's brand or soft band (Colours & themes → Section bands).
+    Brand,
+    Soft,
 }
 
 /// Must match `HOME_SECTIONS` in `packages/site-kit/src/section-themes.ts`.
-const HOME_SECTIONS: [&str; 7] = [
+const HOME_SECTIONS: [&str; 8] = [
     "platforms",
+    "trusted",
     "philosophy",
     "africa",
     "engineer",
@@ -1134,9 +1141,19 @@ mod tests {
         assert_eq!(unknown.normalise(true).unwrap_err()[0].field, "section_themes");
         let product = WebsiteSettings::from_stored(json!({ "section_themes_draft": { "africa": "follow" } }));
         assert_eq!(product.normalise(false).unwrap_err()[0].code, "corporate");
-        // Anything else than follow or inverse isn't a theme: stored settings fall back to the defaults.
+        // Anything else than the known styles isn't a theme: stored settings fall back to the defaults.
         let odd = WebsiteSettings::from_stored(json!({ "section_themes": { "africa": "purple" } }));
         assert!(odd.section_themes.is_empty());
+
+        // Trusted By is its own section; light, dark, brand and soft are styles (14 Nov 2026).
+        let styles = WebsiteSettings::from_stored(json!({
+            "section_themes": { "trusted": "light", "philosophy": "dark", "africa": "brand", "engineer": "soft" },
+        }))
+        .normalise(true)
+        .unwrap();
+        let public = styles.public();
+        assert_eq!(public["section_themes"]["trusted"], "light");
+        assert_eq!(public["section_themes"]["engineer"], "soft");
     }
 
     #[test]

@@ -207,32 +207,67 @@ test("Studio: home page section themes, previewed in both themes, drafted and pu
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Section themes");
   const dark = page.locator('[data-strip="dark"] li');
   const light = page.locator('[data-strip="light"] li');
-  // The hero follows each visitor's theme; Our Platforms is opposite; then they alternate.
+  // The hero follows each visitor's theme; Our Platforms is opposite; then they
+  // alternate, Trusted By included: dark, light, dark on the light theme.
   await expect(dark.nth(0)).toHaveAttribute("data-band-dark", "true");
   await expect(dark.nth(1)).not.toHaveAttribute("data-band-dark", "true");
-  await expect(light.nth(1)).toHaveAttribute("data-band-dark", "true");
+  await expect(light.nth(1)).toHaveAttribute("data-look", "dark");
+  await expect(light.nth(2)).toHaveAttribute("data-look", "light");
+  await expect(light.nth(3)).toHaveAttribute("data-look", "dark");
+
+  // Every style is offered, Auto by default.
+  const trustedChoice = page.getByLabel(/^Trusted By/);
+  await expect(trustedChoice).toHaveValue("auto");
+  await expect(trustedChoice.locator("option")).toHaveText([
+    "Auto (alternates)",
+    "Light",
+    "Dark",
+    "Brand band",
+    "Soft band",
+    "Same as the visitor's theme",
+    "Opposite of the visitor's theme",
+  ]);
+  // Light stays light on both themes, and the next section alternates from it in each.
+  await trustedChoice.selectOption("light");
+  await expect(dark.nth(2)).toHaveAttribute("data-look", "light");
+  await expect(light.nth(2)).toHaveAttribute("data-look", "light");
+  await expect(dark.nth(3)).toHaveAttribute("data-look", "dark");
+  await expect(light.nth(3)).toHaveAttribute("data-look", "dark");
+  // Restoring the defaults puts every section back on Auto.
+  await page.getByRole("button", { name: "Restore automatic alternation" }).click();
+  await expect(trustedChoice).toHaveValue("auto");
 
   // A draft visitors don't see: the preview follows it at once.
   await page.getByLabel(/^Our philosophy/).selectOption("inverse");
-  await expect(dark.nth(2)).not.toHaveAttribute("data-band-dark", "true");
+  await expect(dark.nth(3)).not.toHaveAttribute("data-band-dark", "true");
   await page.getByRole("button", { name: "Save draft" }).click();
   await expect(page.getByRole("status")).toContainText(
     "Draft saved. Visitors still see the published themes.",
   );
   expect((await published()).philosophy).toBeUndefined();
 
-  // Publish a choice: the closing band, pinned to the tone it has now.
+  // Publish a choice: the closing band kept light, whatever the visitor's theme.
   await page.getByLabel(/^Our philosophy/).selectOption("auto");
   const closing = page.getByLabel(/^Closing call to action/);
-  const now = (await page.locator("label", { hasText: "Closing call to action" }).textContent())!;
-  const tone = now.includes("opposite") ? "inverse" : "follow";
+  const tone = "light";
   await closing.selectOption(tone);
   await page.getByRole("button", { name: "Publish", exact: true }).click();
   await expect(page.getByRole("status")).toContainText("Published. The home page shows this now.");
   expect((await published()).closing).toBe(tone);
   const home = await page.context().newPage();
   await home.goto("/en");
-  await expect(home.locator('section[aria-labelledby="final-cta-title"]')).toHaveAttribute("data-band", tone);
+  const finalCta = home.locator('section[aria-labelledby="final-cta-title"]');
+  await expect(finalCta).toHaveAttribute("data-band", tone);
+  // Light on the dark theme too: inverted there only.
+  await expect(finalCta).toHaveAttribute("data-tone-dark", "inverse");
+  await expect
+    .poll(() =>
+      finalCta.evaluate((node) => {
+        const [r, g, b] = getComputedStyle(node).backgroundColor.match(/\d+/g)!.map(Number);
+        return (r! + g! + b!) / 3;
+      }),
+    )
+    .toBeGreaterThan(128);
   const results = await new AxeBuilder({ page: await themeSettled(page) })
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
     .analyze();

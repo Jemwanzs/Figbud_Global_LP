@@ -5243,7 +5243,17 @@ function siteSettingsRoutes(slug, req, body, user, send) {
     }
   }
   // Home page section themes (site_settings.rs check_section_themes).
-  const homeSections = ["platforms", "philosophy", "africa", "engineer", "proof", "company", "closing"];
+  const homeSections = [
+    "platforms",
+    "trusted",
+    "philosophy",
+    "africa",
+    "engineer",
+    "proof",
+    "company",
+    "closing",
+  ];
+  const homeStyles = ["follow", "inverse", "light", "dark", "brand", "soft"];
   for (const themes of [next.section_themes, next.section_themes_draft].filter(Boolean)) {
     const entries = Object.entries(themes);
     if (!entries.length) continue;
@@ -5253,9 +5263,7 @@ function siteSettingsRoutes(slug, req, body, user, send) {
         code: "corporate",
         message: "Section themes are for FigBud Global's home page.",
       });
-    else if (
-      entries.some(([key, tone]) => !homeSections.includes(key) || !["follow", "inverse"].includes(tone))
-    )
+    else if (entries.some(([key, tone]) => !homeSections.includes(key) || !homeStyles.includes(tone)))
       fields.push({
         field: "section_themes",
         code: "unknown",

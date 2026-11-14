@@ -66,7 +66,13 @@ describe("Brand & Theme Studio colours", () => {
     });
     expect(css).toContain('[data-theme="light"] [data-site="ziwa"]');
     expect(css).toContain('[data-site="ziwa"] [data-theme="light"]');
-    expect(css).toContain('[data-theme="dark"] [data-site="ziwa"] [data-tone="inverse"]');
+    expect(css).toContain(
+      '[data-theme="dark"] [data-site="ziwa"] :is([data-tone="inverse"], [data-tone-dark="inverse"])',
+    );
+    // The brand band for each mode, set once on the page (home bands, 14 Nov 2026).
+    expect(css).toMatch(
+      /\[data-theme="light"\] \[data-site="ziwa"\] \{\n {2}--page-section-brand: #[0-9a-f]{6};/,
+    );
     expect(css).toContain("--bg: #f8fafc;");
     expect(css).toContain("--grad-hero: linear-gradient(125deg, #f9f5ef 5%");
     // The dark mode has gradients only: its colours stay the built-in ones.
