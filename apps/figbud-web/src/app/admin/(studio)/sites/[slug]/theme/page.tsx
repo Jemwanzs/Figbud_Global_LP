@@ -50,21 +50,14 @@ async function Theme({ params }: Pick<PageProps<"/admin/sites/[slug]/theme">, "p
       <h1 className="mt-3 font-display text-3xl font-semibold tracking-tight text-text">
         Colours &amp; themes
       </h1>
-      {settings.data.corporate ? (
-        <p className="mt-2 max-w-3xl text-muted">
-          FigBud Global keeps its own identity, built into the corporate website. Colours &amp; themes is for
-          the product websites: choose one from Websites.
-        </p>
-      ) : (
-        <>
-          <p className="mt-2 max-w-3xl text-muted">
-            {name}&apos;s palette, its light and dark colours and its gradients, with a live preview. Save a
-            draft while you work: visitors only see what you publish, and only {name} changes. Publishing
-            checks every colour for contrast (WCAG AA) and keeps the version, so you can roll back.
-          </p>
-          <ThemeStudio slug={slug} name={name} data={settings.data} />
-        </>
-      )}
+      <p className="mt-2 max-w-3xl text-muted">
+        {name}&apos;s palette, its light and dark colours, gradients and section bands, with a live preview.
+        Save a draft while you work: visitors only see what you publish, and only {name} changes. Publishing
+        checks every colour for contrast (WCAG AA) and keeps the version, so you can roll back.
+        {settings.data.corporate &&
+          " Its official logos and the hero designs that keep their own look are unchanged; accent fills follow Links and labels, as the preview shows."}
+      </p>
+      <ThemeStudio slug={slug} name={name} data={settings.data} />
     </>
   );
 }

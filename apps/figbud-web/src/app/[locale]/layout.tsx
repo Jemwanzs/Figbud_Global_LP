@@ -6,6 +6,7 @@ import {
   CampaignSlot,
   CookieConsent,
   brandIcons,
+  siteThemeCss,
   verificationMeta,
 } from "@figbud/site-kit";
 import { MotionProvider, themeInitScript } from "@figbud/ui";
@@ -22,6 +23,7 @@ import { getPrivacySettings } from "@/lib/privacy";
 import {
   getBrands,
   getCorporateSeo,
+  getCorporateTheme,
   getFooterSettings,
   getLiveCampaigns,
   getNavPreviews,
@@ -127,7 +129,10 @@ export default async function LocaleLayout({ children, params }: LayoutProps<"/[
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
-      <body className="min-h-dvh">
+      {/* `data-site` scopes FigBud Global's published colours (Colours & themes, UI-BT3). */}
+      <body data-site="figbud" className="min-h-dvh">
+        {/* Nothing published: the shared colours (tokens.css), as before. Validated hex only. */}
+        <style data-site-theme="">{siteThemeCss("figbud", await getCorporateTheme())}</style>
         <a
           href="#main"
           className="sr-only z-[100] rounded-full bg-accent px-5 py-3 font-medium text-accent-ink focus:not-sr-only focus:fixed focus:start-4 focus:top-4"

@@ -43,8 +43,8 @@ export function siteTools(site: NavSite): NavLink[] {
     { href: `${base}/hero`, label: "Hero management" },
     { href: `${base}/website`, label: "Navigation & enquiries" },
     { href: `${base}/footer`, label: "Footer" },
-    // Brand & Theme Studio (11 Nov 2026), for the product websites.
-    ...(site.kind === "product" ? [{ href: `${base}/theme`, label: "Colours & themes" }] : []),
+    // Brand & Theme Studio (11 Nov 2026), for every website (FigBud Global since 14 Nov 2026, UI-BT3).
+    { href: `${base}/theme`, label: "Colours & themes" },
     ...(site.kind === "corporate" ? [{ href: `${base}/section-themes`, label: "Section themes" }] : []),
     { href: `${base}/seo`, label: "Website SEO" },
   ];
@@ -86,9 +86,7 @@ export function studioNav(
       links: current
         ? [
             { href: `/admin/sites/${current.slug}/brand`, label: "Logos & brand colours" },
-            ...(current.kind === "product"
-              ? [{ href: `/admin/sites/${current.slug}/theme`, label: "Colours & themes" }]
-              : []),
+            { href: `/admin/sites/${current.slug}/theme`, label: "Colours & themes" },
             { href: `/admin/sites/${current.slug}/media`, label: "Media library" },
             ...sites
               .filter((s) => s.kind === "corporate")

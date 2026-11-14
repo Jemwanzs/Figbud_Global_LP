@@ -278,7 +278,7 @@ Settings & Security → **Appearance & themes**. This changes the Admin Studio o
 
 ## Colours & themes: the Brand & Theme Studio (UI-BT1, 11 Nov 2026)
 
-Websites → a product website → **Colours & themes** (also under Products & Branding). FigBud Global keeps its own identity, built into the corporate website.
+Websites → any website → **Colours & themes** (also under Products & Branding). FigBud Global joined on 14 Nov 2026 (UI-BT3): its built-in theme is the shared colours it was built with, plus its brand palette; the corporate site applies a published theme scoped to `data-site="figbud"` (`getCorporateTheme`, `siteThemeCss`), so nothing changes until one is published. Its official logos and the hero designs that keep their own look are unaffected. Once published, its accent fills (badges, pills) follow "Links and labels", as the preview shows.
 
 - **Palette:** up to 16 named colours. Add, rename, duplicate or remove them; set each by hex or with the colour picker. Any colour below can be picked from the palette.
 - **Light mode and Dark mode,** edited independently. Each has ten semantic colours: background, cards and panels, headings and text, secondary text, buttons and active states, text on buttons, links and labels, and optionally borders, the focus ring and secondary text on gradients. The deeper surfaces are derived from the cards and text colours, the same way on the website and in the API.

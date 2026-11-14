@@ -499,6 +499,22 @@ const PARENT: Required<Pick<StudioTheme, "light" | "dark">> = {
  * gradients of 11 Nov 2026.
  */
 export const BUILT_IN_THEMES = {
+  // FigBud Global (UI-BT3, 14 Nov 2026): the shared colours it was built with,
+  // and its brand colours from tokens.css to pick from.
+  figbud: {
+    palette: [
+      { name: "FigBud Green", hex: "#22c55e" },
+      { name: "Bright Green", hex: "#4ade80" },
+      { name: "Deep Green", hex: "#15803d" },
+      { name: "Midnight", hex: "#020617" },
+      { name: "Deep Slate", hex: "#0f172a" },
+      { name: "Snow", hex: "#f8fafc" },
+      { name: "Sky Blue", hex: "#60a5fa" },
+      { name: "Soft Violet", hex: "#c084fc" },
+    ],
+    ...PARENT,
+    gradients: {},
+  },
   zirahr: {
     palette: [
       { name: "Signature Orange", hex: "#f7933a" },

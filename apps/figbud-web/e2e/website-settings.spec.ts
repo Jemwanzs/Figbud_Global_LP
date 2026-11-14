@@ -492,6 +492,47 @@ test("Studio: each website chooses its languages, drafted and published, opening
   expect(await languagesOf("jasiri")).toEqual({ enabled: ["en"], default: "en", fallback: "en" });
 });
 
+test("Studio: FigBud Global's colours and themes, drafted and published to the corporate website alone (UI-BT3)", async ({
+  page,
+}, testInfo) => {
+  // Shared mock data: edited from one project only, and put back at once.
+  test.skip(testInfo.project.name !== "desktop", "edited from the desktop project");
+  test.setTimeout(120_000);
+  const corporateCss = async () => {
+    const visitor = await page.context().browser()!.newPage();
+    await visitor.goto("/en/about");
+    const css = (await visitor.locator("style[data-site-theme]").textContent()) ?? "";
+    await visitor.close();
+    return css;
+  };
+  // Nothing published: the corporate site keeps its shared colours (only the section bands are written).
+  expect(await corporateCss()).not.toContain("--bg:");
+  await signInAsOwner(page);
+  await page.goto("/admin/sites/figbud/theme");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Colours & themes");
+  // Its own palette to pick from.
+  await expect(page.getByLabel("FigBud Green hex", { exact: true })).toHaveValue("#22c55e");
+
+  // A draft reaches nobody.
+  await page.getByRole("tab", { name: "Dark mode" }).click();
+  await page.getByLabel("Focus ring", { exact: true }).fill("#86efac");
+  await page.getByRole("button", { name: "Save draft" }).click();
+  await expect(page.getByRole("status")).toContainText("Draft saved.");
+  expect(await corporateCss()).not.toContain("#86efac");
+
+  // Published: on the corporate website, scoped to it.
+  await page.getByRole("button", { name: "Publish", exact: true }).click();
+  await expect(page.getByRole("status")).toContainText("Published.");
+  await expect.poll(corporateCss).toContain("--focus: #86efac;");
+  expect(await corporateCss()).toContain('[data-site="figbud"]');
+
+  // Back to the shared colours, published like any version.
+  await page.getByRole("button", { name: "Restore defaults" }).click();
+  await page.getByRole("button", { name: "Publish", exact: true }).click();
+  await expect(page.getByRole("status")).toContainText("Published.");
+  await expect.poll(corporateCss).not.toContain("--bg:");
+});
+
 test("Studio: the Studio's own appearance is drafted, checked, published, applied and restored", async ({
   page,
 }, testInfo) => {

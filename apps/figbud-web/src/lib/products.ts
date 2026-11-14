@@ -12,6 +12,7 @@ import {
   type ShowcaseSettings,
   type SiteFooterSettings,
   type SiteSeo,
+  type SiteTheme,
   enquiriesOpen,
   resolveNavPreviews,
   showcaseSettings,
@@ -140,6 +141,11 @@ export async function getNavPreviews(
 export async function getSectionThemes(): Promise<SectionThemes> {
   const themes = (await getListedSites())?.find((s) => s.slug === "figbud")?.settings?.section_themes;
   return (themes ?? {}) as SectionThemes;
+}
+
+/** FigBud Global's published colours (Studio → FigBud Global → Colours & themes, UI-BT3). */
+export async function getCorporateTheme(): Promise<SiteTheme | undefined> {
+  return (await getListedSites())?.find((s) => s.slug === "figbud")?.settings?.theme ?? undefined;
 }
 
 /** The corporate footer as published in the Studio (Studio → FigBud Global → Footer). */
