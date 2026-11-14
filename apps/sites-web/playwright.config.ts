@@ -54,7 +54,8 @@ export default defineConfig({
     {
       command: "node ../figbud-web/e2e/mock-api.mjs",
       url: `http://localhost:${MOCK_API_PORT}/health`,
-      env: { MOCK_API_PORT: String(MOCK_API_PORT) },
+      // Arabic switched on and reviewed for Ziwa LMS, with a translated page (P7-L2b).
+      env: { MOCK_API_PORT: String(MOCK_API_PORT), MOCK_TRANSLATED_ZIWA: "1" },
       reuseExistingServer: !process.env.CI,
     },
     {

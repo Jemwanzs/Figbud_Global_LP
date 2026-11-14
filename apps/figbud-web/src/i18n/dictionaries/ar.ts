@@ -1,4 +1,4 @@
-import type { DeepPartial } from "@figbud/i18n";
+import { type DeepPartial, interfaceCopy } from "@figbud/i18n";
 
 import type { Dictionary } from "./en";
 
@@ -10,7 +10,7 @@ const ar: DeepPartial<Dictionary> = {
       "تبني FigBud Global منصات مؤسسية قابلة للتهيئة للموارد البشرية والإقراض والنفقات: ZiraHR وJasiri LMS وExpense Now وZiwa LMS.",
   },
   common: {
-    skipToContent: "انتقل إلى المحتوى",
+    skipToContent: interfaceCopy.ar.skipToContent,
     breadcrumb: "مسار التنقل",
     nav: {
       label: "الرئيسية",
@@ -67,8 +67,8 @@ const ar: DeepPartial<Dictionary> = {
       hint: "ابحث عن منتج أو موضوع أو صفحة.",
       external: "يفتح موقع المنتج",
     },
-    theme: { toLight: "التبديل إلى السمة الفاتحة", toDark: "التبديل إلى السمة الداكنة" },
-    language: { label: "اللغة", inReview: "قيد المراجعة" },
+    theme: interfaceCopy.ar.theme,
+    language: interfaceCopy.ar.language,
     menu: { open: "فتح القائمة", close: "إغلاق القائمة" },
     opensInNewTab: "يفتح في علامة تبويب جديدة",
     draftNotice: "هذه الترجمة قيد المراجعة. يُعرض بعض المحتوى باللغة الإنجليزية.",

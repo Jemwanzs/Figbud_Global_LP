@@ -1,4 +1,4 @@
-import type { DeepPartial } from "@figbud/i18n";
+import { type DeepPartial, interfaceCopy } from "@figbud/i18n";
 
 import type { Dictionary } from "./en";
 
@@ -10,7 +10,7 @@ const sw: DeepPartial<Dictionary> = {
       "FigBud Global hujenga mifumo ya biashara inayoweza kusanidiwa kwa watu, mikopo na matumizi: ZiraHR, Jasiri LMS, Expense Now na Ziwa LMS.",
   },
   common: {
-    skipToContent: "Ruka hadi maudhui",
+    skipToContent: interfaceCopy.sw.skipToContent,
     breadcrumb: "Njia ya ukurasa",
     nav: {
       label: "Kuu",
@@ -67,8 +67,8 @@ const sw: DeepPartial<Dictionary> = {
       hint: "Tafuta bidhaa, mada au ukurasa.",
       external: "hufungua tovuti ya bidhaa",
     },
-    theme: { toLight: "Badili kwenda mandhari angavu", toDark: "Badili kwenda mandhari meusi" },
-    language: { label: "Lugha", inReview: "Inakaguliwa" },
+    theme: interfaceCopy.sw.theme,
+    language: interfaceCopy.sw.language,
     menu: { open: "Fungua menyu", close: "Funga menyu" },
     opensInNewTab: "hufunguka kwenye kichupo kipya",
     draftNotice: "Tafsiri hii inakaguliwa. Baadhi ya maudhui yanaonyeshwa kwa Kiingereza.",

@@ -1,5 +1,7 @@
 import "server-only";
 
+import { type Locale, liveLanguages } from "@figbud/i18n";
+
 import {
   DEFAULT_PRIVACY,
   type ListedSite,
@@ -74,6 +76,30 @@ export async function getSite(slug: string): Promise<ListedSite | null> {
 export interface PublishedPage extends PageDocument {
   title: string;
   published_at: string | null;
+  /** The language it's in (`en`, or a published translation's). */
+  locale?: string;
+}
+
+/** Languages published with a recorded review (English always), cached like the registry. */
+export async function getReviewedLocales(): Promise<string[]> {
+  "use cache";
+  cacheLife("minutes");
+  cacheTag("locales");
+  try {
+    const response = await fetch(`${apiBase}/v1/locales`, { signal: AbortSignal.timeout(TIMEOUT_MS) });
+    const data = (await response.json()) as { published?: unknown };
+    return Array.isArray(data.published) ? data.published.filter((c) => typeof c === "string") : ["en"];
+  } catch {
+    return ["en"];
+  }
+}
+
+/**
+ * The languages a product website shows (P7-L2b): switched on in its
+ * Languages page and reviewed (owner, 14 Nov 2026); English always.
+ */
+export async function siteLanguages(site: Pick<ListedSite, "settings">): Promise<Locale[]> {
+  return liveLanguages(site.settings?.languages, "product", await getReviewedLocales()).enabled;
 }
 
 export async function getPages(slug: string): Promise<PublishedPageRef[]> {
@@ -91,13 +117,15 @@ export async function getPages(slug: string): Promise<PublishedPageRef[]> {
 }
 
 /** A published page, or `null` when the website has no published page at this address. */
-export async function getPage(slug: string, path: string): Promise<PublishedPage | null> {
+export async function getPage(slug: string, path: string, locale = "en"): Promise<PublishedPage | null> {
   "use cache";
   cacheLife("minutes");
   cacheTag("sites", `site:${slug}`);
+  // Another language: its published translation, or none (P7-L2).
+  const language = locale === "en" ? "" : `&locale=${encodeURIComponent(locale)}`;
   try {
     const response = await fetch(
-      `${apiBase}/v1/sites/${encodeURIComponent(slug)}/page?path=${encodeURIComponent(path)}`,
+      `${apiBase}/v1/sites/${encodeURIComponent(slug)}/page?path=${encodeURIComponent(path)}${language}`,
       { signal: AbortSignal.timeout(TIMEOUT_MS) },
     );
     return response.ok ? ((await response.json()) as PublishedPage) : null;

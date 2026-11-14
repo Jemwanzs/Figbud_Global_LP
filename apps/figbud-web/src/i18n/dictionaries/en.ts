@@ -1,3 +1,4 @@
+import { interfaceCopy } from "@figbud/i18n";
 import { enquiryFormCopy, enquiryStagesCopy } from "@figbud/site-kit/enquiry";
 
 /**
@@ -15,7 +16,7 @@ const en = {
       "Configurable enterprise platforms for people, lending and spend: ZiraHR, Jasiri LMS, Expense Now and Ziwa LMS. Built in Kenya, designed for Africa.",
   },
   common: {
-    skipToContent: "Skip to content",
+    skipToContent: interfaceCopy.en.skipToContent,
     breadcrumb: "Breadcrumb",
     nav: {
       label: "Main",
@@ -80,11 +81,8 @@ const en = {
       hint: "Search for a product, a topic or a page.",
       external: "opens the product website",
     },
-    theme: { toLight: "Switch to light theme", toDark: "Switch to dark theme" },
-    language: {
-      label: "Language",
-      inReview: "In review",
-    },
+    theme: interfaceCopy.en.theme,
+    language: interfaceCopy.en.language,
     menu: {
       open: "Open menu",
       close: "Close menu",

@@ -27,6 +27,7 @@ import {
   getListedSites,
   getLiveCampaigns,
   getPages,
+  siteLanguages,
   getPrivacySettings,
   getSite,
   pageHref,
@@ -98,14 +99,6 @@ export async function generateMetadata({ params }: LayoutProps<"/[site]">): Prom
 }
 
 /** Every product website: its brand, its published pages in the navigation, its call to action. */
-/**
- * The languages product websites can show today (P7-L1). A language a website
- * switches on appears once it's reviewed (owner, 14 Nov 2026) and its pages
- * can be translated (P7-L2); until then every product website is in English,
- * and the selector never offers a page that doesn't exist.
- */
-const RENDERED_LANGUAGES = ["en"] as const;
-
 export default async function SiteLayout({ children, params }: LayoutProps<"/[site]">) {
   const { slug, ownDomain } = parseSiteParam((await params).site);
   const site = await getSite(slug);
@@ -130,6 +123,8 @@ export default async function SiteLayout({ children, params }: LayoutProps<"/[si
             href: pageHref(slug, ownDomain, p.path),
             label: p.title,
             preview: previews[`/${p.path}`],
+            // Translated pages and titles, so the header can follow the page's language (P7-L2b).
+            path: p.path,
           }));
   // Brand accents.
   const colours = (
@@ -182,7 +177,13 @@ export default async function SiteLayout({ children, params }: LayoutProps<"/[si
                   ? { href: enquiryHref(site, { ownDomain, pages }), label: CTA_LABELS[site.cta] }
                   : null
               }
-              languages={RENDERED_LANGUAGES}
+              languages={await siteLanguages(site)}
+              site={{ slug, ownDomain }}
+              translations={pages.map((p) => ({
+                path: p.path,
+                locales: p.locales ?? [],
+                titles: p.titles ?? {},
+              }))}
             />
             <CampaignSlot
               placement="below_nav"

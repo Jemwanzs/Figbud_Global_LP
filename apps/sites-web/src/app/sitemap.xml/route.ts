@@ -1,6 +1,14 @@
 import { headers } from "next/headers";
 
-import { allowIndexing, canonicalUrl, getListedSites, getPages, getPayrollCalculator } from "@/lib/sites";
+import {
+  allowIndexing,
+  canonicalUrl,
+  getListedSites,
+  getPages,
+  getPayrollCalculator,
+  pageUrls,
+  siteLanguages,
+} from "@/lib/sites";
 
 /**
  * Published pages of listed product websites. On a website's own domain,
@@ -14,9 +22,12 @@ export async function GET() {
   if (allowIndexing) {
     // Websites with indexing switched off in the Studio aren't listed.
     for (const site of (own ? [own] : sites).filter((s) => s.seo?.indexing !== false)) {
-      // Pages kept out of search engines in the Studio aren't listed.
+      // Pages kept out of search engines in the Studio aren't listed; their
+      // published translations are, in the languages the website shows (P7-L2b).
+      const shown: string[] = await siteLanguages(site);
       for (const page of (await getPages(site.slug)).filter((p) => !p.noindex)) {
-        urls.push({ loc: canonicalUrl(site, Boolean(own), page.path), lastmod: page.published_at });
+        for (const loc of pageUrls(site, Boolean(own), page, shown))
+          urls.push({ loc, lastmod: page.published_at });
       }
       // The built-in calculator page, only while it's switched on.
       if (await getPayrollCalculator(site.slug)) {

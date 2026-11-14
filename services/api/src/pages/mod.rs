@@ -195,6 +195,8 @@ async fn public_list(
         enquiry_form: bool,
         /// Languages it has a published translation in (P7-L2).
         locales: Vec<String>,
+        /// Its title in those languages, where translated from the current English title.
+        titles: Value,
     }
     let pages: Vec<Listed> = sqlx::query_as(
         "SELECT p.path, p.title, p.published_at, p.show_in_nav,
@@ -202,7 +204,11 @@ async fn public_list(
                 jsonb_path_exists(p.published,
                   '$.sections[*] ? (@.type == \"enquiry_form\" && !(@.hidden == true))') AS enquiry_form,
                 ARRAY(SELECT t.locale FROM page_translations t
-                       WHERE t.page_id = p.id AND t.published IS NOT NULL ORDER BY t.locale) AS locales
+                       WHERE t.page_id = p.id AND t.published IS NOT NULL ORDER BY t.locale) AS locales,
+                COALESCE((SELECT jsonb_object_agg(t.locale, t.published->'@title'->>'text')
+                            FROM page_translations t
+                           WHERE t.page_id = p.id AND t.published IS NOT NULL
+                             AND t.published->'@title'->>'source' = p.title), '{}'::jsonb) AS titles
            FROM pages p JOIN sites s ON s.id = p.site_id
           WHERE s.slug = $1 AND s.archived_at IS NULL AND s.status IN ('coming_soon', 'beta', 'active')
             AND p.archived_at IS NULL AND p.published IS NOT NULL AND NOT p.offline

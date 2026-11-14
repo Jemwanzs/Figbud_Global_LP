@@ -70,11 +70,7 @@ export function SiteLanguagesEditor({
   useUnsavedChangesWarning(canEdit && dirty);
   const disabled = !canEdit || busy !== null;
   const isReviewed = (l: Locale) => l === "en" || reviewed.includes(l);
-  // Product websites are in English until their pages can be translated (the renderer's RENDERED_LANGUAGES).
-  const visible = (l: SiteLanguages): SiteLanguages =>
-    kind === "product"
-      ? { enabled: ["en"], default: "en", fallback: "en" }
-      : liveLanguages(l, kind, reviewed);
+  const visible = (l: SiteLanguages): SiteLanguages => liveLanguages(l, kind, reviewed);
   const liveNow = visible(published);
   const liveNext = visible(form);
   const unpublished = !sameValue(form, published);
@@ -149,7 +145,7 @@ export function SiteLanguagesEditor({
         <p className="text-sm text-muted">
           English is always on: every page is written in it.{" "}
           {kind === "product"
-            ? `A language you switch on appears on ${name} once its translation is reviewed and published, and its pages are translated (page translations are the next step; until then ${name} is in English). Reviews are recorded in `
+            ? `A language you switch on appears on ${name} once it's reviewed and published, page by page as each page's translation is published (Pages → a page → Translations); other pages stay in English. Reviews are recorded in `
             : `Unreviewed languages are listed as "In review" and kept out of search engines until reviewed in `}
           <Link href="/admin/settings/languages" className="font-medium text-accent-strong underline">
             Settings &amp; Security → Languages
@@ -244,11 +240,6 @@ export function SiteLanguagesEditor({
         <p className="text-muted" data-languages-live="">
           Now: {names(liveNow.enabled)}; opens in {ENGLISH_NAMES[liveNow.default]}.
         </p>
-        {kind === "product" && (
-          <p className="text-subtle">
-            Product websites show English until their pages can be translated, whatever is switched on here.
-          </p>
-        )}
         {unpublished && (
           <p className="text-muted" data-languages-next="">
             After publishing: {names(liveNext.enabled)}; opens in {ENGLISH_NAMES[liveNext.default]}.

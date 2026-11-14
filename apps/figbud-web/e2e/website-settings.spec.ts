@@ -440,7 +440,7 @@ test("Studio: each website chooses its languages, drafted and published, opening
   const english = page.getByRole("checkbox", { name: /English/ });
   await expect(english).toBeChecked();
   await expect(english).toBeDisabled();
-  // Product websites stay in English until their pages can be translated.
+  // Nothing published yet for Jasiri LMS: English.
   await expect(page.locator("[data-languages-live]")).toHaveText("Now: English; opens in English.");
 
   // French on, as the fallback; it can't be the default before its review.

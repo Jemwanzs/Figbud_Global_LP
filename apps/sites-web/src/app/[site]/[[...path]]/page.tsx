@@ -26,7 +26,8 @@ const KNOWN_PRODUCTS: string[] = ["zirahr", "jasiri", "expense_now", "ziwa"];
 import { buttonClasses } from "@figbud/ui";
 import { ArrowRight } from "lucide-react";
 import type { Metadata, ResolvingMetadata } from "next";
-import { notFound } from "next/navigation";
+import { localeInfo, type Locale } from "@figbud/i18n";
+import { notFound, redirect } from "next/navigation";
 
 import { LazyPayrollCalculator as WebsitePayrollCalculator } from "@/components/lazy-payroll-calculator";
 import {
@@ -44,6 +45,8 @@ import {
   pageHref,
   parseSiteParam,
   publicApiOrigin,
+  siteLanguages,
+  splitLocale,
 } from "@/lib/sites";
 
 /**
@@ -68,18 +71,43 @@ export async function generateStaticParams({ params }: { params: { site: string 
 async function load(params: PageProps<"/[site]/[[...path]]">["params"]) {
   const { site: param, path: segments = [] } = await params;
   const { slug, ownDomain } = parseSiteParam(param);
-  const path = segments.join("/");
   const site = await getSite(slug);
-  if (!site || path === PLACEHOLDER) return { site, ownDomain, path, page: null };
-  return { site, ownDomain, path, page: await getPage(slug, path) };
+  if (!site) return { site, ownDomain, path: segments.join("/"), locale: "en", page: null };
+  // `/zirahr/sw/platform`: a language the website shows, then the page (P7-L2b).
+  const { locale, path } = splitLocale(segments, await siteLanguages(site));
+  if (path === PLACEHOLDER) return { site, ownDomain, path, locale, page: null };
+  return { site, ownDomain, path, locale, page: await getPage(slug, path, locale) };
+}
+
+/** Each language's address of a translated page, for search engines (`hreflang`). */
+async function languageAlternates(
+  site: NonNullable<Awaited<ReturnType<typeof getSite>>>,
+  ownDomain: boolean,
+  path: string,
+) {
+  const [pages, shown] = await Promise.all([getPages(site.slug), siteLanguages(site)]);
+  const locales = (pages.find((p) => p.path === path)?.locales ?? []).filter((l) =>
+    shown.includes(l as Locale),
+  );
+  if (!locales.length) return undefined;
+  const english = canonicalUrl(site, ownDomain, path);
+  return {
+    en: english,
+    ...Object.fromEntries(
+      locales.map((l) => [localeInfo[l as Locale].tag, canonicalUrl(site, ownDomain, path, l)]),
+    ),
+    "x-default": english,
+  };
 }
 
 export async function generateMetadata(
   { params }: PageProps<"/[site]/[[...path]]">,
   parent: ResolvingMetadata,
 ): Promise<Metadata> {
-  const { site, ownDomain, path, page } = await load(params);
+  const { site, ownDomain, path, locale, page } = await load(params);
   if (!site) return {};
+  // No translation in this language: the page sends visitors to its English version.
+  if (!page && locale !== "en") return {};
   if (!page && path === "pricing") {
     // Built-in pricing page (no Studio page at /pricing): indexed only while prices are shown.
     const book = await getPublicPricing(site.slug);
@@ -101,7 +129,8 @@ export async function generateMetadata(
     };
   }
   if (!page) return path === "" ? { robots: { index: false, follow: true } } : {};
-  const canonical = canonicalUrl(site, ownDomain, path);
+  const canonical = canonicalUrl(site, ownDomain, path, locale);
+  const languages = await languageAlternates(site, ownDomain, path);
   const description =
     page.seo_description || site.seo?.default_description || site.description || site.tagline || undefined;
   return {
@@ -110,7 +139,7 @@ export async function generateMetadata(
         ? { absolute: page.seo_title || `${site.name}${site.tagline ? ` — ${site.tagline}` : ""}` }
         : page.seo_title || page.title,
     description,
-    alternates: { canonical },
+    alternates: { canonical, ...(languages ? { languages } : {}) },
     // The page's own sharing image from the media library, else the
     // website's (opengraph-image.tsx), which the page's Open Graph details
     // would otherwise replace.
@@ -233,8 +262,11 @@ const PROOF_LABELS = {
 };
 
 export default async function SitePage({ params }: PageProps<"/[site]/[[...path]]">) {
-  const { site, ownDomain, path, page } = await load(params);
+  const { site, ownDomain, path, locale, page } = await load(params);
   if (!site) notFound();
+  // Not translated into this language (or not a page): the same page in English,
+  // never a blank or half-translated one (P7-L2b).
+  if (!page && locale !== "en") redirect(pageHref(site.slug, ownDomain, path));
 
   if (!page) {
     if (path === "pricing") return <PricingPage site={site} ownDomain={ownDomain} />;
@@ -294,8 +326,9 @@ export default async function SitePage({ params }: PageProps<"/[site]/[[...path]
     path === "" ? getHero(site.slug) : null,
   ]);
   // A published hero design (Hero Design Studio) replaces the home page's
-  // leading hero section; without one, the page renders as built.
-  const designed = hero && page.sections[0]?.type === "hero" ? hero : null;
+  // leading hero section; without one, the page renders as built. A translated
+  // page keeps its own (translated) hero section: designs are in English.
+  const designed = locale === "en" && hero && page.sections[0]?.type === "hero" ? hero : null;
   const blocks = designed ? { ...page, sections: page.sections.slice(1) } : page;
   // Structured data from what the page shows: the product on its home page,
   // breadcrumbs on inner pages, and its questions and answers.
@@ -316,12 +349,13 @@ export default async function SitePage({ params }: PageProps<"/[site]/[[...path]
       : [
           breadcrumbLd([
             { name: site.name, url: home },
-            { name: page.title, url: canonicalUrl(site, ownDomain, path) },
+            { name: page.title, url: canonicalUrl(site, ownDomain, path, locale) },
           ]),
         ]),
     faqLd(page),
   ].filter((d) => d !== null);
-  return (
+  const info = locale === "en" ? null : localeInfo[locale as Locale];
+  const content = (
     <>
       {designed && (
         <ProductHero
@@ -346,7 +380,7 @@ export default async function SitePage({ params }: PageProps<"/[site]/[[...path]
         {path === "" && <CampaignSlot placement="home_hero" className="mb-block block" />}
         <PageBlocks
           document={blocks}
-          resolveHref={hrefResolver(site, ownDomain, pages)}
+          resolveHref={hrefResolver(site, ownDomain, pages, locale)}
           mark={
             KNOWN_PRODUCTS.includes(site.slug) ? (
               <ProductLogo slug={site.slug as ProductSlug} brand={site.brand} name={site.name} size="sm" />
@@ -370,5 +404,17 @@ export default async function SitePage({ params }: PageProps<"/[site]/[[...path]
         )}
       </div>
     </>
+  );
+  if (!info) return content;
+  // A translated page: its language and direction, for the whole document too.
+  return (
+    <div lang={info.tag} dir={info.dir} data-page-locale={locale}>
+      <script
+        dangerouslySetInnerHTML={{
+          __html: `document.documentElement.lang=${JSON.stringify(info.tag)};document.documentElement.dir=${JSON.stringify(info.dir)}`,
+        }}
+      />
+      {content}
+    </div>
   );
 }

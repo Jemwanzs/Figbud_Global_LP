@@ -2255,6 +2255,12 @@ function publicPages(url, send) {
           noindex: Boolean(p.published?.seo_noindex),
           enquiry_form: (p.published?.sections ?? []).some((s) => s.type === "enquiry_form" && !s.hidden),
           locales: TRANSLATION_LOCALES.filter((l) => pageTranslations.get(`${p.id}:${l}`)?.published),
+          titles: Object.fromEntries(
+            TRANSLATION_LOCALES.flatMap((l) => {
+              const t = pageTranslations.get(`${p.id}:${l}`)?.published?.["@title"];
+              return t && t.source === p.title ? [[l, t.text]] : [];
+            }),
+          ),
         })),
     );
     return true;
@@ -3228,6 +3234,39 @@ const localeReviews = ["sw", "fr", "ar", "zh"].map((code) => ({
   version: 1,
   updated_at: new Date().toISOString(),
 }));
+// The renderer's tests (apps/sites-web, MOCK_TRANSLATED_ZIWA=1): Arabic
+// reviewed and switched on for Ziwa LMS, with its Platform page translated
+// (synthetic wording), so language addresses can be tested (P7-L2b). Never
+// set for the corporate site's tests, whose languages stay drafts.
+if (process.env.MOCK_TRANSLATED_ZIWA === "1") {
+  Object.assign(
+    localeReviews.find((r) => r.code === "ar"),
+    {
+      status: "published",
+      reviewer: "Test reviewer",
+      reviewed_on: "2026-11-14",
+      evidence: "Synthetic test data",
+    },
+  );
+  const ziwa = sites.find((s) => s.slug === "ziwa");
+  ziwa.settings.languages = { enabled: ["en", "ar"], default: "en", fallback: "en" };
+  const platform = [...pages.values()].find((p) => p.site === ziwa && p.path === "platform");
+  const fields = Object.fromEntries(
+    translationSources(platform).map(([key, english]) => [
+      key,
+      { text: key === "@title" ? "المنصة" : `عربي: ${english}`, source: english },
+    ]),
+  );
+  pageTranslations.set(`${platform.id}:ar`, {
+    fields,
+    status: "complete",
+    reviewer: "Test reviewer",
+    reviewed_at: new Date().toISOString(),
+    published: clone(fields),
+    published_at: new Date().toISOString(),
+    version: 1,
+  });
+}
 function localeRoutes(path, req, body, user, send) {
   const read = () => send(200, { locales: clone(localeReviews), can_edit: user.role === "owner" });
   if (path === "locales" && req.method === "GET") return read();

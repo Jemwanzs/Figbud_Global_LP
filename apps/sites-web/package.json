@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@figbud/brand": "*",
+    "@figbud/i18n": "*",
     "@figbud/site-kit": "*",
     "@figbud/ui": "*",
     "country-flag-emoji-polyfill": "^0.1.10",

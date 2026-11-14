@@ -1,7 +1,7 @@
 "use client";
 
 import type { ProductSlug } from "@figbud/brand";
-import type { Locale } from "@figbud/i18n";
+import { type Locale, interfaceCopy } from "@figbud/i18n";
 import {
   BrandLogo,
   type BrandProfile,
@@ -15,11 +15,15 @@ import { ThemeToggle, buttonClasses, cn } from "@figbud/ui";
 import { ArrowRight } from "lucide-react";
 import { usePathname } from "next/navigation";
 
+import { languageHref, pageHref, splitLocale } from "@/lib/addresses";
+
 export interface NavLink {
   href: string;
   label: string;
   /** This website's own hover preview, if it has one (UI-NAV2). */
   preview?: NavPreviewContent;
+  /** The page it goes to, when it's one of the website's pages (for its translations). */
+  path?: string;
 }
 
 /**
@@ -35,6 +39,8 @@ export function SiteHeader({
   links,
   cta,
   languages,
+  site,
+  translations,
 }: {
   name: string;
   homeHref: string;
@@ -44,13 +50,35 @@ export function SiteHeader({
   links: NavLink[];
   /** Absent while the website isn't taking enquiries. */
   cta?: NavLink | null;
-  /** The languages this website shows visitors (the shared selector, P7-L1). */
+  /** The languages this website shows visitors (switched on and reviewed, P7-L1). */
   languages: readonly Locale[];
+  site: { slug: string; ownDomain: boolean };
+  /** Each published page's translated languages and titles (P7-L2). */
+  translations: { path: string; locales: string[]; titles: Record<string, string> }[];
 }) {
   const pathname = usePathname();
   // Own-domain requests are rewritten internally; compare the visible address.
   const current = pathname.replace(/^\/~[^/]+/, "") || "/";
   const isActive = (href: string) => href === current || href === pathname;
+  // The page's language, from its address (`/zirahr/sw/platform`, P7-L2b).
+  const segments = (site.ownDomain ? current : current.replace(new RegExp(`^/${site.slug}(?=/|$)`), ""))
+    .split("/")
+    .filter(Boolean);
+  const { locale, path } = splitLocale(segments, languages);
+  const words = interfaceCopy[locale as Locale] ?? interfaceCopy.en;
+  // Each language's version of this page, where one exists.
+  const offered = languages.filter((l) => languageHref(site.slug, site.ownDomain, translations, path, l));
+  // On a translated page, menu links go to translated pages (with their titles) where they exist.
+  const shown = links.map((link) => {
+    const page = link.path !== undefined && translations.find((t) => t.path === link.path);
+    return locale !== "en" && page && page.locales.includes(locale)
+      ? {
+          ...link,
+          href: pageHref(site.slug, site.ownDomain, page.path, locale),
+          label: page.titles[locale] ?? link.label,
+        }
+      : link;
+  });
 
   return (
     <header className="sticky top-0 z-40 border-b border-line bg-bg/95 backdrop-blur-xl">
@@ -84,7 +112,7 @@ export function SiteHeader({
             className="order-last -mx-2 w-full overflow-x-auto px-2 md:order-none md:mx-0 md:w-auto md:overflow-visible md:px-0"
           >
             <ul className="flex gap-1">
-              {links.map((link) => (
+              {shown.map((link) => (
                 <li key={link.href}>
                   <NavPreview preview={link.preview}>
                     <a
@@ -106,14 +134,14 @@ export function SiteHeader({
         <div className="ms-auto flex items-center gap-2 sm:gap-3">
           {/* The same selector as FigBud Global's, in this website's colours; it stays on this website. */}
           <LanguageSwitcher
-            locale="en"
+            locale={locale as Locale}
             pathname={current}
-            labels={{ label: "Language", inReview: "In review" }}
-            available={languages}
+            labels={words.language}
+            available={offered}
             reviewed={languages}
-            hrefFor={() => pathname}
+            hrefFor={(code) => languageHref(site.slug, site.ownDomain, translations, path, code) ?? current}
           />
-          <ThemeToggle labels={{ toLight: "Switch to light theme", toDark: "Switch to dark theme" }} />
+          <ThemeToggle labels={words.theme} />
           {cta && (
             <a href={cta.href} className={buttonClasses("product", "md")}>
               {cta.label}

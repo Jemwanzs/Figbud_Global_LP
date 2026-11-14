@@ -1,4 +1,4 @@
-import type { DeepPartial } from "@figbud/i18n";
+import { type DeepPartial, interfaceCopy } from "@figbud/i18n";
 
 import type { Dictionary } from "./en";
 
@@ -10,7 +10,7 @@ const zh: DeepPartial<Dictionary> = {
       "FigBud Global 构建可配置的企业平台，覆盖人力、信贷与支出管理：ZiraHR、Jasiri LMS、Expense Now 与 Ziwa LMS。",
   },
   common: {
-    skipToContent: "跳到主要内容",
+    skipToContent: interfaceCopy.zh.skipToContent,
     breadcrumb: "面包屑导航",
     nav: {
       label: "主导航",
@@ -67,8 +67,8 @@ const zh: DeepPartial<Dictionary> = {
       hint: "搜索产品、主题或页面。",
       external: "打开产品网站",
     },
-    theme: { toLight: "切换到浅色主题", toDark: "切换到深色主题" },
-    language: { label: "语言", inReview: "审校中" },
+    theme: interfaceCopy.zh.theme,
+    language: interfaceCopy.zh.language,
     menu: { open: "打开菜单", close: "关闭菜单" },
     opensInNewTab: "在新标签页中打开",
     draftNotice: "此译文正在审校中，部分内容以英文显示。",

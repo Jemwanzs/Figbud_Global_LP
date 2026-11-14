@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  languageHref,
+  pageUrls,
+  splitLocale,
   canonicalUrl,
   enquiryHref,
   hrefResolver,
@@ -58,5 +61,45 @@ describe("site addresses", () => {
     expect(siteLinkHref("ziwa", true, "/platform")).toBe("/platform");
     expect(siteLinkHref("ziwa", false, "/")).toBe("/ziwa");
     expect(siteLinkHref("ziwa", false, "https://docs.example.com")).toBe("https://docs.example.com");
+  });
+
+  it("writes and reads addresses in other languages (P7-L2b)", () => {
+    expect(pageHref("zirahr", false, "platform", "sw")).toBe("/zirahr/sw/platform");
+    expect(pageHref("zirahr", false, "", "sw")).toBe("/zirahr/sw");
+    expect(pageHref("zirahr", true, "platform", "fr")).toBe("/fr/platform");
+    expect(pageHref("zirahr", false, "platform", "en")).toBe("/zirahr/platform");
+    expect(splitLocale(["sw", "platform"], ["en", "sw"])).toEqual({ locale: "sw", path: "platform" });
+    // A language the website doesn't show is just a page path.
+    expect(splitLocale(["fr", "platform"], ["en", "sw"])).toEqual({ locale: "en", path: "fr/platform" });
+    expect(splitLocale([], ["en", "sw"])).toEqual({ locale: "en", path: "" });
+  });
+
+  it("finds each language's version of a page: the page, else that language's home, else none", () => {
+    const pages = [
+      { path: "", locales: ["sw"] },
+      { path: "platform", locales: ["sw", "fr"] },
+      { path: "about", locales: [] },
+    ];
+    expect(languageHref("zirahr", false, pages, "platform", "fr")).toBe("/zirahr/fr/platform");
+    expect(languageHref("zirahr", false, pages, "about", "sw")).toBe("/zirahr/sw");
+    expect(languageHref("zirahr", false, pages, "about", "fr")).toBeNull();
+    expect(languageHref("zirahr", false, pages, "about", "en")).toBe("/zirahr/about");
+  });
+
+  it("lists a page's translated addresses in the sitemap, only in languages the website shows", () => {
+    const page = { path: "platform", locales: ["sw", "fr"] };
+    expect(pageUrls(ziwa, true, page, ["en", "sw"])).toEqual([
+      "https://ziwa.example.com/platform",
+      "https://ziwa.example.com/sw/platform",
+    ]);
+    expect(pageUrls(ziwa, false, { path: "about" }, ["en", "sw"])).toEqual([`${rendererOrigin}/ziwa/about`]);
+  });
+
+  it("keeps links on a translated page in its language where the target is translated", () => {
+    const site = { slug: "zirahr", cta: "demo" } as const;
+    const pages = [{ path: "platform", locales: ["sw"] }, { path: "about" }];
+    const resolve = hrefResolver(site, false, pages, "sw");
+    expect(resolve("/platform#modules")).toBe("/zirahr/sw/platform#modules");
+    expect(resolve("/about")).toBe("/zirahr/about");
   });
 });

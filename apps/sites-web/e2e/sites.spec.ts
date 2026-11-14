@@ -444,6 +444,73 @@ test("product websites have the shared language selector, staying on the website
   expect(results.violations.map((v) => v.id)).toEqual([]);
 });
 
+test.describe("pages in other languages (P7-L2b)", () => {
+  // Mock fixture (MOCK_TRANSLATED_ZIWA): Arabic reviewed and switched on for
+  // Ziwa LMS, with its Platform page translated; nothing else translated.
+  test("a translated page has its own address, language, direction and alternates", async ({ page }) => {
+    await page.goto("/ziwa/ar/platform");
+    await expect(page.locator("html")).toHaveAttribute("lang", "ar");
+    await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
+    await expect(page.locator("[data-page-locale]")).toHaveAttribute("lang", "ar");
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+      "عربي: One platform for lending operations",
+    );
+    // Search engines learn each language's address.
+    const alternate = (lang: string) => page.locator(`link[rel="alternate"][hreflang="${lang}"]`);
+    await expect(alternate("ar")).toHaveAttribute("href", /\/ziwa\/ar\/platform$/);
+    await expect(alternate("en")).toHaveAttribute("href", /\/ziwa\/platform$/);
+    await expect(alternate("x-default")).toHaveAttribute("href", /\/ziwa\/platform$/);
+    await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", /\/ziwa\/ar\/platform$/);
+    // The menu follows the page's language where a translation exists; the selector too.
+    const header = page.getByRole("banner");
+    await expect(header.getByRole("link", { name: "المنصة" })).toHaveAttribute("href", "/ziwa/ar/platform");
+    const selector = header.getByRole("button", { name: /^AR/ });
+    await expect(async () => {
+      await selector.click();
+      await expect(header.getByRole("link", { name: /English/ })).toBeVisible({ timeout: 1_000 });
+    }).toPass();
+    await expect(header.getByRole("link", { name: /English/ })).toHaveAttribute("href", "/ziwa/platform");
+    await expect(header.getByRole("link", { name: /العربية/ })).toHaveAttribute("aria-current", "true");
+    const results = await new AxeBuilder({ page: await themeSettled(page) })
+      .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
+      .analyze();
+    expect(
+      results.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`),
+    ).toEqual([]);
+  });
+
+  test("the selector offers a language only where that page exists in it, staying on the website", async ({
+    page,
+  }) => {
+    const header = page.getByRole("banner");
+    // Opens the selector once the header is interactive (a click before hydration is lost).
+    const open = async () =>
+      expect(async () => {
+        await header.getByRole("button", { name: /^EN/ }).click();
+        await expect(header.getByRole("link", { name: /English/ })).toBeVisible({ timeout: 1_000 });
+      }).toPass();
+    await page.goto("/ziwa/platform");
+    await open();
+    await expect(header.getByRole("link", { name: /العربية/ })).toHaveAttribute("href", "/ziwa/ar/platform");
+    // Security isn't translated (nor is the home page): English only there.
+    await page.goto("/ziwa/security");
+    await open();
+    await expect(header.getByRole("link", { name: /العربية/ })).toHaveCount(0);
+  });
+
+  test("an untranslated page goes to its English version; languages a website doesn't show aren't addresses", async ({
+    page,
+    request,
+  }) => {
+    await page.goto("/ziwa/ar/security");
+    await expect(page).toHaveURL(/\/ziwa\/security$/);
+    await expect(page.locator("html")).toHaveAttribute("lang", "en");
+    // ZiraHR hasn't switched Arabic on: /zirahr/ar/platform is no page at all.
+    expect((await request.get("/zirahr/ar/platform")).status()).toBe(404);
+    // (The sitemap's translated addresses are unit-tested: e2e builds don't index.)
+  });
+});
+
 test("images from the media library render responsively with their alt text", async ({ page, request }) => {
   // Mock fixture: Ziwa's published Platform page has a library image.
   await page.goto("/ziwa/platform");

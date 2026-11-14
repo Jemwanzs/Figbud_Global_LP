@@ -1,4 +1,4 @@
-import type { DeepPartial } from "@figbud/i18n";
+import { type DeepPartial, interfaceCopy } from "@figbud/i18n";
 
 import type { Dictionary } from "./en";
 
@@ -10,7 +10,7 @@ const fr: DeepPartial<Dictionary> = {
       "FigBud Global conçoit des plateformes d'entreprise configurables pour les personnes, le crédit et les dépenses : ZiraHR, Jasiri LMS, Expense Now et Ziwa LMS.",
   },
   common: {
-    skipToContent: "Aller au contenu",
+    skipToContent: interfaceCopy.fr.skipToContent,
     breadcrumb: "Fil d’Ariane",
     nav: {
       label: "Principale",
@@ -67,8 +67,8 @@ const fr: DeepPartial<Dictionary> = {
       hint: "Cherchez un produit, un sujet ou une page.",
       external: "ouvre le site du produit",
     },
-    theme: { toLight: "Passer au thème clair", toDark: "Passer au thème sombre" },
-    language: { label: "Langue", inReview: "En relecture" },
+    theme: interfaceCopy.fr.theme,
+    language: interfaceCopy.fr.language,
     menu: { open: "Ouvrir le menu", close: "Fermer le menu" },
     opensInNewTab: "s'ouvre dans un nouvel onglet",
     draftNotice: "Cette traduction est en cours de relecture. Certains contenus sont affichés en anglais.",

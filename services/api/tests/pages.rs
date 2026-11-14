@@ -1276,6 +1276,7 @@ async fn pages_are_translated_reviewed_and_published_per_language() {
         .call("GET", &format!("/v1/sites/{slug}/pages"), None, None)
         .await;
     assert_eq!(listed[0]["locales"], json!(["sw"]));
+    assert_eq!(listed[0]["titles"], json!({ "sw": "Mishahara" }));
     let (_, english) = s
         .call("GET", &format!("/v1/sites/{slug}/page?path=payroll"), None, None)
         .await;

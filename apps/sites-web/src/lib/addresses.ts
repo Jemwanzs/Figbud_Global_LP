@@ -27,6 +27,10 @@ export interface PublishedPageRef {
   noindex?: boolean;
   /** It shows the enquiry form (the website's calls to action can stay on it). */
   enquiry_form?: boolean;
+  /** Languages it has a published translation in (P7-L2). */
+  locales?: string[];
+  /** Its title in those languages, where translated from the current English title. */
+  titles?: Record<string, string>;
 }
 
 /**
@@ -41,9 +45,67 @@ export function parseSiteParam(param: string): { slug: string; ownDomain: boolea
     : { slug: decoded, ownDomain: false };
 }
 
-/** The address of a page on the website: `/ziwa/platform`, or `/platform` on its own domain. */
-export const pageHref = (slug: string, ownDomain: boolean, path: string) =>
-  `${ownDomain ? "" : `/${slug}`}/${path}`.replace(/\/$/, "") || "/";
+/**
+ * The address of a page on the website: `/ziwa/platform`, or `/platform` on
+ * its own domain; in another language, after the website: `/ziwa/sw/platform`
+ * (P7-L2b). English, the language every page is written in, has no prefix.
+ */
+export const pageHref = (slug: string, ownDomain: boolean, path: string, locale?: string) =>
+  `${ownDomain ? "" : `/${slug}`}${locale && locale !== "en" ? `/${locale}` : ""}/${path}`.replace(
+    /\/$/,
+    "",
+  ) || "/";
+
+/**
+ * The language and page path of an address's segments after the website:
+ * a leading language the website shows (other than English) is the language.
+ */
+export function splitLocale(
+  segments: string[],
+  languages: readonly string[],
+): { locale: string; path: string } {
+  const [first, ...rest] = segments;
+  return first && first !== "en" && languages.includes(first)
+    ? { locale: first, path: rest.join("/") }
+    : { locale: "en", path: segments.join("/") };
+}
+
+/**
+ * A page's addresses for the sitemap: its English address, then its published
+ * translations in the languages the website shows (P7-L2b).
+ */
+export function pageUrls(
+  site: Pick<ListedSite, "slug" | "primary_domain">,
+  ownDomain: boolean,
+  page: Pick<PublishedPageRef, "path" | "locales">,
+  shown: readonly string[],
+): string[] {
+  return [
+    canonicalUrl(site, ownDomain, page.path),
+    ...(page.locales ?? [])
+      .filter((l) => l !== "en" && shown.includes(l))
+      .map((l) => canonicalUrl(site, ownDomain, page.path, l)),
+  ];
+}
+
+/**
+ * Where each language's version of a page is: the page itself where it's
+ * translated, else that language's home page, else nothing (P7-L2b). English
+ * is always the page itself.
+ */
+export function languageHref(
+  slug: string,
+  ownDomain: boolean,
+  pages: Pick<PublishedPageRef, "path" | "locales">[],
+  path: string,
+  code: string,
+): string | null {
+  if (code === "en") return pageHref(slug, ownDomain, path);
+  const has = (p: string) => pages.some((page) => page.path === p && page.locales?.includes(code));
+  if (has(path)) return pageHref(slug, ownDomain, path, code);
+  if (has("")) return pageHref(slug, ownDomain, "", code);
+  return null;
+}
 
 /** Where a Studio navigation or footer link goes: a page path on this website, or an https:// address. */
 export const siteLinkHref = (slug: string, ownDomain: boolean, href: string) =>
@@ -54,9 +116,11 @@ export function canonicalUrl(
   site: Pick<ListedSite, "slug" | "primary_domain">,
   ownDomain: boolean,
   path: string,
+  locale?: string,
 ) {
-  if (ownDomain && site.primary_domain) return `https://${site.primary_domain}/${path}`.replace(/\/$/, "");
-  return `${rendererOrigin}${pageHref(site.slug, false, path)}`;
+  if (ownDomain && site.primary_domain)
+    return `https://${site.primary_domain}${pageHref(site.slug, true, path, locale)}`.replace(/\/$/, "");
+  return `${rendererOrigin}${pageHref(site.slug, false, path, locale)}`;
 }
 
 const ENQUIRY_KIND = { waitlist: "waitlist", early_access: "early_access", demo: "demo_request" } as const;
@@ -89,7 +153,9 @@ export function enquiryHref(
 export function hrefResolver(
   site: Pick<ListedSite, "slug" | "cta">,
   ownDomain: boolean,
-  pages: Pick<PublishedPageRef, "path" | "enquiry_form">[],
+  pages: Pick<PublishedPageRef, "path" | "enquiry_form" | "locales">[],
+  /** On a translated page: links go to pages translated into it, others stay English. */
+  locale = "en",
 ) {
   const published = new Set(pages.map((p) => p.path));
   return (href: string) => {
@@ -100,6 +166,7 @@ export function hrefResolver(
     const path = (cut === -1 ? href : href.slice(0, cut)).replace(/^\/+|\/+$/g, "");
     if (path === "enquire" || (path === "contact" && !published.has("contact")))
       return enquiryHref(site, { ownDomain, pages });
-    return `${pageHref(site.slug, ownDomain, path)}${rest}`;
+    const translated = pages.some((p) => p.path === path && p.locales?.includes(locale));
+    return `${pageHref(site.slug, ownDomain, path, translated ? locale : undefined)}${rest}`;
   };
 }

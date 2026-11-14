@@ -33,10 +33,10 @@ for (const [app, port] of [
     process.exit(1);
   }
 }
-const mock = spawn(process.execPath, ["apps/figbud-web/e2e/mock-api.mjs"], {
-  env: { ...process.env, MOCK_API_PORT: String(PORT) },
-  stdio: "inherit",
-});
+// Each website is built against the mock data its own e2e tests use: the
+// renderer's tests switch Arabic on for Ziwa LMS (MOCK_TRANSLATED_ZIWA, P7-L2b),
+// which the corporate site's tests must not see.
+const FIXTURES = { "sites-web": { MOCK_TRANSLATED_ZIWA: "1" } };
 
 async function ready() {
   for (let i = 0; i < 50; i++) {
@@ -50,19 +50,43 @@ async function ready() {
   throw new Error("mock API did not start");
 }
 
-let code = 1;
-try {
-  await ready();
-  code = await new Promise((resolve) => {
-    const only = process.argv[2];
-    const build = spawn("npm", ["run", "build", ...(only ? ["-w", only] : [])], {
-      env: { ...process.env, API_INTERNAL_URL: `http://localhost:${PORT}` },
-      stdio: "inherit",
-      shell: true,
-    });
-    build.on("exit", (status) => resolve(status ?? 1));
+async function stopped() {
+  for (let i = 0; i < 50; i++) {
+    const up = await fetch(`http://localhost:${PORT}/health`).then(
+      () => true,
+      () => false,
+    );
+    if (!up) return;
+    await new Promise((r) => setTimeout(r, 200));
+  }
+  throw new Error("mock API did not stop");
+}
+
+async function build(workspace) {
+  const mock = spawn(process.execPath, ["apps/figbud-web/e2e/mock-api.mjs"], {
+    env: { ...process.env, MOCK_API_PORT: String(PORT), ...FIXTURES[workspace] },
+    stdio: "inherit",
   });
-} finally {
-  mock.kill();
+  try {
+    await ready();
+    return await new Promise((resolve) => {
+      const run = spawn("npm", ["run", "build", "-w", workspace], {
+        env: { ...process.env, API_INTERNAL_URL: `http://localhost:${PORT}` },
+        stdio: "inherit",
+        shell: true,
+      });
+      run.on("exit", (status) => resolve(status ?? 1));
+    });
+  } finally {
+    mock.kill();
+    await stopped();
+  }
+}
+
+const only = process.argv[2];
+let code = 0;
+for (const workspace of only ? [only] : ["figbud-web", "zirahr-web", "sites-web"]) {
+  code = await build(workspace);
+  if (code !== 0) break;
 }
 process.exit(code);
