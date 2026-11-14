@@ -114,7 +114,10 @@ test.describe("desktop", () => {
   test("the Products dropdown is unchanged and has no preview; cards stay on screen at the narrowest desktop and right to left", async ({
     page,
   }) => {
-    await page.goto("/en/contact");
+    // Starts on About so every navigation below goes to a new address: in
+    // Firefox, scripting a navigation to the address already open can leave
+    // Playwright waiting for it to finish (14 Nov 2026).
+    await page.goto("/en/about");
     await ready(page);
     const products = nav(page).getByRole("button", { name: "Products" });
     await expect(nav(page).getByRole("link", { name: "About Us" })).toHaveAttribute(
