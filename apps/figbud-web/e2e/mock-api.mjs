@@ -2254,15 +2254,237 @@ function publicPages(url, send) {
           show_in_nav: p.show_in_nav !== false,
           noindex: Boolean(p.published?.seo_noindex),
           enquiry_form: (p.published?.sections ?? []).some((s) => s.type === "enquiry_form" && !s.hidden),
+          locales: TRANSLATION_LOCALES.filter((l) => pageTranslations.get(`${p.id}:${l}`)?.published),
         })),
     );
     return true;
   }
   const path = (url.searchParams.get("path") ?? "").replace(/^\/+|\/+$/g, "");
   const page = live.find((p) => p.path === path);
-  if (!page) send(404, { error: { code: "not_found", message: "Not found." } });
-  else send(200, { ...renderDoc(page.published, false), title: page.title, published_at: page.published_at });
+  const locale = url.searchParams.get("locale");
+  const translated =
+    page && locale && locale !== "en" ? pageTranslations.get(`${page.id}:${locale}`)?.published : null;
+  if (!page || (locale && locale !== "en" && !translated))
+    send(404, { error: { code: "not_found", message: "Not found." } });
+  else if (translated) {
+    const { doc, title } = applyTranslation(page, translated);
+    send(200, { ...renderDoc(doc, false), title, locale, published_at: page.published_at });
+  } else
+    send(200, {
+      ...renderDoc(page.published, false),
+      title: page.title,
+      locale: "en",
+      published_at: page.published_at,
+    });
   return true;
+}
+
+// ---------------------------------------------------------------- page translations
+// Mirrors services/api/src/pages/translations.rs (P7-L2): translated fields
+// over the published English page, each with the English it came from.
+const TRANSLATION_LOCALES = ["sw", "fr", "ar", "zh"];
+const TEXT_KEYS = new Set([
+  "eyebrow",
+  "heading",
+  "headline",
+  "accent",
+  "lead",
+  "intro",
+  "body",
+  "title",
+  "label",
+  "question",
+  "answer",
+  "caption",
+  "value",
+  "source",
+  "highlights",
+  "bullets",
+  "messages",
+]);
+const NEVER_TRANSLATED = new Set(["id", "type", "href", "image_id", "modules", "tone"]);
+const pageTranslations = new Map(); // `${pageId}:${locale}` -> row
+function textsIn(value, path, text, out) {
+  if (Array.isArray(value)) value.forEach((item, i) => textsIn(item, `${path}/${i}`, text, out));
+  else if (value && typeof value === "object") {
+    for (const key of Object.keys(value).sort()) {
+      if (NEVER_TRANSLATED.has(key) || key.endsWith("_html")) continue;
+      textsIn(value[key], `${path}/${key}`, text || TEXT_KEYS.has(key), out);
+    }
+  } else if (text && typeof value === "string" && value.trim()) out.push([path, value]);
+}
+function translationSources(page) {
+  const doc = page.published;
+  const out = [["@title", page.title]];
+  for (const key of ["seo_title", "seo_description"]) if (doc?.[key]?.trim()) out.push([`@${key}`, doc[key]]);
+  for (const section of doc?.sections ?? []) {
+    if (section.hidden) continue;
+    const found = [];
+    textsIn(section, "", false, found);
+    for (const [path, text] of found) out.push([`${section.id}${path}`, text]);
+  }
+  return out;
+}
+function translationCoverage(sources, fields) {
+  let translated = 0;
+  let outdated = 0;
+  for (const [key, english] of sources) {
+    const f = fields[key];
+    if (f && f.source === english && f.text.trim()) translated += 1;
+    else if (f) outdated += 1;
+  }
+  return { translated, total: sources.length, outdated };
+}
+function applyTranslation(page, fields) {
+  const doc = clone(page.published);
+  const current = (key, english) =>
+    fields[key] && fields[key].source === english && fields[key].text.trim() ? fields[key].text : null;
+  for (const key of ["seo_title", "seo_description"]) {
+    const t = doc[key] ? current(`@${key}`, doc[key]) : null;
+    if (t) doc[key] = t;
+  }
+  for (const section of doc.sections ?? []) {
+    const found = [];
+    textsIn(section, "", false, found);
+    for (const [path, english] of found) {
+      const t = current(`${section.id}${path}`, english);
+      if (!t) continue;
+      const parts = path.split("/").slice(1);
+      let target = section;
+      for (const part of parts.slice(0, -1)) target = target[part];
+      target[parts.at(-1)] = t;
+    }
+  }
+  return { doc, title: current("@title", page.title) ?? page.title };
+}
+function translationRoutes(path, req, body, user, send) {
+  const m = /^pages\/([0-9a-f-]+)\/translations(?:\/([a-z]+))?(?:\/([a-z_]+))?$/.exec(path);
+  const page = m && pages.get(m[1]);
+  if (!page || page.archived_at) return send(404, { error: { code: "not_found", message: "Not found." } });
+  const rank = RANKS[user.role];
+  const conflict = (message) => send(409, { error: { code: "conflict", message } });
+  const sources = page.published ? translationSources(page) : [];
+  const row = (locale) => pageTranslations.get(`${page.id}:${locale}`);
+  if (!m[2]) {
+    return send(200, {
+      source_published: Boolean(page.published),
+      translations: TRANSLATION_LOCALES.map((locale) => {
+        const r = row(locale);
+        return {
+          locale,
+          status: r?.status ?? "draft",
+          started: Boolean(r),
+          published: Boolean(r?.published),
+          coverage: translationCoverage(sources, r?.fields ?? {}),
+        };
+      }),
+    });
+  }
+  const locale = m[2];
+  if (!TRANSLATION_LOCALES.includes(locale))
+    return send(404, { error: { code: "not_found", message: "Not found." } });
+  if (!page.published)
+    return conflict("Publish the English page first: translations follow the published page.");
+  const detail = () => {
+    const r = row(locale);
+    return send(200, {
+      locale,
+      sources: sources.map(([key, english]) => ({ key, english })),
+      fields: r?.fields ?? {},
+      status: r?.status ?? "draft",
+      reviewer: r?.reviewer ?? "",
+      reviewed_at: r?.reviewed_at ?? null,
+      published: Boolean(r?.published),
+      published_at: r?.published_at ?? null,
+      changes_pending: Boolean(r?.published) && JSON.stringify(r.published) !== JSON.stringify(r.fields),
+      coverage: translationCoverage(sources, r?.fields ?? {}),
+      version: r?.version ?? 0,
+      can_edit: rank >= RANKS.editor,
+      can_review: rank >= RANKS.reviewer,
+    });
+  };
+  if (req.method === "GET") return detail();
+  if (!m[3]) {
+    if (rank < RANKS.editor)
+      return send(403, { error: { code: "forbidden", message: "You don't have permission to do that." } });
+    const r = row(locale);
+    if ((r?.version ?? 0) !== body?.version)
+      return conflict("Someone else changed this translation. Reload to see their changes.");
+    const english = new Map(sources);
+    const fields = {};
+    for (const [key, text] of Object.entries(body?.texts ?? {})) {
+      if (!String(text).trim()) continue;
+      if (!english.has(key))
+        return send(422, {
+          error: {
+            code: "validation",
+            message: "Some fields need attention.",
+            fields: [
+              {
+                field: "texts",
+                code: "unknown",
+                message: "Some texts aren't on the published page any more. Reload to see the latest.",
+              },
+            ],
+          },
+        });
+      fields[key] = { text: String(text).trim(), source: english.get(key) };
+    }
+    const next = r ?? {
+      status: "draft",
+      reviewer: "",
+      reviewed_at: null,
+      published: null,
+      published_at: null,
+      version: 0,
+    };
+    if (JSON.stringify(next.fields ?? {}) !== JSON.stringify(fields)) next.status = "draft";
+    Object.assign(next, { fields, version: next.version + 1 });
+    pageTranslations.set(`${page.id}:${locale}`, next);
+    return send(200, { version: next.version, coverage: translationCoverage(sources, fields) });
+  }
+  const action = m[3];
+  const needed = action === "submit" ? RANKS.editor : RANKS.reviewer;
+  if (rank < needed)
+    return send(403, { error: { code: "forbidden", message: "You don't have permission to do that." } });
+  const r = row(locale);
+  if (!r) return conflict("Start the translation first.");
+  if (r.version !== body?.version)
+    return conflict("Someone else changed this translation. Reload to see their changes.");
+  const c = translationCoverage(sources, r.fields);
+  const complete = c.total > 0 && c.translated === c.total;
+  const incomplete = "Translate every text first (texts whose English changed need updating too).";
+  if (action === "submit") {
+    if (!complete) return conflict(incomplete);
+    r.status = "needs_review";
+  } else if (action === "approve") {
+    if (!complete) return conflict(incomplete);
+    if (r.status !== "needs_review") return conflict("Ask for a review first.");
+    const name = String(body?.reviewer ?? "").trim();
+    if (!name)
+      return send(422, {
+        error: {
+          code: "validation",
+          message: "Some fields need attention.",
+          fields: [
+            {
+              field: "reviewer",
+              code: "required",
+              message: "Record who reviewed it (a native speaker), up to 120 characters.",
+            },
+          ],
+        },
+      });
+    Object.assign(r, { status: "complete", reviewer: name, reviewed_at: new Date().toISOString() });
+  } else if (action === "publish") {
+    if (!complete || r.status !== "complete")
+      return conflict("Only a complete, reviewed translation can be published.");
+    Object.assign(r, { published: clone(r.fields), published_at: new Date().toISOString() });
+  } else if (action === "unpublish") Object.assign(r, { published: null, published_at: null });
+  else if (action === "back_to_draft") r.status = "draft";
+  else return send(404, { error: { code: "not_found", message: "Not found." } });
+  r.version += 1;
+  return detail();
 }
 
 function publishedBrand(slug) {
@@ -6495,6 +6717,7 @@ function admin(req, res, url, body, send, raw) {
         return send(200, detail(article));
     }
   }
+  if (/^pages\/[0-9a-f-]+\/translations/.test(path)) return translationRoutes(path, req, body, user, send);
   if (path.startsWith("pages/") || /^sites\/[a-z0-9_-]+\/pages/.test(path))
     return pagesRoutes(path, req, body, user, send);
   if (/^sites\/[a-z0-9_-]+\/brand/.test(path) || path.startsWith("brand/assets/"))

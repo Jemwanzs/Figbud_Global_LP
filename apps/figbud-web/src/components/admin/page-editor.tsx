@@ -25,6 +25,7 @@ import {
   Eye,
   EyeOff,
   GripVertical,
+  Languages,
   LoaderCircle,
   Monitor,
   Plus,
@@ -1597,6 +1598,13 @@ export function PageEditor({ slug, user, initial }: { slug: string; user: AdminU
           >
             <ExternalLink aria-hidden className="size-4" />
             Full preview<span className="sr-only"> (opens in a new tab, shows the saved draft)</span>
+          </Link>
+          <Link
+            href={`/admin/sites/${slug}/pages/${pageId}/translations`}
+            className={buttonClasses("secondary", "md", "px-4")}
+          >
+            <Languages aria-hidden className="size-4" />
+            Translations
           </Link>
         </div>
       </div>

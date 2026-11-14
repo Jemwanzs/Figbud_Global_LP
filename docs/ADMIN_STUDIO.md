@@ -266,6 +266,17 @@ Websites → a website → **Languages**. One language model for every website: 
 - **Settings & Security → Languages** shows which websites have switched each language on.
 - **Where it runs:** `languages` and `languages_draft` in the website's settings (`services/api/src/site_settings.rs`); `builtInLanguages`, `liveLanguages`, `fallbackChain` and `negotiateLocale` in `@figbud/i18n`; `localeProxy` in `@figbud/site-kit` with `apps/figbud-web/src/proxy.ts` (refreshed each minute) and `figbudLanguages()` in `apps/figbud-web/src/lib/locales.ts`; the renderer's `RENDERED_LANGUAGES`.
 
+## Page translations (P7-L2a, 14 Nov 2026)
+
+Websites → a website → Pages → a page → **Translations** (also from the page editor's toolbar).
+
+- **What's translated:** the published English page, as websites show it: its title, search title and description, and every visible text in its sections (headings, lines, labels, items, questions and answers, captions…), never addresses, ids or settings. Hidden sections aren't included. Texts are found by section id and path, so reordering sections never breaks a translation. Shared content items aren't translated here.
+- **Screen:** a tab per language (Kiswahili, French, Arabic, Chinese) with its status and how complete it is; each English text beside its field, written in that language's direction.
+- **Workflow:** Save draft (editors) → **Ask for review** (only when every text is translated) → **Record review** (reviewers, naming the native speaker who reviewed it) → **Publish** (reviewers; only complete and reviewed). Changing a reviewed translation sends it back to draft. Back to draft and Unpublish are there too. Version-checked, audited (`page.translation_saved`, `_submitted`, `_approved`, `_published`, `_unpublished`, `_back_to_draft`).
+- **When the English changes:** each translated text keeps the English it was translated from. If that English changes, the text is flagged on this screen ("The English changed since this was translated") and visitors see the English there until the translation is updated; it never shows an outdated translation.
+- **On the websites:** `GET /v1/sites/{slug}/page?path=…&locale=sw` returns the published translation over the published English (Markdown rendered and sanitised like English), or not found when there is none; `GET /v1/sites/{slug}/pages` lists each page's translated `locales`. Product websites show them with their language addresses (P7-L2b, next), and only in languages reviewed and switched on for the website.
+- **Where it runs:** `page_translations` (migration 41), `services/api/src/pages/translations.rs`, `apps/figbud-web/src/components/admin/page-translations.tsx`.
+
 ## Appearance & themes: the Studio's own colours (UI-AP1, 12 Nov 2026)
 
 Settings & Security → **Appearance & themes**. This changes the Admin Studio only; websites have their own themes (Colours & themes, below).

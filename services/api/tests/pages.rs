@@ -1091,3 +1091,246 @@ async fn corporate_pages_start_as_valid_unpublished_drafts() {
         Some("People. Payroll. Progress. Connected.")
     );
 }
+
+#[tokio::test]
+async fn pages_are_translated_reviewed_and_published_per_language() {
+    // P7-L2 (owner's brief, 14 Nov 2026).
+    let Some(s) = Studio::new().await else {
+        eprintln!("skipping: TEST_DATABASE_URL not set");
+        return;
+    };
+    let owner = s.admin("owner").await;
+    let editor = s.admin("editor").await;
+    let slug = s.listed_site(&owner).await;
+    let doc = json!({ "sections": [
+        { "id": "h", "type": "hero", "heading": "Pay people right", "lead": "Every month, on time." },
+        { "id": "t", "type": "text", "body": "**Payroll** for Kenya." }
+    ] });
+    let (_, created) = s
+        .call(
+            "POST",
+            &format!("/v1/admin/sites/{slug}/pages"),
+            Some(&owner),
+            Some(json!({ "title": "Payroll", "path": "payroll", "template": "blank" })),
+        )
+        .await;
+    let id = created["id"].as_str().unwrap().to_owned();
+    let (_, detail) = s
+        .call("GET", &format!("/v1/admin/pages/{id}"), Some(&owner), None)
+        .await;
+    let version = detail["page"]["draft_version"].clone();
+    let (status, body) = s
+        .call(
+            "POST",
+            &format!("/v1/admin/pages/{id}/draft"),
+            Some(&owner),
+            Some(json!({ "title": "Payroll", "path": "payroll", "document": doc, "version": version })),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    let base = format!("/v1/admin/pages/{id}/translations");
+
+    // Nothing to translate until the English page is published.
+    let (status, _) = s.call("GET", &format!("{base}/sw"), Some(&owner), None).await;
+    assert_eq!(status, StatusCode::CONFLICT);
+    let (_, sub) = s
+        .call(
+            "POST",
+            &format!("/v1/admin/pages/{id}/submit"),
+            Some(&owner),
+            Some(json!({ "note": "Go" })),
+        )
+        .await;
+    let revision = sub["id"].as_str().unwrap().to_owned();
+    let (status, _) = s
+        .call(
+            "POST",
+            &format!("/v1/admin/pages/{id}/revisions/{revision}/approve"),
+            Some(&owner),
+            None,
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK);
+
+    // The English texts, in order; a partial draft can't go for review.
+    let (_, read) = s.call("GET", &format!("{base}/sw"), Some(&editor), None).await;
+    let keys: Vec<&str> = read["sources"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|t| t["key"].as_str().unwrap())
+        .collect();
+    assert_eq!(keys, ["@title", "h/heading", "h/lead", "t/body"]);
+    let (status, saved) = s
+        .call(
+            "POST",
+            &format!("{base}/sw"),
+            Some(&editor),
+            Some(json!({ "texts": { "@title": "Mishahara", "h/heading": "Lipa watu sawa" }, "version": 0 })),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "{saved}");
+    assert_eq!(saved["coverage"]["translated"], 2);
+    let (status, _) = s
+        .call(
+            "POST",
+            &format!("{base}/sw/submit"),
+            Some(&editor),
+            Some(json!({ "version": saved["version"] })),
+        )
+        .await;
+    assert_eq!(status, StatusCode::CONFLICT, "incomplete");
+    let (status, _) = s
+        .call(
+            "GET",
+            &format!("/v1/sites/{slug}/page?path=payroll&locale=sw"),
+            None,
+            None,
+        )
+        .await;
+    assert_eq!(
+        status,
+        StatusCode::NOT_FOUND,
+        "a draft translation is never public"
+    );
+
+    // Complete, reviewed by a named person, published.
+    let (_, saved) = s
+        .call(
+            "POST",
+            &format!("{base}/sw"),
+            Some(&editor),
+            Some(json!({ "texts": {
+                "@title": "Mishahara", "h/heading": "Lipa watu sawa",
+                "h/lead": "Kila mwezi, kwa wakati.", "t/body": "**Mishahara** kwa Kenya."
+            }, "version": saved["version"] })),
+        )
+        .await;
+    let (status, read) = s
+        .call(
+            "POST",
+            &format!("{base}/sw/submit"),
+            Some(&editor),
+            Some(json!({ "version": saved["version"] })),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(read["status"], "needs_review");
+    let (status, _) = s
+        .call(
+            "POST",
+            &format!("{base}/sw/approve"),
+            Some(&editor),
+            Some(json!({ "version": read["version"], "reviewer": "Amina" })),
+        )
+        .await;
+    assert_eq!(status, StatusCode::FORBIDDEN, "editors don't approve");
+    let (status, body) = s
+        .call(
+            "POST",
+            &format!("{base}/sw/approve"),
+            Some(&owner),
+            Some(json!({ "version": read["version"], "reviewer": "" })),
+        )
+        .await;
+    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY, "{body}");
+    let (_, read) = s
+        .call(
+            "POST",
+            &format!("{base}/sw/approve"),
+            Some(&owner),
+            Some(json!({ "version": read["version"], "reviewer": "Amina Otieno" })),
+        )
+        .await;
+    assert_eq!(read["status"], "complete");
+    let (status, read) = s
+        .call(
+            "POST",
+            &format!("{base}/sw/publish"),
+            Some(&owner),
+            Some(json!({ "version": read["version"] })),
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK, "{read}");
+
+    // On the website: the translated page, its Markdown rendered and sanitised like English.
+    let (status, page) = s
+        .call(
+            "GET",
+            &format!("/v1/sites/{slug}/page?path=payroll&locale=sw"),
+            None,
+            None,
+        )
+        .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(page["locale"], "sw");
+    assert_eq!(page["title"], "Mishahara");
+    assert_eq!(page["sections"][0]["heading"], "Lipa watu sawa");
+    assert!(
+        page["sections"][1]["body_html"]
+            .as_str()
+            .unwrap()
+            .contains("<strong>Mishahara</strong>")
+    );
+    let (_, listed) = s
+        .call("GET", &format!("/v1/sites/{slug}/pages"), None, None)
+        .await;
+    assert_eq!(listed[0]["locales"], json!(["sw"]));
+    let (_, english) = s
+        .call("GET", &format!("/v1/sites/{slug}/page?path=payroll"), None, None)
+        .await;
+    assert_eq!(english["locale"], "en");
+    assert_eq!(english["sections"][0]["heading"], "Pay people right");
+
+    // The English lead changes and is published: that field shows English until updated.
+    let (_, detail) = s
+        .call("GET", &format!("/v1/admin/pages/{id}"), Some(&owner), None)
+        .await;
+    let mut changed = doc.clone();
+    changed["sections"][0]["lead"] = json!("Every month, on time, in full.");
+    s.call(
+        "POST",
+        &format!("/v1/admin/pages/{id}/draft"),
+        Some(&owner),
+        Some(json!({ "title": "Payroll", "path": "payroll", "document": changed, "version": detail["page"]["draft_version"] })),
+    )
+    .await;
+    let (_, sub) = s
+        .call(
+            "POST",
+            &format!("/v1/admin/pages/{id}/submit"),
+            Some(&owner),
+            Some(json!({ "note": "Lead" })),
+        )
+        .await;
+    let revision = sub["id"].as_str().unwrap().to_owned();
+    s.call(
+        "POST",
+        &format!("/v1/admin/pages/{id}/revisions/{revision}/approve"),
+        Some(&owner),
+        None,
+    )
+    .await;
+    let (_, page) = s
+        .call(
+            "GET",
+            &format!("/v1/sites/{slug}/page?path=payroll&locale=sw"),
+            None,
+            None,
+        )
+        .await;
+    assert_eq!(page["sections"][0]["heading"], "Lipa watu sawa");
+    assert_eq!(page["sections"][0]["lead"], "Every month, on time, in full.");
+    let (_, read) = s.call("GET", &format!("{base}/sw"), Some(&owner), None).await;
+    assert_eq!(read["coverage"]["outdated"], 1);
+    let (_, list) = s.call("GET", &base, Some(&owner), None).await;
+    let sw = list["translations"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|t| t["locale"] == "sw")
+        .unwrap()
+        .clone();
+    assert_eq!(sw["published"], true);
+    assert_eq!(sw["coverage"]["translated"], 3);
+}

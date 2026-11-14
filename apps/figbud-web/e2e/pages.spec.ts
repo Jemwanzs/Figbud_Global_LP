@@ -386,3 +386,73 @@ test("the hero's modules visual: choose and order the modules, highlight self-se
     "Your people, their records. All in one happy place.",
   );
 });
+
+test("translations: written beside the English, reviewed, published per language (P7-L2)", async ({
+  page,
+  request,
+}, testInfo) => {
+  // Shared mock data: Ziwa's published Platform page, from one project only.
+  test.skip(testInfo.project.name !== "desktop", "edited from the desktop project");
+  await signInAsOwner(page);
+  await page.goto("/admin/sites/ziwa/pages");
+  await page.getByRole("link", { name: "Platform", exact: true }).first().click();
+  await page.getByRole("link", { name: "Translations" }).click();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Translations");
+  const languages = page.getByRole("navigation", { name: "Languages" });
+  await expect(languages.getByRole("link")).toHaveCount(4);
+  await expect(languages.getByRole("link", { name: /Kiswahili/ })).toHaveAttribute("aria-current", "page");
+
+  // The English texts beside fields in Kiswahili (lang and direction set).
+  const rows = page.locator("[data-text]");
+  const total = await rows.count();
+  expect(total).toBeGreaterThan(3);
+  await expect(rows.first()).toContainText("Page title");
+  const first = rows.first().locator("input, textarea");
+  await expect(first).toHaveAttribute("lang", "sw");
+
+  // Half done: saved as a draft, and it can't go for review yet.
+  await first.fill("Jukwaa");
+  await page.getByRole("button", { name: "Save draft" }).click();
+  await expect(page.getByRole("status")).toContainText("Translation saved as a draft.");
+  await expect(page.locator("[data-coverage]")).toContainText(`1 of ${total} texts translated`);
+  await expect(page.getByRole("button", { name: "Ask for review" })).toBeDisabled();
+
+  // Every text translated (synthetic wording for the test), reviewed and published.
+  for (let i = 1; i < total; i++) {
+    const english = (await rows.nth(i).locator("p[lang=en]").textContent()) ?? "";
+    await rows.nth(i).locator("input, textarea").fill(`SW: ${english.trim()}`);
+  }
+  await page.getByRole("button", { name: "Save draft" }).click();
+  await expect(page.locator("[data-coverage]")).toContainText(`${total} of ${total} texts translated (100%)`);
+  await page.getByRole("button", { name: "Ask for review" }).click();
+  await expect(page.getByRole("status")).toContainText("Sent for review.");
+  await page.getByLabel("Reviewed by (a native speaker)").fill("Amina Otieno");
+  await page.getByRole("button", { name: "Record review" }).click();
+  await expect(page.getByText("Reviewed by Amina Otieno")).toBeVisible();
+  page.once("dialog", (d) => d.accept());
+  await page.getByRole("button", { name: "Publish", exact: true }).click();
+  await expect(page.getByRole("status")).toContainText("Published.");
+  await expect(languages.getByRole("link", { name: /Kiswahili/ })).toContainText("Published");
+
+  // The website gets the translated page; English is unchanged.
+  const API = "http://localhost:3199";
+  const sw = await (await request.get(`${API}/v1/sites/ziwa/page?path=platform&locale=sw`)).json();
+  expect(sw.locale).toBe("sw");
+  expect(sw.title).toBe("Jukwaa");
+  expect(sw.sections[0].heading).toBe("SW: One platform for lending operations");
+  const en = await (await request.get(`${API}/v1/sites/ziwa/page?path=platform`)).json();
+  expect(en.sections[0].heading).toBe("One platform for lending operations");
+  const fr = await request.get(`${API}/v1/sites/ziwa/page?path=platform&locale=fr`);
+  expect(fr.status()).toBe(404);
+  const results = await new AxeBuilder({ page: await themeSettled(page) })
+    .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
+    .analyze();
+  expect(
+    results.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`),
+  ).toEqual([]);
+
+  // Unpublished again, so other tests see the English page only.
+  page.once("dialog", (d) => d.accept());
+  await page.getByRole("button", { name: "Unpublish" }).click();
+  await expect(page.getByRole("status")).toContainText("Unpublished");
+});

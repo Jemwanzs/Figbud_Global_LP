@@ -14,6 +14,7 @@ pub mod blocks;
 pub mod budget;
 pub mod import;
 pub mod templates;
+pub mod translations;
 pub mod zirahr_guide;
 
 use axum::{
@@ -55,6 +56,7 @@ pub fn router() -> Router<SharedState> {
             post(revision_action),
         )
         .route("/v1/admin/pages/{id}/{action}", post(page_action))
+        .merge(translations::router())
         .layer(RequestBodyLimitLayer::new(512 * 1024))
 }
 
@@ -191,12 +193,16 @@ async fn public_list(
         noindex: bool,
         /// It shows the enquiry form, so the website's calls to action can stay on it.
         enquiry_form: bool,
+        /// Languages it has a published translation in (P7-L2).
+        locales: Vec<String>,
     }
     let pages: Vec<Listed> = sqlx::query_as(
         "SELECT p.path, p.title, p.published_at, p.show_in_nav,
                 COALESCE((p.published->>'seo_noindex')::boolean, false) AS noindex,
                 jsonb_path_exists(p.published,
-                  '$.sections[*] ? (@.type == \"enquiry_form\" && !(@.hidden == true))') AS enquiry_form
+                  '$.sections[*] ? (@.type == \"enquiry_form\" && !(@.hidden == true))') AS enquiry_form,
+                ARRAY(SELECT t.locale FROM page_translations t
+                       WHERE t.page_id = p.id AND t.published IS NOT NULL ORDER BY t.locale) AS locales
            FROM pages p JOIN sites s ON s.id = p.site_id
           WHERE s.slug = $1 AND s.archived_at IS NULL AND s.status IN ('coming_soon', 'beta', 'active')
             AND p.archived_at IS NULL AND p.published IS NOT NULL AND NOT p.offline
@@ -212,6 +218,9 @@ async fn public_list(
 struct PathQuery {
     #[serde(default)]
     path: String,
+    /// A language with a published translation of the page (P7-L2); English otherwise.
+    #[serde(default)]
+    locale: Option<String>,
 }
 
 async fn public_page(
@@ -219,8 +228,10 @@ async fn public_page(
     Path(slug): Path<String>,
     Query(query): Query<PathQuery>,
 ) -> Result<impl IntoResponse, ApiError> {
-    let row: Option<(Uuid, String, Value, Option<DateTime<Utc>>)> = sqlx::query_as(
-        "SELECT s.id, p.title, p.published, p.published_at FROM pages p JOIN sites s ON s.id = p.site_id
+    /// The site, the page, its title, its published document and when.
+    type Published = (Uuid, Uuid, String, Value, Option<DateTime<Utc>>);
+    let row: Option<Published> = sqlx::query_as(
+        "SELECT s.id, p.id, p.title, p.published, p.published_at FROM pages p JOIN sites s ON s.id = p.site_id
           WHERE s.slug = $1 AND s.archived_at IS NULL AND s.status IN ('coming_soon', 'beta', 'active')
             AND p.path = $2 AND p.archived_at IS NULL AND p.published IS NOT NULL AND NOT p.offline",
     )
@@ -228,13 +239,33 @@ async fn public_page(
     .bind(query.path.trim_matches('/'))
     .fetch_optional(&state.pool)
     .await?;
-    let (site_id, title, published, published_at) = row.ok_or(ApiError::NotFound)?;
+    let (site_id, page_id, mut title, published, published_at) = row.ok_or(ApiError::NotFound)?;
+    // A published translation, over the published English (missing or
+    // outdated texts stay English); none in that language is not found.
+    let translation = match query.locale.as_deref().filter(|l| *l != "en") {
+        Some(locale) => Some((
+            locale.to_owned(),
+            translations::published(&state.pool, page_id, locale)
+                .await?
+                .ok_or(ApiError::NotFound)?,
+        )),
+        None => None,
+    };
     let mut doc: PageDoc =
         serde_json::from_value(published).map_err(|e| ApiError::Internal(e.to_string()))?;
     let origins = crate::shared::resolve(&state.pool, &mut doc, true).await?;
+    if let Some((_, fields)) = &translation {
+        // Translated before rendering, so translated Markdown is sanitised like English.
+        let mut raw = serde_json::to_value(&doc).map_err(|e| ApiError::Internal(e.to_string()))?;
+        if let Some(t) = translations::apply(&mut raw, &title, fields) {
+            title = t;
+        }
+        doc = serde_json::from_value(raw).map_err(|e| ApiError::Internal(e.to_string()))?;
+    }
     let mut value = doc.render(false);
     crate::media::attach(&state.pool, site_id, &mut value, true).await?;
     crate::shared::annotate(&mut value, &origins);
+    value["locale"] = json!(translation.as_ref().map_or("en", |(l, _)| l.as_str()));
     value["title"] = json!(title);
     value["published_at"] = json!(published_at);
     Ok((cache_headers(), Json(value)))
