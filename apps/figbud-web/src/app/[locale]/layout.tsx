@@ -33,7 +33,10 @@ import { allowIndexing, apiOrigin, siteOrigin } from "@/lib/site";
 import "../globals.css";
 
 const outfit = Outfit({
-  subsets: ["latin", "latin-ext"],
+  // Preloads the Latin face only (P2-18): every face stays declared with its
+  // unicode-range, so Latin Extended letters still use Outfit, fetched only
+  // on pages that have them, and the hero heading's font arrives sooner.
+  subsets: ["latin"],
   variable: "--font-outfit",
   display: "swap",
 });

@@ -12,7 +12,8 @@ import { allowIndexing, getDictionary, siteOrigin } from "@/lib/site";
 
 import "../globals.css";
 
-const outfit = Outfit({ subsets: ["latin", "latin-ext"], variable: "--font-outfit", display: "swap" });
+// Preloads the Latin face only (P2-18); Latin Extended letters still use Outfit, fetched when a page has them.
+const outfit = Outfit({ subsets: ["latin"], variable: "--font-outfit", display: "swap" });
 
 export async function generateStaticParams() {
   return locales.map((locale) => ({ locale }));

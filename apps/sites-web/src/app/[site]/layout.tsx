@@ -39,7 +39,8 @@ import {
 
 import "../globals.css";
 
-const outfit = Outfit({ subsets: ["latin", "latin-ext"], variable: "--font-outfit", display: "swap" });
+// Preloads the Latin face only (P2-18); Latin Extended letters still use Outfit, fetched when a page has them.
+const outfit = Outfit({ subsets: ["latin"], variable: "--font-outfit", display: "swap" });
 // Country flags for the enquiry form's country and phone selectors on systems
 // without flag emoji (Windows), as on the corporate site. Only the
 // regional-indicator range, fetched only when a flag shows. Twemoji, CC-BY 4.0.
