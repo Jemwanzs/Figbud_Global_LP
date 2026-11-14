@@ -62,10 +62,58 @@ export type SectionTone =
   | "dark"
   | "gradient_hero"
   | "gradient_band"
-  | "gradient_cta";
+  | "gradient_cta"
+  // Always on the page background, never alternating (owner's brief, 14 Nov 2026).
+  | "plain";
 
 /** Full-width section styles (like the contrasting band). */
 const FULL_TONES = new Set<SectionTone>(["light", "dark", "gradient_hero", "gradient_band", "gradient_cta"]);
+
+/**
+ * Sections whose design brings its own background (owner's brief, 14 Nov
+ * 2026): heroes, calls to action, demonstrations, the module tour and the
+ * forms. They never alternate, and count as the page background.
+ */
+const OWN_BACKGROUND = new Set([
+  "hero",
+  "call_to_action",
+  "demo",
+  "modules",
+  "enquiry_form",
+  "referral_form",
+]);
+
+/** How a section without a style of its own sits: on the page, or on the alternate surface. */
+export type AutoSurface = "page" | "alternate";
+
+/**
+ * Automatic alternation (owner's brief, 14 Nov 2026), from the final order
+ * of the sections actually shown: a section with no style of its own takes
+ * the alternate surface after one on the page background, and the page
+ * background after anything else (a band, a panel, the alternate surface).
+ * Sections with their own style, or their own design, keep it (`null`) and
+ * the next ones continue from them. Hiding, removing, adding or reordering
+ * sections recalculates the rest.
+ */
+export function autoSurfaces(
+  sections: readonly { type: string; tone?: SectionTone | null }[],
+  /** What the section before the first one is on (a hero, by default). */
+  before: AutoSurface = "page",
+): (AutoSurface | null)[] {
+  let previous: AutoSurface = before;
+  return sections.map((section) => {
+    if (section.tone) {
+      previous = section.tone === "plain" ? "page" : "alternate";
+      return null;
+    }
+    if (OWN_BACKGROUND.has(section.type)) {
+      previous = "page";
+      return null;
+    }
+    previous = previous === "page" ? "alternate" : "page";
+    return previous;
+  });
+}
 
 export type PageSection = Base &
   (
@@ -652,6 +700,9 @@ export function PageBlocks({
   /** The website's official mark, drawn from its brand. */
   mark?: BrandMark;
 }) {
+  // Automatic alternation, from the sections visitors see (hidden ones never count).
+  const shown = document.sections.filter((section) => !section.hidden);
+  const surfaces = new Map(autoSurfaces(shown).map((surface, i) => [shown[i]!.id, surface]));
   return (
     // Blocks respond to the space they are given (container queries), so the
     // Studio preview and the website lay out the same way at the same width.
@@ -665,11 +716,13 @@ export function PageBlocks({
             data-section={section.type}
             data-hidden={section.hidden || undefined}
             data-tone={section.tone}
+            data-surface={surfaces.get(section.id) ?? undefined}
             // A light or dark surface keeps its colours whatever the visitor's theme.
             data-theme={section.tone === "light" || section.tone === "dark" ? section.tone : undefined}
             className={cn(
               section.tone && `fb-tone fb-tone-${section.tone}`,
               section.tone && FULL_TONES.has(section.tone) && "fb-tone-full",
+              surfaces.get(section.id) === "alternate" && "fb-tone fb-tone-full fb-tone-alternate",
               section.hidden && "relative rounded-2xl border border-dashed border-line-strong p-4 opacity-50",
             )}
           >

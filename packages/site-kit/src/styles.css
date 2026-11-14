@@ -603,15 +603,15 @@ select.fb-field {
 
 /* A page that ends on a full-width band meets the footer directly: the band
    reaches through the page's bottom padding, and the footer adds no gap. */
-[data-page-content]
-  > [data-page-blocks]:last-child
-  > :is(.fb-tone-inverse, .fb-tone-full):last-child::before {
+[data-page-content] > [data-page-blocks]:last-child > :is(.fb-tone-inverse, .fb-tone-full):last-child::before,
+[data-page-content] > [data-proof] > .fb-tone-full:last-child::before {
   bottom: calc(-1 * var(--spacing-section-sm));
 }
 body:has(
     [data-page-content] > [data-page-blocks]:last-child > :is(.fb-tone-inverse, .fb-tone-full):last-child
   )
-  footer {
+  footer,
+body:has([data-page-content] > [data-proof]:last-child > .fb-tone-full:last-child) footer {
   margin-top: 0;
 }
 
@@ -736,6 +736,14 @@ body:has(main [data-section="call_to_action"]:last-child) footer {
 .fb-tone-light::before,
 .fb-tone-dark::before {
   background: var(--bg);
+}
+/* Automatic alternation (owner's brief, 14 Nov 2026): a section with no style
+   of its own after one on the page background sits on the alternate surface,
+   full width: the website's soft band colour for the mode (Colours & themes →
+   Section bands), with the mode's own text, so it follows the palette and
+   the light or dark mode. `autoSurfaces` decides which sections. */
+.fb-tone-alternate::before {
+  background: var(--section-soft, var(--surface-2));
 }
 .fb-tone-gradient_hero::before {
   background: var(--grad-hero, var(--bg));

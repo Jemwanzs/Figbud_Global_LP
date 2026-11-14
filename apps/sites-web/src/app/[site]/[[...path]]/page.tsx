@@ -11,6 +11,7 @@ import {
   LazyPublicPricing,
   Testimonials,
   TrustedBy,
+  autoSurfaces,
   breadcrumbLd,
   enquiriesOpen,
   faqLd,
@@ -355,6 +356,27 @@ export default async function SitePage({ params }: PageProps<"/[site]/[[...path]
     faqLd(page),
   ].filter((d) => d !== null);
   const info = locale === "en" ? null : localeInfo[locale as Locale];
+  // Customer proof after the page's sections, alternating on from them.
+  const proofParts = proof
+    ? [
+        proof.organizations.length > 0 && {
+          key: "trusted",
+          node: <TrustedBy organizations={proof.organizations} labels={PROOF_LABELS.trustedBy} />,
+        },
+        proof.metrics.length > 0 && {
+          key: "metrics",
+          node: <ProofMetrics metrics={proof.metrics} locale="en" labels={PROOF_LABELS.metrics} />,
+        },
+        proof.testimonials.length > 0 && {
+          key: "testimonials",
+          node: <Testimonials testimonials={proof.testimonials} labels={PROOF_LABELS.testimonials} />,
+        },
+      ].filter((part) => part !== false)
+    : [];
+  const proofSurfaces = autoSurfaces([
+    ...blocks.sections.filter((s) => !s.hidden),
+    ...proofParts.map(() => ({ type: "proof" })),
+  ]).slice(-proofParts.length || Infinity);
   const content = (
     <>
       {designed && (
@@ -394,12 +416,22 @@ export default async function SitePage({ params }: PageProps<"/[site]/[[...path]
             form: site.slug,
           }}
         />
-        {/* Approved customer proof for this website (home page); nothing renders without it. */}
-        {proof && proof.organizations.length + proof.metrics.length + proof.testimonials.length > 0 && (
-          <div className="space-y-section pt-section">
-            <TrustedBy organizations={proof.organizations} labels={PROOF_LABELS.trustedBy} />
-            <ProofMetrics metrics={proof.metrics} locale="en" labels={PROOF_LABELS.metrics} />
-            <Testimonials testimonials={proof.testimonials} labels={PROOF_LABELS.testimonials} />
+        {/* Approved customer proof for this website (home page); nothing renders without it.
+            Each part present is its own band, continuing the page's alternation
+            (owner's brief, 14 Nov 2026), so consecutive parts never share a background. */}
+        {proofParts.length > 0 && (
+          <div data-proof="" className="space-y-block pt-block">
+            {proofParts.map((part, i) => (
+              <div
+                key={part.key}
+                data-surface={proofSurfaces[i]}
+                className={
+                  proofSurfaces[i] === "alternate" ? "fb-tone fb-tone-full fb-tone-alternate" : undefined
+                }
+              >
+                {part.node}
+              </div>
+            ))}
           </div>
         )}
       </div>

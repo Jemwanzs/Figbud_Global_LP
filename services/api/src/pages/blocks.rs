@@ -352,6 +352,8 @@ pub enum Tone {
     GradientHero,
     GradientBand,
     GradientCta,
+    /// Always on the page background, never alternating (14 Nov 2026).
+    Plain,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
@@ -809,7 +811,15 @@ mod tests {
         );
         assert!(doc(json!([{ "id": "a", "type": "text", "body": "x", "tone": "#ff0000" }])).is_err());
         // The Brand & Theme Studio's surfaces and gradient presets.
-        for tone in ["light", "dark", "gradient_hero", "gradient_band", "gradient_cta"] {
+        // ...and "plain": always on the page background (14 Nov 2026).
+        for tone in [
+            "light",
+            "dark",
+            "gradient_hero",
+            "gradient_band",
+            "gradient_cta",
+            "plain",
+        ] {
             let page = doc(json!([{ "id": "a", "type": "text", "body": "x", "tone": tone }])).unwrap();
             assert_eq!(page.render(false)["sections"][0]["tone"], tone);
         }

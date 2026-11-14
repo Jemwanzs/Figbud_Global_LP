@@ -3571,7 +3571,8 @@ function proofRoutes(path, req, body, user, send) {
       organization_name: org.draft.name,
       permission: { quote_approved: true, evidence: "Test fixture" },
     },
-    ["figbud"],
+    // On ZiraHR too, beside its Trusted By, for the section alternation tests (14 Nov 2026).
+    ["figbud", "zirahr"],
   );
   seed(
     "metric",

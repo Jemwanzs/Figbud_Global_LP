@@ -248,7 +248,12 @@ function Items<T>({
 }
 
 const TONES: { value: SectionTone | undefined; label: string; hint: string }[] = [
-  { value: undefined, label: "Default", hint: "On the page background" },
+  {
+    value: undefined,
+    label: "Auto (alternates)",
+    hint: "Alternates with the sections around it, in the website's colours",
+  },
+  { value: "plain", label: "Page background", hint: "Always on the page background, never alternating" },
   { value: "brand", label: "Brand band", hint: "A dark band in either theme, from Colours & themes" },
   { value: "soft", label: "Soft band", hint: "A gentle tint of the theme, from Colours & themes" },
   {
@@ -274,6 +279,7 @@ const TONES: { value: SectionTone | undefined; label: string; hint: string }[] =
 
 /** A small sample of each style for the picker. */
 const TONE_SWATCH: Partial<Record<SectionTone, string>> = {
+  plain: "var(--bg)",
   inverse: "linear-gradient(90deg, #020617 50%, #f8fafc 50%)",
   light: "#f8fafc",
   dark: "#020617",
@@ -327,7 +333,10 @@ function ToneField({
                       ? bands.brand.hex
                       : t.value === "soft"
                         ? bands.soft.hex
-                        : ((t.value && TONE_SWATCH[t.value]) ?? "transparent"),
+                        : t.value
+                          ? (TONE_SWATCH[t.value] ?? "transparent")
+                          : // Auto: the page background and the alternate surface.
+                            `linear-gradient(90deg, var(--bg) 50%, ${bands.soft.hex} 50%)`,
                 }}
                 className="mt-0.5 size-4 shrink-0 rounded-full border border-line-strong"
               />

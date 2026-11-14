@@ -444,6 +444,43 @@ test("product websites have the shared language selector, staying on the website
   expect(results.violations.map((v) => v.id)).toEqual([]);
 });
 
+test("Trusted By and testimonials alternate with the page, in the website's colours, in both themes", async ({
+  page,
+}) => {
+  // Owner's brief, 14 Nov 2026. Mock fixture: one synthetic organisation and testimonial on ZiraHR.
+  await page.goto("/zirahr");
+  const proof = page.locator("[data-proof] > [data-surface]");
+  await expect(proof).toHaveCount(2);
+  const surfaces = await proof.evaluateAll((parts) => parts.map((p) => p.getAttribute("data-surface")));
+  expect(surfaces[0]).not.toBe(surfaces[1]);
+  // The alternate surface is the website's soft band colour for the mode, distinct from the page.
+  const colours = () =>
+    page.evaluate(() => {
+      const alt = document.querySelector('[data-proof] > [data-surface="alternate"]')!;
+      return {
+        band: getComputedStyle(alt, "::before").backgroundColor,
+        page: getComputedStyle(document.body).backgroundColor,
+        soft: getComputedStyle(document.body).getPropertyValue("--section-soft").trim(),
+      };
+    });
+  for (const theme of ["dark", "light"] as const) {
+    await page.evaluate((t) => document.documentElement.setAttribute("data-theme", t), theme);
+    await expect.poll(async () => (await colours()).soft).toBe(theme === "dark" ? "#443c38" : "#f2e9da");
+    const c = await colours();
+    expect(c.band, theme).not.toBe(c.page);
+  }
+  // A single testimonial sits centred, not stranded to one side.
+  const card = page.getByRole("list", { name: "Customer testimonials" }).getByRole("listitem").first();
+  const box = (await card.boundingBox())!;
+  const width = page.viewportSize()!.width;
+  if (width >= 768) expect(Math.abs(box.x + box.width / 2 - width / 2)).toBeLessThan(40);
+  const results = await new AxeBuilder({ page: await themeSettled(page) })
+    .include("[data-proof]")
+    .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
+    .analyze();
+  expect(results.violations.map((v) => v.id)).toEqual([]);
+});
+
 test.describe("pages in other languages (P7-L2b)", () => {
   // Mock fixture (MOCK_TRANSLATED_ZIWA): Arabic reviewed and switched on for
   // Ziwa LMS, with its Platform page translated; nothing else translated.

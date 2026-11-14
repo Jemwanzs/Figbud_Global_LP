@@ -265,7 +265,10 @@ test("hide a section, and manage a page's visibility without losing it", async (
   // A section style puts it on a band in the website's theme colours (part of the draft).
   await sections.getByRole("button", { name: /^Hero/ }).click();
   const style = page.getByRole("radiogroup", { name: "Hero section style" });
-  await expect(style.getByRole("radio", { name: /Default/ })).toHaveAttribute("aria-checked", "true");
+  await expect(style.getByRole("radio", { name: /^Auto \(alternates\)/ })).toHaveAttribute(
+    "aria-checked",
+    "true",
+  );
   await style.getByRole("radio", { name: /Brand band/ }).click();
   await expect(page.getByRole("region", { name: "Live preview" }).locator('[data-tone="brand"]')).toHaveCount(
     1,

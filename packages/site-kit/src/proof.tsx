@@ -225,7 +225,7 @@ export function Testimonials({
       <Heading id="testimonials-title" eyebrow={labels.eyebrow} title={labels.title} lead={labels.lead} />
       <ul
         aria-label={labels.list}
-        className="-mx-5 mt-12 flex snap-x snap-mandatory scroll-px-5 [scrollbar-width:none] gap-4 overflow-x-auto px-5 pb-2 md:mx-0 md:grid md:snap-none md:grid-cols-2 md:gap-6 md:overflow-visible md:px-0 xl:grid-cols-3"
+        className="-mx-5 mt-12 flex snap-x snap-mandatory scroll-px-5 [scrollbar-width:none] gap-4 overflow-x-auto px-5 pb-2 md:mx-0 md:grid md:snap-none md:grid-cols-[repeat(auto-fit,minmax(18rem,26rem))] md:justify-center md:gap-6 md:overflow-visible md:px-0"
       >
         {testimonials.map((t, i) => {
           const avatar = t.photo ?? t.organization_logo;
