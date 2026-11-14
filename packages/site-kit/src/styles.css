@@ -1380,7 +1380,8 @@ body:has(main [data-section="call_to_action"]:last-child) footer {
   height: 2px;
   margin-bottom: 0.875rem;
   border-radius: 9999px;
-  background: var(--product);
+  /* The product's colour on product websites; the website's accent elsewhere (FigBud Global). */
+  background: var(--product, var(--accent));
 }
 
 /* Footer (owner's brief, 13 Nov 2026): floating vertical dividers between the

@@ -76,8 +76,8 @@ export type EnquiryFormCopy = typeof enquiryFormCopy;
 
 /**
  * The two-stage form's wording (owner's brief, 13 Nov 2026), on product
- * websites. Passing it to `EnquiryForm` turns the stages on; without it, the
- * form is one column, as on the corporate contact page.
+ * websites and, from 14 Nov 2026, FigBud Global's contact page. Passing it
+ * to `EnquiryForm` turns the stages on; without it, the form is one column.
  */
 export const enquiryStagesCopy = {
   oneTitle: "Let's get acquainted",

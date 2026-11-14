@@ -108,3 +108,30 @@ html[data-studio] {
     opacity: 0.65;
   }
 }
+
+/* Contact page, "What happens next" (owner's brief, 14 Nov 2026): the numbered
+   steps joined by a hairline in the theme's line colour, down the numbers on
+   phones and across them on wider screens. Decoration only. */
+.fb-next-steps > li:not(:last-child)::before {
+  content: "";
+  position: absolute;
+  inset-inline-start: 1.25rem;
+  top: 2.75rem;
+  bottom: -1.75rem;
+  width: 1px;
+  background: linear-gradient(to bottom, var(--line-strong), transparent);
+}
+@media (min-width: 48rem) {
+  .fb-next-steps > li:not(:last-child)::before {
+    inset-inline-start: 3rem;
+    inset-inline-end: -1.75rem;
+    top: 1.25rem;
+    bottom: auto;
+    width: auto;
+    height: 1px;
+    background: linear-gradient(to right, var(--line-strong), transparent);
+  }
+  [dir="rtl"] .fb-next-steps > li:not(:last-child)::before {
+    background: linear-gradient(to left, var(--line-strong), transparent);
+  }
+}

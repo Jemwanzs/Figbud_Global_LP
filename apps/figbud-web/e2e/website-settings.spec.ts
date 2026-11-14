@@ -40,6 +40,7 @@ test("if a product closes while the form is open, the API's refusal is explained
     await expect(page.getByLabel("Full name")).toHaveValue("Amina Otieno", { timeout: 1_000 });
   }).toPass();
   await page.getByLabel("Work email").fill("amina@example.co.ke");
+  await page.getByRole("button", { name: "Continue" }).click();
   await page.getByRole("checkbox").check();
   await page.getByRole("button", { name: "Send enquiry" }).click();
   await expect(page.getByText("Ziwa LMS isn't taking enquiries right now.", { exact: false })).toBeVisible();

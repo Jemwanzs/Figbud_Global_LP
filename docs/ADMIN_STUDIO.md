@@ -477,6 +477,7 @@ Page builder → a demonstration section → **Guide it with scrolling** (on by 
 ## Enquiry form (UI-F2)
 
 - **Enquiry form** section: the same form as the corporate contact page (demo request, sales, question, partnership), sent to the enquiry inbox. On a product's own website the product is fixed, so there's no product choice.
+- **Two stages everywhere (UI-EF1, UI-EF2):** product websites since 13 Nov 2026, FigBud Global's Contact page since 14 Nov 2026 (with its product choice in the first stage). One shared component (`EnquiryForm` with `stages`, `@figbud/site-kit/enquiry-form`); each website keeps its own product context, routing and wording. Its Studio settings are UI-EF3.
 - Put it on a website's **Contact** page and that website's demo and contact buttons open it there, instead of the FigBud Global contact page. Remove it and they go back to the corporate form.
 
 ## Hero section options (UI-HE1)

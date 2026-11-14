@@ -44,29 +44,29 @@ export default async function ContactPage({ params }: PageProps<"/[locale]/conta
         title={page.title}
         lead={page.lead}
       />
-      <Container size="wide" className="grid gap-10 py-section-sm lg:grid-cols-12 lg:gap-16">
-        <div className="lg:col-span-7">
-          {/* The form reads ?kind=&product= from the URL, which is request-time data. */}
-          <Suspense
-            fallback={<div className="fb-panel h-[52rem] rounded-[var(--radius-panel)]" aria-hidden />}
-          >
-            <EnquiryForm
-              locale={locale}
-              copy={dict.form}
-              closed={closed}
-              privacyHref={localizePath(locale, routes.privacy)}
-              apiOrigin={apiOrigin}
-            />
-          </Suspense>
-        </div>
-        <aside className="lg:col-span-5 lg:pt-4" aria-labelledby="contact-next-title">
+      {/* The two-stage form (owner's brief, 14 Nov 2026): one card, who you are, then the details. */}
+      <Container size="wide" className="py-section-sm">
+        {/* The form reads ?kind=&product= from the URL, which is request-time data. */}
+        <Suspense fallback={<div className="fb-panel h-[46rem] rounded-[var(--radius-panel)]" aria-hidden />}>
+          <EnquiryForm
+            locale={locale}
+            copy={dict.form}
+            closed={closed}
+            privacyHref={localizePath(locale, routes.privacy)}
+            apiOrigin={apiOrigin}
+            stages={dict.formStages}
+          />
+        </Suspense>
+        <section aria-labelledby="contact-next-title" className="mt-section-sm">
+          <span aria-hidden className="fb-heading-accent" />
           <h2 id="contact-next-title" className="text-xl font-medium text-text">
             {page.nextTitle}
           </h2>
-          <ol className="mt-8 space-y-8">
+          {/* Three steps joined by a hairline: across on wide screens, down on phones. */}
+          <ol className="fb-next-steps mt-8 grid gap-8 md:grid-cols-3 md:gap-10">
             {page.nextSteps.map((step, i) => (
-              <li key={step.title} className="flex gap-5">
-                <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-line-strong font-mono text-sm text-accent">
+              <li key={step.title} className="relative flex gap-5 md:flex-col md:gap-4">
+                <span className="relative z-[1] inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-line-strong bg-bg font-mono text-sm text-accent">
                   {i + 1}
                 </span>
                 <span>
@@ -77,7 +77,7 @@ export default async function ContactPage({ params }: PageProps<"/[locale]/conta
             ))}
           </ol>
           <p className="mt-10 border-t border-line pt-6 text-sm text-subtle">{page.privacyNote}</p>
-        </aside>
+        </section>
       </Container>
     </>
   );

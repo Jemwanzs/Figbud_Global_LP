@@ -72,6 +72,16 @@ for (const route of ["/en", "/en/products", "/en/contact"]) {
 
 test("contact form errors are announced and accessible", async ({ page }) => {
   await page.goto("/en/contact");
+  // The first stage's field errors (two-stage form, owner's brief, 14 Nov 2026).
+  await page.getByRole("button", { name: "Continue" }).click();
+  await expect(page.getByLabel("Full name")).toHaveAttribute("aria-invalid", "true");
+  await scan(page);
+  // Then the announced summary, when the second stage is sent without consent.
+  await page.getByLabel("Full name").fill("Amina Wanjiru");
+  await page.getByLabel(/^Work email/).fill("amina@example.co.ke");
+  await page.getByLabel("Company or organisation").fill("Example Ltd");
+  await page.getByRole("button", { name: "Continue" }).click();
   await page.getByRole("button", { name: /send/i }).click();
+  await expect(page.getByText("Please correct the highlighted fields.")).toBeVisible();
   await scan(page);
 });

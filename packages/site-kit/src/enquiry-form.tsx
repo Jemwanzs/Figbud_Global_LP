@@ -66,7 +66,8 @@ const SERVER_FIELD_ERROR: Record<string, EnquiryErrors[keyof EnquiryErrors]> = {
  * The enquiry form on the corporate contact page and on product websites'
  * own pages, validated by the API.
  *
- * With `stages` (product websites; owner's brief, 13 Nov 2026), it's two
+ * With `stages` (product websites, 13 Nov 2026; FigBud Global's contact
+ * page, 14 Nov 2026, with its product choice in the first stage), it's two
  * stages in one card: who you are, then the details. The second is visible
  * but inactive (`inert`) until the first is valid and Continue is chosen;
  * both stay editable after that, and everything goes as one enquiry. On wide

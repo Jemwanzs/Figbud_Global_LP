@@ -573,10 +573,72 @@ test.describe("contact form", () => {
       return route.abort();
     });
     await page.goto("/en/contact");
-    await page.getByRole("button", { name: "Send enquiry" }).click();
-    await expect(page.getByText("Please correct the highlighted fields.")).toBeVisible();
+    // The first stage is checked before the second opens; Enter can't skip it either.
+    await page.getByLabel("Full name").press("Enter");
     await expect(page.getByLabel("Full name")).toHaveAttribute("aria-invalid", "true");
+    await expect(page.locator("form[data-stage]")).toHaveAttribute("data-stage", "1");
+    await page.getByRole("button", { name: "Continue" }).click();
+    await expect(page.getByLabel(/^Work email/)).toHaveAttribute("aria-invalid", "true");
     expect(called).toBe(false);
+  });
+
+  test("two stages in one card: who you are (with the product), then the details (owner's brief, 14 Nov 2026)", async ({
+    page,
+  }) => {
+    let sent: Record<string, unknown> = {};
+    await page.route("**/v1/enquiries", async (route) => {
+      sent = JSON.parse(route.request().postData() ?? "{}");
+      await route.fulfill({
+        status: 201,
+        contentType: "application/json",
+        headers: { "access-control-allow-origin": "*" },
+        body: JSON.stringify({ reference: "FBG-2611-STAGES", status: "received" }),
+      });
+    });
+    // A product chosen on a product card or call to action is preselected, with its kind.
+    await page.goto("/en/contact?kind=sales&product=zirahr");
+    const form = page.locator("form[data-stage]");
+    const two = form.locator("[data-stage-two]");
+    await expect(form).toHaveAttribute("data-stage", "1");
+    await expect(page.getByRole("radio", { name: "Sales enquiry" })).toBeChecked();
+    const product = page.getByLabel("Product");
+    await expect(product).toHaveValue("zirahr");
+    // The second stage is inactive until the first is complete.
+    await expect(two).toHaveAttribute("inert", "");
+    await page.getByLabel("Full name").fill("Amina Wanjiru");
+    await page.getByLabel(/^Work email/).fill("amina@example.co.ke");
+    await page.getByLabel("Company or organisation").fill("Example Ltd");
+    await page.getByRole("button", { name: "Continue" }).click();
+    await expect(form).toHaveAttribute("data-stage", "2");
+    await expect(two).not.toHaveAttribute("inert", "");
+    // Focus moves into the second stage.
+    await expect(two.locator(":focus")).toHaveCount(1);
+    const wide = (page.viewportSize()?.width ?? 0) >= 1024;
+    if (!wide) {
+      // Phones: Back keeps everything typed.
+      await page.getByRole("button", { name: "Back to your details" }).click();
+      await expect(page.getByLabel("Full name")).toHaveValue("Amina Wanjiru");
+      await expect(product).toHaveValue("zirahr");
+      await page.getByRole("button", { name: "Continue" }).click();
+    } else {
+      // Wide screens: side by side with the 01 -> 02 indicator, the first stage still editable.
+      await expect(form.locator(".fb-enquiry-divider")).toHaveAttribute("data-active", "true");
+      await expect(page.getByLabel("Full name")).toBeEditable();
+    }
+    // A sales enquiry needs a message (the existing rules, unchanged).
+    await page
+      .getByLabel("How can we help?")
+      .fill("We'd like pricing for payroll and leave for about 120 people in Kenya.");
+    await page.getByRole("checkbox").check();
+    await page.getByRole("button", { name: "Send enquiry" }).click();
+    await expect(page.getByText("FBG-2611-STAGES")).toBeVisible();
+    // One enquiry, for the chosen product and kind.
+    expect(sent).toMatchObject({
+      product: "zirahr",
+      kind: "sales",
+      name: "Amina Wanjiru",
+      company: "Example Ltd",
+    });
   });
 
   test("keyboard focus shows a clear ring in the focus colour, red while a field is invalid (UI-TH5)", async ({
@@ -590,7 +652,7 @@ test.describe("contact form", () => {
     // A 3px ring in the focus colour (browsers write the mixed colour differently).
     await expect.poll(ring).toMatch(/ 0px 0px 0px 3px$/);
     const focusRing = await ring();
-    await page.getByRole("button", { name: "Send enquiry" }).click();
+    await page.getByRole("button", { name: "Continue" }).click();
     await expect(name).toHaveAttribute("aria-invalid", "true");
     await name.focus();
     // While invalid, the ring turns to the danger colour (once the browser restyles it).
@@ -618,6 +680,7 @@ test.describe("contact form", () => {
     await expect(page.getByLabel("Product")).toHaveValue("expense_now");
     await page.getByLabel("Full name").fill("Amina Wanjiru");
     await page.getByLabel("Work email").fill("amina@example.co.ke");
+    await page.getByRole("button", { name: "Continue" }).click();
     await page.getByRole("checkbox").check();
     await page.getByRole("button", { name: "Send enquiry" }).click();
     await expect(page.getByText("FBG-2610-TEST42")).toBeVisible();
@@ -649,6 +712,9 @@ test.describe("smart contact fields", () => {
     await email.blur();
     await expect(email).toHaveValue("amina.wanjiru@gmail.com");
     await expect(email).not.toHaveAttribute("aria-invalid", "true");
+    // Country and phones are in the second stage.
+    await page.getByLabel("Full name").fill("Amina Wanjiru");
+    await page.getByRole("button", { name: "Continue" }).click();
 
     // Searchable country list; an empty phone follows the chosen country.
     await page.getByRole("button", { name: /^Country/ }).click();
@@ -692,7 +758,6 @@ test.describe("smart contact fields", () => {
     await page.getByRole("combobox", { name: "Search countries" }).fill("254");
     await page.getByRole("option", { name: /Kenya/ }).first().click();
     await page.getByLabel("Second phone", { exact: true }).fill("0712 345 678");
-    await page.getByLabel("Full name").fill("Amina Wanjiru");
     await page.getByRole("checkbox").check();
     await page.getByRole("button", { name: "Send enquiry" }).click();
     await expect(page.getByText("FBG-2610-PHONE1")).toBeVisible();

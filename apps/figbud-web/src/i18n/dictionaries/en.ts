@@ -1,4 +1,4 @@
-import { enquiryFormCopy } from "@figbud/site-kit/enquiry";
+import { enquiryFormCopy, enquiryStagesCopy } from "@figbud/site-kit/enquiry";
 
 /**
  * English is the source language. Every other locale overlays a partial
@@ -535,6 +535,8 @@ const en = {
   },
   // Shared with the product websites (packages/site-kit/src/enquiry-copy.ts).
   form: enquiryFormCopy,
+  // The two-stage contact form (owner's brief, 14 Nov 2026), shared with product websites.
+  formStages: enquiryStagesCopy,
 };
 
 export default en;
