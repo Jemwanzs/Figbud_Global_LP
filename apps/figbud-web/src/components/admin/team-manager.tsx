@@ -1,6 +1,6 @@
 "use client";
 
-import { cn } from "@figbud/ui";
+import { cn, useConfirm } from "@figbud/ui";
 import { Globe2, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 
@@ -138,6 +138,7 @@ function Member({
   self: boolean;
   roles: StudioRoleOption[];
 }) {
+  const confirm = useConfirm();
   const [saved, setSaved] = useState<TeamMember>(member);
   const [value, setValue] = useState<AccessValue>(toValue(member));
   const [open, setOpen] = useState(false);
@@ -175,10 +176,13 @@ function Member({
       setSaved((s) => ({ ...s, role: nextRole, all_sites: nextRole === "owner" ? true : s.all_sites }));
       return `Role changed to ${ROLE_LABELS[nextRole]}. It applies from their next click.`;
     });
-  const suspend = () =>
-    window.confirm(
-      `Suspend ${saved.name}? They're signed out everywhere and can't sign in until reactivated.`,
-    ) &&
+  const suspend = async () =>
+    (await confirm({
+      title: `Suspend ${saved.name}?`,
+      body: "They're signed out of every device at once and can't sign in until reactivated. Their work and history stay.",
+      confirmLabel: "Suspend",
+      tone: "danger",
+    })) &&
     manage("suspend", {}, () => {
       setSaved((s) => ({ ...s, disabled_at: new Date().toISOString() }));
       return "Suspended and signed out everywhere.";
@@ -188,8 +192,13 @@ function Member({
       setSaved((s) => ({ ...s, disabled_at: null }));
       return "Reactivated. They can sign in again.";
     });
-  const signOut = () =>
-    window.confirm(`Sign ${saved.name} out of every device?`) &&
+  const signOut = async () =>
+    (await confirm({
+      title: `Sign ${saved.name} out of every device?`,
+      body: "Every open session ends now. They can sign in again straight away.",
+      confirmLabel: "Sign out everywhere",
+      tone: "warning",
+    })) &&
     manage("sessions/revoke", {}, (r: { sessions_ended: number }) =>
       r.sessions_ended ? `Signed out of ${r.sessions_ended} session(s).` : "They had no open sessions.",
     );

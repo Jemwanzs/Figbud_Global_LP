@@ -3,6 +3,7 @@ import { randomBytes } from "node:crypto";
 
 import { expect, test } from "@playwright/test";
 import { scrolledToTop, themeSettled } from "./theme-settled";
+import { answer } from "./confirm-dialog";
 
 // Studio → Websites → ZiraHR → Payroll Calculator (P14-C). The rules behind
 // this are tested in services/api/tests/payroll.rs and the engine's unit tests.
@@ -99,8 +100,8 @@ test("rules can't be published unchecked; draft, approve, switch on and roll bac
   await page.getByRole("button", { name: "Approve and publish" }).click();
   await expect(page.getByRole("status").filter({ hasText: "Published." })).toBeVisible();
   expect((await publicState()).intro).toBe("A clearer introduction.");
-  page.once("dialog", (d) => d.accept());
   await page.getByRole("button", { name: "Roll back to this" }).click();
+  await answer(page, "Roll back");
   await expect(page.getByRole("status").filter({ hasText: "Rolled back to version 1." })).toBeVisible();
   expect((await publicState()).intro).not.toBe("A clearer introduction.");
   expect((await publicState()).version).toBe(3);

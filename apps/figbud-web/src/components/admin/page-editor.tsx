@@ -12,7 +12,7 @@ import {
   ZIRAHR_MODULES,
   siteThemeCss,
 } from "@figbud/site-kit";
-import { buttonClasses, cn } from "@figbud/ui";
+import { buttonClasses, cn, useConfirm } from "@figbud/ui";
 import {
   ArrowDown,
   ArrowUp,
@@ -1282,6 +1282,7 @@ const summary = (section: PageSection) =>
  */
 export function PageEditor({ slug, user, initial }: { slug: string; user: AdminUser; initial: PageDetail }) {
   const router = useRouter();
+  const confirm = useConfirm();
   const uid = useId();
   const pageId = initial.page.id;
   const canEdit = hasRole(user, "editor") && !initial.page.archived_at;
@@ -2236,9 +2237,14 @@ export function PageEditor({ slug, user, initial }: { slug: string; user: AdminU
                 <button
                   type="button"
                   disabled={!!busy}
-                  onClick={() => {
+                  onClick={async () => {
                     if (
-                      window.confirm(`Archive "${draft.title}"? It is taken off the website until restored.`)
+                      await confirm({
+                        title: `Archive "${draft.title}"?`,
+                        body: "It's taken off the website until restored. Its content and history are kept.",
+                        confirmLabel: "Archive page",
+                        tone: "danger",
+                      })
                     ) {
                       run("archive", `pages/${pageId}/archive`, {}, "Page archived.", false, () =>
                         router.push(`/admin/sites/${slug}/pages`),
@@ -2276,13 +2282,16 @@ export function PageEditor({ slug, user, initial }: { slug: string; user: AdminU
                       : "Visitors can open this page."
                 }
                 disabled={!canChangeVisibility || data.page.path === "" || !!busy}
-                onToggle={() => {
+                onToggle={async () => {
                   const goingOffline = !data.page.offline;
                   if (
                     goingOffline &&
-                    !window.confirm(
-                      `Take "${draft.title}" offline? Visitors will get “page not found” until it is back online.`,
-                    )
+                    !(await confirm({
+                      title: `Take "${draft.title}" offline?`,
+                      body: "Visitors will get “page not found” until it's back online. Its content stays here.",
+                      confirmLabel: "Take offline",
+                      tone: "warning",
+                    }))
                   )
                     return;
                   run(

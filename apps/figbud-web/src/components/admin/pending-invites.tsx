@@ -1,6 +1,6 @@
 "use client";
 
-import { cn } from "@figbud/ui";
+import { cn, useConfirm } from "@figbud/ui";
 import { useState } from "react";
 
 import { AdminError, type AdminUser, ROLE_LABELS, adminFetch } from "@/lib/admin-client";
@@ -28,12 +28,19 @@ const date = (iso: string) =>
  * Overview (links are shown once, never stored).
  */
 export function PendingInvites({ invites }: { invites: PendingInvite[] }) {
+  const confirm = useConfirm();
   const [list, setList] = useState(invites);
   const [message, setMessage] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
 
   async function revoke(invite: PendingInvite) {
-    if (!window.confirm(`Revoke the invitation for ${invite.email}? Its link stops working.`)) return;
+    const ok = await confirm({
+      title: `Revoke the invitation for ${invite.email}?`,
+      body: "Its link stops working at once. You can send a new invitation later.",
+      confirmLabel: "Revoke invitation",
+      tone: "danger",
+    });
+    if (!ok) return;
     setBusy(invite.id);
     setMessage(null);
     try {

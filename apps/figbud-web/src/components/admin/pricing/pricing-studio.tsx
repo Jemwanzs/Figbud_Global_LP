@@ -1,7 +1,7 @@
 "use client";
 
-import { CYCLE_LABELS, type CycleKey, type PriceBook, formatMoney } from "@figbud/site-kit";
-import { cn } from "@figbud/ui";
+import { CYCLE_LABELS, type CycleKey, type PriceBook, type PricingItem, formatMoney } from "@figbud/site-kit";
+import { type ConfirmOptions, cn, useConfirm, useToast } from "@figbud/ui";
 import { ExternalLink, Eye, EyeOff, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -13,6 +13,7 @@ import { useSavedBaseline, useUnsavedChangesWarning } from "@/lib/form-state";
 import { ActionButton } from "../action-button";
 import { ItemsEditor, validAmount } from "./items-editor";
 import { PricingCalculator } from "./pricing-calculator";
+import { PricingRevisionWatcher } from "./revision-watcher";
 import { type PricingAdmin, QUOTE_STATUS, type QuoteSummary } from "./pricing-types";
 
 const TABS = [
@@ -65,6 +66,8 @@ export function PricingStudio({
   const router = useRouter();
   const params = useSearchParams();
   const uid = useId();
+  const confirm = useConfirm();
+  const toast = useToast();
   const initialTab = (TABS.find((t) => t.key === params.get("tab"))?.key ?? "overview") as Tab;
   const [tab, setTab] = useState<Tab>(initialTab);
   const [book, setBook] = useState<PriceBook>(data.draft);
@@ -77,6 +80,8 @@ export function PricingStudio({
   const [note, setNote] = useState("");
   const [effective, setEffective] = useState("");
   const { dirty, markSaved } = useSavedBaseline(book);
+  // Which editing tabs hold unsaved changes (one draft document; saving keeps them all).
+  const unsavedTabs = unsavedSections(book, saved);
   // A newer saved draft from the server (after a restore, or a refresh after
   // someone else's save) replaces the editor's copy unless it has unsaved edits.
   const [seen, setSeen] = useState(data.draft_version);
@@ -130,6 +135,42 @@ export function PricingStudio({
     }
   }
 
+  /**
+   * Removes an item from the whole draft (owner's brief, 14 Nov 2026): from
+   * the plans and commercial models that use it too, after saying which, so
+   * the draft stays valid and saves (a plan left empty goes with it). Issued
+   * quotations keep their own copies of every line.
+   */
+  const removeItem = async (item: PricingItem) => {
+    const plans = book.plans.filter((p) => p.item_ids.includes(item.id));
+    const models = book.models.filter((m) => m.item_ids.includes(item.id));
+    const emptied = plans.filter((p) => p.item_ids.length === 1);
+    const uses = [...plans.map((p) => `plan "${p.name}"`), ...models.map((m) => `model "${m.name}"`)];
+    const ok = await confirm({
+      title: `Remove ${item.name || "this item"} from the draft?`,
+      body: (
+        <>
+          {uses.length > 0 && <p>{`It's also removed from ${uses.join(", ")}.`}</p>}
+          {emptied.length > 0 && (
+            <p>{`${emptied.map((p) => `"${p.name}"`).join(", ")} would have no items left and is removed too.`}</p>
+          )}
+          <p>Published prices and issued quotations don&apos;t change. Save the draft to keep the removal.</p>
+        </>
+      ),
+      confirmLabel: "Remove item",
+      tone: "danger",
+    });
+    if (!ok) return;
+    setBook({
+      ...book,
+      items: book.items.filter((i) => i.id !== item.id),
+      plans: book.plans
+        .map((p) => ({ ...p, item_ids: p.item_ids.filter((id) => id !== item.id) }))
+        .filter((p) => p.item_ids.length > 0),
+      models: book.models.map((m) => ({ ...m, item_ids: m.item_ids.filter((id) => id !== item.id) })),
+    });
+  };
+
   const save = () =>
     run("save", async () => {
       const result = await adminFetch<{ version: number }>(`sites/${data.site.slug}/pricing/draft`, {
@@ -141,12 +182,86 @@ export function PricingStudio({
       markSaved();
       return "Draft saved. Published prices, calculators and quotations are unchanged until a reviewer approves.";
     });
-  const action = (name: string, body: Record<string, unknown>, done: string, confirm?: string) => () => {
-    if (confirm && !window.confirm(confirm)) return;
-    return run(name, async () => {
-      await adminFetch(`sites/${data.site.slug}/pricing/${name}`, body);
-      return done;
-    });
+  const action =
+    (name: string, body: Record<string, unknown>, done: string, ask?: ConfirmOptions) => async () => {
+      if (ask && !(await confirm(ask))) return;
+      return run(name, async () => {
+        await adminFetch(`sites/${data.site.slug}/pricing/${name}`, body);
+        return done;
+      });
+    };
+
+  /**
+   * Shows or hides prices on the website, in an in-app dialog that says what
+   * visitors will see (owner's brief, 14 Nov 2026): only the published
+   * version's public items, never the draft. The dialog stays open while the
+   * change is made and shows the error if it fails; the API still checks
+   * that the reviewer may change it.
+   */
+  const changeVisibility = async () => {
+    const show = !data.public_visible;
+    const eligible = publicCount(data.published);
+    let recorded: string | null = null;
+    const ok = await confirm(
+      show
+        ? {
+            title: `Show pricing on the ${data.site.name} website?`,
+            body: (
+              <>
+                <p>
+                  Visitors will see prices from the published version only: items that are active, available,
+                  priced and marked public. Drafts and changes waiting for approval stay private.
+                </p>
+                <p className="font-medium text-text" data-eligible={eligible}>
+                  {eligible === 1 ? "1 item is eligible to show." : `${eligible} items are eligible to show.`}
+                </p>
+                {eligible === 0 && (
+                  <p>
+                    The published version has no public, priced items, so the website would show no prices
+                    (visitors can still request a quote). Mark items public in the draft, then ask for
+                    approval and publish.
+                  </p>
+                )}
+              </>
+            ),
+            confirmLabel: "Show pricing",
+            onConfirm: async () => {
+              try {
+                await adminFetch(`sites/${data.site.slug}/pricing/visibility`, { visible: true });
+              } catch (err) {
+                if (!(err instanceof ApprovalRecorded)) throw err;
+                recorded = err.message;
+              }
+            },
+          }
+        : {
+            title: `Hide pricing from the ${data.site.name} website?`,
+            body: "Visitors stop seeing prices and can request a quote instead. Calculators, published versions and issued quotations keep working.",
+            confirmLabel: "Hide pricing",
+            tone: "warning",
+            onConfirm: async () => {
+              try {
+                await adminFetch(`sites/${data.site.slug}/pricing/visibility`, { visible: false });
+              } catch (err) {
+                if (!(err instanceof ApprovalRecorded)) throw err;
+                recorded = err.message;
+              }
+            },
+          },
+    );
+    if (!ok) return;
+    toast(
+      recorded
+        ? { tone: "info", title: "Approval requested", body: recorded }
+        : {
+            tone: "success",
+            title: "Pricing visibility updated",
+            body: show
+              ? "Prices now show on the website (public items only)."
+              : "Prices are hidden from the website.",
+          },
+    );
+    router.refresh();
   };
 
   const priced = book.items.filter((i) => i.rate || i.tiers.length);
@@ -204,6 +319,15 @@ export function PricingStudio({
                 )}
               >
                 {t.label}
+                {unsavedTabs.includes(t.key) && (
+                  <span
+                    aria-hidden
+                    title="Unsaved changes"
+                    data-unsaved=""
+                    className="ms-1.5 size-1.5 rounded-full bg-warning"
+                  />
+                )}
+                {unsavedTabs.includes(t.key) && <span className="sr-only"> (unsaved changes)</span>}
                 {t.key === "quotes" && quotes.length > 0 && (
                   <span className="ms-1.5 rounded-full bg-surface-2 px-1.5 text-xs text-subtle">
                     {quotes.length}
@@ -290,6 +414,7 @@ export function PricingStudio({
             items={book.items}
             section="recurring"
             onChange={(items) => setBook({ ...book, items })}
+            onRemove={removeItem}
             disabled={!editable}
             currency={c}
           />
@@ -305,6 +430,7 @@ export function PricingStudio({
               items={book.items}
               section="one_off"
               onChange={(items) => setBook({ ...book, items })}
+              onRemove={removeItem}
               disabled={!editable}
               currency={c}
             />
@@ -825,6 +951,7 @@ export function PricingStudio({
                 same as the full-screen calculator. Save the draft to calculate with your changes.
               </p>
             )}
+            <PricingRevisionWatcher slug={data.site.slug} draft={version} published={data.published_number} />
             <PricingCalculator
               slug={data.site.slug}
               sources={{ draft: saved, published: data.published }}
@@ -904,6 +1031,28 @@ export function PricingStudio({
           </div>
         )}
 
+        {tab === "publishing" && dirty && (
+          <div
+            role="note"
+            data-unsaved-tabs=""
+            className="mb-6 rounded-xl border border-warning/30 bg-warning/5 px-4 py-3 text-sm text-text"
+          >
+            Unsaved changes in{" "}
+            {unsavedTabs.map((key, i) => (
+              <span key={key}>
+                {i > 0 && (i === unsavedTabs.length - 1 ? " and " : ", ")}
+                <button
+                  type="button"
+                  onClick={() => choose(key)}
+                  className="font-medium text-accent underline underline-offset-2"
+                >
+                  {TABS.find((t) => t.key === key)?.label}
+                </button>
+              </span>
+            ))}
+            . Save the draft (below) to review and publish them; the summary shows saved changes only.
+          </div>
+        )}
         {tab === "publishing" && (
           <div className="grid gap-6 xl:grid-cols-2">
             <Card title="1. Publish pricing configuration">
@@ -928,7 +1077,9 @@ export function PricingStudio({
                               ? "added"
                               : ch.change === "removed"
                                 ? "removed"
-                                : "changed"}
+                                : ch.fields?.length
+                                  ? ch.fields.join(", ")
+                                  : "changed"}
                           </span>
                         </span>
                         {ch.change === "changed" && ch.before !== ch.after && (
@@ -939,7 +1090,11 @@ export function PricingStudio({
                       </li>
                     ))}
                     {data.changes.settings_changed && (
-                      <li className="text-muted">Billing, tax, models or terms changed.</li>
+                      <li className="text-muted">
+                        {data.changes.settings?.length
+                          ? `Changed: ${data.changes.settings.join(", ")}.`
+                          : "Billing, tax, models or terms changed."}
+                      </li>
                     )}
                   </ul>
                 )}
@@ -1045,14 +1200,7 @@ export function PricingStudio({
                   aria-checked={data.public_visible}
                   aria-labelledby={`${uid}-vis`}
                   disabled={!data.can_review || !data.published || busy === "visibility"}
-                  onClick={action(
-                    "visibility",
-                    { visible: !data.public_visible },
-                    data.public_visible
-                      ? "Prices are hidden from the website."
-                      : "Prices now show on the website (public items only).",
-                    data.public_visible ? undefined : "Show the published public prices on the website now?",
-                  )}
+                  onClick={changeVisibility}
                   className={cn(
                     "relative inline-flex h-7 w-12 shrink-0 items-center rounded-full border transition-colors disabled:opacity-50",
                     data.public_visible ? "border-accent bg-accent" : "border-line-strong bg-surface-3",
@@ -1076,7 +1224,10 @@ export function PricingStudio({
                 <p className="mt-2 text-xs text-subtle">Reviewers and owners change this switch.</p>
               )}
               <p className="mt-3 text-sm text-muted">
-                {`Public items in the published version: ${data.published?.items.filter((i) => i.public && i.active && i.availability === "available" && (i.rate || i.tiers.length)).length ?? 0}.`}
+                {`Public items in the published version: ${publicCount(data.published)}. In the saved draft: ${publicCount(saved)}`}
+                {publicCount(saved) !== publicCount(data.published) &&
+                  " (visitors see the draft's once it's approved and published)"}
+                .
               </p>
             </Card>
           </div>
@@ -1112,7 +1263,12 @@ export function PricingStudio({
                           "rollback",
                           { version: v.number },
                           `Version ${v.number} copied into the draft. Ask for approval to publish it again.`,
-                          `Replace the draft with version ${v.number}?`,
+                          {
+                            title: `Replace the draft with version ${v.number}?`,
+                            body: "The saved draft is replaced by this published version. Published prices, the website and issued quotations don't change until it's approved and published again.",
+                            confirmLabel: "Restore into draft",
+                            tone: "warning",
+                          },
                         )}
                       >
                         Restore into draft
@@ -1130,13 +1286,14 @@ export function PricingStudio({
         )}
       </div>
 
-      {editable && ["items", "plans", "billing", "implementation"].includes(tab) && (
+      {/* On every tab with unsaved changes, so they can always be saved (owner's brief, 14 Nov 2026). */}
+      {editable && (dirty || ["items", "plans", "billing", "implementation"].includes(tab)) && (
         <div className="sticky bottom-0 z-10 -mx-5 mt-8 flex flex-wrap items-center gap-3 border-t border-line bg-bg/95 px-5 py-3 backdrop-blur sm:-mx-8 sm:px-8">
-          <p className="text-sm text-muted">
+          <p role="status" className="text-sm text-muted">
             {fields.length
               ? fields.map((f) => f.message).join(" ")
               : dirty
-                ? "Unsaved changes to the draft."
+                ? `Unsaved changes in ${unsavedTabs.map((k) => TABS.find((t) => t.key === k)?.label).join(", ")}. Saving keeps every tab's changes.`
                 : "The draft is saved."}
           </p>
           <div className="ms-auto flex gap-2">
@@ -1158,4 +1315,31 @@ export function PricingStudio({
       )}
     </div>
   );
+}
+
+/** Items a website shows when its prices are public: published, active, public, available and priced. */
+function publicCount(book: PriceBook | null | undefined): number {
+  return (
+    book?.items.filter(
+      (i) => i.public && i.active && i.availability === "available" && (i.rate || i.tiers.length),
+    ).length ?? 0
+  );
+}
+
+/**
+ * The editing tabs whose part of the draft differs from the saved draft:
+ * recurring items, one-off (implementation) items, plans, and the billing,
+ * tax and terms settings.
+ */
+function unsavedSections(book: PriceBook, saved: PriceBook): Tab[] {
+  const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+  // Implementation items belong to a group (A–E), as in the editor.
+  const items = (b: PriceBook, oneOff: boolean) => b.items.filter((i) => (i.group != null) === oneOff);
+  const settings = (b: PriceBook) => ({ ...b, items: [], plans: [] });
+  const out: Tab[] = [];
+  if (!same(items(book, false), items(saved, false))) out.push("items");
+  if (!same(book.plans, saved.plans)) out.push("plans");
+  if (!same(settings(book), settings(saved))) out.push("billing");
+  if (!same(items(book, true), items(saved, true))) out.push("implementation");
+  return out;
 }

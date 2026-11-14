@@ -3,6 +3,7 @@ import { createHmac, randomBytes } from "node:crypto";
 
 import { type Browser, type Page, devices, expect, test } from "@playwright/test";
 import { themeSettled } from "./theme-settled";
+import { answer } from "./confirm-dialog";
 
 // Password sign-in with mandatory two-factor, recovery and Security &
 // Authentication (P13-A). The API's rules are tested in services/api/tests/admin_security.rs;
@@ -341,8 +342,8 @@ test("repeated failures pause password sign-in, but a passkey still works; passk
   await page.getByRole("button", { name: "Register this device" }).click();
   await expect(page.getByRole("status").filter({ hasText: "Passkey added" })).toBeVisible();
   await expect(page.getByText("Work phone", { exact: true })).toBeVisible();
-  page.once("dialog", (d) => d.accept());
   await page.getByRole("button", { name: "Remove passkey Work phone" }).click();
+  await answer(page, "Remove passkey");
   await expect(page.getByRole("status").filter({ hasText: "Passkey removed." })).toBeVisible();
   await expect(page.getByText("Work phone", { exact: true })).toHaveCount(0);
 

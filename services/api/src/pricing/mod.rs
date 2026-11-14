@@ -147,7 +147,8 @@ fn compare(published: Option<&PriceBook>, draft: &PriceBook) -> Value {
             ),
             Some(before) if before != item => items.push(
                 json!({ "item_id": item.id, "name": item.name, "change": "changed",
-                "before": before.rate, "after": item.rate, "rate_changed": before.rate != item.rate }),
+                "before": before.rate, "after": item.rate, "rate_changed": before.rate != item.rate,
+                "fields": changed_fields(before, item) }),
             ),
             Some(_) => {}
         }
@@ -159,18 +160,87 @@ fn compare(published: Option<&PriceBook>, draft: &PriceBook) -> Value {
             );
         }
     }
-    let settings_changed = published.cycles != draft.cycles
-        || published.tax != draft.tax
-        || published.currency != draft.currency
-        || published.supported_currencies != draft.supported_currencies
-        || published.fx_rates != draft.fx_rates
-        || published.minimum_monthly_subscription != draft.minimum_monthly_subscription
-        || published.plans != draft.plans
-        || published.models != draft.models
-        || published.terms != draft.terms
-        || published.quote_validity_days != draft.quote_validity_days
-        || published.decimals != draft.decimals;
-    json!({ "first": false, "items": items, "settings_changed": settings_changed })
+    // Which settings changed, in the Studio's words (owner's brief, 14 Nov 2026).
+    let settings: Vec<&str> = [
+        (published.cycles != draft.cycles, "billing cycles and discounts"),
+        (published.tax != draft.tax, "tax"),
+        (
+            published.currency != draft.currency
+                || published.supported_currencies != draft.supported_currencies
+                || published.fx_rates != draft.fx_rates,
+            "currencies and exchange rates",
+        ),
+        (
+            published.minimum_monthly_subscription != draft.minimum_monthly_subscription,
+            "minimum subscription",
+        ),
+        (published.plans != draft.plans, "plans"),
+        (published.models != draft.models, "commercial models"),
+        (
+            published.terms != draft.terms || published.quote_validity_days != draft.quote_validity_days,
+            "terms and quotation validity",
+        ),
+        (published.decimals != draft.decimals, "rounding"),
+    ]
+    .into_iter()
+    .filter_map(|(changed, name)| changed.then_some(name))
+    .collect();
+    json!({ "first": false, "items": items, "settings_changed": !settings.is_empty(), "settings": settings })
+}
+
+/// What changed in an item, in the Studio's words.
+fn changed_fields(before: &engine::Item, after: &engine::Item) -> Vec<&'static str> {
+    let mut out = Vec::new();
+    let mut note = |changed: bool, name: &'static str| {
+        if changed {
+            out.push(name);
+        }
+    };
+    note(
+        before.rate != after.rate || before.tiers != after.tiers || before.tier_mode != after.tier_mode,
+        "rate",
+    );
+    note(
+        before.method != after.method || before.unit_label != after.unit_label,
+        "billing basis",
+    );
+    note(
+        before.billing != after.billing || before.cycle_terms != after.cycle_terms,
+        "billing",
+    );
+    note(
+        before.active != after.active,
+        if after.active { "enabled" } else { "disabled" },
+    );
+    note(
+        before.public != after.public,
+        if after.public {
+            "made public"
+        } else {
+            "made private"
+        },
+    );
+    note(before.availability != after.availability, "availability");
+    note(before.one_off_mode != after.one_off_mode, "charging");
+    note(
+        before.minimum_charge != after.minimum_charge
+            || before.min_qty != after.min_qty
+            || before.max_qty != after.max_qty,
+        "limits",
+    );
+    note(
+        before.taxable != after.taxable || before.discountable != after.discountable,
+        "tax or discount",
+    );
+    note(before.effective_from != after.effective_from, "effective date");
+    note(
+        before.name != after.name
+            || before.description != after.description
+            || before.category != after.category
+            || before.group != after.group,
+        "wording",
+    );
+    out
 }
 
 // ------------------------------------------------------------------ price book
@@ -1206,4 +1276,32 @@ pub async fn add_modules(pool: &PgPool) -> Result<(), Box<dyn std::error::Error 
     .await?;
     tx.commit().await?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_change_summary_says_what_changed() {
+        // Owner's brief, 14 Nov 2026: rates, billing basis, disabling, removal and settings, in words.
+        let published = engine::zirahr_starting_book();
+        let mut draft = published.clone();
+        let first = draft.items[0].id.clone();
+        draft.items[0].rate = Some("200".parse().unwrap());
+        draft.items[0].active = false;
+        let removed = draft.items.remove(1);
+        draft.tax.rate = Some("16".parse().unwrap());
+        let summary = compare(Some(&published), &draft);
+        let items = summary["items"].as_array().unwrap();
+        let changed = items.iter().find(|i| i["item_id"] == first.as_str()).unwrap();
+        assert_eq!(changed["fields"], json!(["rate", "disabled"]));
+        let gone = items
+            .iter()
+            .find(|i| i["item_id"] == removed.id.as_str())
+            .unwrap();
+        assert_eq!(gone["change"], "removed");
+        assert_eq!(summary["settings"], json!(["tax"]));
+        assert_eq!(compare(Some(&published), &published)["settings_changed"], false);
+    }
 }

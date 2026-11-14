@@ -174,6 +174,7 @@ There are two separate controls:
    - The version becomes available to calculators and new quotations.
    - The comparison shows what changed against the published version (added, removed and changed items, old → new rate, settings).
 2. **Show pricing on the website:** a reviewer switch, **off by default**, and only possible once a version is published.
+   - **Switching it (P7-UX6, 14 Nov 2026)** asks first, in the Studio: "Show pricing on the ZiraHR website?" says visitors see the published version's public items only (drafts stay private), how many published items are eligible, and, when none are, why the website would show no prices. Hiding asks too. The change runs inside the dialog (an error shows there); "Pricing visibility updated" confirms it. Separate from publishing: publishing a version never switches this on.
    - **Off:** the product's `/pricing` page invites visitors to request a quote and isn't indexed. Calculators and approved quotations keep working.
    - **On:** only items that are published, active, available and marked public are shown. Priced items show their price; services quoted per customer (custom quotes, one-offs quoted on scope) show as "Request a quote", with any internal rate removed, and stay out of the totals. Plans show only when all their modules are public. Internal terms, exchange rates and models never appear.
    - **The page (12 Nov 2026), in three steps:**

@@ -3,6 +3,7 @@ import { randomBytes } from "node:crypto";
 
 import { type Page, expect, test } from "@playwright/test";
 import { scrolledToTop, themeSettled } from "./theme-settled";
+import { answer } from "./confirm-dialog";
 
 // Hero Design Studio: FigBud Global's platform heroes (P12-H7). Kept apart
 // from hero.studio.spec.ts so a retry here never re-runs its publishing flow.
@@ -148,9 +149,9 @@ test("platform heroes: customise colours, badges, products and theme; reset, dis
   await editor.getByRole("button", { name: "Reset Main button", exact: true }).click();
   await expect(editor.getByRole("button", { name: "Reset Main button", exact: true })).toHaveCount(0);
 
-  // Discard returns to the saved draft, after a confirmation.
-  page.once("dialog", (d) => d.dismiss());
+  // Discard asks first; cancelling keeps the changes.
   await page.getByRole("button", { name: "Discard changes" }).click();
+  await answer(page, "Cancel");
   await expect(editor.getByLabel("Badge 1")).toHaveValue("Built for growing teams");
 
   await page.getByRole("button", { name: "Save draft" }).click();
@@ -167,18 +168,18 @@ test("platform heroes: customise colours, badges, products and theme; reset, dis
   // Reset to default, after a confirmation; then discard it.
   await page.goto("/admin/sites/figbud/hero");
   await page.locator('[data-variant="v9"]').getByRole("button", { name: "Edit" }).click();
-  page.once("dialog", (d) => d.accept());
   await page.getByRole("button", { name: "Reset to default" }).click();
+  await answer(page, "Reset");
   await expect(page.getByLabel("Badge 1")).toHaveValue("");
-  page.once("dialog", (d) => d.accept());
   await page.getByRole("button", { name: "Discard changes" }).click();
+  await answer(page, "Discard changes");
   await expect(page.getByRole("status").filter({ hasText: "Changes discarded" })).toBeVisible();
   await expect(page.getByLabel("Badge 1")).toHaveValue("Built for growing teams");
   expect(violations(await axe(page))).toEqual([]);
 
   // Reset and save: the design's defaults again (and a clean start for the next run).
-  page.once("dialog", (d) => d.accept());
   await page.getByRole("button", { name: "Reset to default" }).click();
+  await answer(page, "Reset");
   await page.getByRole("button", { name: "Save draft" }).click();
   await expect(page.getByRole("status").filter({ hasText: "Draft saved." })).toBeVisible();
   await page.goto("/admin/hero-preview/figbud/v9?theme=light");

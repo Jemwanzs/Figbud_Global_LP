@@ -489,12 +489,15 @@ export function ItemsEditor({
   items,
   section,
   onChange,
+  onRemove,
   disabled,
   currency,
 }: {
   items: PricingItem[];
   section: "recurring" | "one_off";
   onChange: (items: PricingItem[]) => void;
+  /** Removes an item from the whole draft (its plans and models too), after confirming. */
+  onRemove: (item: PricingItem) => void;
   disabled: boolean;
   currency: string;
 }) {
@@ -655,10 +658,7 @@ export function ItemsEditor({
                       <button
                         type="button"
                         disabled={disabled}
-                        onClick={() => {
-                          if (window.confirm(`Remove ${item.name || "this item"} from the draft?`))
-                            onChange(items.filter((i) => i.id !== item.id));
-                        }}
+                        onClick={() => onRemove(item)}
                         className="ms-auto inline-flex min-h-10 items-center gap-1.5 rounded-lg px-2 text-sm text-muted hover:text-danger"
                       >
                         <Trash2 aria-hidden className="size-4" />

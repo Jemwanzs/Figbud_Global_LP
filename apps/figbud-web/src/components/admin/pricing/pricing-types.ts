@@ -24,12 +24,16 @@ export interface PricingAdmin {
   changes: {
     first: boolean;
     settings_changed: boolean;
+    /** Which settings changed, in plain words (billing cycles and discounts, tax, plans…). */
+    settings?: string[];
     items: {
       item_id: string;
       name: string;
       change: "added" | "changed" | "removed";
       before?: string | null;
       after?: string | null;
+      /** What changed in it (rate, billing basis, disabled…). */
+      fields?: string[];
     }[];
   };
   status: "draft" | "in_review" | "published" | "changes_pending";

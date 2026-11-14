@@ -3,6 +3,7 @@ import { randomBytes } from "node:crypto";
 
 import { type Page, expect, test } from "@playwright/test";
 import { scrolledToTop, themeSettled } from "./theme-settled";
+import { answer } from "./confirm-dialog";
 
 // Hero Design Studio (P12). Publishing is exercised on ZiraHR (the product
 // renderer reads it), so the corporate home page other tests use stays on
@@ -167,8 +168,8 @@ test("ZiraHR: edit, select, approve and publish one hero, then roll back", async
   await page.getByRole("button", { name: "Approve and publish" }).click();
   await expect(page.getByRole("status").filter({ hasText: "Published." })).toBeVisible();
   expect((await liveHero()).design).toBe("workforce");
-  page.once("dialog", (d) => d.accept());
   await page.getByRole("button", { name: "Roll back to this" }).first().click();
+  await answer(page, "Roll back");
   await expect(page.getByRole("status").filter({ hasText: "Rolled back" })).toBeVisible();
   live = await liveHero();
   expect(live.design).toBe("payroll");

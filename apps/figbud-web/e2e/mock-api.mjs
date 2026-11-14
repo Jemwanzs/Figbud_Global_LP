@@ -3986,6 +3986,28 @@ function pricingRoutes(path, req, body, user, send) {
             ],
           },
         });
+      // Plans and models refer only to items in the book (engine.rs validate), as the API.
+      const ids = new Set((doc.items ?? []).map((i) => i.id));
+      const dangling = [
+        ...(doc.plans ?? []).map((p) => ({
+          field: "plans",
+          ok: (p.item_ids ?? []).length > 0 && p.item_ids.every((id) => ids.has(id)),
+          message: "Plans need a name and items from the list.",
+        })),
+        ...(doc.models ?? []).map((m) => ({
+          field: "models",
+          ok: (m.item_ids ?? []).every((id) => ids.has(id)),
+          message: "Commercial models need a name and items from the list.",
+        })),
+      ].filter((c) => !c.ok);
+      if (dangling.length)
+        return send(422, {
+          error: {
+            code: "validation",
+            message: "Some fields need attention.",
+            fields: dangling.map((c) => ({ field: c.field, code: "invalid", message: c.message })),
+          },
+        });
       if (JSON.stringify(doc) !== JSON.stringify(st.draft)) st.review = null;
       st.draft = clone(doc);
       st.draft_version += 1;

@@ -9,7 +9,7 @@ import {
   type HeroPaletteKey,
   type HeroVariant,
 } from "@figbud/site-kit";
-import { cn } from "@figbud/ui";
+import { type ConfirmOptions, cn, useConfirm } from "@figbud/ui";
 import {
   ArrowDown,
   ArrowUp,
@@ -98,6 +98,7 @@ function Frame({ src, title }: { src: string; title: string }) {
  */
 export function HeroStudio({ data, isOwner }: { data: HeroAdmin; isOwner: boolean }) {
   const router = useRouter();
+  const confirm = useConfirm();
   const uid = useId();
   const slug = data.site.slug;
   const [draft, setDraft] = useState(data.draft);
@@ -178,14 +179,15 @@ export function HeroStudio({ data, isOwner }: { data: HeroAdmin; isOwner: boolea
       markSaved();
       return "Draft saved. Previews show it now; the website keeps the published hero until a reviewer approves.";
     });
-  const act = (name: string, body: Record<string, unknown>, done: string, confirm?: string) => () => {
-    if (confirm && !window.confirm(confirm)) return;
-    return run(name, async () => {
-      await adminFetch(`sites/${slug}/hero/${name}`, body);
-      setNote("");
-      return done;
-    });
-  };
+  const act =
+    (name: string, body: Record<string, unknown>, done: string, ask?: ConfirmOptions) => async () => {
+      if (ask && !(await confirm(ask))) return;
+      return run(name, async () => {
+        await adminFetch(`sites/${slug}/hero/${name}`, body);
+        setNote("");
+        return done;
+      });
+    };
   const duplicate = (v: HeroVariant) => {
     let n = draft.variants.length + 1;
     while (draft.variants.some((x) => x.id === `v${n}`)) n++;
@@ -441,10 +443,16 @@ export function HeroStudio({ data, isOwner }: { data: HeroAdmin; isOwner: boolea
                       type="button"
                       disabled={!editable}
                       aria-label={`Remove ${v.name}`}
-                      onClick={() =>
-                        window.confirm(`Remove ${v.name} from the draft?`) &&
-                        setDraft((d) => ({ ...d, variants: d.variants.filter((x) => x.id !== v.id) }))
-                      }
+                      onClick={async () => {
+                        const ok = await confirm({
+                          title: `Remove ${v.name} from the draft?`,
+                          body: "The live hero doesn't change. Save the draft to keep the removal.",
+                          confirmLabel: "Remove",
+                          tone: "danger",
+                        });
+                        if (ok)
+                          setDraft((d) => ({ ...d, variants: d.variants.filter((x) => x.id !== v.id) }));
+                      }}
                       className="ms-auto inline-flex size-10 items-center justify-center rounded-lg text-muted hover:text-danger disabled:opacity-50"
                     >
                       <Trash2 aria-hidden className="size-4" />
@@ -467,9 +475,14 @@ export function HeroStudio({ data, isOwner }: { data: HeroAdmin; isOwner: boolea
             {editable && (
               <button
                 type="button"
-                onClick={() => {
-                  if (!window.confirm(`Reset "${editingVariant.name}" to the design's defaults?`)) return;
-                  update(editingVariant.id, { config: { ...DEFAULT_HERO_CONFIG } });
+                onClick={async () => {
+                  const ok = await confirm({
+                    title: `Reset "${editingVariant.name}" to the design's defaults?`,
+                    body: "Its wording, buttons, colours, layout and motion go back to the design's defaults. Save the draft to keep the reset.",
+                    confirmLabel: "Reset",
+                    tone: "warning",
+                  });
+                  if (ok) update(editingVariant.id, { config: { ...DEFAULT_HERO_CONFIG } });
                 }}
                 className="ms-auto min-h-10 rounded-lg px-3 text-sm font-medium text-accent hover:bg-accent-soft/60"
               >
@@ -748,8 +761,14 @@ export function HeroStudio({ data, isOwner }: { data: HeroAdmin; isOwner: boolea
               <ActionButton
                 variant="ghost"
                 ready
-                onClick={() => {
-                  if (!window.confirm("Discard your unsaved changes?")) return;
+                onClick={async () => {
+                  const ok = await confirm({
+                    title: "Discard your unsaved changes?",
+                    body: "The editor goes back to the saved draft. This can't be undone.",
+                    confirmLabel: "Discard changes",
+                    tone: "danger",
+                  });
+                  if (!ok) return;
                   setDraft(data.draft);
                   markSaved(data.draft);
                   setMessage({ tone: "ok", text: "Changes discarded: back to the saved draft." });
@@ -827,7 +846,12 @@ export function HeroStudio({ data, isOwner }: { data: HeroAdmin; isOwner: boolea
                         "rollback",
                         { version: ver.number },
                         `Rolled back: version ${ver.number} is live again.`,
-                        `Make version ${ver.number} (${ver.hero?.name ?? ownName}) live again?`,
+                        {
+                          title: `Make version ${ver.number} (${ver.hero?.name ?? ownName}) live again?`,
+                          body: "The website shows this version's hero at once. The current draft isn't changed.",
+                          confirmLabel: "Roll back",
+                          tone: "warning",
+                        },
                       )}
                     >
                       Roll back to this

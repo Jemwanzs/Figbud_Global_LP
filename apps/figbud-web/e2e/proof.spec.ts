@@ -3,6 +3,7 @@ import { randomBytes } from "node:crypto";
 
 import { type Page, expect, test } from "@playwright/test";
 import { themeSettled } from "./theme-settled";
+import { answer } from "./confirm-dialog";
 
 // Customers & proof (P10-T1..T3). The mock API seeds one synthetic, clearly
 // labelled organisation, testimonial and metric, published for FigBud Global.
@@ -119,8 +120,8 @@ test.describe("Studio", () => {
     expect(results.violations.map((v) => v.id)).toEqual([]);
 
     // Hide, then unpublish and archive, so other tests see the seeded data only.
-    page.once("dialog", (dialog) => dialog.accept());
     await page.getByRole("button", { name: "Unpublish" }).click();
+    await answer(page, "Unpublish");
     await expect(page.getByText("Not shown on any website.")).toBeVisible();
     await page.getByRole("button", { name: "Archive" }).click();
     await expect(page.getByText("Archived", { exact: true }).first()).toBeVisible();

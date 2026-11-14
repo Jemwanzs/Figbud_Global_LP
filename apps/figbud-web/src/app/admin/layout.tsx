@@ -1,6 +1,6 @@
 import { themeColorViewport } from "@figbud/brand";
 import { brandIcons } from "@figbud/site-kit";
-import { themeInitScript } from "@figbud/ui";
+import { DialogProvider, themeInitScript } from "@figbud/ui";
 import type { Metadata, Viewport } from "next";
 import { Outfit } from "next/font/google";
 import type { ReactNode } from "react";
@@ -31,7 +31,10 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
-      <body className="min-h-dvh">{children}</body>
+      <body className="min-h-dvh">
+        {/* In-app confirmations and notifications for every Studio page (no browser popups). */}
+        <DialogProvider>{children}</DialogProvider>
+      </body>
     </html>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { cn } from "@figbud/ui";
+import { cn, useConfirm } from "@figbud/ui";
 import {
   CheckCircle2,
   Copy,
@@ -173,6 +173,7 @@ const Off = ({ children }: { children: ReactNode }) => (
 /** Studio → Settings → Security & Authentication (P13-A): each person's own sign-in methods and devices. */
 export function SecuritySettings({ data, email }: { data: SecurityOverview; email: string }) {
   const router = useRouter();
+  const confirm = useConfirm();
   const uid = useId();
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
@@ -252,20 +253,34 @@ export function SecuritySettings({ data, email }: { data: SecurityOverview; emai
       return "Two-factor is on. Save your recovery codes now.";
     });
 
-  const newCodes = () =>
-    run("codes", async () => {
-      if (!window.confirm("Create new recovery codes? Your current ones stop working.")) return;
+  const newCodes = async () => {
+    const ok = await confirm({
+      title: "Create new recovery codes?",
+      body: "Your current recovery codes stop working at once. The new ones are shown once, so save them before leaving.",
+      confirmLabel: "Create new codes",
+      tone: "warning",
+    });
+    if (!ok) return;
+    return run("codes", async () => {
       const done = await adminFetch<{ recovery_codes: string[] }>("security/recovery-codes", {});
       setCodes(done.recovery_codes);
       return "New recovery codes created. Save them now.";
     });
+  };
 
-  const removeTwoFactor = () =>
-    run("remove-2fa", async () => {
-      if (!window.confirm("Turn off two-factor?")) return;
+  const removeTwoFactor = async () => {
+    const ok = await confirm({
+      title: "Turn off two-factor?",
+      body: "Signing in will no longer ask for a code from your authenticator app, and your recovery codes stop working.",
+      confirmLabel: "Turn off two-factor",
+      tone: "danger",
+    });
+    if (!ok) return;
+    return run("remove-2fa", async () => {
       await adminFetch("security/two-factor/remove", {});
       return "Two-factor is off.";
     });
+  };
 
   const savePassword = () => {
     setTriedPassword(true);
@@ -298,12 +313,19 @@ export function SecuritySettings({ data, email }: { data: SecurityOverview; emai
     });
   };
 
-  const removePassword = () =>
-    run("remove-password", async () => {
-      if (!window.confirm("Remove your password? You'll sign in with a passkey only.")) return;
+  const removePassword = async () => {
+    const ok = await confirm({
+      title: "Remove your password?",
+      body: "You'll sign in with a passkey only. Keep at least one passkey on a device you can reach.",
+      confirmLabel: "Remove password",
+      tone: "danger",
+    });
+    if (!ok) return;
+    return run("remove-password", async () => {
       await adminFetch("security/password/remove", {});
       return "Password removed.";
     });
+  };
 
   const addPasskey = () =>
     run("add-passkey", async () => {
@@ -319,12 +341,19 @@ export function SecuritySettings({ data, email }: { data: SecurityOverview; emai
       return "Passkey added to this device.";
     });
 
-  const removePasskey = (id: string, name: string) =>
-    run(`passkey-${id}`, async () => {
-      if (!window.confirm(`Remove the passkey "${name}"?`)) return;
+  const removePasskey = async (id: string, name: string) => {
+    const ok = await confirm({
+      title: `Remove the passkey "${name}"?`,
+      body: "That device can no longer sign in with it. You can add it again later.",
+      confirmLabel: "Remove passkey",
+      tone: "danger",
+    });
+    if (!ok) return;
+    return run(`passkey-${id}`, async () => {
       await adminFetch(`security/passkeys/${id}/remove`, {});
       return "Passkey removed.";
     });
+  };
 
   const revoke = (id: string) =>
     run(`session-${id}`, async () => {

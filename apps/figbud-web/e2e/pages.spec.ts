@@ -3,6 +3,7 @@ import { randomBytes } from "node:crypto";
 
 import { type Page, expect, test } from "@playwright/test";
 import { themeSettled } from "./theme-settled";
+import { answer } from "./confirm-dialog";
 
 // Page builder (Admin Studio, Phase C) against e2e/mock-api.mjs.
 
@@ -158,8 +159,8 @@ test("build a page from a template, publish it, and manage pages", async ({ page
 
   // Archive from the editor, restore from the list.
   await list.getByRole("link", { name: "Edit Platform (copy)" }).click();
-  page.once("dialog", (dialog) => dialog.accept());
   await page.getByRole("button", { name: "Archive page" }).click();
+  await answer(page, "Archive page");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(`Pageful ${run} pages`);
   await expect(page.getByRole("region", { name: "Archived" })).toContainText("Platform (copy)");
   await page.getByRole("button", { name: "Restore Platform (copy)" }).click();
@@ -280,8 +281,8 @@ test("hide a section, and manage a page's visibility without losing it", async (
   const online = visibility.getByRole("switch", { name: "Online" });
   const inNav = visibility.getByRole("switch", { name: "Show in navigation" });
   await expect(online).toHaveAttribute("aria-checked", "true");
-  page.once("dialog", (dialog) => dialog.accept());
   await online.click();
+  await answer(page, "Take offline");
   await expect(page.getByRole("status").filter({ hasText: "Page taken offline." })).toBeVisible();
   await expect(online).toHaveAttribute("aria-checked", "false");
   await inNav.click();
@@ -432,8 +433,8 @@ test("translations: written beside the English, reviewed, published per language
   await page.getByLabel("Reviewed by (a native speaker)").fill("Amina Otieno");
   await page.getByRole("button", { name: "Record review" }).click();
   await expect(page.getByText("Reviewed by Amina Otieno")).toBeVisible();
-  page.once("dialog", (d) => d.accept());
   await page.getByRole("button", { name: "Publish", exact: true }).click();
+  await answer(page, "Publish");
   await expect(page.getByRole("status")).toContainText("Published.");
   await expect(languages.getByRole("link", { name: /Kiswahili/ })).toContainText("Published");
 
@@ -455,7 +456,7 @@ test("translations: written beside the English, reviewed, published per language
   ).toEqual([]);
 
   // Unpublished again, so other tests see the English page only.
-  page.once("dialog", (d) => d.accept());
   await page.getByRole("button", { name: "Unpublish" }).click();
+  await answer(page, "Unpublish");
   await expect(page.getByRole("status")).toContainText("Unpublished");
 });

@@ -1,7 +1,7 @@
 "use client";
 
 import { BAND_KEYS, type SiteLink, type WebsiteSettings, bandColours } from "@figbud/site-kit";
-import { cn } from "@figbud/ui";
+import { cn, useConfirm } from "@figbud/ui";
 import { ArrowDown, ArrowUp, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -63,6 +63,7 @@ export function WebsiteSettingsForm({
   name: string;
   data: WebsiteSettingsAdmin;
 }) {
+  const confirm = useConfirm();
   const router = useRouter();
   const uid = useId();
   const canEdit = data.can_edit;
@@ -86,7 +87,12 @@ export function WebsiteSettingsForm({
   async function save() {
     if (
       closing &&
-      !window.confirm(`Stop taking enquiries for ${name}? The form and its buttons close at once.`)
+      !(await confirm({
+        title: `Stop taking enquiries for ${name}?`,
+        body: "The form and its buttons close at once. Enquiries already received are kept.",
+        confirmLabel: "Stop enquiries",
+        tone: "danger",
+      }))
     )
       return;
     setBusy(true);

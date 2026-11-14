@@ -1,7 +1,7 @@
 "use client";
 
 import { type Locale, localeInfo } from "@figbud/i18n";
-import { cn, fieldClasses } from "@figbud/ui";
+import { cn, fieldClasses, useConfirm } from "@figbud/ui";
 import { useRouter } from "next/navigation";
 import { useId, useState } from "react";
 
@@ -77,6 +77,7 @@ function LanguageRow({
   usedOn: string[];
   canEdit: boolean;
 }) {
+  const confirm = useConfirm();
   const router = useRouter();
   const uid = useId();
   const info = localeInfo[review.code];
@@ -238,9 +239,13 @@ function LanguageRow({
               ready
               busy={busy === "draft"}
               variant="secondary"
-              onClick={() =>
-                window.confirm(`Take ${info.label} out of search results and the sitemap?`) &&
-                save("draft", "draft")
+              onClick={async () =>
+                (await confirm({
+                  title: `Take ${info.label} out of search results and the sitemap?`,
+                  body: "It goes back to draft and leaves search results and the sitemap until it's published again.",
+                  confirmLabel: "Back to draft",
+                  tone: "warning",
+                })) && save("draft", "draft")
               }
             >
               Back to draft

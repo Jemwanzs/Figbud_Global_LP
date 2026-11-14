@@ -1,5 +1,7 @@
 "use client";
 
+import { useConfirm } from "@figbud/ui";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 /**
@@ -47,14 +49,20 @@ export function useSavedBaseline<T>(current: T, initial: T = current) {
   return { baseline, dirty: !sameValue(current, baseline), markSaved };
 }
 
-export const LEAVE_WITH_CHANGES = "You have unsaved changes. Leave this page and lose them?";
-
 /**
  * Warns before leaving the page while `dirty`: reload, close and external
- * links (the browser's prompt), and links inside the app such as the Studio
- * sidebar, which change page without unloading it (a confirmation).
+ * links (the browser's own prompt, which only the browser can show), and
+ * links inside the app such as the Studio sidebar, which change page without
+ * unloading it (an in-app confirmation; the link is followed if confirmed).
  */
 export function useUnsavedChangesWarning(dirty: boolean) {
+  const confirm = useConfirm();
+  const router = useRouter();
+  // The latest of each, so the listeners below stay attached once per change of `dirty`.
+  const latest = useRef({ confirm, router });
+  useEffect(() => {
+    latest.current = { confirm, router };
+  });
   useEffect(() => {
     if (!dirty) return;
     const warn = (event: BeforeUnloadEvent) => event.preventDefault();
@@ -67,10 +75,19 @@ export function useUnsavedChangesWarning(dirty: boolean) {
       const to = new URL(link.href, window.location.href);
       if (to.origin !== window.location.origin) return; // the browser's own prompt covers it
       if (to.pathname === window.location.pathname && to.search === window.location.search) return;
-      if (!window.confirm(LEAVE_WITH_CHANGES)) {
-        event.preventDefault();
-        event.stopPropagation();
-      }
+      event.preventDefault();
+      event.stopPropagation();
+      void latest.current
+        .confirm({
+          title: "Leave this page?",
+          body: "Your unsaved changes will be lost.",
+          confirmLabel: "Leave page",
+          cancelLabel: "Stay",
+          tone: "warning",
+        })
+        .then((leave) => {
+          if (leave) latest.current.router.push(`${to.pathname}${to.search}${to.hash}`);
+        });
     };
     window.addEventListener("beforeunload", warn);
     document.addEventListener("click", follow, true);

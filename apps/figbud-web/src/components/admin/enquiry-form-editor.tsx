@@ -17,7 +17,7 @@ import {
   requiresMessage,
 } from "@figbud/site-kit/enquiry";
 import { EnquiryForm } from "@figbud/site-kit/enquiry-form";
-import { cn, fieldClasses } from "@figbud/ui";
+import { cn, fieldClasses, useConfirm } from "@figbud/ui";
 import { ArrowDown, ArrowUp } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -105,6 +105,7 @@ export function EnquiryFormEditor({
   apiOrigin: string;
   data: WebsiteSettingsAdmin;
 }) {
+  const confirm = useConfirm();
   const router = useRouter();
   const uid = useId();
   const settings = data.settings;
@@ -156,7 +157,11 @@ export function EnquiryFormEditor({
   async function save(kind: "draft" | "publish" | "discard") {
     if (
       kind === "publish" &&
-      !window.confirm(`Publish this form for ${name}? Visitors see it within a few minutes.`)
+      !(await confirm({
+        title: `Publish this form for ${name}?`,
+        body: "Visitors see it within a few minutes. Enquiries already received don't change.",
+        confirmLabel: "Publish form",
+      }))
     )
       return;
     setBusy(kind);

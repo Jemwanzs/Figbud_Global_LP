@@ -7,6 +7,7 @@ import { Suspense } from "react";
 
 import { AdminUnavailable } from "@/components/admin/admin-shell";
 import { PricingCalculator } from "@/components/admin/pricing/pricing-calculator";
+import { PricingRevisionWatcher } from "@/components/admin/pricing/revision-watcher";
 import type { PricingAdmin } from "@/components/admin/pricing/pricing-types";
 import { adminGet, requireAdmin } from "@/lib/admin-server";
 import { getBrands } from "@/lib/products";
@@ -44,9 +45,8 @@ async function Workspace({ params }: Pick<PageProps<"/admin/pricing-workspace/[s
           <ProductIdentity slug={slug as ProductSlug} brand={brands[slug] ?? null} name={data.site.name} />
           <span className="text-sm text-subtle">Pricing calculator</span>
           <span className="ms-auto rounded-full border border-line px-3 py-1 text-xs text-muted">
-            {published
-              ? `Published prices · version ${data.published_number}`
-              : "Draft prices · not published"}
+            {`Saved draft · version ${data.draft_version}`}
+            {published ? ` · Published · version ${data.published_number}` : " · not published yet"}
           </span>
           <Link href={`/admin/sites/${slug}/pricing`} className="text-sm text-muted hover:text-text">
             Back to the Studio
@@ -55,12 +55,16 @@ async function Workspace({ params }: Pick<PageProps<"/admin/pricing-workspace/[s
       </header>
       <main className="mx-auto max-w-[96rem] px-5 py-8 sm:px-8">
         <h1 className="sr-only">{`${data.site.name} pricing calculator`}</h1>
-        {/* The same calculator and pricing source as the Studio's Calculator tab. */}
+        {/* The same calculator, pricing source and default as the Studio's Calculator tab:
+            the saved draft while it differs from the published version (owner's brief, 14 Nov 2026). */}
+        <div className="mb-4">
+          <PricingRevisionWatcher slug={slug} draft={data.draft_version} published={data.published_number} />
+        </div>
         <PricingCalculator
           slug={slug}
           sources={{ draft: data.draft, published }}
           revisions={{ draft: data.draft_version, published: data.published_number }}
-          defaultSource={published ? "published" : "draft"}
+          defaultSource={published && data.status === "published" ? "published" : "draft"}
           canQuote={data.can_edit}
         />
       </main>

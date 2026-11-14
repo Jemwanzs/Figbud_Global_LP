@@ -3,6 +3,7 @@ import { randomBytes } from "node:crypto";
 
 import { type Page, expect, test } from "@playwright/test";
 import { themeSettled } from "./theme-settled";
+import { answer } from "./confirm-dialog";
 
 // Per-website permissions (P7-F1) against e2e/mock-api.mjs: an owner invites
 // an editor limited to ZiraHR, then gives them every website.
@@ -146,8 +147,8 @@ test("Users & access: change a role, suspend and reactivate, revoke a pending in
   await expect(nav.getByRole("button", { name: /Leads & Enquiries/ })).toHaveCount(0);
 
   // Suspended: their next click asks them to sign in; reactivated: back.
-  page.once("dialog", (d) => d.accept());
   await member.getByRole("button", { name: /^Suspend/ }).click();
+  await answer(page, "Suspend");
   await expect(member).toContainText("Suspended");
   await kofi.goto("/admin/sites");
   await expect(kofi).toHaveURL(/\/admin\/login/);
@@ -162,8 +163,8 @@ test("Users & access: change a role, suspend and reactivate, revoke a pending in
   // The pending invitation, revoked.
   const pending = page.getByRole("region", { name: "Pending invitations" });
   await expect(pending).toContainText(waiting);
-  page.once("dialog", (d) => d.accept());
   await pending.getByRole("button", { name: `Revoke the invitation for ${waiting}` }).click();
+  await answer(page, "Revoke invitation");
   await expect(pending.getByRole("status")).toContainText("revoked");
   await expect(pending).not.toContainText(`${waiting}Editor`);
 
@@ -378,11 +379,11 @@ test("named Studio roles: saved from someone's areas, given to another, changed 
   await expect(ben.getByRole("checkbox", { name: "SEO: View" })).toBeChecked();
 
   // Deleting it keeps their areas, unlinked.
-  page.once("dialog", (d) => d.accept());
   await roles
     .getByRole("listitem", { name: roleName })
     .getByRole("button", { name: `Delete the role ${roleName}` })
     .click();
+  await answer(page, "Delete role");
   await expect(roles.getByRole("listitem", { name: roleName })).toHaveCount(0);
   await page.reload();
   await ben.getByRole("button", { name: /Change access/ }).click();

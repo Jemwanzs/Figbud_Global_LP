@@ -1,7 +1,7 @@
 "use client";
 
 import { QuoteDocument } from "@figbud/site-kit";
-import { cn } from "@figbud/ui";
+import { type ConfirmOptions, cn, useConfirm } from "@figbud/ui";
 import { Check, Copy, Link2, Printer } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -25,14 +25,15 @@ export function QuotePanel({
   brand?: React.ReactNode;
 }) {
   const router = useRouter();
+  const confirm = useConfirm();
   const [quote, setQuote] = useState(initial);
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
   const [link, setLink] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
-  async function act(action: string, done: string, confirm?: string) {
-    if (confirm && !window.confirm(confirm)) return;
+  async function act(action: string, done: string, ask?: ConfirmOptions) {
+    if (ask && !(await confirm(ask))) return;
     setBusy(action);
     setMessage(null);
     try {
@@ -136,7 +137,14 @@ export function QuotePanel({
                   act(
                     "share",
                     "Customer link created. It's shown once: copy it now.",
-                    quote.shared ? "Create a new link? The previous link stops working." : undefined,
+                    quote.shared
+                      ? {
+                          title: "Create a new customer link?",
+                          body: "The previous link stops working at once. The new link is shown once, so copy it before leaving.",
+                          confirmLabel: "Create new link",
+                          tone: "warning",
+                        }
+                      : undefined,
                   )
                 }
               >
@@ -159,7 +167,13 @@ export function QuotePanel({
                   variant="secondary"
                   ready
                   busy={busy === "accept"}
-                  onClick={() => act("accept", "Recorded as accepted.", "Record that the customer accepted?")}
+                  onClick={() =>
+                    act("accept", "Recorded as accepted.", {
+                      title: "Record that the customer accepted?",
+                      body: "The quotation is marked accepted. Its prices and lines stay exactly as issued.",
+                      confirmLabel: "Record acceptance",
+                    })
+                  }
                 >
                   Accepted
                 </ActionButton>
@@ -168,7 +182,12 @@ export function QuotePanel({
                   ready
                   busy={busy === "decline"}
                   onClick={() =>
-                    act("decline", "Recorded as declined.", "Record that the customer declined?")
+                    act("decline", "Recorded as declined.", {
+                      title: "Record that the customer declined?",
+                      body: "The quotation is marked declined and can no longer be accepted.",
+                      confirmLabel: "Record decline",
+                      tone: "warning",
+                    })
                   }
                 >
                   Declined

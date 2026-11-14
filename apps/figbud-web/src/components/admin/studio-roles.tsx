@@ -1,6 +1,6 @@
 "use client";
 
-import { cn } from "@figbud/ui";
+import { cn, useConfirm } from "@figbud/ui";
 import { Layers } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -19,6 +19,7 @@ const areaList = (areas: Areas) =>
 
 function RoleRow({ initial, onDeleted }: { initial: StudioRoleOption; onDeleted: () => void }) {
   const router = useRouter();
+  const confirm = useConfirm();
   const [saved, setSaved] = useState(initial);
   const [name, setName] = useState(initial.name);
   const [areas, setAreas] = useState<Areas | null>(initial.modules);
@@ -58,9 +59,15 @@ function RoleRow({ initial, onDeleted }: { initial: StudioRoleOption; onDeleted:
 
   async function remove() {
     const who = saved.members
-      ? ` The ${saved.members === 1 ? "person who has it keeps" : `${saved.members} people who have it keep`} their areas.`
-      : "";
-    if (!window.confirm(`Delete the role "${saved.name}"?${who}`)) return;
+      ? `The ${saved.members === 1 ? "person who has it keeps" : `${saved.members} people who have it keep`} their areas.`
+      : "No one has this role.";
+    const ok = await confirm({
+      title: `Delete the role "${saved.name}"?`,
+      body: who,
+      confirmLabel: "Delete role",
+      tone: "danger",
+    });
+    if (!ok) return;
     setBusy(true);
     try {
       await adminFetch(`studio-roles/${saved.id}/delete`, {});

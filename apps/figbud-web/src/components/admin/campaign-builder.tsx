@@ -7,7 +7,7 @@ import {
   CampaignPreview,
   type LiveCampaign,
 } from "@figbud/site-kit";
-import { cn } from "@figbud/ui";
+import { cn, useConfirm } from "@figbud/ui";
 import { Monitor, Moon, Plus, Smartphone, Sun, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { type ReactNode, useId, useMemo, useState } from "react";
@@ -121,6 +121,7 @@ export function CampaignBuilder({
   userId: string;
   isOwner: boolean;
 }) {
+  const confirm = useConfirm();
   const router = useRouter();
   const uid = useId();
   const id = initial.id;
@@ -1339,9 +1340,13 @@ export function CampaignBuilder({
                   variant="ghost"
                   ready={!busy}
                   busy={busy === "archive"}
-                  onClick={() =>
-                    window.confirm(`Archive "${draft.name}"? It's taken off every website.`) &&
-                    run("archive", `campaigns/${id}/archive`, {}, "Campaign archived.")
+                  onClick={async () =>
+                    (await confirm({
+                      title: `Archive "${draft.name}"?`,
+                      body: "It's taken off every website. It's kept here and can be restored.",
+                      confirmLabel: "Archive campaign",
+                      tone: "danger",
+                    })) && run("archive", `campaigns/${id}/archive`, {}, "Campaign archived.")
                   }
                 >
                   Archive

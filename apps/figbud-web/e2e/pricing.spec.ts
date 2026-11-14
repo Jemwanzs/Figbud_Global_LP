@@ -2,6 +2,7 @@ import AxeBuilder from "@axe-core/playwright";
 import { randomBytes } from "node:crypto";
 
 import { type Page, expect, test } from "@playwright/test";
+import { answer, confirmDialog } from "./confirm-dialog";
 import { themeSettled } from "./theme-settled";
 
 // Pricing Studio (P11) against the mock API, which mirrors the API's rules;
@@ -27,6 +28,9 @@ async function signInAsOwner(page: Page) {
   await page.getByRole("button", { name: "Create passkey and sign in" }).click();
   await expect(page.getByRole("heading", { level: 1, name: "Welcome, Olu" })).toBeVisible();
 }
+
+// Both tests edit ZiraHR's one price book: one after the other.
+test.describe.configure({ mode: "serial" });
 
 test("ZiraHR pricing: rates, approval, calculator, quotation, customer link; hidden from the website by default", async ({
   page,
@@ -146,20 +150,50 @@ test("ZiraHR pricing: rates, approval, calculator, quotation, customer link; hid
 
   // Show pricing on the website: only public items, then hidden again.
   await page.goto("/admin/sites/zirahr/pricing?tab=publishing");
-  page.once("dialog", (d) => d.accept());
+  // An in-app dialog says what visitors will see, including that no item is eligible yet.
   await page.getByRole("switch", { name: "Prices are hidden from the website" }).click();
+  const ask = confirmDialog(page);
+  await expect(ask.getByRole("heading", { name: "Show pricing on the ZiraHR website?" })).toBeVisible();
+  await expect(ask).toContainText("Drafts and changes waiting for approval stay private.");
+  await expect(ask).toContainText("0 items are eligible to show.");
+  await expect(ask).toContainText("The published version has no public, priced items");
+  // Accessible in the Studio's theme: labelled, with readable contrast.
+  const scan = await new AxeBuilder({ page: await themeSettled(page) })
+    .include("dialog[data-confirm-dialog]")
+    .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
+    .analyze();
+  expect(scan.violations.map((v) => v.id)).toEqual([]);
+  // A failure stays in the dialog with its message; nothing reports success, and it can be tried again.
+  await page.route(
+    "**/admin/api/sites/zirahr/pricing/visibility",
+    (route) =>
+      route.fulfill({
+        status: 500,
+        contentType: "application/json",
+        body: JSON.stringify({ error: { message: "The pricing service is unavailable." } }),
+      }),
+    { times: 1 },
+  );
+  await ask.getByRole("button", { name: "Show pricing" }).click();
+  await expect(ask.getByRole("alert")).toHaveText("The pricing service is unavailable.");
+  await expect(page.getByRole("status").filter({ hasText: "Pricing visibility updated" })).toHaveCount(0);
+  await expect(page.getByRole("switch", { name: "Prices are hidden from the website" })).toBeAttached();
+  await answer(page, "Show pricing");
+  await expect(page.getByRole("status").filter({ hasText: "Pricing visibility updated" })).toBeVisible();
   await expect(page.getByRole("switch", { name: "Prices are shown on the website" })).toBeVisible();
   const shown = await (await request.get(`${API}/v1/sites/zirahr/pricing`)).json();
   expect(shown.visible).toBe(true);
   expect(shown.book.items).toEqual([]);
   expect(shown.book.terms).toBe("");
   await page.getByRole("switch", { name: "Prices are shown on the website" }).click();
+  await expect(ask.getByRole("heading", { name: "Hide pricing from the ZiraHR website?" })).toBeVisible();
+  await answer(page, "Hide pricing");
   await expect(page.getByRole("switch", { name: "Prices are hidden from the website" })).toBeVisible();
 
   // The full-screen workspace: the calculator without Studio navigation.
   await page.goto("/admin/pricing-workspace/zirahr");
   await expect(page.getByRole("heading", { level: 1, name: "ZiraHR pricing calculator" })).toBeAttached();
-  await expect(page.getByText("Published prices · version 1")).toBeVisible();
+  await expect(page.getByText(/Published · version 1/)).toBeVisible();
   await expect(page.getByRole("link", { name: "Websites" })).toHaveCount(0);
   // Same prices as the Studio: a quarterly rate is a third per month.
   await page.getByRole("checkbox", { name: /Reporting & analytics/ }).check();
@@ -191,4 +225,60 @@ test("ZiraHR pricing: rates, approval, calculator, quotation, customer link; hid
     .click();
   await expect(page.getByRole("note").filter({ hasText: "You have unsaved changes" })).toBeVisible();
   await expect(page.getByText("That file is too large")).toHaveCount(0);
+});
+
+test("pricing: a removed item leaves its models too, every tab can be saved, and both calculators follow the saved draft", async ({
+  page,
+}, testInfo) => {
+  // Owner's brief, 14 Nov 2026 (Hypercare stayed in the calculator). Shared mock data: desktop only.
+  test.skip(testInfo.project.name !== "desktop", "edited from the desktop project");
+  test.setTimeout(120_000);
+  expect((await page.request.post("http://localhost:3199/test/reset-pricing")).ok()).toBe(true);
+  await signInAsOwner(page);
+  await page.goto("/admin/sites/zirahr/pricing?tab=items");
+  const sections = page.getByRole("navigation", { name: "Pricing sections" });
+  // On the Calculator tab, the calculator's items are the page's only checkboxes.
+  const prices = page;
+
+  // Leave management is in the "Subscription" commercial model: removing it says so, and takes it out of the model.
+  const leave = page.locator('[data-item="leave"]');
+  await leave.getByRole("button", { name: "Remove" }).click();
+  await expect(confirmDialog(page)).toContainText('model "Subscription"');
+  await answer(page, "Remove item");
+  await expect(leave).toHaveCount(0);
+  // An implementation charge too.
+  await sections.getByRole("button", { name: "Implementation" }).click();
+  await page.locator('[data-item="setup_configuration"]').getByRole("button", { name: "Remove" }).click();
+  await answer(page, "Remove item");
+
+  // The tabs with unsaved changes are marked; the calculator says it prices the saved draft.
+  await expect(sections.getByRole("button", { name: /Modules & items.*unsaved/ })).toBeVisible();
+  await expect(sections.getByRole("button", { name: /Implementation.*unsaved/ })).toBeVisible();
+  await sections.getByRole("button", { name: "Calculator" }).click();
+  await expect(page.getByText("You have unsaved changes.")).toBeVisible();
+  await expect(prices.getByRole("checkbox", { name: /Leave management/ })).toHaveCount(1);
+
+  // Publishing lists them, and the draft can be saved right there.
+  await sections.getByRole("button", { name: "Publishing" }).click();
+  const unsaved = page.locator("[data-unsaved-tabs]");
+  await expect(unsaved).toContainText("Modules & items");
+  await expect(unsaved).toContainText("Implementation");
+  await page.getByRole("button", { name: "Save draft" }).click();
+  await expect(page.getByText(/^Draft saved\./)).toBeVisible();
+  await expect(unsaved).toHaveCount(0);
+  await expect(sections.locator("[data-unsaved]")).toHaveCount(0);
+
+  // The saved draft no longer has them: the embedded calculator and the full-screen one agree.
+  await sections.getByRole("button", { name: "Calculator" }).click();
+  await expect(prices.getByRole("checkbox", { name: /Core HR/ })).toHaveCount(1);
+  await expect(prices.getByRole("checkbox", { name: /Leave management/ })).toHaveCount(0);
+  await expect(prices.getByRole("checkbox", { name: /Initial system configuration/ })).toHaveCount(0);
+  await page.goto("/admin/pricing-workspace/zirahr");
+  await expect(page.getByText(/Saved draft · version \d+/)).toBeVisible();
+  const full = page;
+  await expect(full.getByRole("checkbox", { name: /Core HR/ })).toHaveCount(1);
+  await expect(full.getByRole("checkbox", { name: /Leave management/ })).toHaveCount(0);
+  await expect(full.getByRole("checkbox", { name: /Initial system configuration/ })).toHaveCount(0);
+
+  expect((await page.request.post("http://localhost:3199/test/reset-pricing")).ok()).toBe(true);
 });

@@ -4,6 +4,7 @@ import { randomBytes } from "node:crypto";
 import { type Page, expect, test } from "@playwright/test";
 
 import { themeSettled } from "./theme-settled";
+import { answer, confirmDialog } from "./confirm-dialog";
 
 // The Studio shell (owner's briefs, 8 Nov 2026): a sidebar with one main tab
 // open at a time, a top bar and sidebar that stay mounted between pages (no
@@ -177,16 +178,26 @@ test.describe("wide screens", () => {
     await group(page, "Publishing").click();
     const approvals = nav(page).getByRole("link", { name: "Approvals" });
 
-    page.once("dialog", (dialog) => {
-      expect(dialog.message()).toContain("unsaved changes");
-      void dialog.dismiss();
-    });
+    // An in-app dialog (not the browser's): Stay keeps the page and its changes.
     await approvals.click();
+    const ask = confirmDialog(page);
+    await expect(ask.getByRole("heading", { name: "Leave this page?" })).toBeVisible();
+    await expect(ask).toContainText("Your unsaved changes will be lost.");
+    await answer(page, "Stay");
     await expect(page).toHaveURL(/\/section-themes$/);
     await expect(choice).toHaveValue(next);
 
-    page.once("dialog", (dialog) => void dialog.accept());
+    // From the keyboard too: Escape cancels, and focus goes back to the link.
+    await approvals.focus();
+    await page.keyboard.press("Enter");
+    await expect(ask).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(ask).toHaveCount(0);
+    await expect(page).toHaveURL(/\/section-themes$/);
+    await expect(approvals).toBeFocused();
+
     await approvals.click();
+    await answer(page, "Leave page");
     await expect(page).toHaveURL(/\/admin\/approvals$/);
   });
 

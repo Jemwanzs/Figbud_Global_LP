@@ -1,6 +1,6 @@
 "use client";
 
-import { cn } from "@figbud/ui";
+import { type ConfirmOptions, cn, useConfirm } from "@figbud/ui";
 import { CircleAlert, CircleCheck } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { type ReactNode, useEffect, useId, useState } from "react";
@@ -42,6 +42,7 @@ export function ProofEditor({
   isOwner: boolean;
 }) {
   const router = useRouter();
+  const confirm = useConfirm();
   const uid = useId();
   const [data, setData] = useState(initial);
   const [form, setForm] = useState<{ doc: Doc; sites: string[] }>({
@@ -170,15 +171,16 @@ export function ProofEditor({
         : "Approval requested. A reviewer other than you approves it before anything is shown.";
     });
 
-  const act = (action: string, body: Record<string, unknown>, done: string, confirm?: string) => () => {
-    if (confirm && !window.confirm(confirm)) return;
-    return run(action, async () => {
-      await adminFetch(`proof/${data.id}/${action}`, body);
-      setNote("");
-      await reload();
-      return done;
-    });
-  };
+  const act =
+    (action: string, body: Record<string, unknown>, done: string, ask?: ConfirmOptions) => async () => {
+      if (ask && !(await confirm(ask))) return;
+      return run(action, async () => {
+        await adminFetch(`proof/${data.id}/${action}`, body);
+        setNote("");
+        await reload();
+        return done;
+      });
+    };
 
   const text = (key: string, label: string, opts: { hint?: string; max?: number; area?: boolean } = {}) => {
     const id = `${uid}-${key}`;
@@ -716,7 +718,12 @@ export function ProofEditor({
                   variant="secondary"
                   ready
                   busy={busy === "unpublish"}
-                  onClick={act("unpublish", {}, "Unpublished.", "Remove it from every website now?")}
+                  onClick={act("unpublish", {}, "Unpublished.", {
+                    title: "Unpublish from every website?",
+                    body: "It's removed from every website now and kept here as a draft, so it can be approved and published again.",
+                    confirmLabel: "Unpublish",
+                    tone: "danger",
+                  })}
                 >
                   Unpublish
                 </ActionButton>

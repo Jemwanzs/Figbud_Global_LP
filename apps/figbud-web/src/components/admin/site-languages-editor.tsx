@@ -9,7 +9,7 @@ import {
   localeInfo,
   locales,
 } from "@figbud/i18n";
-import { cn, fieldClasses } from "@figbud/ui";
+import { cn, fieldClasses, useConfirm } from "@figbud/ui";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useId, useState } from "react";
@@ -53,6 +53,7 @@ export function SiteLanguagesEditor({
   reviewed: string[];
   data: WebsiteSettingsAdmin;
 }) {
+  const confirm = useConfirm();
   const router = useRouter();
   const uid = useId();
   const settings = data.settings;
@@ -90,7 +91,11 @@ export function SiteLanguagesEditor({
   async function save(kindOfSave: "draft" | "publish" | "discard") {
     if (
       kindOfSave === "publish" &&
-      !window.confirm(`Publish these languages for ${name}? Visitors see the change within a few minutes.`)
+      !(await confirm({
+        title: `Publish these languages for ${name}?`,
+        body: "Visitors see the change within a few minutes. Only reviewed languages are offered.",
+        confirmLabel: "Publish languages",
+      }))
     )
       return;
     setBusy(kindOfSave);

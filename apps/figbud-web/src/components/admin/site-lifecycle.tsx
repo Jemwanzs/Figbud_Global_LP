@@ -1,6 +1,6 @@
 "use client";
 
-import { buttonClasses } from "@figbud/ui";
+import { buttonClasses, useConfirm } from "@figbud/ui";
 import { LoaderCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useId, useState } from "react";
@@ -53,6 +53,7 @@ export function SiteLifecycle({
   requests: StatusRequest[];
   user: AdminUser;
 }) {
+  const confirm = useConfirm();
   const router = useRouter();
   const uid = useId();
   const options = TRANSITIONS[site.status];
@@ -270,9 +271,14 @@ export function SiteLifecycle({
               type="button"
               disabled={!!busy}
               className={buttonClasses("ghost", "md")}
-              onClick={() => {
-                if (window.confirm(`Archive ${site.name}? It is hidden from every listing until restored.`))
-                  run("archive", "archive", {}, "Website archived.");
+              onClick={async () => {
+                const ok = await confirm({
+                  title: `Archive ${site.name}?`,
+                  body: "It's hidden from every listing until restored. Its pages, settings and history are kept.",
+                  confirmLabel: "Archive website",
+                  tone: "danger",
+                });
+                if (ok) run("archive", "archive", {}, "Website archived.");
               }}
             >
               {spinner("archive")}

@@ -3,6 +3,7 @@ import { randomBytes } from "node:crypto";
 
 import { type Page, expect, test } from "@playwright/test";
 import { themeSettled } from "./theme-settled";
+import { answer } from "./confirm-dialog";
 
 // The Studio tests below save the same settings documents, so they take turns
 // (each save is checked against the version it read).
@@ -453,8 +454,8 @@ test("Studio: each website chooses its languages, drafted and published, opening
   await expect(page.getByRole("status")).toContainText("Draft saved.");
   expect(await languagesOf("jasiri")).toBeNull();
 
-  page.once("dialog", (d) => d.accept());
   await page.getByRole("button", { name: "Publish", exact: true }).click();
+  await answer(page, "Publish languages");
   await expect(page.getByRole("status")).toContainText("Published.");
   expect(await languagesOf("jasiri")).toEqual({ enabled: ["en", "fr"], default: "en", fallback: "fr" });
 
@@ -486,8 +487,8 @@ test("Studio: each website chooses its languages, drafted and published, opening
   // Put Jasiri LMS back to English only.
   await page.goto("/admin/sites/jasiri/languages");
   await page.getByRole("checkbox", { name: /French/ }).uncheck();
-  page.once("dialog", (d) => d.accept());
   await page.getByRole("button", { name: "Publish", exact: true }).click();
+  await answer(page, "Publish languages");
   await expect(page.getByRole("status")).toContainText("Published.");
   expect(await languagesOf("jasiri")).toEqual({ enabled: ["en"], default: "en", fallback: "en" });
 });
@@ -595,8 +596,8 @@ test("Studio: a website's enquiry form, previewed (never sent), drafted and publ
   await page.getByRole("button", { name: "Save draft" }).click();
   await expect(page.getByRole("status")).toContainText("Draft saved.");
   expect(await publishedForm()).toBeNull();
-  page.once("dialog", (d) => d.accept());
   await page.getByRole("button", { name: "Publish", exact: true }).click();
+  await answer(page, "Publish form");
   await expect(page.getByRole("status")).toContainText("Published.");
   expect(await publishedForm()).toMatchObject({
     layout: "single",
@@ -618,8 +619,8 @@ test("Studio: a website's enquiry form, previewed (never sent), drafted and publ
   await page.getByRole("combobox", { name: "Country", exact: true }).selectOption("optional");
   await page.getByRole("combobox", { name: "Job title", exact: true }).selectOption("optional");
   await page.getByLabel("Send button").fill("");
-  page.once("dialog", (d) => d.accept());
   await page.getByRole("button", { name: "Publish", exact: true }).click();
+  await answer(page, "Publish form");
   await expect(page.getByRole("status")).toContainText("Published.");
   expect(await publishedForm()).toMatchObject({ layout: "stages", fields: {}, texts: {} });
 });
@@ -716,7 +717,7 @@ test("Studio: a language is published only with a recorded review, and can go ba
     results.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`),
   ).toEqual([]);
   // Back to draft, for other tests.
-  page.once("dialog", (d) => d.accept());
   await fr.getByRole("button", { name: "Back to draft" }).click();
+  await answer(page, "Back to draft");
   await expect(fr).toContainText("Draft · not indexed");
 });

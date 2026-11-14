@@ -8,3 +8,4 @@ export * from "./motion";
 export * from "./reveal-order";
 export * from "./status-badge";
 export * from "./theme";
+export * from "./dialogs";

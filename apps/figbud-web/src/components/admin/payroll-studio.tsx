@@ -6,7 +6,7 @@ import {
   type PayrollInput,
   type PayrollResult,
 } from "@figbud/site-kit/payroll-calculator";
-import { cn } from "@figbud/ui";
+import { cn, useConfirm } from "@figbud/ui";
 import { CheckCircle2, Plus, ShieldAlert, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useId, useState } from "react";
@@ -394,6 +394,7 @@ function RuleSetEditor({
 /** Websites → ZiraHR → Payroll Calculator (P14-C). */
 export function PayrollStudio({ slug, data }: { slug: string; data: PayrollAdmin }) {
   const router = useRouter();
+  const confirm = useConfirm();
   const uid = useId();
   const [config, setConfig] = useState(data.draft);
   const [version, setVersion] = useState(data.draft_version);
@@ -711,8 +712,14 @@ export function PayrollStudio({ slug, data }: { slug: string; data: PayrollAdmin
                       ready
                       variant="secondary"
                       busy={busy === "rollback"}
-                      onClick={() => {
-                        if (window.confirm(`Make version ${v.number} live again?`))
+                      onClick={async () => {
+                        const ok = await confirm({
+                          title: `Make version ${v.number} live again?`,
+                          body: "Calculators use these payroll rules at once. The draft isn't changed.",
+                          confirmLabel: "Roll back",
+                          tone: "warning",
+                        });
+                        if (ok)
                           void post("rollback", { version: v.number }, `Rolled back to version ${v.number}.`);
                       }}
                     >

@@ -1,7 +1,7 @@
 "use client";
 
 import { type Locale, localeInfo } from "@figbud/i18n";
-import { cn, fieldClasses } from "@figbud/ui";
+import { cn, fieldClasses, useConfirm } from "@figbud/ui";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useId, useState } from "react";
@@ -90,6 +90,7 @@ export function PageTranslations({
 }) {
   const router = useRouter();
   const uid = useId();
+  const confirm = useConfirm();
   const info = localeInfo[detail.locale as Locale];
   const named = ENGLISH_NAME[detail.locale];
   const start = () =>
@@ -300,9 +301,13 @@ export function PageTranslations({
             ready={complete && (!detail.published || detail.changes_pending)}
             busy={busy === "publish"}
             hint={busy ? undefined : "Nothing to publish"}
-            onClick={() => {
-              if (window.confirm(`Publish the ${named} translation?`))
-                void run("publish", { version }, "Published.");
+            onClick={async () => {
+              const ok = await confirm({
+                title: `Publish the ${named} translation?`,
+                body: "Visitors choosing this language see it on the website within a few minutes.",
+                confirmLabel: "Publish",
+              });
+              if (ok) void run("publish", { version }, "Published.");
             }}
           >
             Publish
@@ -323,9 +328,14 @@ export function PageTranslations({
             ready
             busy={busy === "unpublish"}
             variant="secondary"
-            onClick={() => {
-              if (window.confirm(`Take the ${named} translation off the website?`))
-                void run("unpublish", { version }, "Unpublished: visitors see the English page.");
+            onClick={async () => {
+              const ok = await confirm({
+                title: `Take the ${named} translation off the website?`,
+                body: "Visitors see the English page instead. The translation is kept here.",
+                confirmLabel: "Unpublish",
+                tone: "warning",
+              });
+              if (ok) void run("unpublish", { version }, "Unpublished: visitors see the English page.");
             }}
           >
             Unpublish

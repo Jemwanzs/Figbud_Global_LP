@@ -5,6 +5,7 @@ import { type Page, expect, test } from "@playwright/test";
 
 import { studioLink } from "./studio-nav";
 import { themeSettled } from "./theme-settled";
+import { answer } from "./confirm-dialog";
 
 // Website registry (Admin Studio, Phase B) against e2e/mock-api.mjs, signed in as an owner.
 
@@ -105,8 +106,8 @@ test("create a product website, launch it with approval and manage its settings"
   await status(page, "Settings saved.");
 
   // Archive hides it until restored.
-  page.once("dialog", (dialog) => dialog.accept());
   await lifecycle.getByRole("button", { name: "Archive website" }).click();
+  await answer(page, "Archive website");
   await status(page, "Website archived.");
   await expect(lifecycle).toContainText("Restore this website to change its status.");
   await lifecycle.getByRole("button", { name: "Restore website" }).click();
