@@ -24,6 +24,7 @@ use crate::{
     config::{Config, EmailMode},
     email::{self, outbox, templates},
     enquiry::{EnquiryInput, new_reference},
+    enquiry_form,
     error::ApiError,
     heroes, media, payroll, pricing, privacy, proof,
     rate_limit::{RateLimiter, client_ip, ip_hash},
@@ -217,7 +218,14 @@ async fn create_enquiry(
     let min_fill_ms = state.config.min_form_fill.as_millis() as u64;
     let automated = input.looks_automated(min_fill_ms);
     let campaign = input.campaign.as_deref().and_then(|c| Uuid::parse_str(c).ok());
-    let enquiry = input.validate().map_err(ApiError::Validation)?;
+    let form = input.form.clone().filter(|f| f.len() <= 40);
+    let mut enquiry = input.validate().map_err(ApiError::Validation)?;
+    // The form's own website rules (Studio → a website → Enquiry form, UI-EF3).
+    if let Some(slug) = form
+        && let Some(rules) = enquiry_form::published(&state.pool, &slug).await?
+    {
+        rules.apply(&mut enquiry).map_err(ApiError::Validation)?;
+    }
 
     // A replayed submission returns the original reference instead of a duplicate.
     if let Some(reference) = existing_reference(&state.pool, idempotency_key).await? {

@@ -17,6 +17,7 @@ import {
   resolveNavPreviews,
   showcaseSettings,
 } from "@figbud/site-kit";
+import type { EnquiryFormConfig } from "@figbud/site-kit/enquiry";
 import {
   fetchBrandPng,
   fetchHero,
@@ -141,6 +142,11 @@ export async function getNavPreviews(
 export async function getSectionThemes(): Promise<SectionThemes> {
   const themes = (await getListedSites())?.find((s) => s.slug === "figbud")?.settings?.section_themes;
   return (themes ?? {}) as SectionThemes;
+}
+
+/** FigBud Global's published enquiry form settings (Studio → FigBud Global → Enquiry form, UI-EF3). */
+export async function getCorporateEnquiryForm(): Promise<EnquiryFormConfig | null> {
+  return (await getListedSites())?.find((s) => s.slug === "figbud")?.settings?.enquiry_form ?? null;
 }
 
 /** FigBud Global's published colours (Studio → FigBud Global → Colours & themes, UI-BT3). */

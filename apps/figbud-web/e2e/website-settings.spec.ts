@@ -533,6 +533,97 @@ test("Studio: FigBud Global's colours and themes, drafted and published to the c
   await expect.poll(corporateCss).not.toContain("--bg:");
 });
 
+test("Studio: a website's enquiry form, previewed (never sent), drafted and published (UI-EF3)", async ({
+  page,
+  request,
+}, testInfo) => {
+  // Shared mock data: Expense Now only, put back at the end.
+  test.skip(testInfo.project.name !== "desktop", "edited from the desktop project");
+  test.setTimeout(120_000);
+  const API = "http://localhost:3199";
+  const publishedForm = async () =>
+    (
+      (await (await request.get(`${API}/v1/sites`)).json()) as {
+        slug: string;
+        settings: { enquiry_form?: unknown };
+      }[]
+    ).find((s) => s.slug === "expense_now")!.settings.enquiry_form ?? null;
+  const sent: string[] = [];
+  page.on("request", (r) => {
+    if (r.url().endsWith("/v1/enquiries")) sent.push(r.url());
+  });
+  await signInAsOwner(page);
+  await page.goto("/admin/sites/expense_now");
+  await page.locator("#studio-main").getByRole("link", { name: "Enquiry form", exact: true }).click();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Enquiry form");
+  const preview = page.getByRole("region", { name: "Form preview" });
+
+  // Two categories, waitlist first; country required; job title hidden; a new Send label.
+  for (const kind of ["Request a demo", "Sales enquiry", "General question", "Partnership"])
+    await page.locator("[data-kind]").getByRole("checkbox", { name: kind }).uncheck();
+  await page.getByRole("button", { name: "Move Join a waitlist up" }).click();
+  await page.getByRole("combobox", { name: "Country", exact: true }).selectOption("required");
+  await page.getByRole("combobox", { name: "Job title", exact: true }).selectOption("hidden");
+  await page.getByLabel("Send button").fill("Count me in");
+  await page.getByRole("radio", { name: /One column/ }).click();
+
+  const kinds = preview.getByRole("radio");
+  await expect(kinds).toHaveCount(2);
+  await expect(kinds.first()).toHaveAccessibleName("Join a waitlist");
+  await expect(preview.getByLabel("Job title")).toHaveCount(0);
+  // The preview checks like the website, and never sends.
+  await preview.getByLabel("Full name").fill("Amina Wanjiru");
+  await preview.getByLabel(/^Work email/).fill("amina@example.co.ke");
+  await preview.getByRole("checkbox").check();
+  await preview.getByRole("button", { name: "Count me in" }).click();
+  await expect(preview.getByRole("button", { name: /^Country/ })).toHaveAttribute("aria-invalid", "true");
+  await preview.getByRole("button", { name: /^Country/ }).click();
+  await page.getByRole("combobox", { name: "Search countries" }).fill("kenya");
+  await page.getByRole("option", { name: /Kenya/ }).first().click();
+  await preview.getByRole("button", { name: "Count me in" }).click();
+  await expect(preview.getByText("Preview · not sent")).toBeVisible();
+  expect(sent).toEqual([]);
+
+  // A message can't be hidden while a category needs one.
+  await page.locator("[data-kind]").getByRole("checkbox", { name: "Sales enquiry" }).check();
+  await page.getByRole("combobox", { name: "How can we help?", exact: true }).selectOption("hidden");
+  await expect(page.getByRole("alert").filter({ hasText: "need a message" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Publish", exact: true })).toBeDisabled();
+  await page.getByRole("combobox", { name: "How can we help?", exact: true }).selectOption("optional");
+  await page.locator("[data-kind]").getByRole("checkbox", { name: "Sales enquiry" }).uncheck();
+
+  await page.getByRole("button", { name: "Save draft" }).click();
+  await expect(page.getByRole("status")).toContainText("Draft saved.");
+  expect(await publishedForm()).toBeNull();
+  page.once("dialog", (d) => d.accept());
+  await page.getByRole("button", { name: "Publish", exact: true }).click();
+  await expect(page.getByRole("status")).toContainText("Published.");
+  expect(await publishedForm()).toMatchObject({
+    layout: "single",
+    kinds: ["waitlist", "early_access"],
+    fields: { country: "required", job_title: "hidden" },
+    texts: { submit: "Count me in" },
+  });
+  const results = await new AxeBuilder({ page: await themeSettled(page) })
+    .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
+    .analyze();
+  expect(
+    results.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`),
+  ).toEqual([]);
+
+  // Put it back: the form as built.
+  await page.getByRole("radio", { name: /Two stages/ }).click();
+  for (const kind of ["Request a demo", "Sales enquiry", "General question", "Partnership"])
+    await page.locator("[data-kind]").getByRole("checkbox", { name: kind }).check();
+  await page.getByRole("combobox", { name: "Country", exact: true }).selectOption("optional");
+  await page.getByRole("combobox", { name: "Job title", exact: true }).selectOption("optional");
+  await page.getByLabel("Send button").fill("");
+  page.once("dialog", (d) => d.accept());
+  await page.getByRole("button", { name: "Publish", exact: true }).click();
+  await expect(page.getByRole("status")).toContainText("Published.");
+  expect(await publishedForm()).toMatchObject({ layout: "stages", fields: {}, texts: {} });
+});
+
 test("Studio: the Studio's own appearance is drafted, checked, published, applied and restored", async ({
   page,
 }, testInfo) => {

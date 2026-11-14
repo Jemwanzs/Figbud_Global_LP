@@ -356,6 +356,8 @@ export default async function SitePage({ params }: PageProps<"/[site]/[[...path]
             apiOrigin: publicApiOrigin,
             product: isEnquiryProduct(site.slug) ? site.slug : undefined,
             privacyHref: `${figbudOrigin}/en/legal/privacy`,
+            config: site.settings?.enquiry_form,
+            form: site.slug,
           }}
         />
         {/* Approved customer proof for this website (home page); nothing renders without it. */}

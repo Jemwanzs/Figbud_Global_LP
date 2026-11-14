@@ -794,6 +794,8 @@ test("ZiraHR's demo call opens the two-stage enquiry form on ZiraHR, and one com
     email: "libbie@mfano.co.ke",
     company: "Mfano Ltd",
     source_path: "/zirahr/contact",
+    // The form names its website, so the API applies ZiraHR's form settings (UI-EF3).
+    form: "zirahr",
   });
   expect(sent[1]!.company_size).not.toBe("");
   expect(new URL(page.url()).origin).toBe(origin);

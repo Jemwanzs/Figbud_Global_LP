@@ -43,6 +43,7 @@ export function siteTools(site: NavSite): NavLink[] {
     { href: `${base}/hero`, label: "Hero management" },
     { href: `${base}/website`, label: "Navigation & enquiries" },
     { href: `${base}/footer`, label: "Footer" },
+    { href: `${base}/enquiry-form`, label: "Enquiry form" },
     // Brand & Theme Studio (11 Nov 2026), for every website (FigBud Global since 14 Nov 2026, UI-BT3).
     { href: `${base}/theme`, label: "Colours & themes" },
     ...(site.kind === "corporate" ? [{ href: `${base}/section-themes`, label: "Section themes" }] : []),

@@ -7,7 +7,7 @@ import { Suspense } from "react";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { PageHeader } from "@/components/page-header";
 import { resolvePage } from "@/lib/page";
-import { getClosedEnquiries } from "@/lib/products";
+import { getClosedEnquiries, getCorporateEnquiryForm } from "@/lib/products";
 import { localizedMetadata } from "@/lib/locales";
 import { apiOrigin, routes } from "@/lib/site";
 
@@ -26,6 +26,11 @@ export default async function ContactPage({ params }: PageProps<"/[locale]/conta
   const { locale, dict } = await resolvePage(params);
   const page = dict.pages.contact;
   const closed = await getClosedEnquiries();
+  // The Studio's form settings (UI-EF3); its wording applies to English pages,
+  // other languages keep theirs (as with hero text).
+  const published = await getCorporateEnquiryForm();
+  const config =
+    published && locale !== "en" ? { ...published, labels: {}, hints: {}, texts: {} } : published;
 
   return (
     <>
@@ -55,6 +60,8 @@ export default async function ContactPage({ params }: PageProps<"/[locale]/conta
             privacyHref={localizePath(locale, routes.privacy)}
             apiOrigin={apiOrigin}
             stages={dict.formStages}
+            config={config}
+            form="figbud"
           />
         </Suspense>
         <section aria-labelledby="contact-next-title" className="mt-section-sm">

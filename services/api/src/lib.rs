@@ -15,6 +15,7 @@ pub mod cms;
 pub mod config;
 pub mod email;
 pub mod enquiry;
+pub mod enquiry_form;
 pub mod error;
 pub mod heroes;
 pub mod locales;

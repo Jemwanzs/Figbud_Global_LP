@@ -85,8 +85,80 @@ export function phoneErrors(phones: PhoneEntry[]): Pick<EnquiryErrors, "phones" 
   return errors;
 }
 
-export function validateEnquiry(values: EnquiryValues): EnquiryErrors {
+/**
+ * A website's enquiry form settings (Studio → a website → Enquiry form,
+ * UI-EF3), as published: `services/api/src/enquiry_form.rs` checks them and
+ * enforces the categories and required fields when the form names its website.
+ */
+export const FORM_FIELDS = ["job_title", "country", "phone", "company_size", "message"] as const;
+export type FormField = (typeof FORM_FIELDS)[number];
+export type FieldRule = "optional" | "required" | "hidden";
+export const FORM_LABELLED = [
+  "name",
+  "email",
+  "company",
+  "job_title",
+  "country",
+  "phone",
+  "company_size",
+  "message",
+] as const;
+export type FormLabelled = (typeof FORM_LABELLED)[number];
+/** Wording a website can set, with its longest length (enquiry_form.rs `TEXTS`). */
+export const FORM_TEXTS = {
+  intro: 300,
+  one_title: 60,
+  one_lead: 120,
+  two_title: 60,
+  two_lead: 120,
+  continue: 30,
+  submit: 30,
+  success_title: 90,
+  success_body: 300,
+} as const;
+export type FormText = keyof typeof FORM_TEXTS;
+
+export interface EnquiryFormConfig {
+  layout?: "stages" | "single";
+  /** Offered categories, in order; none means all. */
+  kinds?: EnquiryKind[];
+  fields?: Partial<Record<FormField, FieldRule>>;
+  labels?: Partial<Record<FormLabelled, string>>;
+  hints?: Partial<Record<FormLabelled, string>>;
+  texts?: Partial<Record<FormText, string>>;
+}
+
+/** How a website's form treats an optional field. */
+export const formRule = (config: EnquiryFormConfig | null | undefined, field: FormField): FieldRule =>
+  config?.fields?.[field] ?? "optional";
+
+/** The categories a website's form offers, in its order. */
+export const offeredKinds = (config: EnquiryFormConfig | null | undefined): EnquiryKind[] => {
+  const chosen = (config?.kinds ?? []).filter((k) => isEnquiryKind(k));
+  return chosen.length ? chosen : [...enquiryKinds];
+};
+
+/** Hidden fields are never sent (the API drops them too). */
+export function withoutHidden(values: EnquiryValues, config?: EnquiryFormConfig | null): EnquiryValues {
+  const hidden = (f: FormField) => formRule(config, f) === "hidden";
+  return {
+    ...values,
+    job_title: hidden("job_title") ? "" : values.job_title,
+    country: hidden("country") ? "" : values.country,
+    phones: hidden("phone") ? [{ country: values.phones[0]?.country ?? "KE", number: "" }] : values.phones,
+    company_size: hidden("company_size") ? "" : values.company_size,
+    message: hidden("message") ? "" : values.message,
+  };
+}
+
+export function validateEnquiry(values: EnquiryValues, config?: EnquiryFormConfig | null): EnquiryErrors {
   const errors: EnquiryErrors = {};
+  // The website's own required fields (UI-EF3), on top of the rules below.
+  const required = (f: FormField) => formRule(config, f) === "required";
+  if (required("job_title") && !values.job_title.trim()) errors.job_title = "required";
+  if (required("country") && !values.country) errors.country = "required";
+  if (required("phone") && !values.phones[0]?.number.trim()) errors.phones = "required";
+  if (required("company_size") && !values.company_size) errors.company_size = "required";
   if (values.name.trim().length < 2) errors.name = "required";
   const email = emailError(values.email);
   if (email) errors.email = email;
@@ -94,7 +166,7 @@ export function validateEnquiry(values: EnquiryValues): EnquiryErrors {
   if (values.country && !isCountryCode(values.country)) errors.country = "required";
   if (requiresCompany(values.kind) && !values.company.trim()) errors.company = "required";
   const message = values.message.trim();
-  if (requiresMessage(values.kind)) {
+  if (requiresMessage(values.kind) || required("message")) {
     if (!message) errors.message = "required";
     else if (message.length < 10) errors.message = "messageShort";
   }

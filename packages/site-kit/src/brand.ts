@@ -6,6 +6,8 @@
 
 import type { SiteLanguages } from "@figbud/i18n";
 
+import type { EnquiryFormConfig } from "./enquiry";
+
 import type { StudioTheme } from "./site-theme";
 import type { SiteSeo } from "./seo";
 
@@ -84,6 +86,10 @@ export interface WebsiteSettings {
   /** Saved in the Studio, not published. */
   section_themes_draft?: Partial<Record<string, "follow" | "inverse">> | null;
   enquiries: { open: boolean; closed_message?: string | null };
+  /** The website's enquiry form (UI-EF3), as published; unset means the form as built. */
+  enquiry_form?: EnquiryFormConfig | null;
+  /** Saved in the Studio, not published; only the Studio ever receives it. */
+  enquiry_form_draft?: EnquiryFormConfig | null;
   /** The Brand & Theme Studio's colours, section bands included; unset means the built-in ones. */
   theme?: SiteTheme;
   /** The theme being edited in the Studio (only the Studio ever receives it). */

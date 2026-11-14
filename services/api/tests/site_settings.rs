@@ -479,3 +479,81 @@ async fn each_website_has_its_own_languages_and_opens_only_in_a_reviewed_one() {
         .await
         .unwrap();
 }
+
+/// Posts an enquiry from a form; returns the status and body.
+async fn post_enquiry(app: &Router, body: Value) -> (StatusCode, Value) {
+    let request = Request::post("/v1/enquiries")
+        .header(header::CONTENT_TYPE, "application/json")
+        .header("idempotency-key", Uuid::new_v4().to_string())
+        .body(Body::from(body.to_string()))
+        .unwrap();
+    let response = app.clone().oneshot(request).await.unwrap();
+    let status = response.status();
+    let bytes = axum::body::to_bytes(response.into_body(), 1 << 16).await.unwrap();
+    (status, serde_json::from_slice(&bytes).unwrap_or(Value::Null))
+}
+
+#[tokio::test]
+async fn a_websites_form_rules_are_enforced_by_the_api() {
+    // UI-EF3 (owner's brief, 14 Nov 2026). Ziwa LMS's published form: waitlist
+    // and demo requests only, country required, job title hidden.
+    let Some(pool) = database().await else { return };
+    let url = std::env::var("TEST_DATABASE_URL").unwrap();
+    let app = app_with(pool.clone(), config(&url));
+    sqlx::query(
+        "UPDATE sites SET settings = settings || jsonb_build_object('enquiry_form', $1::jsonb) WHERE slug = 'ziwa'",
+    )
+    .bind(json!({
+        "layout": "single",
+        "kinds": ["waitlist", "demo_request"],
+        "fields": { "country": "required", "job_title": "hidden" }
+    }))
+    .execute(&pool)
+    .await
+    .unwrap();
+    let base = json!({
+        "kind": "waitlist", "product": "ziwa", "name": "Amina Otieno",
+        "email": "amina@example.co.ke", "job_title": "Head of Lending", "consent": true,
+        "locale": "en", "source_path": "/ziwa/contact", "elapsed_ms": 9000, "form": "ziwa",
+    });
+    let with = |extra: Value| {
+        let mut body = base.clone();
+        for (k, v) in extra.as_object().unwrap() {
+            body[k] = v.clone();
+        }
+        body
+    };
+
+    // A category the form doesn't offer, and a missing required field, are refused.
+    let (status, body) = post_enquiry(
+        &app,
+        with(json!({ "kind": "contact", "message": "A question about loans." })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
+    assert_eq!(body["error"]["fields"][0]["code"], "not_offered");
+    let (status, body) = post_enquiry(&app, base.clone()).await;
+    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
+    assert_eq!(body["error"]["fields"][0]["field"], "country");
+
+    // Complete: accepted, without the hidden job title.
+    let (status, body) = post_enquiry(&app, with(json!({ "country": "KE" }))).await;
+    assert_eq!(status, StatusCode::CREATED, "{body}");
+    let job: Option<String> = sqlx::query_scalar("SELECT job_title FROM enquiries WHERE reference = $1")
+        .bind(body["reference"].as_str().unwrap())
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    assert_eq!(job, None);
+
+    // Without naming its form, an enquiry follows the API's own rules, as before.
+    let mut plain = base.clone();
+    plain.as_object_mut().unwrap().remove("form");
+    let (status, _) = post_enquiry(&app, plain).await;
+    assert_eq!(status, StatusCode::CREATED);
+
+    sqlx::query("UPDATE sites SET settings = settings - 'enquiry_form' WHERE slug = 'ziwa'")
+        .execute(&pool)
+        .await
+        .unwrap();
+}

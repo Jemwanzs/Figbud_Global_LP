@@ -7,24 +7,28 @@ import { useSearchParams } from "next/navigation";
 import { type FormEvent, Fragment, type ReactNode, useEffect, useId, useRef, useState } from "react";
 
 import {
+  type EnquiryFormConfig,
   type EnquiryFormCopy,
   type EnquiryProduct,
   type EnquiryStagesCopy,
   type EnquiryErrors,
   type EnquiryValues,
+  type FormField,
   MAX_PHONES,
   companySizes,
   emailError,
-  enquiryKinds,
   enquiryProducts,
+  formRule,
   isEnquiryKind,
   isEnquiryProduct,
+  offeredKinds,
   payloadFields,
   phoneErrors,
   requiresCompany,
   requiresMessage,
   submitEnquiry,
   validateEnquiry,
+  withoutHidden,
 } from "./enquiry";
 import { CountrySelect, PhoneNumbers } from "./forms";
 import type { CountryCode } from "./phone";
@@ -32,7 +36,7 @@ import type { CountryCode } from "./phone";
 type Copy = EnquiryFormCopy;
 
 /** The fields of the first stage (the rest are in the second). */
-const STAGE_ONE: (keyof EnquiryErrors)[] = ["name", "email", "company"];
+const STAGE_ONE: (keyof EnquiryErrors)[] = ["name", "email", "company", "job_title"];
 
 /** Kinds where the company's size helps us answer (owner's brief, 13 Nov 2026). */
 const sizeMatters = (kind: EnquiryValues["kind"]) =>
@@ -58,6 +62,8 @@ const SERVER_FIELD_ERROR: Record<string, EnquiryErrors[keyof EnquiryErrors]> = {
   phone_secondary: "phone",
   country: "required",
   company: "required",
+  job_title: "required",
+  company_size: "required",
   message: "required",
   consent: "consent",
 };
@@ -82,6 +88,9 @@ export function EnquiryForm({
   apiOrigin,
   product,
   stages,
+  config,
+  form,
+  preview = false,
 }: {
   locale: Locale;
   copy: Copy;
@@ -94,7 +103,50 @@ export function EnquiryForm({
   product?: EnquiryProduct;
   /** Two stages in one card, with this wording; without it, one column. */
   stages?: EnquiryStagesCopy;
+  /** The website's form settings (Studio → a website → Enquiry form, UI-EF3), as published. */
+  config?: EnquiryFormConfig | null;
+  /** The website the form belongs to, so the API applies its settings too. */
+  form?: string;
+  /** The Studio's preview: checked as usual, never sent. */
+  preview?: boolean;
 }) {
+  // The website's wording over the built-in (UI-EF3; English pages on FigBud Global).
+  const labels = config?.labels ?? {};
+  const hints = config?.hints ?? {};
+  const texts = config?.texts ?? {};
+  copy = {
+    ...copy,
+    name: labels.name ?? copy.name,
+    email: labels.email ?? copy.email,
+    emailHint: hints.email ?? copy.emailHint,
+    company: labels.company ?? copy.company,
+    jobTitle: labels.job_title ?? copy.jobTitle,
+    country: labels.country ?? copy.country,
+    phone: labels.phone ?? copy.phone,
+    companySize: labels.company_size ?? copy.companySize,
+    message: labels.message ?? copy.message,
+    submit: texts.submit ?? copy.submit,
+    successTitle: texts.success_title ?? copy.successTitle,
+    // The reference is always shown, whatever the wording.
+    successBody: texts.success_body
+      ? texts.success_body.includes("{reference}")
+        ? texts.success_body
+        : `${texts.success_body} {reference}`
+      : copy.successBody,
+  };
+  if (stages && config?.layout === "single") stages = undefined;
+  if (stages && texts)
+    stages = {
+      ...stages,
+      oneTitle: texts.one_title ?? stages.oneTitle,
+      oneLead: texts.one_lead ?? stages.oneLead,
+      twoTitle: texts.two_title ?? stages.twoTitle,
+      twoLead: texts.two_lead ?? stages.twoLead,
+      continue: texts.continue ?? stages.continue,
+      successTitle: texts.success_title ?? stages.successTitle,
+    };
+  const kinds = offeredKinds(config);
+  const rule = (field: FormField) => formRule(config, field);
   const params = useSearchParams();
   const initialKind = params.get("kind");
   const requested = params.get("product");
@@ -105,7 +157,7 @@ export function EnquiryForm({
   const campaign = /^[0-9a-f-]{36}$/.test(params.get("campaign") ?? "") ? params.get("campaign") : null;
 
   const [values, setValues] = useState<EnquiryValues>(() => ({
-    kind: isEnquiryKind(initialKind) ? initialKind : "demo_request",
+    kind: isEnquiryKind(initialKind) && kinds.includes(initialKind) ? initialKind : kinds[0]!,
     product: isEnquiryProduct(initialProduct) ? initialProduct : "figbud",
     name: "",
     email: "",
@@ -154,6 +206,9 @@ export function EnquiryForm({
     if (status.state === "error") summaryRef.current?.focus();
   }, [status.state]);
 
+  /** The size field in the staged form: for the kinds it helps, or whenever the website requires it. */
+  const showSize = (kind: EnquiryValues["kind"]) => sizeMatters(kind) || rule("company_size") === "required";
+
   const set = <K extends keyof EnquiryValues>(key: K, value: EnquiryValues[K]) => {
     setValues((v) => ({ ...v, [key]: value }));
     if (errors[key]) setErrors((e) => ({ ...e, [key]: undefined }));
@@ -161,9 +216,16 @@ export function EnquiryForm({
 
   /** Checks the first stage; when it's right, the second becomes active. */
   const continueToTwo = () => {
-    const found = validateEnquiry(values);
+    const found = validateEnquiry(values, config);
     const first = Object.fromEntries(STAGE_ONE.filter((k) => found[k]).map((k) => [k, found[k]]));
-    setErrors((e) => ({ ...e, name: undefined, email: undefined, company: undefined, ...first }));
+    setErrors((e) => ({
+      ...e,
+      name: undefined,
+      email: undefined,
+      company: undefined,
+      job_title: undefined,
+      ...first,
+    }));
     if (Object.keys(first).length > 0) {
       setMoved("one");
       return;
@@ -179,7 +241,7 @@ export function EnquiryForm({
       continueToTwo();
       return;
     }
-    const found = validateEnquiry(values);
+    const found = validateEnquiry(values, config);
     setErrors(found);
     if (Object.keys(found).length > 0) {
       // Something in the first stage changed since Continue: back to it.
@@ -191,15 +253,23 @@ export function EnquiryForm({
       return;
     }
 
+    if (preview) {
+      setStatus({ state: "success", reference: "Preview · not sent" });
+      return;
+    }
     idempotencyKey.current ??= crypto.randomUUID();
     setStatus({ state: "submitting" });
     const result = await submitEnquiry(
       apiOrigin,
       {
         ...payloadFields(
-          // A size that doesn't apply to the chosen kind isn't sent (staged form).
-          stages && !sizeMatters(values.kind) ? { ...values, company_size: "" } : values,
+          withoutHidden(
+            // A size that doesn't apply to the chosen kind isn't sent (staged form).
+            stages && !showSize(values.kind) ? { ...values, company_size: "" } : values,
+            config,
+          ),
         ),
+        ...(form ? { form } : {}),
         locale,
         source_path: window.location.pathname,
         ...(campaign ? { campaign } : {}),
@@ -298,7 +368,8 @@ export function EnquiryForm({
     return code ? copy.errors[code] : undefined;
   };
   const companyRequired = requiresCompany(values.kind);
-  const messageRequired = requiresMessage(values.kind);
+  const messageRequired = requiresMessage(values.kind) || rule("message") === "required";
+  const optionalUnless = (field: FormField) => (rule(field) === "required" ? undefined : copy.optional);
   const submitting = status.state === "submitting";
 
   const pieces = {
@@ -328,7 +399,7 @@ export function EnquiryForm({
     ),
     name: (
       <>
-        <Field id={`${formId}-name`} label={copy.name} error={errorText("name")}>
+        <Field id={`${formId}-name`} label={copy.name} hint={hints.name} error={errorText("name")}>
           {(props) => (
             <input
               {...props}
@@ -366,6 +437,7 @@ export function EnquiryForm({
           id={`${formId}-company`}
           label={copy.company}
           optional={!companyRequired ? copy.optional : undefined}
+          hint={hints.company}
           error={errorText("company")}
         >
           {(props) => (
@@ -382,7 +454,13 @@ export function EnquiryForm({
     ),
     job: (
       <>
-        <Field id={`${formId}-job`} label={copy.jobTitle} optional={copy.optional}>
+        <Field
+          id={`${formId}-job`}
+          label={copy.jobTitle}
+          optional={optionalUnless("job_title")}
+          hint={hints.job_title}
+          error={errorText("job_title")}
+        >
           {(props) => (
             <input
               {...props}
@@ -400,7 +478,8 @@ export function EnquiryForm({
         <Field
           id={`${formId}-country`}
           label={copy.country}
-          optional={copy.optional}
+          optional={optionalUnless("country")}
+          hint={hints.country}
           error={errorText("country")}
         >
           {(props) => (
@@ -423,7 +502,7 @@ export function EnquiryForm({
           <PhoneNumbers
             id={`${formId}-phone`}
             label={copy.phone}
-            optional={copy.optional}
+            optional={optionalUnless("phone")}
             value={values.phones}
             max={MAX_PHONES}
             locale={locale}
@@ -444,7 +523,9 @@ export function EnquiryForm({
         <Field
           id={`${formId}-size`}
           label={copy.companySize}
-          optional={copy.optional}
+          optional={optionalUnless("company_size")}
+          hint={hints.company_size}
+          error={errorText("company_size")}
           className="sm:col-span-2"
         >
           {(props) => (
@@ -471,6 +552,7 @@ export function EnquiryForm({
           id={`${formId}-message`}
           label={copy.message}
           optional={!messageRequired ? copy.optional : undefined}
+          hint={hints.message}
           error={errorText("message")}
           className="sm:col-span-2"
         >
@@ -488,6 +570,13 @@ export function EnquiryForm({
       </>
     ),
   };
+  // Fields the website hides aren't shown at all.
+  if (rule("job_title") === "hidden") pieces.job = <></>;
+  if (rule("country") === "hidden") pieces.country = <></>;
+  if (rule("phone") === "hidden") pieces.phone = <></>;
+  if (rule("company_size") === "hidden") pieces.size = <></>;
+  if (rule("message") === "hidden") pieces.message = <></>;
+  const intro = texts.intro ? <p className="mt-2 text-sm text-muted">{texts.intro}</p> : null;
   const closedNote = (
     <>
       {closedRequest && (
@@ -528,7 +617,7 @@ export function EnquiryForm({
       <fieldset className="mt-8">
         <legend className="text-sm font-medium text-text">{copy.kind}</legend>
         <div className="mt-3 flex flex-wrap gap-2">
-          {enquiryKinds.map((kind) => (
+          {kinds.map((kind) => (
             <label
               key={kind}
               className={cn(
@@ -635,6 +724,7 @@ export function EnquiryForm({
         <h2 id={`${formId}-title`} className="sr-only">
           {copy.title}
         </h2>
+        {intro && <div className="mb-6 [&>p]:mt-0">{intro}</div>}
         {/* Phones: one stage at a time, with a slim progress bar. */}
         <div className="lg:hidden" aria-live="polite">
           <p className="text-sm font-medium text-text">{stepLabel}</p>
@@ -715,7 +805,7 @@ export function EnquiryForm({
             <div className="mt-6 grid gap-5">
               {pieces.country}
               {pieces.phone}
-              {sizeMatters(values.kind) && pieces.size}
+              {showSize(values.kind) && pieces.size}
               {pieces.message}
             </div>
             {honeypotField}
@@ -752,6 +842,7 @@ export function EnquiryForm({
       <h2 id={`${formId}-title`} className="text-2xl font-semibold tracking-tight text-text">
         {copy.title}
       </h2>
+      {intro}
       {closedNote}
       {errorSummary}
       {kindField}

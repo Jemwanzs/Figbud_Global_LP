@@ -60,7 +60,7 @@ impl EnquiryKind {
         matches!(self, Self::DemoRequest | Self::Partnership | Self::Sales)
     }
 
-    fn requires_message(self) -> bool {
+    pub(crate) fn requires_message(self) -> bool {
         matches!(self, Self::Contact | Self::Partnership | Self::Sales)
     }
 }
@@ -144,6 +144,9 @@ pub struct EnquiryInput {
     pub phone_secondary_country: Option<String>,
     /// Refer & earn: the business being introduced. `name` and the rest are the referrer.
     pub referral: Option<ReferralInput>,
+    /// The website whose form sent it (UI-EF3): its categories and required
+    /// fields apply on top of these rules. Absent: these rules alone.
+    pub form: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, serde::Deserialize)]

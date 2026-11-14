@@ -477,7 +477,13 @@ Page builder → a demonstration section → **Guide it with scrolling** (on by 
 ## Enquiry form (UI-F2)
 
 - **Enquiry form** section: the same form as the corporate contact page (demo request, sales, question, partnership), sent to the enquiry inbox. On a product's own website the product is fixed, so there's no product choice.
-- **Two stages everywhere (UI-EF1, UI-EF2):** product websites since 13 Nov 2026, FigBud Global's Contact page since 14 Nov 2026 (with its product choice in the first stage). One shared component (`EnquiryForm` with `stages`, `@figbud/site-kit/enquiry-form`); each website keeps its own product context, routing and wording. Its Studio settings are UI-EF3.
+- **Enquiry form settings (UI-EF3, 14 Nov 2026):** Websites → a website → **Enquiry form**.
+  - Layout (two stages or one column), categories offered and their order, each optional field (job title, country, phone, company size, message) optional, required or hidden, labels and hints of every field, and the wording (introduction, stage titles and lines, Continue and Send, success title and message; the reference is always shown). A message can't be hidden while a category needs one.
+  - Live preview of the real form in the website's colours: it checks as usual and is never sent ("Preview · not sent").
+  - Save draft, Publish (confirmed), Discard draft; version-checked and audited (`site.enquiry_form_draft_saved`, `site.enquiry_form_published`). Whether the website takes enquiries at all stays on Navigation, footer & forms.
+  - Enforced by the API: the form sends its website's slug (`form`); `services/api/src/enquiry_form.rs` refuses a category it doesn't offer or a missing required field, and drops hidden fields. Without `form`, the usual enquiry rules alone. Name, work email, company (demos, sales, partnerships) and consent always follow those rules.
+  - On FigBud Global, the wording applies to English pages; other languages keep their own (as with hero text).
+- **Two stages everywhere (UI-EF1, UI-EF2):** product websites since 13 Nov 2026, FigBud Global's Contact page since 14 Nov 2026 (with its product choice in the first stage). One shared component (`EnquiryForm` with `stages`, `@figbud/site-kit/enquiry-form`); each website keeps its own product context, routing and wording. Its Studio settings: above.
 - Put it on a website's **Contact** page and that website's demo and contact buttons open it there, instead of the FigBud Global contact page. Remove it and they go back to the corporate form.
 
 ## Hero section options (UI-HE1)

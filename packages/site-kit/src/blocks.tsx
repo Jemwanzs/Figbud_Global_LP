@@ -5,7 +5,7 @@ import { type ReactNode, Suspense } from "react";
 import { GuidedDemo } from "./guided-demo";
 import { GUIDED_STEPS } from "./guided-steps";
 import type { DemoKind, ModuleItem } from "./product-demos";
-import { enquiryFormCopy, enquiryStagesCopy, type EnquiryProduct } from "./enquiry";
+import { type EnquiryFormConfig, enquiryFormCopy, enquiryStagesCopy, type EnquiryProduct } from "./enquiry";
 import { HeroSignal } from "./hero-signal";
 import {
   LazyEnquiryForm,
@@ -24,6 +24,10 @@ export interface EnquiryContext {
   /** The product, when the website is one the enquiry inbox knows. */
   product?: EnquiryProduct;
   privacyHref: string;
+  /** The website's form settings (UI-EF3), as published. */
+  config?: EnquiryFormConfig | null;
+  /** The website's slug, so the API applies its form settings too. */
+  form?: string;
 }
 import type { StoryMotion } from "./scroll-story";
 
@@ -511,6 +515,8 @@ function Block({
                   privacyHref={enquiry.privacyHref}
                   apiOrigin={enquiry.apiOrigin}
                   product={enquiry.product}
+                  config={enquiry.config}
+                  form={enquiry.form}
                 />
               </Suspense>
             ) : (

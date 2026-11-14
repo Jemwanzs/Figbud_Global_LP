@@ -24,6 +24,7 @@ use uuid::Uuid;
 
 use crate::{
     admin::{AdminSession, Role},
+    enquiry_form::FormSettings,
     error::{ApiError, FieldError},
     privacy::valid_link,
     routes::SharedState,
@@ -582,6 +583,11 @@ pub struct WebsiteSettings {
     pub languages: Option<Languages>,
     /// Saved in the Studio but not published.
     pub languages_draft: Option<Languages>,
+    /// The website's enquiry form (UI-EF3): layout, categories, fields and
+    /// wording. Unset means the form as built.
+    pub enquiry_form: Option<FormSettings>,
+    /// Saved in the Studio but not published.
+    pub enquiry_form_draft: Option<FormSettings>,
 }
 
 /// The languages every website can offer (packages/i18n `locales`), in order.
@@ -764,6 +770,12 @@ impl WebsiteSettings {
                 check_languages(&mut e, l, field);
             }
         }
+        if let Some(f) = &mut self.enquiry_form {
+            f.check(&mut e, "enquiry_form");
+        }
+        if let Some(f) = &mut self.enquiry_form_draft {
+            f.check(&mut e, "enquiry_form_draft");
+        }
         check_nav_previews(&mut e, &mut self.nav_previews, "nav_previews");
         if let Some(draft) = &mut self.nav_previews_draft {
             check_nav_previews(&mut e, draft, "nav_previews");
@@ -802,6 +814,7 @@ impl WebsiteSettings {
             "nav_previews": self.nav_previews,
             "section_themes": self.section_themes,
             "languages": self.languages,
+            "enquiry_form": self.enquiry_form,
         })
     }
 }
@@ -957,6 +970,8 @@ async fn update(
         (false, true) => "site.enquiries_opened",
         _ if theme_published => "site.theme_published",
         _ if languages_published => "site.languages_published",
+        _ if next.enquiry_form != site.settings.enquiry_form => "site.enquiry_form_published",
+        _ if next.enquiry_form_draft != site.settings.enquiry_form_draft => "site.enquiry_form_draft_saved",
         _ if next.languages_draft != site.settings.languages_draft => "site.languages_draft_saved",
         _ if next.theme_draft != site.settings.theme_draft => "site.theme_draft_saved",
         _ => "site.settings_updated",

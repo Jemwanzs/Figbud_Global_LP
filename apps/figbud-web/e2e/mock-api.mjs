@@ -602,6 +602,7 @@ const publicSites = () =>
               "theme_draft",
               "theme_history",
               "languages_draft",
+              "enquiry_form_draft",
             ].includes(k),
         ),
       ),
@@ -4898,6 +4899,8 @@ function siteSettingsRoutes(slug, req, body, user, send) {
   next.theme_draft ??= null;
   next.languages ??= null;
   next.languages_draft ??= null;
+  next.enquiry_form ??= null;
+  next.enquiry_form_draft ??= null;
   // Kept by the API: what an editor sends is ignored (site_settings.rs update).
   next.theme_history = clone(site.settings.theme_history ?? []);
   const fields = [];
@@ -5178,6 +5181,27 @@ function siteSettingsRoutes(slug, req, body, user, send) {
       message:
         "A website can open in a language only once its translation is reviewed and published (Settings & Security → Languages).",
     });
+  // Enquiry form settings (enquiry_form.rs check, UI-EF3): the mock checks the main rules.
+  const KINDS = ["demo_request", "sales", "contact", "partnership", "early_access", "waitlist"];
+  for (const [key, f] of [
+    ["enquiry_form", next.enquiry_form],
+    ["enquiry_form_draft", next.enquiry_form_draft],
+  ]) {
+    if (!f) continue;
+    const kinds = f.kinds ?? [];
+    if (kinds.some((k) => !KINDS.includes(k)) || new Set(kinds).size !== kinds.length)
+      fields.push({ field: key, code: "kinds", message: "Choose categories from the list, each once." });
+    const offered = kinds.length ? kinds : KINDS;
+    if (
+      f.fields?.message === "hidden" &&
+      offered.some((k) => ["contact", "partnership", "sales"].includes(k))
+    )
+      fields.push({
+        field: key,
+        code: "message",
+        message: "Sales, general and partnership enquiries need a message: keep it, or stop offering them.",
+      });
+  }
   if (fields.length)
     return send(422, { error: { code: "validation", message: "Some fields need attention.", fields } });
   next.footer.note = next.footer.note?.trim() || null;
@@ -5198,11 +5222,13 @@ function siteSettingsRoutes(slug, req, body, user, send) {
           ? "site.theme_published"
           : languagesPublished
             ? "site.languages_published"
-            : JSON.stringify(next.languages_draft) !== JSON.stringify(site.settings.languages_draft ?? null)
-              ? "site.languages_draft_saved"
-              : JSON.stringify(next.theme_draft) !== JSON.stringify(site.settings.theme_draft ?? null)
-                ? "site.theme_draft_saved"
-                : "site.settings_updated";
+            : JSON.stringify(next.enquiry_form) !== JSON.stringify(site.settings.enquiry_form ?? null)
+              ? "site.enquiry_form_published"
+              : JSON.stringify(next.languages_draft) !== JSON.stringify(site.settings.languages_draft ?? null)
+                ? "site.languages_draft_saved"
+                : JSON.stringify(next.theme_draft) !== JSON.stringify(site.settings.theme_draft ?? null)
+                  ? "site.theme_draft_saved"
+                  : "site.settings_updated";
   audit.unshift({
     id: randomBytes(8).toString("hex"),
     action,
@@ -6598,6 +6624,19 @@ createServer(async (req, res) => {
       fields.push({ field: "referred_name", message: "Enter who we should speak to." });
     if (referral && !/.+@.+\..+/.test(referred.contact_email ?? ""))
       fields.push({ field: "referred_email", message: "Enter their email address." });
+    // The form's website settings (enquiry_form.rs apply, UI-EF3).
+    const formRules = sites.find((x) => x.slug === body?.form)?.settings?.enquiry_form;
+    if (formRules && !fields.length) {
+      if (formRules.kinds?.length && !formRules.kinds.includes(body.kind))
+        fields.push({
+          field: "kind",
+          code: "not_offered",
+          message: "Choose one of the options on this form.",
+        });
+      for (const [name, rule] of Object.entries(formRules.fields ?? {}))
+        if (rule === "required" && !String(body[name] ?? "").trim())
+          fields.push({ field: name, code: "required", message: "This field is required." });
+    }
     if (fields.length)
       return send(422, {
         error: { code: "validation_failed", message: "Some fields need attention.", fields },

@@ -1,6 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { type EnquiryValues, payloadFields, submitEnquiry, validateEnquiry } from "./enquiry";
+import {
+  type EnquiryValues,
+  offeredKinds,
+  payloadFields,
+  submitEnquiry,
+  validateEnquiry,
+  withoutHidden,
+} from "./enquiry";
 
 const valid: EnquiryValues = {
   kind: "demo_request",
@@ -122,5 +129,35 @@ describe("phone numbers and emails", () => {
   it("countries are ISO codes", () => {
     expect(validateEnquiry({ ...valid, country: "KE" })).toEqual({});
     expect(validateEnquiry({ ...valid, country: "Kenya" }).country).toBe("required");
+  });
+});
+
+describe("a website's form settings (UI-EF3)", () => {
+  it("adds the website's required fields to the usual rules", () => {
+    const config = { fields: { country: "required", job_title: "required", message: "required" } } as const;
+    expect(validateEnquiry({ ...valid, kind: "waitlist", message: "" }, config)).toMatchObject({
+      country: "required",
+      job_title: "required",
+      message: "required",
+    });
+    expect(
+      validateEnquiry(
+        { ...valid, kind: "waitlist", country: "KE", job_title: "Lead", message: "Tell us about leave." },
+        config,
+      ),
+    ).toEqual({});
+    // Without settings, the usual rules alone.
+    expect(validateEnquiry({ ...valid, kind: "waitlist", message: "" })).toEqual({});
+  });
+
+  it("offers the chosen categories in order, and never sends hidden fields", () => {
+    expect(offeredKinds({ kinds: ["waitlist", "demo_request"] })).toEqual(["waitlist", "demo_request"]);
+    expect(offeredKinds({})).toHaveLength(6);
+    const sent = withoutHidden(
+      { ...valid, job_title: "Lead", country: "KE" },
+      { fields: { job_title: "hidden", country: "hidden" } },
+    );
+    expect(sent.job_title).toBe("");
+    expect(sent.country).toBe("");
   });
 });

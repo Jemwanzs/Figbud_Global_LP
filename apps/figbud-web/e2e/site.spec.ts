@@ -636,6 +636,7 @@ test.describe("contact form", () => {
     expect(sent).toMatchObject({
       product: "zirahr",
       kind: "sales",
+      form: "figbud",
       name: "Amina Wanjiru",
       company: "Example Ltd",
     });
