@@ -1,6 +1,6 @@
 "use client";
 
-import { cn, fieldClasses } from "@figbud/ui";
+import { cn, fieldClasses, formatMoment } from "@figbud/ui";
 import { ArrowRight, Check, Copy, Gift, X } from "lucide-react";
 import { usePathname } from "next/navigation";
 import {
@@ -993,7 +993,8 @@ function SpinToWin({ campaign, ctx, onBrand }: { campaign: LiveCampaign; ctx: Co
               <PromoCode code={result.code} labels={ctx.labels} />
             </div>
             <p className="mt-2 text-xs opacity-80">
-              {ctx.labels.redeemBy} {new Date(result.redeem_by).toLocaleDateString()}
+              {/* A deadline, shown with its time zone (East Africa Time). */}
+              {ctx.labels.redeemBy} {formatMoment(result.redeem_by)}
             </p>
           </div>
         ) : (

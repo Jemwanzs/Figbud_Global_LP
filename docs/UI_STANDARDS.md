@@ -197,6 +197,11 @@ Motion explains and guides. It never decorates for its own sake, and content nev
 - **Left to the browser:** the prompt when a tab is closed or reloaded with unsaved changes, file pickers and passkey prompts.
 - **Confirmation is not permission.** The API checks every action itself.
 
+## Dates and times (P7-TZ1, 14 Nov 2026)
+
+- **Stored in UTC, shown in the display zone.** Never format a timestamp by hand (`toUTCString`, `toLocaleString`): in the Studio use `<LocalTime iso={…} />` (`dateOnly` for a date), `useMoment()` for text built in code, and `useZonedInput()` for `datetime-local` inputs; elsewhere `formatMoment` from `@figbud/ui`. They show East Africa Time unless the organisation or the person chose another zone, with the zone named ("18:56 EAT").
+- **Calendar dates are not moments.** A quotation's validity or an effective date ("2026-11-14") is shown as written, never converted.
+
 ## Theme inversion (UI-TH3, 5 Nov 2026)
 
 - **One engine.** `html[data-theme]` sets the theme. `data-tone="inverse"` on any element gives it the other theme's colours, and inside two inverse surfaces the page's theme returns (`tokens.css`). It's CSS only, so nothing waits for JavaScript and nothing flashes on load. Don't hard-code `data-theme="dark"` on a showcase panel: use `data-tone="inverse"` so it contrasts in both themes.

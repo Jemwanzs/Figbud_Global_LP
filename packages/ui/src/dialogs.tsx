@@ -293,40 +293,42 @@ export function DialogProvider({
           {toasts.map((t) => {
             const ToastIcon = TOAST_ICON[t.tone ?? "info"];
             return (
-              <li
-                key={t.id}
-                role={t.tone === "error" ? "alert" : "status"}
-                data-toast={t.tone ?? "info"}
-                className="fb-rise pointer-events-auto flex w-full items-start gap-3 rounded-2xl border border-line bg-bg p-4 text-sm shadow-[var(--shadow-elevated)] [animation-duration:.3s]"
-              >
-                <ToastIcon
-                  aria-hidden
-                  className={cn("mt-0.5 size-4 shrink-0", TOAST_COLOUR[t.tone ?? "info"])}
-                />
-                <div className="min-w-0 flex-1">
-                  <p className="font-medium text-text">{t.title}</p>
-                  {t.body && <p className="mt-0.5 text-muted">{t.body}</p>}
-                  {t.action && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        dismiss(t.id);
-                        t.action!.run();
-                      }}
-                      className="mt-2 font-medium text-accent underline underline-offset-2"
-                    >
-                      {t.action.label}
-                    </button>
-                  )}
-                </div>
-                <button
-                  type="button"
-                  aria-label={labels.dismiss}
-                  onClick={() => dismiss(t.id)}
-                  className="-m-1 inline-flex size-8 shrink-0 items-center justify-center rounded-lg text-muted hover:text-text"
+              // The list item stays a list item; the announcement is the element inside it.
+              <li key={t.id} className="pointer-events-auto w-full">
+                <div
+                  role={t.tone === "error" ? "alert" : "status"}
+                  data-toast={t.tone ?? "info"}
+                  className="fb-rise flex w-full items-start gap-3 rounded-2xl border border-line bg-bg p-4 text-sm shadow-[var(--shadow-elevated)] [animation-duration:.3s]"
                 >
-                  <X aria-hidden className="size-4" />
-                </button>
+                  <ToastIcon
+                    aria-hidden
+                    className={cn("mt-0.5 size-4 shrink-0", TOAST_COLOUR[t.tone ?? "info"])}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium text-text">{t.title}</p>
+                    {t.body && <p className="mt-0.5 text-muted">{t.body}</p>}
+                    {t.action && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          dismiss(t.id);
+                          t.action!.run();
+                        }}
+                        className="mt-2 font-medium text-accent underline underline-offset-2"
+                      >
+                        {t.action.label}
+                      </button>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    aria-label={labels.dismiss}
+                    onClick={() => dismiss(t.id)}
+                    className="-m-1 inline-flex size-8 shrink-0 items-center justify-center rounded-lg text-muted hover:text-text"
+                  >
+                    <X aria-hidden className="size-4" />
+                  </button>
+                </div>
               </li>
             );
           })}

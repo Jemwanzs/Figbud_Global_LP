@@ -16,6 +16,7 @@ import {
 } from "@/components/admin/site-labels";
 import { adminGet, requireAdmin } from "@/lib/admin-server";
 import { websiteOrigin } from "@/lib/site";
+import { LocalTime } from "@/components/admin/local-time";
 
 export const metadata: Metadata = { title: "Websites" };
 
@@ -146,9 +147,11 @@ async function Sites() {
                       <div className="flex items-baseline gap-1.5">
                         <dt className="text-subtle">Last published</dt>
                         <dd className="font-medium text-text">
-                          {site.workspace.last_published
-                            ? new Date(site.workspace.last_published).toUTCString().slice(5, 16)
-                            : "Never"}
+                          {site.workspace.last_published ? (
+                            <LocalTime iso={site.workspace.last_published} dateOnly />
+                          ) : (
+                            "Never"
+                          )}
                         </dd>
                       </div>
                     </dl>

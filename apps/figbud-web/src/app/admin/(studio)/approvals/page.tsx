@@ -10,6 +10,7 @@ import type { ApprovalRulesData } from "@/components/admin/approval-rules";
 import { StudioSkeleton } from "@/components/admin/studio-states";
 import { hasRole } from "@/lib/admin-client";
 import { adminGet, requireAdmin } from "@/lib/admin-server";
+import { LocalTime } from "@/components/admin/local-time";
 
 export const metadata: Metadata = { title: "Approvals" };
 
@@ -223,9 +224,7 @@ function Group({
                 <p className="mt-2 text-sm text-subtle">
                   {item.sites.map((s) => s.name).join(", ")} ·{" "}
                   {item.mine ? "You asked" : (item.requested_by ?? "Someone")} ·{" "}
-                  <time dateTime={item.requested_at}>
-                    {new Date(item.requested_at).toUTCString().slice(5, 22)} UTC
-                  </time>
+                  <LocalTime iso={item.requested_at} />
                 </p>
                 {(item.needed > 1 || item.assigned_to) && (
                   <p className="mt-1 text-sm text-muted">

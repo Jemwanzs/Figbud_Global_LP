@@ -42,7 +42,7 @@ import { type AdminUser, AdminError, ApprovalRecorded, adminFetch, hasRole } fro
 import { sameValue, useSavedBaseline, useUnsavedChangesWarning } from "@/lib/form-state";
 
 import { ActionButton } from "./action-button";
-import { LocalTime, fromLocalInput, localInputFromNow } from "./local-time";
+import { LocalTime, useZonedInput } from "./local-time";
 import { PerformancePanel } from "./page-budget";
 import {
   BLOCKS,
@@ -61,7 +61,6 @@ import {
 type Draft = { title: string; path: string; document: PageDocument };
 type SaveState = "saved" | "unsaved" | "saving" | "invalid" | "conflict" | "error";
 
-const when = (iso: string) => `${new Date(iso).toUTCString().slice(5, 22)} UTC`;
 const STATE_LABELS = {
   pending: "Awaiting approval",
   scheduled: "Scheduled",
@@ -1283,6 +1282,7 @@ const summary = (section: PageSection) =>
 export function PageEditor({ slug, user, initial }: { slug: string; user: AdminUser; initial: PageDetail }) {
   const router = useRouter();
   const confirm = useConfirm();
+  const zoned = useZonedInput();
   const uid = useId();
   const pageId = initial.page.id;
   const canEdit = hasRole(user, "editor") && !initial.page.archived_at;
@@ -1523,7 +1523,7 @@ export function PageEditor({ slug, user, initial }: { slug: string; user: AdminU
   const canUnschedule = scheduled && (scheduled.requested_by_id === user.id || hasRole(user, "reviewer"));
   // A pending change asked to go live later is scheduled on approval.
   const pendingLater = pending?.publish_at && !isPast(pending.publish_at) ? pending.publish_at : null;
-  const publishAtIso = timing === "scheduled" ? fromLocalInput(publishAt) : null;
+  const publishAtIso = timing === "scheduled" ? zoned.fromInput(publishAt) : null;
   const pathValid = PATH_PATTERN.test(draft.path.trim().replace(/^\/+|\/+$/g, ""));
   const submitBlocker =
     save === "unsaved" || save === "saving"
@@ -1993,7 +1993,8 @@ export function PageEditor({ slug, user, initial }: { slug: string; user: AdminU
                 <p className="text-sm font-medium text-text">Version {pending.number} is awaiting approval</p>
                 <p className="mt-1 text-sm text-muted">{pending.note}</p>
                 <p className="mt-1 text-xs text-subtle">
-                  Submitted by {pending.requested_by ?? "a former admin"} · {when(pending.created_at)}
+                  Submitted by {pending.requested_by ?? "a former admin"} ·{" "}
+                  <LocalTime iso={pending.created_at} />
                 </p>
                 {pending.publish_at && (
                   <p className="mt-2 flex items-start gap-2 text-sm text-text">
@@ -2165,7 +2166,7 @@ export function PageEditor({ slug, user, initial }: { slug: string; user: AdminU
                           checked={timing === value}
                           onChange={() => {
                             setTiming(value);
-                            if (value === "scheduled" && !publishAt) setPublishAt(localInputFromNow(60));
+                            if (value === "scheduled" && !publishAt) setPublishAt(zoned.fromNow(60));
                           }}
                           className="size-4 accent-[var(--color-accent)]"
                         />
@@ -2176,7 +2177,7 @@ export function PageEditor({ slug, user, initial }: { slug: string; user: AdminU
                   {timing === "scheduled" && (
                     <div className="mt-3">
                       <label htmlFor={`${uid}-publish-at`} className="block text-xs font-medium text-muted">
-                        Go-live time <span className="font-normal">(your time zone)</span>
+                        Go-live time <span className="font-normal">({zoned.name})</span>
                       </label>
                       <input
                         id={`${uid}-publish-at`}
@@ -2352,7 +2353,8 @@ export function PageEditor({ slug, user, initial }: { slug: string; user: AdminU
                     </p>
                     <p className="text-muted">{r.note}</p>
                     <p className="text-xs text-subtle">
-                      {r.decided_by ?? r.requested_by ?? "FigBud"} · {when(r.decided_at ?? r.created_at)}
+                      {r.decided_by ?? r.requested_by ?? "FigBud"} ·{" "}
+                      <LocalTime iso={r.decided_at ?? r.created_at} />
                     </p>
                     {canEdit && r.state === "published" && r.id !== data.page.published_revision && (
                       <button

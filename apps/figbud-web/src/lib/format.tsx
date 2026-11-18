@@ -1,3 +1,4 @@
+import { DEFAULT_TIME_ZONE } from "@figbud/ui";
 import { Fragment, type ReactNode } from "react";
 
 /** Replaces `{name}` placeholders in a dictionary string. */
@@ -13,7 +14,13 @@ export function fillNodes(template: string, values: Record<string, ReactNode>): 
   });
 }
 
-/** A long, localised calendar date. UTC, so server and client always agree. */
+/**
+ * A long, localised calendar date, as it was in East Africa Time (the display
+ * zone, owner's brief of 14 Nov 2026), so a post published late in the
+ * evening there shows that day. A fixed zone, so server and client agree.
+ */
 export function formatDate(iso: string, languageTag: string): string {
-  return new Intl.DateTimeFormat(languageTag, { dateStyle: "long", timeZone: "UTC" }).format(new Date(iso));
+  return new Intl.DateTimeFormat(languageTag, { dateStyle: "long", timeZone: DEFAULT_TIME_ZONE }).format(
+    new Date(iso),
+  );
 }

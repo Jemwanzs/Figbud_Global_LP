@@ -5,6 +5,7 @@ import { Suspense } from "react";
 
 import { AdminUnavailable } from "@/components/admin/admin-shell";
 import { StudioSkeleton } from "@/components/admin/studio-states";
+import { TimeZoneSettings } from "@/components/admin/time-zone-settings";
 import { requireAdmin } from "@/lib/admin-server";
 
 export const metadata: Metadata = { title: "Settings" };
@@ -101,6 +102,12 @@ async function Settings() {
           </li>
         )}
       </ul>
+      <div className="mt-8">
+        <TimeZoneSettings
+          zones={user.time_zone ?? { organisation: "Africa/Nairobi", own: null, effective: "Africa/Nairobi" }}
+          isOwner={user.role === "owner"}
+        />
+      </div>
     </>
   );
 }

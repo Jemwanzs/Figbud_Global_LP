@@ -601,8 +601,14 @@ async fn logout(
     ))
 }
 
-async fn me(session: AdminSession) -> Json<Value> {
-    Json(json!({ "user": session.user, "access": session.access_json() }))
+async fn me(State(state): State<SharedState>, session: AdminSession) -> Result<Json<Value>, ApiError> {
+    // The time zone the Studio shows timestamps in (stored in UTC; 14 Nov 2026).
+    let time_zone = super::time_zone::for_user(&state.pool, session.user.id).await?;
+    Ok(Json(json!({
+        "user": session.user,
+        "access": session.access_json(),
+        "time_zone": time_zone,
+    })))
 }
 
 #[derive(Deserialize)]

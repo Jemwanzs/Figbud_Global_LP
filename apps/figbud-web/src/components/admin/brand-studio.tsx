@@ -20,8 +20,8 @@ import {
   SINGLE_SLOTS,
   type SingleSlot,
 } from "./brand-types";
+import { LocalTime } from "./local-time";
 
-const when = (iso: string) => `${new Date(iso).toUTCString().slice(5, 22)} UTC`;
 const STATE_LABELS = {
   pending: "Awaiting approval",
   published: "Published",
@@ -427,7 +427,8 @@ export function BrandStudio({
                 <p className="text-sm font-medium text-text">Version {pending.number} is awaiting approval</p>
                 <p className="mt-1 text-sm text-muted">{pending.note}</p>
                 <p className="mt-1 text-xs text-subtle">
-                  Submitted by {pending.requested_by ?? "a former admin"} · {when(pending.created_at)}
+                  Submitted by {pending.requested_by ?? "a former admin"} ·{" "}
+                  <LocalTime iso={pending.created_at} />
                 </p>
                 {canDecide && (
                   <div className="mt-4">
@@ -581,7 +582,8 @@ export function BrandStudio({
                     </p>
                     <p className="text-muted">{r.note}</p>
                     <p className="text-xs text-subtle">
-                      {r.decided_by ?? r.requested_by ?? "FigBud"} · {when(r.decided_at ?? r.created_at)}
+                      {r.decided_by ?? r.requested_by ?? "FigBud"} ·{" "}
+                      <LocalTime iso={r.decided_at ?? r.created_at} />
                     </p>
                     {canEdit && r.state === "published" && r.id !== data.published_revision && (
                       <button

@@ -14,7 +14,9 @@ import { ActionButton } from "../action-button";
 import { ItemsEditor, validAmount } from "./items-editor";
 import { PricingCalculator } from "./pricing-calculator";
 import { PricingRevisionWatcher } from "./revision-watcher";
+import { ChangeList, VersionDetails, VersionMeta } from "./version-history";
 import { type PricingAdmin, QUOTE_STATUS, type QuoteSummary } from "./pricing-types";
+import { LocalTime } from "../local-time";
 
 const TABS = [
   { key: "overview", label: "Overview" },
@@ -111,17 +113,19 @@ export function PricingStudio({
     window.history.replaceState(null, "", url);
   };
 
-  async function run(name: string, task: () => Promise<string>) {
+  /** Runs an action and shows its outcome; true when it was done (not just recorded for approval). */
+  async function run(name: string, task: () => Promise<string>): Promise<boolean> {
     setBusy(name);
     setMessage(null);
     setFields([]);
     try {
       setMessage({ tone: "ok", text: await task() });
       router.refresh();
+      return true;
     } catch (err) {
       if (err instanceof ApprovalRecorded) {
         setMessage({ tone: "ok", text: err.message });
-        return;
+        return false;
       }
       if (err instanceof AdminError) {
         setFields(err.fields);
@@ -130,6 +134,7 @@ export function PricingStudio({
           text: err.status === 422 ? (err.fields[0]?.message ?? "Some details need attention.") : err.message,
         });
       } else setMessage({ tone: "error", text: "Something went wrong. Please try again." });
+      return false;
     } finally {
       setBusy(null);
     }
@@ -185,10 +190,20 @@ export function PricingStudio({
   const action =
     (name: string, body: Record<string, unknown>, done: string, ask?: ConfirmOptions) => async () => {
       if (ask && !(await confirm(ask))) return;
-      return run(name, async () => {
+      const ok = await run(name, async () => {
         await adminFetch(`sites/${data.site.slug}/pricing/${name}`, body);
         return done;
       });
+      // Publication confirmed in a notification too (owner's brief, 14 Nov 2026); each state is its own step.
+      if (ok && name === "publish")
+        toast({
+          tone: "success",
+          title: "Pricing published",
+          body: data.public_visible
+            ? "Calculators and new quotations use it now; the website shows it within a few minutes."
+            : "Calculators and new quotations use it now. The website shows prices only once you switch that on.",
+        });
+      if (ok && name === "submit") toast({ tone: "info", title: "Submitted for approval" });
     };
 
   /**
@@ -353,9 +368,20 @@ export function PricingStudio({
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <Card title="Price book">
               <p className="mt-2 text-sm text-muted">
-                {data.published_number
-                  ? `Version ${data.published_number} published${data.published_at ? ` on ${new Date(data.published_at).toLocaleDateString("en-GB")}` : ""}.`
-                  : "Nothing published yet. Quotations need a published version."}
+                {data.published_number ? (
+                  <>
+                    {`Version ${data.published_number} published`}
+                    {data.published_at && (
+                      <>
+                        {" on "}
+                        <LocalTime iso={data.published_at} />
+                      </>
+                    )}
+                    .
+                  </>
+                ) : (
+                  "Nothing published yet. Quotations need a published version."
+                )}
               </p>
               <p className="mt-2 text-sm text-muted">{`Currency ${book.currency}${book.tax.rate ? ` · ${book.tax.name} ${book.tax.rate}% ${book.tax.presentation}` : " · no tax configured"}`}</p>
             </Card>
@@ -1067,36 +1093,9 @@ export function PricingStudio({
                 ) : data.changes.items.length === 0 && !data.changes.settings_changed ? (
                   <p className="mt-1 text-sm text-muted">No changes.</p>
                 ) : (
-                  <ul className="mt-2 space-y-1 text-sm">
-                    {data.changes.items.map((ch) => (
-                      <li key={ch.item_id} className="flex flex-wrap justify-between gap-2">
-                        <span className="text-text">
-                          {ch.name}{" "}
-                          <span className="text-xs text-subtle">
-                            {ch.change === "added"
-                              ? "added"
-                              : ch.change === "removed"
-                                ? "removed"
-                                : ch.fields?.length
-                                  ? ch.fields.join(", ")
-                                  : "changed"}
-                          </span>
-                        </span>
-                        {ch.change === "changed" && ch.before !== ch.after && (
-                          <span className="font-mono text-xs text-muted">
-                            {`${ch.before ? formatMoney(ch.before, c) : "not set"} → ${ch.after ? formatMoney(ch.after, c) : "not set"}`}
-                          </span>
-                        )}
-                      </li>
-                    ))}
-                    {data.changes.settings_changed && (
-                      <li className="text-muted">
-                        {data.changes.settings?.length
-                          ? `Changed: ${data.changes.settings.join(", ")}.`
-                          : "Billing, tax, models or terms changed."}
-                      </li>
-                    )}
-                  </ul>
+                  <div className="mt-2">
+                    <ChangeList changes={data.changes} currency={c} />
+                  </div>
                 )}
               </div>
               {review && (
@@ -1240,18 +1239,24 @@ export function PricingStudio({
             ) : (
               <ol className="mt-3 divide-y divide-line">
                 {data.versions.map((v) => (
-                  <li key={v.number} className="flex flex-wrap items-center justify-between gap-3 py-3">
+                  <li
+                    key={v.number}
+                    data-version={v.number}
+                    className="flex flex-wrap items-center justify-between gap-3 py-3"
+                  >
                     <div>
                       <p className="font-medium text-text">
                         {`Version ${v.number}`}
-                        {v.number === data.published_number && (
-                          <span className="ms-2 text-xs text-accent-strong">Current</span>
+                        {v.number === data.published_number ? (
+                          <span className="ms-2 rounded-full bg-accent-soft px-2 py-0.5 text-xs text-accent-strong">
+                            Current · published
+                          </span>
+                        ) : (
+                          <span className="ms-2 text-xs text-subtle">Earlier version</span>
                         )}
                       </p>
                       <p className="text-sm text-muted">{v.note}</p>
-                      <p className="text-xs text-subtle">
-                        {`Approved by ${v.published_by ?? "someone"} · ${new Date(v.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}${v.effective_from ? ` · effective ${v.effective_from}` : ""}`}
-                      </p>
+                      <VersionMeta version={v} />
                     </div>
                     {data.can_edit && v.number !== data.published_number && (
                       <ActionButton
@@ -1274,6 +1279,11 @@ export function PricingStudio({
                         Restore into draft
                       </ActionButton>
                     )}
+                    <VersionDetails
+                      slug={data.site.slug}
+                      number={v.number}
+                      others={data.versions.map((o) => o.number).filter((n) => n !== v.number)}
+                    />
                   </li>
                 ))}
               </ol>

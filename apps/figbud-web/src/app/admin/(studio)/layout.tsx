@@ -4,6 +4,7 @@ import { AdminUnavailable } from "@/components/admin/admin-shell";
 import type { AdminSite } from "@/components/admin/site-labels";
 import { StudioShell } from "@/components/admin/studio-shell";
 import { StudioSkeleton } from "@/components/admin/studio-states";
+import { TimeZoneProvider } from "@/components/admin/local-time";
 import { FigBudBrand } from "@/components/figbud-brand";
 import { adminGet, requireAdmin } from "@/lib/admin-server";
 import { type AppearanceAdmin, studioAppearanceCss } from "@/lib/studio-appearance";
@@ -36,9 +37,12 @@ async function SignedIn({ children }: { children: ReactNode }) {
   return (
     <>
       {css && <style data-studio-appearance="">{css}</style>}
-      <StudioShell user={user} sites={listed} brand={<FigBudBrand />}>
-        {children}
-      </StudioShell>
+      {/* Timestamps in the person's display zone (East Africa Time by default). */}
+      <TimeZoneProvider zone={user.time_zone?.effective}>
+        <StudioShell user={user} sites={listed} brand={<FigBudBrand />}>
+          {children}
+        </StudioShell>
+      </TimeZoneProvider>
     </>
   );
 }

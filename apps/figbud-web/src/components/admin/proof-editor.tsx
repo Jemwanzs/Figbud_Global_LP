@@ -12,6 +12,7 @@ import { ActionButton } from "./action-button";
 import { MediaPicker } from "./media-picker";
 import type { MediaItem } from "./page-types";
 import { type FieldIssue, KIND_LABELS, type ProofDetail, RELATIONSHIPS, STATUS_LABELS } from "./proof-types";
+import { LocalTime } from "./local-time";
 
 type Doc = Record<string, unknown>;
 type Site = { slug: string; name: string; corporate: boolean };
@@ -763,7 +764,9 @@ export function ProofEditor({
                   <span className="font-medium text-text">Version {v.number}</span>
                   <span className="block text-muted">{v.note}</span>
                   <span className="block text-xs text-subtle">
-                    {`Approved by ${v.published_by ?? "someone"} · ${new Date(v.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })} · ${v.sites.join(", ")}`}
+                    {`Approved by ${v.published_by ?? "someone"} · `}
+                    <LocalTime iso={v.created_at} />
+                    {` · ${v.sites.join(", ")}`}
                   </span>
                 </li>
               ))}

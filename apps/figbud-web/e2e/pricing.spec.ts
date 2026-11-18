@@ -190,6 +190,16 @@ test("ZiraHR pricing: rates, approval, calculator, quotation, customer link; hid
   await answer(page, "Hide pricing");
   await expect(page.getByRole("switch", { name: "Prices are hidden from the website" })).toBeVisible();
 
+  // History (14 Nov 2026): when it was published, in East Africa Time, and the version itself, read-only.
+  await page.goto("/admin/sites/zirahr/pricing?tab=history");
+  const v1 = page.locator('[data-version="1"]');
+  await expect(v1).toContainText("Current · published");
+  await expect(v1).toContainText(/Published \d{1,2} \w{3} \d{4}, \d{2}:\d{2} EAT · approved by/);
+  await v1.getByRole("button", { name: "View version" }).click();
+  const detail = page.locator('[data-version-detail="1"]');
+  await expect(detail).toContainText("First published version");
+  await expect(detail).toContainText(/Items \(\d+\)/);
+
   // The full-screen workspace: the calculator without Studio navigation.
   await page.goto("/admin/pricing-workspace/zirahr");
   await expect(page.getByRole("heading", { level: 1, name: "ZiraHR pricing calculator" })).toBeAttached();

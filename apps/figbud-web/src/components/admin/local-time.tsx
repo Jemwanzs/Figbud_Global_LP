@@ -1,39 +1,60 @@
 "use client";
 
-const format = new Intl.DateTimeFormat(undefined, {
-  weekday: "short",
-  day: "numeric",
-  month: "short",
-  year: "numeric",
-  hour: "2-digit",
-  minute: "2-digit",
-  timeZoneName: "short",
-});
+import { DEFAULT_TIME_ZONE, formatMoment, isoToZonedInput, zoneName, zonedInputToIso } from "@figbud/ui";
+import { type ReactNode, createContext, useCallback, useContext, useMemo } from "react";
 
-/**
- * A moment in the admin's own time zone ("Mon, 3 Nov 2026, 09:00 EAT"). The
- * server may render it in another zone, so the browser's text wins quietly.
+/*
+ * The Studio's display time zone (owner's brief, 14 Nov 2026): timestamps
+ * are stored in UTC and shown in the signed-in person's zone, their own
+ * choice or the organisation's (East Africa Time by default; Settings &
+ * Security → Time zone). The server and the browser get the same zone, so
+ * they render the same text.
  */
-export function LocalTime({ iso }: { iso: string }) {
-  return (
-    <time dateTime={iso} suppressHydrationWarning>
-      {format.format(new Date(iso))}
-    </time>
+
+const TimeZoneContext = createContext<string>(DEFAULT_TIME_ZONE);
+
+export function TimeZoneProvider({ zone, children }: { zone?: string | null; children: ReactNode }) {
+  return <TimeZoneContext.Provider value={zone || DEFAULT_TIME_ZONE}>{children}</TimeZoneContext.Provider>;
+}
+
+/** The zone timestamps are shown in. */
+export const useTimeZone = () => useContext(TimeZoneContext);
+
+/** A moment in the display zone: "14 Nov 2026, 18:56 EAT", or its date there. */
+export function LocalTime({ iso, dateOnly }: { iso: string; dateOnly?: boolean }) {
+  const zone = useTimeZone();
+  return <time dateTime={iso}>{formatMoment(iso, { timeZone: zone, dateOnly })}</time>;
+}
+
+/** Formats moments in the display zone, for text built in code. */
+export function useMoment() {
+  const zone = useTimeZone();
+  return useCallback(
+    (iso: string, options: { dateOnly?: boolean } = {}) => formatMoment(iso, { timeZone: zone, ...options }),
+    [zone],
   );
 }
 
-/** A `datetime-local` value (the admin's time zone) as an ISO instant, or null. */
-export function fromLocalInput(value: string): string | null {
-  if (!value) return null;
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? null : date.toISOString();
-}
-
-/** `datetime-local` value for a moment `minutes` from now, rounded up to the next 5 minutes. */
-export function localInputFromNow(minutes: number): string {
-  const date = new Date(Date.now() + minutes * 60_000);
-  date.setSeconds(0, 0);
-  date.setMinutes(Math.ceil(date.getMinutes() / 5) * 5);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+/**
+ * `datetime-local` inputs read and written in the display zone, so a time
+ * typed as 18:00 means 18:00 there whatever the computer's own zone.
+ */
+export function useZonedInput() {
+  const zone = useTimeZone();
+  return useMemo(
+    () => ({
+      /** The zone's short name, for labels ("EAT"). */
+      name: zoneName(zone),
+      toInput: (iso?: string | null) => (iso ? isoToZonedInput(iso, zone) : ""),
+      fromInput: (value: string) => zonedInputToIso(value, zone),
+      /** `minutes` from now, rounded up to the next 5 minutes. */
+      fromNow: (minutes: number) => {
+        const date = new Date(Date.now() + minutes * 60_000);
+        date.setUTCSeconds(0, 0);
+        date.setUTCMinutes(Math.ceil(date.getUTCMinutes() / 5) * 5);
+        return isoToZonedInput(date, zone);
+      },
+    }),
+    [zone],
+  );
 }

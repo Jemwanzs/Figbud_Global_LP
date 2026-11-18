@@ -87,6 +87,7 @@ Checked against the brief's list. Existing tests cover each item, so nothing was
 | Quotations use the published version | Frozen snapshot per quotation |
 | Hidden from the public by default | Separate switch, off by default |
 | Separate from the payroll calculator | Different engine, routes and Studio page |
+| Reachable from the website when shown (14 Nov 2026) | Platform → Pricing & plans while pricing is shown; absent while it's off (P11-PR10) |
 
 **Fixed:** quotation numbers were counted per website, but references must be unique across websites and use the first six characters of the website's address. Two websites sharing those characters would collide, and the quotation would fail with a 503. Numbers now follow the prefix, and two quotations at the same moment retry instead of failing.
 

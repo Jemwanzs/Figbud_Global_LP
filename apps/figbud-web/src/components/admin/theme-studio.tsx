@@ -32,6 +32,7 @@ import { sameValue, useSavedBaseline, useUnsavedChangesWarning } from "@/lib/for
 
 import { ActionButton } from "./action-button";
 import type { WebsiteSettingsAdmin } from "./website-settings";
+import { LocalTime } from "./local-time";
 
 /*
  * Websites → a website → Colours & themes: the Brand & Theme Studio (owner's
@@ -979,10 +980,7 @@ export function ThemeStudio({
                     >
                       <span className="text-sm">
                         <span className="text-text">
-                          {new Date(v.published_at).toLocaleString("en-GB", {
-                            dateStyle: "medium",
-                            timeStyle: "short",
-                          })}
+                          <LocalTime iso={v.published_at} />
                         </span>
                         <span className="text-subtle"> · {v.by ?? "Unknown"}</span>
                         {i === 0 && (

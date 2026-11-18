@@ -4,7 +4,7 @@ import { buttonClasses, cn } from "@figbud/ui";
 import { Archive, CalendarClock, Eye, LoaderCircle, PenLine, RotateCcw, Send, Upload } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useId, useState } from "react";
+import { type ReactNode, useId, useState } from "react";
 
 import {
   type AdminUser,
@@ -19,6 +19,7 @@ import { useSavedBaseline, useUnsavedChangesWarning } from "@/lib/form-state";
 import { ActionButton } from "./action-button";
 
 import { ArticleStatus, type Status } from "./article-status";
+import { LocalTime, useZonedInput } from "./local-time";
 
 export interface Term {
   slug: string;
@@ -138,6 +139,7 @@ export function ArticleEditor({
   );
   const [fields, setFields] = useState<FieldError[]>([]);
   const [schedule, setSchedule] = useState("");
+  const zoned = useZonedInput();
 
   const live = article && (article.status === "published" || article.status === "archived");
   const canEdit = live ? hasRole(user, "reviewer") : hasRole(user, "editor");
@@ -484,10 +486,7 @@ export function ArticleEditor({
               {article.last_edited_by && <Meta label="Last edited by" value={article.last_edited_by} />}
               {article.approved_by && <Meta label="Approved by" value={article.approved_by} />}
               {article.published_at && (
-                <Meta
-                  label="Publication"
-                  value={new Date(article.published_at).toUTCString().slice(5, 22) + " UTC"}
-                />
+                <Meta label="Publication" value={<LocalTime iso={article.published_at} />} />
               )}
             </dl>
 
@@ -515,7 +514,7 @@ export function ArticleEditor({
                   </WorkflowButton>
                   <div className="rounded-xl border border-line p-3">
                     <label htmlFor={`${uid}-schedule`} className="block text-sm text-muted">
-                      Or schedule (your local time)
+                      Or schedule ({zoned.name})
                     </label>
                     <div className="mt-2 flex gap-2">
                       <input
@@ -529,7 +528,7 @@ export function ArticleEditor({
                         type="button"
                         disabled={!schedule || dirty || busy !== null}
                         onClick={() =>
-                          action("publish", "Scheduled.", { published_at: new Date(schedule).toISOString() })
+                          action("publish", "Scheduled.", { published_at: zoned.fromInput(schedule) })
                         }
                         aria-label="Schedule publication"
                         className={buttonClasses("secondary", "md", "px-3")}
@@ -580,7 +579,7 @@ export function ArticleEditor({
                   <li key={v.version} className="flex justify-between gap-3">
                     <span className="text-text">v{v.version}</span>
                     <span className="truncate text-subtle">
-                      {v.edited_by ?? "Unknown"} · {new Date(v.created_at).toUTCString().slice(5, 16)}
+                      {v.edited_by ?? "Unknown"} · <LocalTime iso={v.created_at} dateOnly />
                     </span>
                   </li>
                 ))}
@@ -593,7 +592,7 @@ export function ArticleEditor({
   );
 }
 
-function Meta({ label, value }: { label: string; value: string }) {
+function Meta({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div className="flex justify-between gap-3">
       <dt className="text-subtle">{label}</dt>

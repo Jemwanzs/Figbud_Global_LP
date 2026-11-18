@@ -15,6 +15,7 @@ import {
   PRODUCT_LABELS,
 } from "@/components/admin/enquiry-labels";
 import { adminGet, requireAdmin } from "@/lib/admin-server";
+import { LocalTime } from "@/components/admin/local-time";
 
 export const metadata: Metadata = { title: "Enquiries" };
 
@@ -147,9 +148,9 @@ async function Enquiries({ searchParams }: Pick<PageProps<"/admin/enquiries">, "
                     </p>
                   </div>
                   <EnquiryStatusPill status={row.status} />
-                  <time dateTime={row.created_at} className="shrink-0 text-sm text-subtle">
-                    {new Date(row.created_at).toUTCString().slice(5, 22)}
-                  </time>
+                  <span className="shrink-0 text-sm text-subtle">
+                    <LocalTime iso={row.created_at} />
+                  </span>
                 </Link>
               </li>
             ))}

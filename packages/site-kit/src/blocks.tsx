@@ -703,6 +703,8 @@ export function PageBlocks({
   // Automatic alternation, from the sections visitors see (hidden ones never count).
   const shown = document.sections.filter((section) => !section.hidden);
   const surfaces = new Map(autoSurfaces(shown).map((surface, i) => [shown[i]!.id, surface]));
+  // The module tour's address, for the Platform menu's "Features & modules" (14 Nov 2026).
+  const modulesAnchor = shown.find((section) => section.type === "modules")?.id;
   return (
     // Blocks respond to the space they are given (container queries), so the
     // Studio preview and the website lay out the same way at the same width.
@@ -713,6 +715,7 @@ export function PageBlocks({
         .map((section, i) => (
           <section
             key={section.id}
+            id={section.id === modulesAnchor ? "modules" : undefined}
             data-section={section.type}
             data-hidden={section.hidden || undefined}
             data-tone={section.tone}
@@ -724,6 +727,7 @@ export function PageBlocks({
               section.tone && FULL_TONES.has(section.tone) && "fb-tone-full",
               surfaces.get(section.id) === "alternate" && "fb-tone fb-tone-full fb-tone-alternate",
               section.hidden && "relative rounded-2xl border border-dashed border-line-strong p-4 opacity-50",
+              section.id === modulesAnchor && "scroll-mt-24",
             )}
           >
             {section.hidden && (

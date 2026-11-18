@@ -18,6 +18,7 @@ import {
 import { EnquiryStatusForm } from "@/components/admin/enquiry-status-form";
 import { forSite, hasRole } from "@/lib/admin-client";
 import { adminGet, requireAdmin } from "@/lib/admin-server";
+import { LocalTime } from "@/components/admin/local-time";
 
 export const metadata: Metadata = { title: "Enquiry" };
 
@@ -54,7 +55,6 @@ interface Detail {
 }
 
 const statusLabel = (value?: string) => ENQUIRY_STATUSES.find((s) => s.value === value)?.label ?? value;
-const when = (iso: string) => `${new Date(iso).toUTCString().slice(5, 22)} UTC`;
 
 export default function EnquiryPage({ params }: PageProps<"/admin/enquiries/[id]">) {
   return (
@@ -88,7 +88,7 @@ async function Enquiry({ params }: Pick<PageProps<"/admin/enquiries/[id]">, "par
       </div>
       <p className="mt-2 text-muted">
         {KIND_LABELS[e.kind] ?? e.kind} · {PRODUCT_LABELS[e.product] ?? e.product} · received{" "}
-        {when(e.created_at)}
+        <LocalTime iso={e.created_at} />
       </p>
 
       <div className="mt-8 grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
@@ -157,7 +157,12 @@ async function Enquiry({ params }: Pick<PageProps<"/admin/enquiries/[id]">, "par
                     <p className="text-text">{TEMPLATE_LABELS[m.template] ?? m.template}</p>
                     <p className="text-subtle">
                       {EMAIL_STATES[m.status] ?? m.status}
-                      {m.sent_at && ` · ${when(m.sent_at)}`}
+                      {m.sent_at && (
+                        <>
+                          {" · "}
+                          <LocalTime iso={m.sent_at} />
+                        </>
+                      )}
                     </p>
                   </li>
                 ))}
@@ -175,13 +180,15 @@ async function Enquiry({ params }: Pick<PageProps<"/admin/enquiries/[id]">, "par
                     {statusLabel(h.detail.from)} → {statusLabel(h.detail.to)}
                   </p>
                   <p className="text-subtle">
-                    {h.actor_email ?? "System"} · {when(h.created_at)}
+                    {h.actor_email ?? "System"} · <LocalTime iso={h.created_at} />
                   </p>
                 </li>
               ))}
               <li>
                 <p className="text-text">Received</p>
-                <p className="text-subtle">{when(e.created_at)}</p>
+                <p className="text-subtle">
+                  <LocalTime iso={e.created_at} />
+                </p>
               </li>
             </ol>
           </section>

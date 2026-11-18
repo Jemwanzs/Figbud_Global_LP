@@ -10,6 +10,7 @@ import { AdminError, adminFetch } from "@/lib/admin-client";
 import { useSavedBaseline, useUnsavedChangesWarning } from "@/lib/form-state";
 
 import { ActionButton } from "./action-button";
+import { LocalTime } from "./local-time";
 
 /*
  * Pages → a page → Translations (P7-L2, owner's brief, 14 Nov 2026): the
@@ -178,7 +179,13 @@ export function PageTranslations({
         {detail.status === "complete" && (
           <p className="text-sm text-muted">
             Reviewed by {detail.reviewer}
-            {detail.reviewed_at && ` on ${new Date(detail.reviewed_at).toLocaleDateString("en-GB")}`}.
+            {detail.reviewed_at && (
+              <>
+                {" on "}
+                <LocalTime iso={detail.reviewed_at} />
+              </>
+            )}
+            .
           </p>
         )}
         {detail.changes_pending && (

@@ -189,4 +189,4 @@ export function fallbackChain(locale: Locale, fallback: Locale): Locale[] {
   return [...new Set<Locale>([locale, fallback, defaultLocale])];
 }
 
-export { interfaceCopy } from "./interface";
+export { PLATFORM_ENTRIES, type PlatformEntry, interfaceCopy } from "./interface";

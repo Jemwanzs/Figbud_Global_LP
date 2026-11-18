@@ -38,6 +38,7 @@ import { useSavedBaseline, useUnsavedChangesWarning } from "@/lib/form-state";
 import { PALETTE_LABELS, PLATFORM_LOOKS, isPlatformDesign } from "../../home/heroes/platform-looks";
 import { ActionButton } from "../action-button";
 import type { HeroAdmin } from "./hero-types";
+import { LocalTime } from "../local-time";
 
 type Theme = "light" | "dark";
 const DEVICES = {
@@ -835,7 +836,10 @@ export function HeroStudio({ data, isOwner }: { data: HeroAdmin; isOwner: boolea
                         <span className="ms-2 text-xs text-accent-strong">Live</span>
                       )}
                     </p>
-                    <p className="text-xs text-subtle">{`${ver.note} · ${ver.published_by ?? "someone"} · ${new Date(ver.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}`}</p>
+                    <p className="text-xs text-subtle">
+                      {`${ver.note} · ${ver.published_by ?? "someone"} · `}
+                      <LocalTime iso={ver.created_at} />
+                    </p>
                   </div>
                   {data.can_review && ver.number !== data.published_number && (
                     <ActionButton

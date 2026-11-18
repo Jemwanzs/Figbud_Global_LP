@@ -342,6 +342,56 @@ async fn price_books_publish_with_approval_and_stay_off_the_website_until_shown(
     let (_, rolled) = t.call("GET", &base, Some(&editor), None).await;
     assert_eq!(rolled["status"], "published");
 
+    // History (14 Nov 2026): a second version, then each version can be viewed
+    // and compared, read-only; the draft and the website don't change.
+    t.call(
+        "POST",
+        &format!("{base}/draft"),
+        Some(&editor),
+        Some(json!({ "document": book("120"), "version": rolled["draft_version"] })),
+    )
+    .await;
+    t.call(
+        "POST",
+        &format!("{base}/submit"),
+        Some(&reviewer),
+        Some(json!({ "note": "New Core HR rate" })),
+    )
+    .await;
+    let (status, _) = t
+        .call("POST", &format!("{base}/publish"), Some(&other), None)
+        .await;
+    assert_eq!(status, StatusCode::OK);
+    let (status, v2) = t
+        .call("GET", &format!("{base}/versions/2"), Some(&editor), None)
+        .await;
+    assert_eq!(status, StatusCode::OK, "{v2}");
+    assert_eq!(v2["note"], "New Core HR rate");
+    assert_eq!(v2["against"], 1);
+    assert_eq!(v2["document"]["items"][0]["rate"], "120");
+    assert_eq!(v2["changes"]["items"][0]["item_id"], "core_hr");
+    assert_eq!(v2["changes"]["items"][0]["before"], "100");
+    assert_eq!(v2["changes"]["items"][0]["after"], "120");
+    let (_, back) = t
+        .call(
+            "GET",
+            &format!("{base}/versions/1?against=2"),
+            Some(&editor),
+            None,
+        )
+        .await;
+    assert_eq!(back["changes"]["items"][0]["after"], "100");
+    let (_, first) = t
+        .call("GET", &format!("{base}/versions/1"), Some(&editor), None)
+        .await;
+    assert_eq!(first["changes"]["first"], true, "nothing before version 1");
+    let (status, _) = t
+        .call("GET", &format!("{base}/versions/9"), Some(&editor), None)
+        .await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+    let (status, _) = t.call("GET", &format!("{base}/versions/1"), None, None).await;
+    assert_eq!(status, StatusCode::UNAUTHORIZED);
+
     let actions: Vec<String> = sqlx::query_scalar(
         "SELECT action FROM audit_log WHERE site_id = (SELECT id FROM sites WHERE slug = $1) AND action LIKE 'pricing.%'",
     )

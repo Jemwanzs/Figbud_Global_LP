@@ -17,6 +17,7 @@ pub mod policy;
 mod security;
 pub mod studio_roles;
 mod team;
+pub mod time_zone;
 
 use std::{net::IpAddr, time::Duration};
 
@@ -40,6 +41,7 @@ pub fn router() -> axum::Router<SharedState> {
         .merge(policy::router())
         .merge(studio_roles::router())
         .merge(security::router())
+        .merge(time_zone::router())
 }
 
 use crate::{config::AdminConfig, error::ApiError, routes::SharedState};

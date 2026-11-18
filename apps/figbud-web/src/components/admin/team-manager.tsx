@@ -17,6 +17,7 @@ import {
   accessBody,
   accessProblem,
 } from "./site-access-picker";
+import { LocalTime } from "./local-time";
 
 export interface TeamMember {
   id: string;
@@ -296,9 +297,14 @@ function Member({
               </span>
             )}
             <span className="text-subtle">
-              {saved.last_login_at
-                ? `Last sign-in ${new Date(saved.last_login_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}`
-                : "Never signed in"}
+              {saved.last_login_at ? (
+                <>
+                  {"Last sign-in "}
+                  <LocalTime iso={saved.last_login_at} />
+                </>
+              ) : (
+                "Never signed in"
+              )}
             </span>
           </div>
         </div>

@@ -20,6 +20,7 @@ import {
 
 import { ActionButton } from "./action-button";
 import { ColourField } from "./theme-studio";
+import { LocalTime } from "./local-time";
 
 /*
  * Settings & Security → Appearance & themes (owner's brief, 12 Nov 2026): the
@@ -395,10 +396,7 @@ export function AppearanceStudio({ data }: { data: AppearanceAdmin }) {
                     >
                       <span className="text-sm">
                         <span className="text-text">
-                          {new Date(v.published_at).toLocaleString("en-GB", {
-                            dateStyle: "medium",
-                            timeStyle: "short",
-                          })}
+                          <LocalTime iso={v.published_at} />
                         </span>
                         <span className="text-subtle"> · {v.by ?? "Unknown"}</span>
                         {i === 0 && (

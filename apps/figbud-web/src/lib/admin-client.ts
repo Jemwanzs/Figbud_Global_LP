@@ -14,6 +14,8 @@ export interface AdminUser {
   access?: SiteAccess;
   /** Studio areas and actions (P13-B3); null or absent means every area within their role. */
   modules?: Partial<Record<StudioArea, StudioAction[]>> | null;
+  /** The zone timestamps are shown in (stored in UTC): theirs, or the organisation's. */
+  time_zone?: { organisation: string; own: string | null; effective: string };
 }
 
 /** Studio areas (services/api/src/admin/modules.rs). */

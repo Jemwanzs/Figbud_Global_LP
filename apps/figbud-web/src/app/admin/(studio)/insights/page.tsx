@@ -9,6 +9,7 @@ import { StudioSkeleton } from "@/components/admin/studio-states";
 import { ArticleStatus, type Status } from "@/components/admin/article-status";
 import { forSite, hasRole } from "@/lib/admin-client";
 import { adminGet, requireAdmin } from "@/lib/admin-server";
+import { LocalTime } from "@/components/admin/local-time";
 
 export const metadata: Metadata = { title: "Insights" };
 
@@ -145,9 +146,9 @@ async function Insights({ searchParams }: Pick<PageProps<"/admin/insights">, "se
                   </p>
                 </div>
                 <ArticleStatus status={row.status} scheduled={row.scheduled} />
-                <time dateTime={row.updated_at} className="shrink-0 text-sm text-subtle">
-                  {new Date(row.updated_at).toUTCString().slice(5, 16)}
-                </time>
+                <span className="shrink-0 text-sm text-subtle">
+                  <LocalTime iso={row.updated_at} dateOnly />
+                </span>
               </Link>
             </li>
           ))}

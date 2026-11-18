@@ -16,6 +16,7 @@ import {
   accessBody,
   accessProblem,
 } from "./site-access-picker";
+import { LocalTime } from "./local-time";
 
 const ROLES = [
   { value: "editor", label: "Editor", hint: "Writes and edits drafts" },
@@ -67,7 +68,7 @@ export function InviteAdminForm({
         // Omitted means every area their role allows.
         ...(role !== "owner" && areas !== null ? { modules: tidy(areas) } : {}),
       });
-      setInvite({ url: created.invite_url, expires: new Date(created.expires_at).toUTCString() });
+      setInvite({ url: created.invite_url, expires: created.expires_at });
       setEmail("");
       setName("");
       setAreas(null);
@@ -220,7 +221,9 @@ export function InviteAdminForm({
               {copied ? "Copied" : "Copy link"}
             </button>
           </div>
-          <p className="mt-2 text-muted">Expires {invite.expires}.</p>
+          <p className="mt-2 text-muted">
+            Expires <LocalTime iso={invite.expires} />.
+          </p>
         </div>
       )}
     </div>

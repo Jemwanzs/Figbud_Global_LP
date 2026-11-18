@@ -9,6 +9,7 @@ import { AdminUnavailable } from "@/components/admin/admin-shell";
 import { PricingCalculator } from "@/components/admin/pricing/pricing-calculator";
 import { PricingRevisionWatcher } from "@/components/admin/pricing/revision-watcher";
 import type { PricingAdmin } from "@/components/admin/pricing/pricing-types";
+import { TimeZoneProvider } from "@/components/admin/local-time";
 import { adminGet, requireAdmin } from "@/lib/admin-server";
 import { getBrands } from "@/lib/products";
 
@@ -39,35 +40,41 @@ async function Workspace({ params }: Pick<PageProps<"/admin/pricing-workspace/[s
   const brands = await getBrands();
   const published = data.published;
   return (
-    <div data-product={slug} className="min-h-dvh bg-bg">
-      <header className="border-b border-line print:hidden">
-        <div className="mx-auto flex max-w-[96rem] flex-wrap items-center gap-4 px-5 py-4 sm:px-8">
-          <ProductIdentity slug={slug as ProductSlug} brand={brands[slug] ?? null} name={data.site.name} />
-          <span className="text-sm text-subtle">Pricing calculator</span>
-          <span className="ms-auto rounded-full border border-line px-3 py-1 text-xs text-muted">
-            {`Saved draft · version ${data.draft_version}`}
-            {published ? ` · Published · version ${data.published_number}` : " · not published yet"}
-          </span>
-          <Link href={`/admin/sites/${slug}/pricing`} className="text-sm text-muted hover:text-text">
-            Back to the Studio
-          </Link>
-        </div>
-      </header>
-      <main className="mx-auto max-w-[96rem] px-5 py-8 sm:px-8">
-        <h1 className="sr-only">{`${data.site.name} pricing calculator`}</h1>
-        {/* The same calculator, pricing source and default as the Studio's Calculator tab:
+    <TimeZoneProvider zone={user.time_zone?.effective}>
+      <div data-product={slug} className="min-h-dvh bg-bg">
+        <header className="border-b border-line print:hidden">
+          <div className="mx-auto flex max-w-[96rem] flex-wrap items-center gap-4 px-5 py-4 sm:px-8">
+            <ProductIdentity slug={slug as ProductSlug} brand={brands[slug] ?? null} name={data.site.name} />
+            <span className="text-sm text-subtle">Pricing calculator</span>
+            <span className="ms-auto rounded-full border border-line px-3 py-1 text-xs text-muted">
+              {`Saved draft · version ${data.draft_version}`}
+              {published ? ` · Published · version ${data.published_number}` : " · not published yet"}
+            </span>
+            <Link href={`/admin/sites/${slug}/pricing`} className="text-sm text-muted hover:text-text">
+              Back to the Studio
+            </Link>
+          </div>
+        </header>
+        <main className="mx-auto max-w-[96rem] px-5 py-8 sm:px-8">
+          <h1 className="sr-only">{`${data.site.name} pricing calculator`}</h1>
+          {/* The same calculator, pricing source and default as the Studio's Calculator tab:
             the saved draft while it differs from the published version (owner's brief, 14 Nov 2026). */}
-        <div className="mb-4">
-          <PricingRevisionWatcher slug={slug} draft={data.draft_version} published={data.published_number} />
-        </div>
-        <PricingCalculator
-          slug={slug}
-          sources={{ draft: data.draft, published }}
-          revisions={{ draft: data.draft_version, published: data.published_number }}
-          defaultSource={published && data.status === "published" ? "published" : "draft"}
-          canQuote={data.can_edit}
-        />
-      </main>
-    </div>
+          <div className="mb-4">
+            <PricingRevisionWatcher
+              slug={slug}
+              draft={data.draft_version}
+              published={data.published_number}
+            />
+          </div>
+          <PricingCalculator
+            slug={slug}
+            sources={{ draft: data.draft, published }}
+            revisions={{ draft: data.draft_version, published: data.published_number }}
+            defaultSource={published && data.status === "published" ? "published" : "draft"}
+            canQuote={data.can_edit}
+          />
+        </main>
+      </div>
+    </TimeZoneProvider>
   );
 }

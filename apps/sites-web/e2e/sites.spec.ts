@@ -1830,3 +1830,52 @@ test("numbered steps: the selected number is solid brand colour, its heading and
   expect(on.heading).not.toBe(off.heading);
   expect(on.bar).not.toBe(off.bar);
 });
+
+test("ZiraHR's Platform menu lists what's published, opens by hover, click or keyboard, and stays a link (14 Nov 2026)", async ({
+  page,
+  isMobile,
+}) => {
+  await page.goto("/zirahr");
+  const nav = page.getByRole("navigation", { name: "ZiraHR navigation" });
+  // The entry stays a link to the Platform page; the chevron beside it opens the submenu.
+  await expect(nav.getByRole("link", { name: "Platform", exact: true })).toHaveAttribute(
+    "href",
+    "/zirahr/platform",
+  );
+  const more = page.getByRole("button", { name: "More in Platform" });
+  await expect(more).toHaveAttribute("aria-expanded", "false");
+  const menu = page.getByRole("list", { name: "Platform" }).filter({ visible: true });
+  // Opened (and retried until the page is interactive).
+  await expect(async () => {
+    await more.click();
+    await expect(more).toHaveAttribute("aria-expanded", "true", { timeout: 1_000 });
+  }).toPass();
+  await expect(menu.getByRole("link", { name: /Platform overview/ })).toBeVisible();
+  await expect(menu.getByRole("link", { name: /Features & modules/ })).toHaveAttribute(
+    "href",
+    "/zirahr/platform#modules",
+  );
+  // ZiraHR's prices aren't shown on the website in the test data, so there's no pricing entry.
+  await expect(menu.getByRole("link", { name: /Pricing & plans/ })).toHaveCount(0);
+  // Escape closes it and returns focus to the chevron.
+  await page.keyboard.press("Escape");
+  await expect(more).toHaveAttribute("aria-expanded", "false");
+  await expect(more).toBeFocused();
+  // From the keyboard, then to the module tour on the Platform page.
+  await page.keyboard.press("Enter");
+  await expect(more).toHaveAttribute("aria-expanded", "true");
+  await menu.getByRole("link", { name: /Features & modules/ }).click();
+  await expect(page).toHaveURL(/\/zirahr\/platform#modules$/);
+  await expect(page.locator("#modules")).toHaveAttribute("data-section", "modules");
+  if (!isMobile) {
+    // Wide screens: hovering the chevron opens it; leaving closes it.
+    await page.goto("/zirahr/about");
+    const chevron = page.getByRole("button", { name: "More in Platform" });
+    await expect(async () => {
+      await chevron.hover();
+      await expect(chevron).toHaveAttribute("aria-expanded", "true", { timeout: 1_000 });
+    }).toPass();
+    await page.mouse.move(5, 600);
+    await expect(chevron).toHaveAttribute("aria-expanded", "false");
+  }
+});

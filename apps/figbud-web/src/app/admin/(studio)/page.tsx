@@ -9,6 +9,7 @@ import { describeAction } from "@/components/admin/audit-labels";
 import { InviteAdminForm } from "@/components/admin/invite-admin-form";
 import { ROLE_LABELS } from "@/lib/admin-client";
 import { adminGet, requireAdmin } from "@/lib/admin-server";
+import { LocalTime } from "@/components/admin/local-time";
 
 export const metadata: Metadata = { title: "Overview" };
 
@@ -194,10 +195,7 @@ async function Dashboard() {
                       {entry.site_name && <span className="text-muted"> · {entry.site_name}</span>}
                     </p>
                     <p className="mt-0.5 text-subtle">
-                      {entry.actor_email ?? "System"} ·{" "}
-                      <time dateTime={entry.created_at}>
-                        {new Date(entry.created_at).toUTCString().slice(5, 22)} UTC
-                      </time>
+                      {entry.actor_email ?? "System"} · <LocalTime iso={entry.created_at} />
                     </p>
                   </li>
                 ))}

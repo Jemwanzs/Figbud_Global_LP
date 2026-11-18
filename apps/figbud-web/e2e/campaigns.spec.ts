@@ -136,7 +136,7 @@ test("spin to win: rules, a reward decided by the API and a code", async ({ page
   await page.getByLabel("Quantity").fill("5");
   await page.getByLabel("How to redeem it").fill("Book your session with the code.");
   await page.getByLabel("Who can take part").fill("Organisations in Kenya. Free to enter.");
-  await page.getByLabel("Ends (your time zone)").fill("2030-01-01T00:00");
+  await page.getByLabel("Ends (EAT)").fill("2030-01-01T00:00");
   await page
     .getByLabel("Terms and conditions (required, Markdown)")
     .fill("Free to enter. One attempt per email.");

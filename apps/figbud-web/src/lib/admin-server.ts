@@ -37,8 +37,12 @@ const getOnce = cache(async (path: string): Promise<{ status: number; data?: unk
  * down. Asked once per request: the Studio layout and the page share it.
  */
 export const currentAdmin = cache(async (): Promise<AdminUser | null | "unavailable"> => {
-  const { status, data } = await adminGet<{ user: AdminUser; access?: AdminUser["access"] }>("me");
-  if (data) return { ...data.user, access: data.access };
+  const { status, data } = await adminGet<{
+    user: AdminUser;
+    access?: AdminUser["access"];
+    time_zone?: AdminUser["time_zone"];
+  }>("me");
+  if (data) return { ...data.user, access: data.access, time_zone: data.time_zone };
   return status === 401 || status === 404 ? null : "unavailable";
 });
 

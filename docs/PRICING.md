@@ -183,6 +183,10 @@ There are two separate controls:
      3. **Add optional services:** set-up, training, integrations, migration, support and other items, each marked one-off or recurring, with a quantity where it's per participant, session, day and so on.
    - A live estimate (the same engine) lists the selection and its quantities, the subscription, discount, one-off charges, tax and totals, with **Request a quote** and **Book a demo**. It's a sticky panel on wide screens and a compact bar that opens into the summary on phones. `PublicPricing` in `@figbud/site-kit` (`public-pricing.tsx`).
 
+**On the website (P11-PR10, 14 Nov 2026):** while pricing is shown, the product website's Platform menu lists **Pricing & plans** (`/pricing`); while it's off, the entry isn't there and the page asks for a quote. The menu and the page read the same cached public pricing, so both follow a publication or a visibility change within a few minutes. Drafts never reach either.
+
+**History (14 Nov 2026):** each version shows whether it's current, when it was published (in the display time zone), who approved and who asked, its effective date and note. **View version** shows its items and what changed from the version before; **Compare with** shows the differences from any other version. Both are read-only (`GET /v1/admin/sites/{slug}/pricing/versions/{n}?against={m}`).
+
 **Restore into draft:** copies an earlier version into the draft, which then needs approval again. It never changes quotations.
 
 **Audit:** every save, request, approval, rejection, publication, rollback, visibility change and quotation action is recorded (`pricing.*` in the activity log).

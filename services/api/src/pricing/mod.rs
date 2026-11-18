@@ -19,7 +19,7 @@ use std::net::SocketAddr;
 
 use axum::{
     Json, Router,
-    extract::{ConnectInfo, Path, State},
+    extract::{ConnectInfo, Path, Query, State},
     http::{HeaderMap, HeaderValue, header},
     response::IntoResponse,
     routing::{get, post},
@@ -55,6 +55,10 @@ pub fn router() -> Router<SharedState> {
             get(list_quotes).post(create_quote),
         )
         .route("/v1/admin/sites/{slug}/pricing/{action}", post(book_action))
+        .route(
+            "/v1/admin/sites/{slug}/pricing/versions/{number}",
+            get(read_version),
+        )
         .route("/v1/admin/pricing/quotes/{id}", get(read_quote))
         .route("/v1/admin/pricing/quotes/{id}/{action}", post(quote_action))
 }
@@ -244,6 +248,68 @@ fn changed_fields(before: &engine::Item, after: &engine::Item) -> Vec<&'static s
 }
 
 // ------------------------------------------------------------------ price book
+
+#[derive(Deserialize)]
+struct VersionQuery {
+    /// The version to compare with; the one before it by default.
+    against: Option<i32>,
+}
+
+/// One published version, read-only (owner's brief, 14 Nov 2026): its
+/// document, who asked and who approved, and what changed from the version
+/// before it (or from `against`). Viewing never touches the draft, the
+/// website or quotations.
+async fn read_version(
+    State(state): State<SharedState>,
+    session: AdminSession,
+    Path((slug, number)): Path<(String, i32)>,
+    Query(query): Query<VersionQuery>,
+) -> Result<impl IntoResponse, ApiError> {
+    let site = site(&state.pool, &slug).await?;
+    session.require_site(site.id, Role::Viewer)?;
+    let load = |n: i32| {
+        sqlx::query_as::<
+            _,
+            (
+                Value,
+                String,
+                Option<NaiveDate>,
+                Option<String>,
+                Option<String>,
+                DateTime<Utc>,
+            ),
+        >(
+            "SELECT v.document, v.note, v.effective_from, rq.name, pb.name, v.created_at
+               FROM pricing_versions v
+               LEFT JOIN admin_users rq ON rq.id = v.requested_by
+               LEFT JOIN admin_users pb ON pb.id = v.published_by
+              WHERE v.site_id = $1 AND v.number = $2",
+        )
+        .bind(site.id)
+        .bind(n)
+        .fetch_optional(&state.pool)
+    };
+    let (document, note, effective_from, requested_by, published_by, created_at) =
+        load(number).await?.ok_or(ApiError::NotFound)?;
+    let book = decode(document)?;
+    let against = query.against.unwrap_or(number - 1);
+    let base = if against >= 1 && against != number {
+        load(against).await?.map(|row| decode(row.0)).transpose()?
+    } else {
+        None
+    };
+    Ok(Json(json!({
+        "number": number,
+        "document": book,
+        "note": note,
+        "effective_from": effective_from,
+        "requested_by": requested_by,
+        "published_by": published_by,
+        "created_at": created_at,
+        "against": base.as_ref().map(|_| against),
+        "changes": compare(base.as_ref(), &book),
+    })))
+}
 
 /// A published version, for the history.
 #[derive(FromRow, Serialize)]

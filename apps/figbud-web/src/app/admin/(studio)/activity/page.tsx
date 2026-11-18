@@ -9,6 +9,7 @@ import { AdminUnavailable } from "@/components/admin/admin-shell";
 import { StudioSkeleton } from "@/components/admin/studio-states";
 import { describeAction } from "@/components/admin/audit-labels";
 import { adminGet, requireAdmin } from "@/lib/admin-server";
+import { LocalTime } from "@/components/admin/local-time";
 
 export const metadata: Metadata = { title: "Activity" };
 
@@ -97,10 +98,7 @@ async function Activity({ searchParams }: Pick<PageProps<"/admin/activity">, "se
                 {entry.site_name && <span className="text-muted"> · {entry.site_name}</span>}
               </p>
               <p className="mt-0.5 break-words text-subtle">
-                {entry.actor_email ?? "System"} ·{" "}
-                <time dateTime={entry.created_at}>
-                  {new Date(entry.created_at).toUTCString().slice(5, 22)} UTC
-                </time>
+                {entry.actor_email ?? "System"} · <LocalTime iso={entry.created_at} />
               </p>
               {entry.has_changes && <ActivityChanges id={entry.id} />}
             </li>

@@ -19,14 +19,18 @@ import { notFound } from "next/navigation";
 import type { CSSProperties } from "react";
 
 import { SiteFooter } from "@/components/site-footer";
-import { SiteHeader } from "@/components/site-header";
+import { type NavLink, SiteHeader } from "@/components/site-header";
+import { type PlatformMenuEntry, platformMenu } from "@/lib/platform-menu";
 import {
   allowIndexing,
   enquiryHref,
   figbudOrigin,
   getListedSites,
   getLiveCampaigns,
+  getPage,
   getPages,
+  getPayrollCalculator,
+  getPublicPricing,
   siteLanguages,
   getPrivacySettings,
   getSite,
@@ -111,12 +115,14 @@ export default async function SiteLayout({ children, params }: LayoutProps<"/[si
   const navigation = site.settings?.navigation;
   // Each website's own hover previews (UI-NAV2); none until it writes some.
   const previews = resolveNavPreviews(site.settings?.nav_previews);
-  const links =
+  const platformMenu = await platformEntries(slug, ownDomain, pages);
+  const links: NavLink[] = (
     navigation?.mode === "custom"
       ? navigation.items.map((l) => ({
           href: siteLinkHref(slug, ownDomain, l.href),
           label: l.label,
           preview: previews[l.href],
+          path: l.href === "/platform" ? "platform" : undefined,
         }))
       : pages
           .filter((p) => p.path !== "" && p.show_in_nav !== false)
@@ -126,7 +132,14 @@ export default async function SiteLayout({ children, params }: LayoutProps<"/[si
             preview: previews[`/${p.path}`],
             // Translated pages and titles, so the header can follow the page's language (P7-L2b).
             path: p.path,
-          }));
+          }))
+  )
+    // An Integrations page moves under Platform, rather than appearing twice.
+    .filter((link) => !(link.path === "integrations" && platformMenu.some((e) => e.entry === "integrations")))
+    .map((link) =>
+      // The Platform entry opens a submenu of what's published (owner's brief, 14 Nov 2026).
+      link.path === "platform" && platformMenu.length > 1 ? { ...link, menu: platformMenu } : link,
+    );
   // Brand accents.
   const colours = (
     site.brand ? { "--product": site.brand.colors.primary, "--product-2": site.brand.colors.secondary } : {}
@@ -222,4 +235,25 @@ export default async function SiteLayout({ children, params }: LayoutProps<"/[si
       </body>
     </html>
   );
+}
+
+/** The Platform submenu from the same cached data as the pages it links to, so menu and pages agree. */
+async function platformEntries(
+  slug: string,
+  ownDomain: boolean,
+  pages: Awaited<ReturnType<typeof getPages>>,
+): Promise<PlatformMenuEntry[]> {
+  if (!pages.some((p) => p.path === "platform")) return [];
+  const [platform, payroll, pricing] = await Promise.all([
+    getPage(slug, "platform"),
+    getPayrollCalculator(slug),
+    getPublicPricing(slug),
+  ]);
+  return platformMenu({
+    pages,
+    platformSections: platform?.sections ?? [],
+    payrollOn: Boolean(payroll),
+    pricingShown: Boolean(pricing),
+    href: (path) => pageHref(slug, ownDomain, path),
+  });
 }

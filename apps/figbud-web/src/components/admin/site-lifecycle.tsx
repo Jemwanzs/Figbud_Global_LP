@@ -16,6 +16,7 @@ import {
 import { ActionButton } from "./action-button";
 
 import { type AdminSite, LIFECYCLE, type SiteStatus, TRANSITIONS, statusLabel } from "./site-labels";
+import { LocalTime } from "./local-time";
 
 export interface StatusRequest {
   id: string;
@@ -30,8 +31,6 @@ export interface StatusRequest {
   created_at: string;
   decided_at?: string | null;
 }
-
-const when = (iso: string) => `${new Date(iso).toUTCString().slice(5, 22)} UTC`;
 
 const DECISIONS: Record<StatusRequest["decision"], string> = {
   pending: "Awaiting approval",
@@ -125,7 +124,7 @@ export function SiteLifecycle({
           </p>
           <p className="mt-1 text-sm text-muted">{pending.reason}</p>
           <p className="mt-1 text-xs text-subtle">
-            Requested by {pending.requested_by ?? "a former admin"} · {when(pending.created_at)}
+            Requested by {pending.requested_by ?? "a former admin"} · <LocalTime iso={pending.created_at} />
           </p>
           {canDecide && (
             <div className="mt-4">
@@ -310,7 +309,12 @@ export function SiteLifecycle({
                   </p>
                   <p className="text-subtle">
                     {r.decided_by ?? r.requested_by ?? "System"}
-                    {r.decided_at && ` · ${when(r.decided_at)}`}
+                    {r.decided_at && (
+                      <>
+                        {" · "}
+                        <LocalTime iso={r.decided_at} />
+                      </>
+                    )}
                   </p>
                 </li>
               ))}

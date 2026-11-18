@@ -114,6 +114,37 @@ const roleList = () =>
     }))
     .sort((a, b) => a.name.localeCompare(b.name));
 const resets = new Map(); // token -> { email, expires }
+// Display time zone (admin/time_zone.rs): the organisation's, and each person's own.
+const TIME_ZONES = [
+  "Africa/Nairobi",
+  "Africa/Kampala",
+  "Africa/Dar_es_Salaam",
+  "Africa/Kigali",
+  "Africa/Addis_Ababa",
+  "Africa/Lagos",
+  "Africa/Accra",
+  "Africa/Johannesburg",
+  "Africa/Cairo",
+  "Africa/Casablanca",
+  "UTC",
+  "Europe/London",
+  "Europe/Paris",
+  "Europe/Berlin",
+  "Asia/Dubai",
+  "Asia/Riyadh",
+  "Asia/Kolkata",
+  "Asia/Singapore",
+  "Asia/Shanghai",
+  "America/New_York",
+  "America/Chicago",
+  "America/Los_Angeles",
+];
+const studioTimeZone = { zone: "Africa/Nairobi" };
+const ownTimeZones = new Map(); // user id -> zone
+const zonesOf = (user) => {
+  const own = ownTimeZones.get(user.id) ?? null;
+  return { organisation: studioTimeZone.zone, own, effective: own ?? studioTimeZone.zone };
+};
 const lastRecovery = new Map(); // email -> token (read by e2e through /v1/__test/recovery)
 const totpStep = () => Math.floor(Date.now() / 30000);
 const BASE32 = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
@@ -3916,9 +3947,38 @@ const quoteView = (q) => ({
   created_at: q.created_at,
   updated_at: q.updated_at,
 });
+/** Added and changed items between two books (pricing/mod.rs compare, items only). */
+function itemChanges(before, after) {
+  return after.items.flatMap((i) => {
+    const was = before.items.find((x) => x.id === i.id);
+    if (!was) return [{ item_id: i.id, name: i.name, change: "added", after: i.rate }];
+    return JSON.stringify(was) !== JSON.stringify(i)
+      ? [{ item_id: i.id, name: i.name, change: "changed", before: was.rate, after: i.rate }]
+      : [];
+  });
+}
 function pricingRoutes(path, req, body, user, send) {
   const nope = (status, code, message) => send(status, { error: { code, message } });
   const rank = RANKS[user.role];
+  // One published version, read-only, with its changes (pricing/mod.rs read_version).
+  const vm = /^sites\/([a-z0-9_-]+)\/pricing\/versions\/(\d+)$/.exec(path);
+  if (vm && req.method === "GET") {
+    const st = pricingState(vm[1]);
+    const number = Number(vm[2]);
+    const version = st.versions.find((v) => v.number === number);
+    if (!version?.document) return nope(404, "not_found", "Not found.");
+    const asked = Number(new URL(req.url, "http://mock").searchParams.get("against")) || number - 1;
+    const base = asked !== number ? st.versions.find((v) => v.number === asked)?.document : null;
+    const { document, ...meta } = version;
+    return send(200, {
+      ...meta,
+      document,
+      against: base ? asked : null,
+      changes: base
+        ? { first: false, settings_changed: false, items: itemChanges(base, document) }
+        : { first: true, items: [], settings_changed: true },
+    });
+  }
   const m = /^sites\/([a-z0-9_-]+)\/pricing(?:\/([a-z_]+))?$/.exec(path);
   if (m) {
     const slug = m[1];
@@ -3932,13 +3992,7 @@ function pricingRoutes(path, req, body, user, send) {
         : {
             first: false,
             settings_changed: false,
-            items: st.draft.items.flatMap((i) => {
-              const before = st.published.items.find((x) => x.id === i.id);
-              if (!before) return [{ item_id: i.id, name: i.name, change: "added", after: i.rate }];
-              return JSON.stringify(before) !== JSON.stringify(i)
-                ? [{ item_id: i.id, name: i.name, change: "changed", before: before.rate, after: i.rate }]
-                : [];
-            }),
+            items: itemChanges(st.published, st.draft),
           };
       const status = st.review
         ? "in_review"
@@ -3956,7 +4010,7 @@ function pricingRoutes(path, req, body, user, send) {
         public_visible: st.public_visible,
         effective_from: st.effective_from,
         review: st.review ? { ...st.review, own: st.review.by === user.id } : null,
-        versions: [...st.versions].reverse(),
+        versions: [...st.versions].reverse().map(({ document, ...v }) => (void document, v)),
         changes,
         status,
         can_edit: rank >= RANKS.editor,
@@ -4115,6 +4169,7 @@ function pricingRoutes(path, req, body, user, send) {
         requested_by: st.review.requested_by,
         published_by: user.name,
         created_at: new Date().toISOString(),
+        document: clone(st.published),
       });
       st.review = null;
       return send(200, { ok: true });
@@ -5906,6 +5961,27 @@ function admin(req, res, url, body, send, raw) {
   const user = userOf();
   if (!user || user.disabled_at)
     return send(401, { error: { code: "unauthorized", message: "Please sign in." } });
+  // Display time zone (admin/time_zone.rs), before the security routes.
+  if (path === "time-zone" && req.method === "GET")
+    return send(200, { ...zonesOf(user), can_edit: user.role === "owner" });
+  if ((path === "time-zone" || path === "security/time-zone") && req.method === "POST") {
+    const zone = body.time_zone ?? null;
+    if (path === "time-zone" && user.role !== "owner")
+      return send(403, {
+        error: { code: "forbidden", message: "Owners change the organisation's time zone." },
+      });
+    if ((path === "time-zone" || zone !== null) && !TIME_ZONES.includes(zone))
+      return send(422, {
+        error: {
+          code: "validation",
+          message: "Choose a time zone from the list.",
+          fields: [{ field: "time_zone", code: "unknown", message: "Choose a time zone from the list." }],
+        },
+      });
+    if (path === "time-zone") studioTimeZone.zone = zone;
+    else ownTimeZones.set(user.id, zone);
+    return send(200, zonesOf(user));
+  }
   if (path === "security" || path.startsWith("security/")) {
     const token = readCookie(req);
     const info = sessionInfo.get(token);
@@ -6161,7 +6237,8 @@ function admin(req, res, url, body, send, raw) {
     }
     return send(404, { error: { code: "not_found", message: "Not found." } });
   }
-  if (path === "me") return send(200, { user: publicUser(user), access: accessOf(user) });
+  if (path === "me")
+    return send(200, { user: publicUser(user), access: accessOf(user), time_zone: zonesOf(user) });
   // Websites someone can't access don't exist for them.
   const sitePath = /^sites\/([a-z0-9_-]+)/.exec(path);
   if (sitePath && !siteRole(user, sitePath[1]))

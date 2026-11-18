@@ -27,19 +27,11 @@ import {
   STATUS_LABELS,
   ctr,
 } from "./campaign-types";
-import { LocalTime, fromLocalInput } from "./local-time";
+import { LocalTime, useZonedInput } from "./local-time";
 import { type MediaItem, STUDIO_MEDIA_BASE } from "./page-types";
 
 const inputClass =
   "mt-1.5 min-h-11 w-full rounded-xl border border-line-strong bg-surface px-3 text-sm text-text disabled:opacity-60";
-
-/** ISO instant → `datetime-local` value in the admin's time zone. */
-function toLocalInput(iso?: string | null): string {
-  if (!iso) return "";
-  const d = new Date(iso);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
 
 const escapeHtml = (s: string) =>
   s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
@@ -122,6 +114,7 @@ export function CampaignBuilder({
   isOwner: boolean;
 }) {
   const confirm = useConfirm();
+  const zoned = useZonedInput();
   const router = useRouter();
   const uid = useId();
   const id = initial.id;
@@ -842,21 +835,21 @@ export function CampaignBuilder({
 
         <Section title="Schedule" id={`${uid}-schedule`}>
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Starts (your time zone)" hint="Empty: as soon as it's approved.">
+            <Field label={`Starts (${zoned.name})`} hint="Empty: as soon as it's approved.">
               <input
                 type="datetime-local"
-                value={toLocalInput(doc.schedule.starts_at)}
+                value={zoned.toInput(doc.schedule.starts_at)}
                 disabled={!editable}
-                onChange={(e) => schedule({ starts_at: fromLocalInput(e.target.value) })}
+                onChange={(e) => schedule({ starts_at: zoned.fromInput(e.target.value) })}
                 className={inputClass}
               />
             </Field>
-            <Field label="Ends (your time zone)" hint="It disappears from websites automatically.">
+            <Field label={`Ends (${zoned.name})`} hint="It disappears from websites automatically.">
               <input
                 type="datetime-local"
-                value={toLocalInput(doc.schedule.ends_at)}
+                value={zoned.toInput(doc.schedule.ends_at)}
                 disabled={!editable}
-                onChange={(e) => schedule({ ends_at: fromLocalInput(e.target.value) })}
+                onChange={(e) => schedule({ ends_at: zoned.fromInput(e.target.value) })}
                 className={inputClass}
               />
             </Field>

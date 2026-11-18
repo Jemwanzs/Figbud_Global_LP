@@ -4,6 +4,7 @@ import { cn, useConfirm } from "@figbud/ui";
 import { useState } from "react";
 
 import { AdminError, type AdminUser, ROLE_LABELS, adminFetch } from "@/lib/admin-client";
+import { LocalTime } from "./local-time";
 
 export interface PendingInvite {
   id: string;
@@ -13,14 +14,6 @@ export interface PendingInvite {
   expires_at: string;
   created_at: string;
 }
-
-const date = (iso: string) =>
-  new Date(iso).toLocaleString("en-GB", {
-    day: "numeric",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
 
 /**
  * Invitations not yet accepted (owner's brief, 12 Nov 2026). Revoking one
@@ -71,7 +64,10 @@ export function PendingInvites({ invites }: { invites: PendingInvite[] }) {
               <span className="min-w-0">
                 <span className="block truncate font-medium text-text">{invite.email}</span>
                 <span className="text-sm text-muted">
-                  {`${ROLE_LABELS[invite.role]} · invited ${date(invite.created_at)}${invite.invited_by ? ` by ${invite.invited_by}` : ""} · expires ${date(invite.expires_at)}`}
+                  {`${ROLE_LABELS[invite.role]} · invited `}
+                  <LocalTime iso={invite.created_at} />
+                  {`${invite.invited_by ? ` by ${invite.invited_by}` : ""} · expires `}
+                  <LocalTime iso={invite.expires_at} />
                 </span>
               </span>
               <button

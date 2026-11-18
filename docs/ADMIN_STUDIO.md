@@ -326,6 +326,14 @@ Websites → any website → **Colours & themes** (also under Products & Brandin
   - turned into CSS by `siteThemeCss` in `@figbud/site-kit` (`site-theme.ts`), on the product renderer and in Studio previews; the section bands (`bandColours`, `--section-brand`, `--section-brand-text`, `--section-brand-muted`, `--section-soft`) are always included, from the built-in colours when nothing is published;
   - built-in themes are `BUILT_IN_THEMES`, which a unit test keeps equal to `tokens.css`.
 
+## Time zone (P7-TZ1, 14 Nov 2026)
+
+Settings → General → Time zone. Timestamps are stored in UTC and shown in a display zone, named beside them.
+
+- **Organisation:** East Africa Time (`Africa/Nairobi`) by default; owners change it (audited as `studio.time_zone_changed`).
+- **You:** follow the organisation, or choose your own zone. It applies to everything you see in the Studio, including scheduling inputs.
+- Only zones from a fixed list are accepted (API `admin/time_zone.rs`, Studio `@figbud/ui` time.ts). Changing the zone never changes a record.
+
 ## Section themes: FigBud Global's home bands (UI-TH6, UI-TH7, 14 Nov 2026)
 
 Websites → FigBud Global → Section themes (FigBud Global only; product websites set each section's style in the page editor, UI-AL1).
