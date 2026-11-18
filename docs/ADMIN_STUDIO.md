@@ -326,6 +326,15 @@ Websites → any website → **Colours & themes** (also under Products & Brandin
   - turned into CSS by `siteThemeCss` in `@figbud/site-kit` (`site-theme.ts`), on the product renderer and in Studio previews; the section bands (`bandColours`, `--section-brand`, `--section-brand-text`, `--section-brand-muted`, `--section-soft`) are always included, from the built-in colours when nothing is published;
   - built-in themes are `BUILT_IN_THEMES`, which a unit test keeps equal to `tokens.css`.
 
+## Product screenshots in a hero (P14-W4, 18 Nov 2026)
+
+Pages → a page → Hero → Visual → **Product screenshots in a browser frame, with tabs** (needs at least one image in the website's media library).
+
+- **Frame title** (e.g. "ZiraHR Workspace") and **note under the frame** (e.g. "Illustrative product preview").
+- **Views** (one to four, in order): tab name, title, optional sentence, and a screenshot from the media library. The screenshot's alt text is the library's; its sizes are attached by the API.
+- **Rotation** (off by default) and seconds per view (5–20); **larger preview** on or off; up to three **floating notes**.
+- Use screenshots without real names or figures. Images used here can't be archived, and they count in the page's performance budget. Words are translated with the page (Translations).
+
 ## Time zone (P7-TZ1, 14 Nov 2026)
 
 Settings → General → Time zone. Timestamps are stored in UTC and shown in a display zone, named beside them.

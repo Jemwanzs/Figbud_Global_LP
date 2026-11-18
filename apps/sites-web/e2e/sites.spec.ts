@@ -1879,3 +1879,86 @@ test("ZiraHR's Platform menu lists what's published, opens by hover, click or ke
     await expect(chevron).toHaveAttribute("aria-expanded", "false");
   }
 });
+
+test.describe("product screenshots in a hero (owner's brief, 18 Nov 2026)", () => {
+  const scan = async (page: Page) =>
+    (
+      await new AxeBuilder({ page: await themeSettled(page) })
+        .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
+        .analyze()
+    ).violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`);
+
+  test("tabs switch the screenshot and its words, by click or keyboard; a larger preview opens and closes", async ({
+    page,
+  }) => {
+    await page.goto("/zirahr/workspace");
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+      "Your people. Your payroll. One connected platform.",
+    );
+    const showcase = page.locator("[data-showcase]");
+    const tabs = showcase.getByRole("tablist", { name: "Product views" }).first();
+    const hr = tabs.getByRole("tab", { name: "HR Overview" });
+    const finance = tabs.getByRole("tab", { name: "Finance Overview" });
+    await expect(hr).toHaveAttribute("aria-selected", "true");
+    await expect(showcase.locator("[data-showcase-label]")).toContainText("People Intelligence");
+    await expect(showcase.getByRole("img", { name: /An HR dashboard/ })).toBeVisible();
+    await expect(showcase).toContainText("Illustrative product preview");
+
+    // A click chooses (retried until the page is interactive).
+    await expect(async () => {
+      await finance.click();
+      await expect(finance).toHaveAttribute("aria-selected", "true", { timeout: 1_000 });
+    }).toPass();
+    await expect(showcase.locator("[data-showcase-label]")).toContainText("Payroll Intelligence");
+    await expect(showcase.getByRole("img", { name: /A finance dashboard/ })).toBeVisible();
+    // Arrow keys move between tabs.
+    await finance.focus();
+    await page.keyboard.press("ArrowLeft");
+    await expect(hr).toHaveAttribute("aria-selected", "true");
+    await expect(hr).toBeFocused();
+
+    // The larger preview: an in-app dialog; Escape closes it and focus returns.
+    const open = showcase.getByRole("button", { name: "View dashboard preview" });
+    await open.click();
+    const dialog = page.getByRole("dialog", { name: "People Intelligence" });
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByRole("img", { name: /An HR dashboard/ })).toBeVisible();
+    await dialog.getByRole("button", { name: "Actual size" }).click();
+    await expect(dialog.getByRole("button", { name: "Fit to screen" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    await page.keyboard.press("Escape");
+    await expect(dialog).toBeHidden();
+    await expect(open).toBeFocused();
+
+    expect(await scan(page)).toEqual([]);
+    await page.getByRole("button", { name: /Switch to (light|dark) theme/ }).click();
+    expect(await scan(page)).toEqual([]);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(
+      0,
+    );
+  });
+
+  test("views rotate by themselves until someone chooses one", async ({ page }) => {
+    await page.goto("/zirahr/workspace");
+    const tabs = page.locator("[data-showcase]").getByRole("tablist").first();
+    const finance = tabs.getByRole("tab", { name: "Finance Overview" });
+    // It moves only while it's on screen (on phones it's below the words).
+    await page.locator("[data-showcase]").scrollIntoViewIfNeeded();
+    // Five seconds per view in the test data.
+    await expect(finance).toHaveAttribute("aria-selected", "true", { timeout: 12_000 });
+    await expect(
+      page.locator("[data-showcase]").getByRole("button", { name: /Pause demonstration/ }),
+    ).toBeVisible();
+  });
+
+  test("with reduced motion nothing moves by itself", async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.goto("/zirahr/workspace");
+    const hr = page.locator("[data-showcase]").getByRole("tab", { name: "HR Overview" }).first();
+    await expect(hr).toHaveAttribute("aria-selected", "true");
+    await page.waitForTimeout(6_500);
+    await expect(hr).toHaveAttribute("aria-selected", "true");
+  });
+});

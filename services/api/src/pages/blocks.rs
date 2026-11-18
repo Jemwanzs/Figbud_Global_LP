@@ -83,6 +83,10 @@ pub enum Block {
         /// where none is set (11 Nov 2026).
         #[serde(default, skip_serializing_if = "std::collections::BTreeMap::is_empty")]
         messages: std::collections::BTreeMap<String, String>,
+        /// Product screenshots beside the words, in a browser-style frame
+        /// with tabs (owner's brief, 18 Nov 2026); replaces the visual.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        showcase: Option<Box<Showcase>>,
     },
     Text {
         #[serde(default)]
@@ -235,6 +239,63 @@ pub const ZIRAHR_MODULE_KEYS: [&str; 8] = [
     "recruitment",
     "learning",
 ];
+
+/// Product screenshots in a browser-style frame (owner's brief, 18 Nov
+/// 2026): one tab per view, each a media library image with its own title
+/// and sentence; optional rotation, floating notes and a larger preview.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct Showcase {
+    /// The frame's header ("ZiraHR Workspace").
+    #[serde(default)]
+    pub title: Option<String>,
+    /// A line under the frame ("Illustrative product preview").
+    #[serde(default)]
+    pub caption: Option<String>,
+    pub views: Vec<ShowcaseView>,
+    /// Moves to the next view by itself (pauses on interaction, off with reduced motion).
+    #[serde(default)]
+    pub rotate: bool,
+    /// Seconds per view while rotating.
+    #[serde(default = "Showcase::default_interval")]
+    pub interval: u8,
+    /// Short notes floating beside the frame (wide screens).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub indicators: Vec<ShowcaseIndicator>,
+    /// Lets visitors open the screenshot larger.
+    #[serde(default = "Showcase::yes")]
+    pub preview: bool,
+}
+
+impl Showcase {
+    fn default_interval() -> u8 {
+        8
+    }
+    fn yes() -> bool {
+        true
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct ShowcaseView {
+    /// The tab's name ("HR Overview").
+    pub label: String,
+    /// What it shows ("People Intelligence").
+    pub title: String,
+    #[serde(default)]
+    pub body: Option<String>,
+    /// From the website's media library; its alt text comes from there.
+    pub image_id: uuid::Uuid,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct ShowcaseIndicator {
+    pub title: String,
+    #[serde(default)]
+    pub body: Option<String>,
+}
 
 /// A short highlight: a heading and a sentence or two.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
@@ -467,8 +528,73 @@ impl PageDoc {
                     modules,
                     ess,
                     messages,
+                    showcase,
+                    visual,
                     ..
                 } => {
+                    if let Some(s) = showcase {
+                        if visual.is_some() {
+                            c.push(
+                                "sections",
+                                "A hero shows either the animated visual or the screenshots, not both.",
+                            );
+                        }
+                        c.optional(
+                            "sections",
+                            &s.title,
+                            40,
+                            "The frame's title can be up to 40 characters.",
+                        );
+                        c.optional(
+                            "sections",
+                            &s.caption,
+                            80,
+                            "The note under the frame can be up to 80 characters.",
+                        );
+                        if s.views.is_empty() || s.views.len() > 4 {
+                            c.push("sections", "The screenshots need one to four views.");
+                        }
+                        for view in &s.views {
+                            c.text(
+                                "sections",
+                                &view.label,
+                                24,
+                                "Each tab name needs 1–24 characters.",
+                            );
+                            c.text(
+                                "sections",
+                                &view.title,
+                                60,
+                                "Each view's title needs 1–60 characters.",
+                            );
+                            c.optional(
+                                "sections",
+                                &view.body,
+                                160,
+                                "Each view's sentence can be up to 160 characters.",
+                            );
+                        }
+                        if !(5..=20).contains(&s.interval) {
+                            c.push("sections", "Rotation shows each view for 5–20 seconds.");
+                        }
+                        if s.indicators.len() > 3 {
+                            c.push("sections", "Up to three floating notes.");
+                        }
+                        for note in &s.indicators {
+                            c.text(
+                                "sections",
+                                &note.title,
+                                40,
+                                "Each floating note needs a title of 1–40 characters.",
+                            );
+                            c.optional(
+                                "sections",
+                                &note.body,
+                                80,
+                                "Each floating note's text can be up to 80 characters.",
+                            );
+                        }
+                    }
                     c.optional("sections", eyebrow, 60, "Eyebrows can be up to 60 characters.");
                     c.text("sections", heading, 120, "Headings need 1–120 characters.");
                     c.optional("sections", accent, 90, "Accent lines can be up to 90 characters.");

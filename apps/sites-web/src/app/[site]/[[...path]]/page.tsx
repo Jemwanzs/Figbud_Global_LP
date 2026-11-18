@@ -402,6 +402,7 @@ export default async function SitePage({ params }: PageProps<"/[site]/[[...path]
         {path === "" && <CampaignSlot placement="home_hero" className="mb-block block" />}
         <PageBlocks
           document={blocks}
+          locale={locale}
           resolveHref={hrefResolver(site, ownDomain, pages, locale)}
           mark={
             KNOWN_PRODUCTS.includes(site.slug) ? (

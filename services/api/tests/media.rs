@@ -226,6 +226,59 @@ async fn media_library_uploads_usage_and_public_delivery() {
     .await;
     assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY, "{body}");
 
+    // Hero screenshots (18 Nov 2026): views use library images, checked the
+    // same way; a hero can't have both the animated visual and screenshots.
+    let hero = |image: serde_json::Value, visual: bool| {
+        let mut hero = json!({
+            "id": "hero", "type": "hero", "heading": "One connected platform.",
+            "showcase": {
+                "title": "ZiraHR Workspace",
+                "caption": "Illustrative product preview",
+                "rotate": true,
+                "interval": 8,
+                "views": [
+                    { "label": "HR Overview", "title": "People Intelligence", "body": "Your workforce at a glance.", "image_id": image },
+                    { "label": "Finance Overview", "title": "Payroll Intelligence", "image_id": image },
+                ],
+                "indicators": [{ "title": "Workforce analytics", "body": "Trends, leave and attendance" }],
+            },
+        });
+        if visual {
+            hero["visual"] = json!("connected_modules");
+        }
+        json!({ "sections": [
+            { "id": "img", "type": "image", "image_id": image_id, "caption": "Credit committee, Nairobi", "size": "wide" },
+            hero,
+        ] })
+    };
+    for (document, why) in [
+        (hero(json!(Uuid::now_v7()), false), "an unknown screenshot"),
+        (hero(json!(image_id), true), "both the visual and screenshots"),
+    ] {
+        let (status, body) = call(
+            &app,
+            "POST",
+            &format!("/v1/admin/pages/{page_id}/draft"),
+            Some(&editor),
+            Some(json!({ "title": "Our team", "path": path, "document": document, "version": saved["draft_version"] })),
+        )
+        .await;
+        assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY, "{why}: {body}");
+    }
+    let (status, saved) = call(
+        &app,
+        "POST",
+        &format!("/v1/admin/pages/{page_id}/draft"),
+        Some(&editor),
+        Some(json!({ "title": "Our team", "path": path, "document": hero(json!(image_id), false), "version": saved["draft_version"] })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{saved}");
+    assert_eq!(
+        saved["preview"]["sections"][1]["showcase"]["views"][0]["media"]["alt"],
+        "A credit team reviewing a loan application"
+    );
+
     // Usage is tracked, and an image in use can't be archived.
     let (_, list) = call(&app, "GET", "/v1/admin/sites/ziwa/media", Some(&viewer), None).await;
     let item = list["items"]
@@ -268,6 +321,11 @@ async fn media_library_uploads_usage_and_public_delivery() {
         "A credit team reviewing a loan application"
     );
     assert_eq!(public["sections"][0]["caption"], "Credit committee, Nairobi");
+    // The hero's screenshots carry their image details too.
+    let views = &public["sections"][1]["showcase"]["views"];
+    assert_eq!(views.as_array().unwrap().len(), 2);
+    assert_eq!(views[1]["media"]["widths"], json!([480, 960, 1440, 1920]));
+    assert_eq!(public["sections"][1]["showcase"]["interval"], 8);
     let req = Request::get(format!("/v1/media/{image_id}?w=480"))
         .body(Body::empty())
         .unwrap();

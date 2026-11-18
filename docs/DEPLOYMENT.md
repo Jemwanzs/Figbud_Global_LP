@@ -28,6 +28,10 @@ Guidelines:
 - Migrations are forward-only and additive. To change a column, add the new one, backfill, deploy, then remove the old one in a later release.
 - Never edit a migration that has run in any shared environment; add a new file.
 - Take a manual Railway backup before a release that contains a destructive migration.
+- In SQL, parenthesise JSON before subtracting keys: `(settings->'theme') - 'field'`. Without the brackets `-` binds first (`settings -> ('theme' - 'field')`) and Postgres refuses the statement (the 13–18 Nov 2026 outage below).
+- A migration that fails on an existing database fails the API's tests too: the test helper (`tests/common::database`) panics instead of skipping when `TEST_DATABASE_URL` is set.
+
+**Incident, 13–18 Nov 2026 (P6-17).** Every `figbud-api` deployment from 5fc5cd2 to eba6700 (seven) built, then exited at start: migration 40 (`section_bands_in_theme`) failed with "operator is not unique: unknown - unknown" (operator precedence, above), so the health check failed and Railway kept the deployment from before 13 Nov serving. The websites deployed meanwhile and ran against that older API. CI stayed green because the test helper turned a migration failure into skipped tests. Fixed in fbe05e4 (migration corrected in place: it had never applied anywhere; the helper now fails loudly); deployed 18 Nov 09:45 UTC, migrations 40–42 applied, `/health/ready` 200. Railway deploys whatever reaches `main` ("Wait for CI" is off), so check the service's deployments after each push, not only CI.
 
 **Brand seeding.** After migrations, the API gives every website without a brand profile its first profile from the files in `services/api/seed/brand/` (embedded in the binary). The official logos are published and proposed variants go into the draft. Websites that already have a profile are never touched, so changes made in Admin → Branding are never overwritten. A seeding failure is logged and never stops the API. Brand files are stored in PostgreSQL (`brand_assets`) and so are covered by the database backups. See [BRAND_ASSETS.md](BRAND_ASSETS.md).
 
@@ -164,6 +168,17 @@ railway postgres pitr backup restore <backup-id> --service Postgres
 - **Logs:** the API logs structured JSON in production (`railway logs --service figbud-api`); every request has an `x-request-id`.
 - **Health checks:** Railway restarts a service whose health check fails (`/health/ready` for the API, `/en` for the website).
 - **Not yet:** error tracking and real-user Core Web Vitals need a provider choice (Q14).
+
+## Railway services (audit, 18 Nov 2026)
+
+| Service | Builds from | Rebuilds when | Health check | Status |
+| --- | --- | --- | --- | --- |
+| `figbud-api` | `services/api` (Railpack, Rust) | `/services/api/**` changes | `/health/ready` (60 s) | Deployed fbe05e4, healthy |
+| `figbud-sites` | repo root, `sites-web` workspace | its app, `/packages/**`, lock files | `/zirahr` (120 s) | Deployed eba6700, healthy |
+| `figbud-web` | repo root, `figbud-web` workspace | its app, `/packages/**`, lock files | `/en` (120 s) | Deployed 6ff21cb, healthy |
+| `Postgres` | Railway image, 50 GB volume | — | — | Healthy, daily/weekly/monthly backups |
+
+Each service rebuilds only for its own files (website-only commits show as *Skipped* on the API, and API-only commits on the websites). Failed deployments stay in the history for reference; they are never redeployed to tidy it. **Recommended, the owner's decision:** turn on *Wait for CI* (GitHub check suites) for the three app services, so a commit whose CI fails is never deployed.
 
 ## Rollback
 

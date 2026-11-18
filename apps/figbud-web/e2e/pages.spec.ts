@@ -460,3 +460,34 @@ test("translations: written beside the English, reviewed, published per language
   await answer(page, "Unpublish");
   await expect(page.getByRole("status")).toContainText("Unpublished");
 });
+
+test("a hero's product screenshots are edited in the page builder, with a live preview (18 Nov 2026)", async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop", "edited from the desktop project");
+  await signInAsOwner(page);
+  await page.goto("/admin/sites/zirahr/pages");
+  await page.getByRole("link", { name: "Workspace", exact: true }).first().click();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Workspace");
+  await page.getByRole("list", { name: "Sections" }).getByRole("button", { name: /^Hero/ }).click();
+  await expect(page.getByLabel("Visual")).toHaveValue("showcase");
+  const fields = page.locator("[data-showcase-fields]");
+  await expect(fields.locator("[data-showcase-view]")).toHaveCount(2);
+  await expect(fields.getByLabel("Tab name").first()).toHaveValue("HR Overview");
+  await expect(fields.getByLabel("Move to the next view by itself")).toBeChecked();
+  // An edit shows in the preview at once.
+  await fields.getByLabel("Tab name").first().fill("People");
+  await expect(
+    page.locator("[data-showcase]").getByRole("tab", { name: "People", exact: true }).first(),
+  ).toBeVisible();
+  // Up to four views; each can move or go (one always stays).
+  await fields.getByRole("button", { name: "Add a view" }).click();
+  await fields.getByRole("button", { name: "Add a view" }).click();
+  await expect(fields.locator("[data-showcase-view]")).toHaveCount(4);
+  await expect(fields.getByRole("button", { name: "Add a view" })).toBeDisabled();
+  await fields.getByRole("button", { name: "Remove view 4" }).click();
+  await fields.getByRole("button", { name: "Remove view 3" }).click();
+  // Back to the words only: the screenshots go.
+  await page.getByLabel("Visual").selectOption("");
+  await expect(fields).toHaveCount(0);
+});

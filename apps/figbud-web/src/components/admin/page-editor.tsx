@@ -57,6 +57,7 @@ import {
   copySection,
   newSection,
 } from "./page-types";
+import { ShowcaseFields, newShowcase } from "./showcase-fields";
 
 type Draft = { title: string; path: string; document: PageDocument };
 type SaveState = "saved" | "unsaved" | "saving" | "invalid" | "conflict" | "error";
@@ -673,20 +674,43 @@ export function BlockForm({
           <label className="block text-sm font-medium text-text">
             Visual
             <select
-              value={section.visual ?? ""}
+              value={section.showcase ? "showcase" : (section.visual ?? "")}
               disabled={p.disabled}
               onChange={(e) =>
                 onChange({
                   ...section,
-                  visual: e.target.value ? (e.target.value as "connected_modules") : null,
+                  visual: e.target.value === "connected_modules" ? "connected_modules" : null,
+                  // Screenshots replace the animated visual (owner's brief, 18 Nov 2026).
+                  showcase:
+                    e.target.value === "showcase" ? (section.showcase ?? newShowcase(library ?? [])) : null,
                 })
               }
               className="mt-1.5 min-h-11 w-full rounded-xl border border-line-strong bg-surface px-3 text-text"
             >
               <option value="">None: words only</option>
               <option value="connected_modules">Connected modules, lit by a signal line (animated)</option>
+              <option value="showcase" disabled={!library?.length && !section.showcase}>
+                Product screenshots in a browser frame, with tabs
+              </option>
             </select>
           </label>
+          {library !== null && !library.length && !section.showcase && (
+            <p className="-mt-1 text-xs text-subtle">
+              Product screenshots come from the media library:{" "}
+              <Link href={`/admin/sites/${slug}/media`} className="text-accent underline underline-offset-2">
+                upload them in Media
+              </Link>{" "}
+              first.
+            </p>
+          )}
+          {section.showcase && (
+            <ShowcaseFields
+              value={section.showcase}
+              library={library ?? []}
+              disabled={p.disabled}
+              onChange={(showcase) => onChange({ ...section, showcase })}
+            />
+          )}
           {section.visual === "connected_modules" && (
             <>
               <HeroModules
@@ -1493,6 +1517,34 @@ export function PageEditor({ slug, user, initial }: { slug: string; user: AdminU
                   widths: [],
                 }
               : null),
+        };
+      }
+      if (section.type === "hero" && section.showcase) {
+        // Each screenshot's file details: the saved preview's, or the library's while a new choice saves.
+        const saved = server?.type === "hero" ? server.showcase?.views : undefined;
+        return {
+          ...section,
+          showcase: {
+            ...section.showcase,
+            views: section.showcase.views.map((view) => {
+              const item = library?.find((m) => m.id === view.image_id);
+              return {
+                ...view,
+                media:
+                  saved?.find((v) => v.image_id === view.image_id)?.media ??
+                  (item
+                    ? {
+                        id: item.id,
+                        alt: item.alt_text,
+                        width: item.width,
+                        height: item.height,
+                        content_type: item.content_type,
+                        widths: [],
+                      }
+                    : null),
+              };
+            }),
+          },
         };
       }
       if (section.type === "text" && server?.type === "text" && server.body === section.body) {

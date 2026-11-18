@@ -24,3 +24,6 @@ draft_designs/
 
 # Lighthouse CI output
 .lighthouseci
+
+# Source product screenshots (may contain customer data; only masked, approved exports are published)
+scripts/zirahr_shots/

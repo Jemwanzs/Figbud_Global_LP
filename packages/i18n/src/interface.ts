@@ -18,6 +18,8 @@ export const interfaceCopy: Record<
     skipToContent: string;
     theme: { toLight: string; toDark: string };
     language: { label: string; inReview: string };
+    /** A product showcase's controls (owner's brief, 18 Nov 2026). */
+    showcase: { views: string; preview: string; close: string; fit: string; actual: string };
     /** The button that opens a menu entry's submenu ("{label}": the entry). */
     submenu: string;
     /** The Platform submenu: each entry's name and a short description. */
@@ -29,6 +31,13 @@ export const interfaceCopy: Record<
     theme: { toLight: "Switch to light theme", toDark: "Switch to dark theme" },
     language: { label: "Language", inReview: "In review" },
     submenu: "More in {label}",
+    showcase: {
+      views: "Product views",
+      preview: "View dashboard preview",
+      close: "Close preview",
+      fit: "Fit to screen",
+      actual: "Actual size",
+    },
     platformMenu: {
       overview: { label: "Platform overview", hint: "How everything connects" },
       modules: { label: "Features & modules", hint: "Every module and what it does" },
@@ -42,6 +51,13 @@ export const interfaceCopy: Record<
     theme: { toLight: "Badili kwenda mandhari angavu", toDark: "Badili kwenda mandhari meusi" },
     language: { label: "Lugha", inReview: "Inakaguliwa" },
     submenu: "Zaidi katika {label}",
+    showcase: {
+      views: "Mionekano ya bidhaa",
+      preview: "Tazama dashibodi kwa ukubwa",
+      close: "Funga",
+      fit: "Toshea skrini",
+      actual: "Ukubwa halisi",
+    },
     platformMenu: {
       overview: { label: "Muhtasari wa jukwaa", hint: "Jinsi kila kitu kinavyounganishwa" },
       modules: { label: "Vipengele na moduli", hint: "Kila moduli na kazi yake" },
@@ -55,6 +71,13 @@ export const interfaceCopy: Record<
     theme: { toLight: "Passer au thème clair", toDark: "Passer au thème sombre" },
     language: { label: "Langue", inReview: "En relecture" },
     submenu: "Plus dans {label}",
+    showcase: {
+      views: "Vues du produit",
+      preview: "Voir le tableau de bord en grand",
+      close: "Fermer l’aperçu",
+      fit: "Ajuster à l’écran",
+      actual: "Taille réelle",
+    },
     platformMenu: {
       overview: { label: "Présentation de la plateforme", hint: "Comment tout est relié" },
       modules: { label: "Fonctionnalités et modules", hint: "Chaque module et son rôle" },
@@ -68,6 +91,13 @@ export const interfaceCopy: Record<
     theme: { toLight: "التبديل إلى السمة الفاتحة", toDark: "التبديل إلى السمة الداكنة" },
     language: { label: "اللغة", inReview: "قيد المراجعة" },
     submenu: "المزيد في {label}",
+    showcase: {
+      views: "عروض المنتج",
+      preview: "عرض لوحة المعلومات بحجم أكبر",
+      close: "إغلاق المعاينة",
+      fit: "ملاءمة الشاشة",
+      actual: "الحجم الفعلي",
+    },
     platformMenu: {
       overview: { label: "نظرة عامة على المنصة", hint: "كيف يترابط كل شيء" },
       modules: { label: "الميزات والوحدات", hint: "كل وحدة ووظيفتها" },
@@ -81,6 +111,13 @@ export const interfaceCopy: Record<
     theme: { toLight: "切换到浅色主题", toDark: "切换到深色主题" },
     language: { label: "语言", inReview: "审校中" },
     submenu: "{label}：更多内容",
+    showcase: {
+      views: "产品视图",
+      preview: "查看大图",
+      close: "关闭预览",
+      fit: "适应屏幕",
+      actual: "实际大小",
+    },
     platformMenu: {
       overview: { label: "平台概览", hint: "一切如何连接" },
       modules: { label: "功能与模块", hint: "每个模块及其作用" },

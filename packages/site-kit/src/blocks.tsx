@@ -14,6 +14,7 @@ import {
   LazyReferralForm,
 } from "./lazy-blocks";
 import { NumberedStory } from "./numbered-story";
+import { ProductShowcase, type Showcase } from "./product-showcase";
 
 /** The website's own mark, for demonstrations that show it (the scroll story's hub). */
 export type BrandMark = ReactNode;
@@ -135,6 +136,8 @@ export type PageSection = Base &
         ess?: { heading: string; body: string } | null;
         /** Hover messages changed in the Studio, by module key; the approved copy otherwise. */
         messages?: Partial<Record<string, string>>;
+        /** Product screenshots beside the words (18 Nov 2026); replaces the visual. */
+        showcase?: Showcase | null;
       }
     | { type: "text"; heading?: string | null; body?: string; body_html?: string }
     | {
@@ -296,10 +299,13 @@ function Heading({
   children,
   level = 2,
   accent = level === 2,
+  className,
 }: {
   children: ReactNode;
   level?: 1 | 2;
   accent?: boolean;
+  /** Replaces the size (a hero beside screenshots uses a smaller headline). */
+  className?: string;
 }) {
   const Tag = level === 1 ? "h1" : "h2";
   return (
@@ -308,7 +314,7 @@ function Heading({
       <Tag
         className={cn(
           "font-display font-semibold tracking-tight text-text",
-          level === 1 ? "text-display" : "text-title",
+          className ?? (level === 1 ? "text-display" : "text-title"),
         )}
       >
         {children}
@@ -326,6 +332,7 @@ function Block({
   mediaBase,
   enquiry,
   mark,
+  locale,
 }: {
   section: PageSection;
   mode: Mode;
@@ -336,24 +343,37 @@ function Block({
   mediaBase?: string;
   enquiry?: EnquiryContext;
   mark?: BrandMark;
+  locale?: string;
 }) {
   switch (section.type) {
     case "hero": {
       const highlights = (section.highlights ?? []).map((h) => h.trim()).filter(Boolean);
+      const showcase = section.showcase?.views.length ? section.showcase : null;
       const words = (
-        <div className={section.visual ? "min-w-0" : "max-w-3xl"}>
+        <div className={section.visual || showcase ? "min-w-0" : "max-w-3xl"}>
           {section.eyebrow && (
             <p className="text-sm font-medium tracking-[0.14em] text-product-text uppercase">
               {section.eyebrow}
             </p>
           )}
           <div className="mt-4">
-            <Heading level={top} accent={false}>
+            <Heading
+              level={top}
+              accent={false}
+              // Beside screenshots the product leads: 30–52 px rather than the page display size.
+              className={
+                showcase
+                  ? "text-[clamp(1.875rem,1.15rem+2.4vw,3.25rem)] leading-[1.08] tracking-[-0.02em]"
+                  : undefined
+              }
+            >
               {section.heading}
               {section.accent && <span className="block text-product-text">{section.accent}</span>}
             </Heading>
           </div>
-          {section.lead && <p className="mt-6 text-lead text-muted">{section.lead}</p>}
+          {section.lead && (
+            <p className={cn("mt-6 text-lead text-muted", showcase && "max-w-xl")}>{section.lead}</p>
+          )}
           {(section.primary || section.secondary) && (
             <div className="mt-9 flex flex-col gap-3 @lg:flex-row">
               {section.primary && <Action cta={section.primary} mode={mode} resolve={resolve} primary />}
@@ -375,6 +395,19 @@ function Block({
           )}
         </div>
       );
+      if (showcase)
+        return (
+          <>
+            {/* Words beside the product: about 40/60 on wide screens, stacked below (owner's brief, 18 Nov 2026). */}
+            <div data-hero-showcase="" className="grid items-center gap-10 @5xl:grid-cols-12 @5xl:gap-12">
+              <div className="@5xl:col-span-5">{words}</div>
+              <div className="@container min-w-0 @5xl:col-span-7">
+                <ProductShowcase showcase={showcase} locale={locale} mediaBase={mediaBase} eager={first} />
+              </div>
+            </div>
+            {section.ess && <SelfServiceHighlight {...section.ess} />}
+          </>
+        );
       if (!section.visual) return words;
       return (
         <>
@@ -685,6 +718,7 @@ export function PageBlocks({
   mediaBase,
   enquiry,
   mark,
+  locale,
 }: {
   document: PageDocument;
   mode?: Mode;
@@ -699,6 +733,8 @@ export function PageBlocks({
   enquiry?: EnquiryContext;
   /** The website's official mark, drawn from its brand. */
   mark?: BrandMark;
+  /** The page's language, for built-in controls such as a showcase's (English by default). */
+  locale?: string;
 }) {
   // Automatic alternation, from the sections visitors see (hidden ones never count).
   const shown = document.sections.filter((section) => !section.hidden);
@@ -749,6 +785,7 @@ export function PageBlocks({
                   mediaBase={mediaBase}
                   enquiry={enquiry}
                   mark={mark}
+                  locale={locale}
                 />
               </div>
             ) : (
@@ -761,6 +798,7 @@ export function PageBlocks({
                 mediaBase={mediaBase}
                 enquiry={enquiry}
                 mark={mark}
+                locale={locale}
               />
             )}
           </section>

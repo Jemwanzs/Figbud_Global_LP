@@ -10,6 +10,7 @@ export * from "./nav-preview";
 export type { DemoKind, ModuleItem } from "./product-demos";
 export type { StoryMotion } from "./scroll-story";
 export * from "./blocks";
+export * from "./product-showcase";
 export * from "./brand-logo";
 export * from "./campaigns";
 export * from "./consent";

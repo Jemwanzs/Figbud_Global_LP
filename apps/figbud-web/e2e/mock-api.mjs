@@ -1318,7 +1318,12 @@ function storeMedia(slug, data, type, label, alt, by) {
   return [201, asset];
 }
 
-const sectionImages = (doc) => (doc?.sections ?? []).filter((s) => s.type === "image").map((s) => s.image_id);
+// Image sections and hero screenshots (media.rs image_ids).
+const sectionImages = (doc) =>
+  (doc?.sections ?? []).flatMap((s) => [
+    ...(s.type === "image" ? [s.image_id] : []),
+    ...(s.showcase?.views ?? []).map((v) => v.image_id),
+  ]);
 const mediaUsage = (asset) =>
   [...pages.values()]
     .filter((p) => p.site?.slug === asset.site && !p.archived_at)
@@ -1542,6 +1547,21 @@ function validateDoc(doc) {
       problems.push("Choose shared content from the library (archived content can't be used).");
     if (s.type === "image" && (!mediaAssets.get(s.image_id) || mediaAssets.get(s.image_id).archived_at))
       problems.push("Choose images from this website's media library (archived images can't be used).");
+    // Hero screenshots (blocks.rs Showcase).
+    if (s.type === "hero" && s.showcase) {
+      const sc = s.showcase;
+      if (s.visual) problems.push("A hero shows either the animated visual or the screenshots, not both.");
+      if (!sc.views?.length || sc.views.length > 4) problems.push("The screenshots need one to four views.");
+      for (const v of sc.views ?? []) {
+        if (!String(v.label ?? "").trim() || v.label.length > 24)
+          problems.push("Each tab name needs 1–24 characters.");
+        if (!String(v.title ?? "").trim() || v.title.length > 60)
+          problems.push("Each view's title needs 1–60 characters.");
+        if (!mediaAssets.get(v.image_id) || mediaAssets.get(v.image_id).archived_at)
+          problems.push("Choose images from this website's media library (archived images can't be used).");
+      }
+      if ((sc.indicators ?? []).length > 3) problems.push("Up to three floating notes.");
+    }
     if (s.type === "stats" && !String(s.source ?? "").trim())
       problems.push(
         "Say where the figures come from (1–200 characters): only verified figures are published.",
@@ -1583,6 +1603,19 @@ const renderDoc = (doc, includeHidden = true) => ({
     .filter((s) => includeHidden || s.type !== "shared")
     .map((s) => (s.type === "image" ? { ...s, media: mediaInfo(mediaAssets.get(s.image_id)) } : s))
     .filter((s) => includeHidden || s.type !== "image" || s.media)
+    // Hero screenshots: each view's file details; on websites, views without one are left out.
+    .map((s) => {
+      if (s.type !== "hero" || !s.showcase) return s;
+      const views = s.showcase.views
+        .map((v) => ({ ...v, media: mediaInfo(mediaAssets.get(v.image_id)) }))
+        .filter((v) => includeHidden || v.media);
+      if (!views.length && !includeHidden) {
+        const { showcase, ...rest } = s;
+        void showcase;
+        return rest;
+      }
+      return { ...s, showcase: { ...s.showcase, views } };
+    })
     .map((s) =>
       s.type === "text"
         ? { ...s, body_html: md(s.body) }
@@ -1601,7 +1634,7 @@ const BUDGETS = [
 ];
 const pageBudget = (doc) => {
   const shown = renderDoc(doc, false).sections;
-  const images = [...new Set(shown.filter((s) => s.type === "image").map((s) => s.image_id))].map(
+  const images = [...new Set(sectionImages({ sections: shown }))].map(
     (id) => mediaAssets.get(id)?.byte_size ?? 0,
   );
   const text = shown
@@ -2095,6 +2128,73 @@ seedPublishedPage(
   { offline: true },
 );
 // ZiraHR's home page, as the API imports it from the ZiraHR website (pages/import.rs).
+// A hero with product screenshots (owner's brief, 18 Nov 2026), on a page of its own so the
+// Platform page's tests keep its animated hero. Synthetic images, never customer data.
+const [, zirahrShotA] = storeMedia(
+  "zirahr",
+  readFileSync(new URL("zirahr-app-icon-official.png", SEED_DIR)),
+  "image/png",
+  "Synthetic HR dashboard (test)",
+  "An HR dashboard with workforce, leave and headcount charts (synthetic test image)",
+  "Seed",
+);
+const [, zirahrShotB] = storeMedia(
+  "zirahr",
+  readFileSync(new URL("zirahr-favicon-official.png", SEED_DIR)),
+  "image/png",
+  "Synthetic finance dashboard (test)",
+  "A finance dashboard with payroll costs by department (synthetic test image)",
+  "Seed",
+);
+seedPublishedPage(
+  "zirahr",
+  "workspace",
+  "Workspace",
+  {
+    sections: [
+      {
+        id: "zw-hero",
+        type: "hero",
+        eyebrow: "The ZiraHR platform",
+        heading: "Your people. Your payroll. One connected platform.",
+        lead: "From workforce management to payroll intelligence, in one smarter workspace.",
+        primary: { label: "Book a demo", href: "/contact" },
+        secondary: { label: "Explore the platform", href: "/platform" },
+        highlights: [
+          "One connected workforce",
+          "Smarter payroll visibility",
+          "Insights that drive decisions",
+        ],
+        showcase: {
+          title: "ZiraHR Workspace",
+          caption: "Illustrative product preview",
+          rotate: true,
+          interval: 5,
+          preview: true,
+          views: [
+            {
+              label: "HR Overview",
+              title: "People Intelligence",
+              body: "Understand your workforce at a glance.",
+              image_id: zirahrShotA.id,
+            },
+            {
+              label: "Finance Overview",
+              title: "Payroll Intelligence",
+              body: "Turn payroll data into clearer financial decisions.",
+              image_id: zirahrShotB.id,
+            },
+          ],
+          indicators: [
+            { title: "Workforce analytics", body: "Employee trends, leave and attendance" },
+            { title: "Payroll intelligence", body: "Cost visibility and statutory reporting" },
+          ],
+        },
+      },
+    ],
+  },
+  { show_in_nav: false },
+);
 seedPublishedPage("zirahr", "platform", "Platform", {
   seo_title: "The ZiraHR platform",
   sections: [

@@ -53,14 +53,18 @@ pub fn upload_router() -> Router<SharedState> {
 
 // ----------------------------------------------------------------- pages
 
-/// The image ids a document's Image blocks use.
+/// The image ids a document uses: Image blocks and hero screenshots.
 pub fn image_ids(doc: &PageDoc) -> Vec<Uuid> {
     let mut ids: Vec<Uuid> = doc
         .sections
         .iter()
-        .filter_map(|s| match &s.block {
-            Block::Image { image_id, .. } => Some(*image_id),
-            _ => None,
+        .flat_map(|s| match &s.block {
+            Block::Image { image_id, .. } => vec![*image_id],
+            Block::Hero {
+                showcase: Some(showcase),
+                ..
+            } => showcase.views.iter().map(|v| v.image_id).collect(),
+            _ => Vec::new(),
         })
         .chain(doc.seo_image_id)
         .collect();
@@ -108,10 +112,22 @@ pub async fn attach(
     let Some(sections) = rendered["sections"].as_array_mut() else {
         return Ok(());
     };
+    let view_ids = |s: &Value| -> Vec<Uuid> {
+        s["showcase"]["views"]
+            .as_array()
+            .map(|views| {
+                views
+                    .iter()
+                    .filter_map(|v| v["image_id"].as_str().and_then(|id| Uuid::parse_str(id).ok()))
+                    .collect()
+            })
+            .unwrap_or_default()
+    };
     let ids: Vec<Uuid> = sections
         .iter()
         .filter(|s| s["type"] == "image")
         .filter_map(|s| s["image_id"].as_str().and_then(|id| Uuid::parse_str(id).ok()))
+        .chain(sections.iter().filter(|s| s["type"] == "hero").flat_map(view_ids))
         .chain(seo_image)
         .collect();
     if ids.is_empty() {
@@ -147,6 +163,29 @@ pub async fn attach(
             .find(|r| Some(r.id) == id)
             .and_then(|r| serde_json::to_value(r).ok())
             .unwrap_or(Value::Null);
+    }
+    // Hero screenshots: each view's file details; on websites, a view whose
+    // image is missing or archived is left out (and the showcase with it when none is left).
+    for section in sections.iter_mut().filter(|s| s["type"] == "hero") {
+        let Some(views) = section["showcase"]["views"].as_array_mut() else {
+            continue;
+        };
+        for view in views.iter_mut() {
+            let id = view["image_id"].as_str().and_then(|id| Uuid::parse_str(id).ok());
+            view["media"] = rows
+                .iter()
+                .find(|r| Some(r.id) == id)
+                .and_then(|r| serde_json::to_value(r).ok())
+                .unwrap_or(Value::Null);
+        }
+        if public {
+            views.retain(|v| !v["media"].is_null());
+            if views.is_empty()
+                && let Some(hero) = section.as_object_mut()
+            {
+                hero.remove("showcase");
+            }
+        }
     }
     if public {
         sections.retain(|s| s["type"] != "image" || !s["media"].is_null());
@@ -220,7 +259,7 @@ async fn public_media(
              WHERE m.id = $1 AND m.archived_at IS NULL
                AND p.archived_at IS NULL AND NOT p.offline AND p.published IS NOT NULL
                AND s.archived_at IS NULL AND s.status IN ('coming_soon', 'beta', 'active')
-               AND (jsonb_path_exists(p.published, '$.sections[*] ? (@.image_id == $id)', jsonb_build_object('id', $1::text))
+               AND (jsonb_path_exists(p.published, '$.sections[*].** ? (@.image_id == $id)', jsonb_build_object('id', $1::text))
                     OR p.published->>'seo_image_id' = $1::text))
          -- Logos and photos of published Trusted By organisations and testimonials (P10).
          OR EXISTS (SELECT 1 FROM proof_items pi JOIN media_assets m ON m.id = $1 AND m.archived_at IS NULL
@@ -291,10 +330,10 @@ async fn usage(
     sqlx::query_as(
         "SELECT DISTINCT u.image_id, p.id, p.title, p.path, u.state
            FROM pages p,
-                LATERAL (SELECT jsonb_path_query(p.draft, '$.sections[*].image_id') #>> '{}' AS image_id,
+                LATERAL (SELECT jsonb_path_query(p.draft, '$.sections[*].**.image_id') #>> '{}' AS image_id,
                                 'draft'::text AS state
                          UNION ALL
-                         SELECT jsonb_path_query(p.published, '$.sections[*].image_id') #>> '{}', 'published'
+                         SELECT jsonb_path_query(p.published, '$.sections[*].**.image_id') #>> '{}', 'published'
                          UNION ALL
                          SELECT p.draft->>'seo_image_id', 'draft' WHERE p.draft ? 'seo_image_id'
                          UNION ALL
