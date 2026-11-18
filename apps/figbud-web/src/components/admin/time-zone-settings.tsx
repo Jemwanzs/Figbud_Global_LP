@@ -77,7 +77,10 @@ export function TimeZoneSettings({ zones, isOwner }: { zones: Zones; isOwner: bo
               </option>
             ))}
           </select>
-          <p suppressHydrationWarning className="mt-1.5 text-xs text-subtle">{`Now: ${example(organisation)}`}</p>
+          <p
+            suppressHydrationWarning
+            className="mt-1.5 text-xs text-subtle"
+          >{`Now: ${example(organisation)}`}</p>
           {isOwner ? (
             <div className="mt-3">
               <ActionButton
@@ -111,7 +114,10 @@ export function TimeZoneSettings({ zones, isOwner }: { zones: Zones; isOwner: bo
               </option>
             ))}
           </select>
-          <p suppressHydrationWarning className="mt-1.5 text-xs text-subtle">{`Now: ${example(own || saved.organisation)}`}</p>
+          <p
+            suppressHydrationWarning
+            className="mt-1.5 text-xs text-subtle"
+          >{`Now: ${example(own || saved.organisation)}`}</p>
           <div className="mt-3">
             <ActionButton
               variant="secondary"
