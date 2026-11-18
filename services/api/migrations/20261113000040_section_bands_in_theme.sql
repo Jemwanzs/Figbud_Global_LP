@@ -43,10 +43,10 @@ UPDATE sites
 UPDATE sites
    SET settings = settings
            || CASE WHEN jsonb_typeof(settings->'theme') = 'object'
-                   THEN jsonb_build_object('theme', settings->'theme' - 'brand_section' - 'soft_section')
+                   THEN jsonb_build_object('theme', (settings->'theme') - 'brand_section' - 'soft_section')
                    ELSE '{}'::jsonb END
            || CASE WHEN jsonb_typeof(settings->'theme_draft') = 'object'
-                   THEN jsonb_build_object('theme_draft', settings->'theme_draft' - 'brand_section' - 'soft_section')
+                   THEN jsonb_build_object('theme_draft', (settings->'theme_draft') - 'brand_section' - 'soft_section')
                    ELSE '{}'::jsonb END,
        settings_version = settings_version + 1
  WHERE slug = 'zirahr'

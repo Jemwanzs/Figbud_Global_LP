@@ -67,9 +67,20 @@ pub async fn json_body(response: axum::response::Response) -> Value {
 }
 
 /// The test database (migrated), or `None` when `TEST_DATABASE_URL` is unset.
+/// The test database, migrated; `None` only when `TEST_DATABASE_URL` isn't set.
+/// With it set, a connection or migration failure fails the test loudly
+/// (18 Nov 2026: a broken migration made every database test return early
+/// and count as passed, so CI stayed green while production couldn't start).
 pub async fn database() -> Option<sqlx::PgPool> {
     let url = std::env::var("TEST_DATABASE_URL").ok()?;
-    let pool = PgPoolOptions::new().max_connections(4).connect(&url).await.ok()?;
-    sqlx::migrate!("./migrations").run(&pool).await.ok()?;
+    let pool = PgPoolOptions::new()
+        .max_connections(4)
+        .connect(&url)
+        .await
+        .expect("TEST_DATABASE_URL is set but the database can't be reached");
+    sqlx::migrate!("./migrations")
+        .run(&pool)
+        .await
+        .expect("the migrations must apply to the test database");
     Some(pool)
 }
