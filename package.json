@@ -32,8 +32,8 @@
     "dev:zirahr": "npm run dev -w zirahr-web"
   },
   "devDependencies": {
-    "marked": "^18.1.1",
-    "prettier": "^3.9.10",
+    "marked": "^18.2.0",
+    "prettier": "^3.10.1",
     "prettier-plugin-tailwindcss": "^0.8.1"
   }
 }
