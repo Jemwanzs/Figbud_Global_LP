@@ -243,6 +243,8 @@ test("Studio: Our Platforms controls, saved with the website's settings", async 
   await expect(page.getByRole("status").filter({ hasText: "Saved." })).toBeVisible();
   expect((await listed()).intensity).toBe("standard");
 
+  // Saving refreshes the page, head included: scan once it has settled (CI caught it mid-refresh).
+  await expect(page).toHaveTitle(/Our Platforms/);
   const results = await new AxeBuilder({ page: await themeSettled(page) })
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
     .analyze();
