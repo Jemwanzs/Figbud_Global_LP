@@ -123,7 +123,8 @@ pub async fn assess(pool: &PgPool, site_id: Uuid, rendered: &Value) -> Result<Bu
         .flat_map(|s| {
             let views = s["showcase"]["views"].as_array().cloned().unwrap_or_default();
             let own = (s["type"] == "image").then(|| s["image_id"].clone());
-            own.into_iter().chain(views.into_iter().map(|v| v["image_id"].clone()))
+            own.into_iter()
+                .chain(views.into_iter().map(|v| v["image_id"].clone()))
         })
         .filter_map(|id| id.as_str().and_then(|id| Uuid::parse_str(id).ok()))
         .collect::<HashSet<_>>()

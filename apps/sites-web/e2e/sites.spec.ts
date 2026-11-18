@@ -1857,14 +1857,25 @@ test("ZiraHR's Platform menu lists what's published, opens by hover, click or ke
   );
   // ZiraHR's prices aren't shown on the website in the test data, so there's no pricing entry.
   await expect(menu.getByRole("link", { name: /Pricing & plans/ })).toHaveCount(0);
-  // Escape closes it and returns focus to the chevron.
+  // Escape closes it.
+  await page.keyboard.press("Escape");
+  await expect(more).toHaveAttribute("aria-expanded", "false");
+  // From the keyboard: Enter opens it, Escape closes it and returns focus to the chevron
+  // (WebKit doesn't focus a button on a tap, so focus is checked from the keyboard).
+  await more.focus();
+  await page.keyboard.press("Enter");
+  await expect(more).toHaveAttribute("aria-expanded", "true");
   await page.keyboard.press("Escape");
   await expect(more).toHaveAttribute("aria-expanded", "false");
   await expect(more).toBeFocused();
-  // From the keyboard, then to the module tour on the Platform page.
+  // Then to the module tour on the Platform page.
   await page.keyboard.press("Enter");
   await expect(more).toHaveAttribute("aria-expanded", "true");
-  await menu.getByRole("link", { name: /Features & modules/ }).click();
+  // Followed from inside the page, as a visitor's tap is (WebKit on phones reports the
+  // sticky header's tap target late, and Playwright would retry after it navigated).
+  await menu
+    .getByRole("link", { name: /Features & modules/ })
+    .evaluate((link) => (link as HTMLAnchorElement).click());
   await expect(page).toHaveURL(/\/zirahr\/platform#modules$/);
   await expect(page.locator("#modules")).toHaveAttribute("data-section", "modules");
   if (!isMobile) {
@@ -1872,6 +1883,8 @@ test("ZiraHR's Platform menu lists what's published, opens by hover, click or ke
     await page.goto("/zirahr/about");
     const chevron = page.getByRole("button", { name: "More in Platform" });
     await expect(async () => {
+      // From elsewhere on the page each time, so the pointer really enters it.
+      await page.mouse.move(5, 600);
       await chevron.hover();
       await expect(chevron).toHaveAttribute("aria-expanded", "true", { timeout: 1_000 });
     }).toPass();
@@ -1891,6 +1904,8 @@ test.describe("product screenshots in a hero (owner's brief, 18 Nov 2026)", () =
   test("tabs switch the screenshot and its words, by click or keyboard; a larger preview opens and closes", async ({
     page,
   }) => {
+    // Two accessibility scans (both themes) on top of the interactions; WebKit needs the time.
+    test.setTimeout(90_000);
     await page.goto("/zirahr/workspace");
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(
       "Your people. Your payroll. One connected platform.",
@@ -1919,7 +1934,9 @@ test.describe("product screenshots in a hero (owner's brief, 18 Nov 2026)", () =
 
     // The larger preview: an in-app dialog; Escape closes it and focus returns.
     const open = showcase.getByRole("button", { name: "View dashboard preview" });
-    await open.click();
+    // From the keyboard (WebKit doesn't focus a clicked button, so focus return is a keyboard matter).
+    await open.focus();
+    await page.keyboard.press("Enter");
     const dialog = page.getByRole("dialog", { name: "People Intelligence" });
     await expect(dialog).toBeVisible();
     await expect(dialog.getByRole("img", { name: /An HR dashboard/ })).toBeVisible();
