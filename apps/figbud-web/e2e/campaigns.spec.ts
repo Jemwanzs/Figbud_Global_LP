@@ -9,7 +9,8 @@ import { themeSettled } from "./theme-settled";
 // Campaigns & promotions (P8-M1) against e2e/mock-api.mjs. Campaigns target
 // /en/legal/terms only, so other tests never see them.
 
-test.describe.configure({ timeout: 120_000 });
+// One after another: the mock's passkey sign-in handles one registration at a time.
+test.describe.configure({ mode: "serial", timeout: 120_000 });
 
 test.beforeEach(({ browserName }, testInfo) => {
   test.skip(browserName !== "chromium", "virtual authenticators are a Chromium DevTools feature");
@@ -165,4 +166,70 @@ test("spin to win: rules, a reward decided by the API and a code", async ({ page
   // The Studio counts the claim.
   await page.reload();
   await expect(page.getByRole("region", { name: "Results" })).toContainText("Reward claims");
+});
+
+test("announcement bars: rotating announcements take turns; a collapsible one folds and stays folded (18 Nov 2026)", async ({
+  page,
+  browser,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop", "edited from the desktop project");
+  test.setTimeout(120_000);
+  await signInAsOwner(page);
+  const run = randomBytes(2).toString("hex");
+  const make = async (name: string, headline: string, mode: string) => {
+    await create(page, name, "Announcement bar");
+    await page.getByLabel("Headline", { exact: true }).fill(headline);
+    await page.getByLabel("Supporting headline (optional)").fill(`Details for ${headline}`);
+    // Only on the cookie policy page, so no other test sees them; ahead of anything else there.
+    await page.getByRole("combobox", { name: /^Pages/ }).selectOption("custom");
+    await page.getByLabel("Page paths").fill("/legal/cookies");
+    await page.getByLabel("Priority").fill("90");
+    const bar = page.locator("[data-bar-settings]");
+    await bar.getByRole("combobox", { name: "Announcement bar" }).selectOption(mode);
+    await bar.getByLabel("Takes turns with the other rotating announcements").check();
+    await bar.getByLabel("Each shows for (seconds)").fill("30");
+    await submitAndApprove(page);
+  };
+  const first = `Black November offer ${run}`;
+  const second = `Tell us what slows you down ${run}`;
+  await make(`Offer ${run}`, first, "collapsible");
+  await make(`Survey ${run}`, second, "expanded");
+
+  const visitor = await browser.newContext();
+  const site = await visitor.newPage();
+  await site.goto("/en/legal/cookies");
+  const bar = site.locator("[data-campaign]").first();
+  await expect(bar).toBeVisible();
+  // Both take turns: next and previous move between them.
+  const shown = async () => (await bar.getAttribute("aria-label")) ?? "";
+  const start = await shown();
+  expect([first, second]).toContain(start);
+  await bar.getByRole("button", { name: "Next announcement" }).click();
+  await expect.poll(shown).toBe(start === first ? second : first);
+  await expect(bar.getByRole("button", { name: /Pause demonstration/ })).toBeVisible();
+  // The collapsible one folds to one line (its supporting line hidden) and unfolds again.
+  if ((await shown()) !== first) await bar.getByRole("button", { name: "Previous announcement" }).click();
+  await expect.poll(shown).toBe(first);
+  const fold = bar.getByRole("button", { name: "Fold the announcement" });
+  await expect(fold).toHaveAttribute("aria-expanded", "true");
+  await expect(bar.getByText(`Details for ${first}`)).toBeVisible();
+  await fold.click();
+  await expect(bar).toHaveAttribute("data-collapsed", "true");
+  // Folded: the supporting line is out of reach (hidden from assistive technology and the keyboard).
+  await expect(bar.locator("[aria-hidden][inert]").filter({ hasText: `Details for ${first}` })).toHaveCount(
+    1,
+  );
+  // Remembered for that announcement on the next page view.
+  await site.reload();
+  if ((await shown()) !== first) await bar.getByRole("button", { name: "Next announcement" }).click();
+  await expect.poll(shown).toBe(first);
+  await expect(bar).toHaveAttribute("data-collapsed", "true");
+  await bar.getByRole("button", { name: "Show the whole announcement" }).click();
+  await expect(bar.getByText(`Details for ${first}`)).toBeVisible();
+  const results = await new AxeBuilder({ page: await themeSettled(site) })
+    .include("[data-campaign]")
+    .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
+    .analyze();
+  expect(results.violations.map((v) => v.id)).toEqual([]);
+  await visitor.close();
 });

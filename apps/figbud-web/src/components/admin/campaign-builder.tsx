@@ -827,9 +827,67 @@ export function CampaignBuilder({
               Visitors can dismiss it
             </label>
           </div>
+          {/* The announcement bar's presentation (owner's brief, 18 Nov 2026). */}
+          {doc.display.placements.includes("announcement_bar") && (
+            <div data-bar-settings="" className="grid gap-4 rounded-xl border border-line p-4 sm:grid-cols-2">
+              <Choice
+                label="Announcement bar"
+                value={doc.display.bar ?? "expanded"}
+                options={{
+                  expanded: "Expanded: the whole message and both buttons",
+                  compact: "Slim: one line with the first button",
+                  collapsible: "Collapsible: visitors fold and unfold it",
+                  auto_collapse: "Auto-collapse: folds after a few seconds",
+                }}
+                disabled={!editable}
+                onChange={(bar) => display({ bar })}
+              />
+              {doc.display.bar === "auto_collapse" && (
+                <Field label="Folds after (seconds)">
+                  <input
+                    type="number"
+                    min={3}
+                    max={60}
+                    value={doc.display.collapse_after ?? 8}
+                    disabled={!editable}
+                    onChange={(e) => display({ collapse_after: Number(e.target.value) })}
+                    className={inputClass}
+                  />
+                </Field>
+              )}
+              <label className="flex min-h-11 items-end gap-3 pb-2 text-sm text-text">
+                <input
+                  type="checkbox"
+                  checked={Boolean(doc.display.rotate)}
+                  disabled={!editable}
+                  onChange={(e) => display({ rotate: e.target.checked })}
+                  className="size-5 accent-[var(--color-accent)]"
+                />
+                Takes turns with the other rotating announcements
+              </label>
+              {doc.display.rotate && (
+                <Field label="Each shows for (seconds)">
+                  <input
+                    type="number"
+                    min={4}
+                    max={30}
+                    value={doc.display.rotate_every ?? 8}
+                    disabled={!editable}
+                    onChange={(e) => display({ rotate_every: Number(e.target.value) })}
+                    className={inputClass}
+                  />
+                </Field>
+              )}
+              <p className="text-xs text-subtle sm:col-span-2">
+                Rotating announcements share the bar in priority order, with previous, next and pause; they
+                pause while hovered or focused and stay still for visitors who prefer less motion. A folded or
+                dismissed bar stays that way for the visitor (dismissed: for the rest of the visit at least).
+              </p>
+            </div>
+          )}
           <p className="text-xs text-subtle">
-            One campaign per placement (highest priority wins), one dialog per page, never over the cookie
-            banner.
+            One campaign per placement (highest priority wins; announcements set to rotate take turns), one
+            dialog per page, never over the cookie banner.
           </p>
         </Section>
 

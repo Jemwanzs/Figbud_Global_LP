@@ -1,7 +1,7 @@
 "use client";
 
 import { cn, fieldClasses, formatMoment } from "@figbud/ui";
-import { ArrowRight, Check, Copy, Gift, X } from "lucide-react";
+import { ArrowRight, Check, ChevronDown, ChevronLeft, ChevronRight, Copy, Gift, X } from "lucide-react";
 import { usePathname } from "next/navigation";
 import {
   type CSSProperties,
@@ -16,6 +16,7 @@ import {
   useState,
 } from "react";
 
+import { DemoControl, useAutoDemo } from "./auto-demo";
 import { type MediaInfo, mediaImageSources } from "./blocks";
 import { type BrandProfile, hasLogo } from "./brand";
 import { BrandLogo } from "./brand-logo";
@@ -86,6 +87,14 @@ export interface LiveCampaign {
     trigger: "immediate" | "delay" | "scroll" | "exit_intent";
     trigger_value: number;
     dismissible: boolean;
+    /** The announcement bar's presentation (18 Nov 2026); expanded when absent. */
+    bar?: "expanded" | "compact" | "collapsible" | "auto_collapse";
+    /** Seconds before an auto-collapsing bar folds. */
+    collapse_after?: number;
+    /** Takes turns in the bar with the other rotating announcements. */
+    rotate?: boolean;
+    /** Seconds each rotating announcement shows. */
+    rotate_every?: number;
   };
   schedule: { starts_at?: string | null; ends_at?: string | null };
   rewards?: {
@@ -117,6 +126,11 @@ export interface CampaignLabels {
   allClaimed: string;
   error: string;
   open: string;
+  /** The announcement bar's controls (18 Nov 2026). */
+  previous: string;
+  next: string;
+  expand: string;
+  collapse: string;
 }
 
 const LABELS: CampaignLabels = {
@@ -138,6 +152,10 @@ const LABELS: CampaignLabels = {
   allClaimed: "Every reward in this promotion has been claimed.",
   error: "That didn't work. Please try again.",
   open: "Open promotion",
+  previous: "Previous announcement",
+  next: "Next announcement",
+  expand: "Show the whole announcement",
+  collapse: "Fold the announcement",
 };
 
 interface Context {
@@ -203,6 +221,8 @@ const storageKey = (id: string) => `fb-campaign:${id}`;
 function suppressed(campaign: LiveCampaign): boolean {
   const { frequency } = campaign.display;
   try {
+    // Dismissed during this visit: not shown again until the next (18 Nov 2026).
+    if (sessionStorage.getItem(`${storageKey(campaign.id)}:dismissed`) !== null) return true;
     if (frequency === "always") return false;
     if (frequency === "session") return sessionStorage.getItem(storageKey(campaign.id)) !== null;
     const at = Number(localStorage.getItem(storageKey(campaign.id)) ?? 0);
@@ -314,13 +334,35 @@ function useCampaign(placement: CampaignPlacement) {
     const timer = setTimeout(() => setNow(Date.now()), Math.max(0, end) + 50);
     return () => clearTimeout(timer);
   }, [campaign]);
-  const dismiss = useCallback(() => {
-    if (!campaign || !ctx) return;
-    if (!ctx.preview) remember(campaign);
-    track(ctx, campaign.id, "dismiss");
-    setDismissed(campaign.id);
-  }, [campaign, ctx]);
-  return { ctx, campaign, dismiss };
+  const dismiss = useCallback(
+    (target: LiveCampaign | undefined = campaign) => {
+      if (!target || !ctx) return;
+      if (!ctx.preview) {
+        remember(target);
+        try {
+          sessionStorage.setItem(`${storageKey(target.id)}:dismissed`, "1");
+        } catch {
+          // Storage blocked: it may show again on the next page, which is harmless.
+        }
+      }
+      track(ctx, target.id, "dismiss");
+      setDismissed(target.id);
+    },
+    [campaign, ctx],
+  );
+  // Every eligible campaign, best first: the announcement bar rotates through them.
+  const eligible = useMemo(() => {
+    if (!ctx || (!ready && !ctx.preview)) return [];
+    return ctx.campaigns
+      .filter((c) => c.display.placements.includes(placement))
+      .filter((c) => ctx.preview || pageMatches(c, path))
+      .filter((c) => c.display.devices === "all" || (c.display.devices === "desktop") === desktop)
+      .filter((c) => !ended(c, now))
+      .filter((c) => ctx.preview || !suppressed(c))
+      .filter((c) => c.id !== dismissed)
+      .sort((a, b) => b.priority - a.priority);
+  }, [ctx, ready, placement, path, desktop, now, dismissed]);
+  return { ctx, campaign, dismiss, eligible };
 }
 
 /** Counts one impression when a campaign appears (and remembers modals/floating as seen). */
@@ -718,65 +760,22 @@ export function CampaignSlot({
   placement: "announcement_bar" | "below_nav" | "home_hero" | "footer";
   className?: string;
 }) {
-  const { ctx, campaign, dismiss } = useCampaign(placement);
+  const { ctx, campaign, dismiss, eligible } = useCampaign(placement);
   const fired = useTriggered(campaign, ctx?.preview);
   const visible = Boolean(ctx && campaign && fired);
   useImpression(ctx, campaign, visible);
   if (!ctx || !campaign || !fired) return null;
-  const onDismiss = campaign.display.dismissible ? dismiss : undefined;
-  if (placement === "announcement_bar") {
-    const look = surface(campaign);
-    const cta = campaign.content.primary;
+  const onDismiss = campaign.display.dismissible ? () => dismiss() : undefined;
+  if (placement === "announcement_bar")
     return (
-      <Appearance campaign={campaign}>
-        <div
-          role="region"
-          aria-label={campaign.content.headline}
-          data-product={ctx.product}
-          data-campaign={campaign.reference}
-          className={cn("relative px-12 py-2.5 text-center text-sm", look.className, className)}
-          style={look.style}
-        >
-          {campaign.content.badge && (
-            <span className="me-2 rounded-full bg-black/15 px-2 py-0.5 text-xs font-semibold uppercase">
-              {campaign.content.badge}
-            </span>
-          )}
-          {campaign.announcement?.organization?.name && (
-            <span className="me-2 font-semibold">{campaign.announcement.organization.name}:</span>
-          )}
-          <span className="font-medium">{campaign.content.headline}</span>
-          {campaign.content.countdown && campaign.schedule.ends_at && (
-            <Countdown
-              endsAt={campaign.schedule.ends_at}
-              label={ctx.labels.endsIn}
-              className="ms-3 inline-flex text-xs"
-            />
-          )}
-          {cta && (
-            <a
-              href={ctaHref(cta, campaign, ctx)}
-              onClick={() => track(ctx, campaign.id, "click")}
-              className="ms-3 inline-flex items-center gap-1 font-semibold underline underline-offset-4"
-            >
-              {cta.label}
-              <ArrowRight aria-hidden className="size-3.5 rtl:rotate-180" />
-            </a>
-          )}
-          {onDismiss && (
-            <button
-              type="button"
-              onClick={onDismiss}
-              className="absolute end-2 top-1/2 inline-flex size-9 -translate-y-1/2 items-center justify-center rounded-full hover:bg-black/10"
-            >
-              <X aria-hidden className="size-4" />
-              <span className="sr-only">{ctx.labels.dismiss}</span>
-            </button>
-          )}
-        </div>
-      </Appearance>
+      <AnnouncementBar
+        ctx={ctx}
+        // The best campaign leads; if it rotates, the other rotating ones take turns after it.
+        campaigns={campaign.display.rotate ? eligible.filter((c) => c.display.rotate) : [campaign]}
+        onDismiss={dismiss}
+        className={className}
+      />
     );
-  }
   return (
     <section aria-label={campaign.content.headline} className={className}>
       <Creative campaign={campaign} ctx={ctx} variant="banner" onDismiss={onDismiss} />
@@ -1111,5 +1110,212 @@ export function CampaignPreview({
         <CampaignSlot placement={placement} />
       )}
     </CampaignContext.Provider>
+  );
+}
+
+const collapsedKey = (id: string) => `fb-campaign:${id}:collapsed`;
+
+/**
+ * The announcement bar (owner's brief, 18 Nov 2026): expanded (the whole
+ * message, its supporting line and both buttons), compact (one slim line),
+ * collapsible (folds to the slim line and back; the visitor's choice is
+ * remembered for that campaign), or auto-collapsing (folds after a few
+ * seconds; a visitor can open it again). Several live announcements set to
+ * rotate take turns, on the shared demonstration clock: they pause while
+ * hovered or focused, a choice holds, there's a pause button, and nothing
+ * moves by itself with reduced motion. Heights animate without moving the
+ * page abruptly, and never with reduced motion.
+ */
+function AnnouncementBar({
+  ctx,
+  campaigns,
+  onDismiss,
+  className,
+}: {
+  ctx: Context;
+  campaigns: LiveCampaign[];
+  onDismiss: (campaign: LiveCampaign) => void;
+  className?: string;
+}) {
+  const demo = useAutoDemo<HTMLDivElement>({
+    durations: campaigns.map((c) => Math.min(30, Math.max(4, c.display.rotate_every ?? 8)) * 1000),
+    // Keeps taking turns (a long while, not forever: rotation rests eventually).
+    passes: 50,
+    resumeAfter: 15_000,
+  });
+  const campaign = campaigns[Math.min(demo.index, campaigns.length - 1)] ?? campaigns[0]!;
+  const mode = campaign.display.bar ?? "expanded";
+  const [collapsed, setCollapsed] = useState<boolean>(mode === "compact");
+  const opened = useRef(false);
+  // Each campaign starts as its mode says, or as the visitor last left it.
+  useEffect(() => {
+    opened.current = false;
+    if (mode === "compact") return setCollapsed(true);
+    if (mode === "collapsible") {
+      let saved: string | null = null;
+      try {
+        saved = localStorage.getItem(collapsedKey(campaign.id));
+      } catch {
+        // Storage blocked: start expanded.
+      }
+      return setCollapsed(saved === "1");
+    }
+    setCollapsed(false);
+    if (mode !== "auto_collapse") return;
+    const timer = window.setTimeout(
+      () => !opened.current && setCollapsed(true),
+      Math.min(60, Math.max(3, campaign.display.collapse_after ?? 8)) * 1000,
+    );
+    return () => window.clearTimeout(timer);
+  }, [campaign.id, mode, campaign.display.collapse_after]);
+  const toggle = () => {
+    const next = !collapsed;
+    opened.current = !next;
+    setCollapsed(next);
+    if (mode === "collapsible") {
+      try {
+        localStorage.setItem(collapsedKey(campaign.id), next ? "1" : "0");
+      } catch {
+        // Storage blocked: the choice lasts until the page changes.
+      }
+    }
+  };
+  const look = surface(campaign);
+  const primary = campaign.content.primary;
+  const secondary = campaign.content.secondary;
+  const folds = mode === "collapsible" || mode === "auto_collapse";
+  const many = campaigns.length > 1;
+  const regionId = `fb-bar-${campaign.id}`;
+  const link = (cta: CampaignCta, strong: boolean) => (
+    <a
+      href={ctaHref(cta, campaign, ctx)}
+      onClick={() => track(ctx, campaign.id, "click")}
+      className={cn(
+        "inline-flex min-h-9 items-center gap-1 whitespace-nowrap underline-offset-4",
+        strong
+          ? "rounded-full border border-current/40 px-3 font-semibold hover:bg-black/10"
+          : "font-medium underline",
+      )}
+    >
+      {cta.label}
+      <ArrowRight aria-hidden className="size-3.5 rtl:rotate-180" />
+    </a>
+  );
+  return (
+    <Appearance campaign={campaign}>
+      <div
+        ref={demo.ref}
+        role="region"
+        aria-label={campaign.content.headline}
+        data-product={ctx.product}
+        data-campaign={campaign.reference}
+        data-bar={mode}
+        data-collapsed={collapsed || undefined}
+        className={cn("relative px-12 text-sm", look.className, className)}
+        style={look.style}
+        onMouseEnter={() => demo.hold(true)}
+        onMouseLeave={() => demo.hold(false)}
+      >
+        <div
+          key={campaign.id}
+          className={cn(
+            "fb-rise mx-auto flex max-w-[92rem] flex-wrap items-center justify-center gap-x-3 gap-y-1 text-center [animation-duration:.35s]",
+            collapsed ? "py-1.5" : "py-2.5",
+          )}
+        >
+          {campaign.content.badge && (
+            <span className="rounded-full bg-black/15 px-2 py-0.5 text-xs font-semibold uppercase">
+              {campaign.content.badge}
+            </span>
+          )}
+          {campaign.announcement?.organization?.name && (
+            <span className="font-semibold">{campaign.announcement.organization.name}:</span>
+          )}
+          <span className="font-medium">{campaign.content.headline}</span>
+          {campaign.content.countdown && campaign.schedule.ends_at && !collapsed && (
+            <Countdown
+              endsAt={campaign.schedule.ends_at}
+              label={ctx.labels.endsIn}
+              className="inline-flex text-xs"
+            />
+          )}
+          {primary && link(primary, !collapsed)}
+          {/* The supporting line and the second button, while expanded; the height eases open and shut. */}
+          <div
+            id={regionId}
+            className={cn(
+              "grid w-full transition-[grid-template-rows,opacity] duration-300 ease-out motion-reduce:transition-none",
+              collapsed || !(campaign.content.subheadline || secondary)
+                ? "grid-rows-[0fr] opacity-0"
+                : "grid-rows-[1fr] opacity-100",
+            )}
+            aria-hidden={collapsed || undefined}
+            inert={collapsed || undefined}
+          >
+            <div className="flex min-h-0 flex-wrap items-center justify-center gap-x-3 overflow-hidden">
+              {campaign.content.subheadline && (
+                <span className="opacity-90">{campaign.content.subheadline}</span>
+              )}
+              {secondary && link(secondary, false)}
+            </div>
+          </div>
+        </div>
+        <div className="absolute end-2 top-1.5 flex items-center gap-0.5">
+          {many && (
+            <>
+              <button
+                type="button"
+                aria-label={ctx.labels.previous}
+                onClick={() => demo.choose((demo.index - 1 + campaigns.length) % campaigns.length)}
+                className="inline-flex size-8 cursor-pointer items-center justify-center rounded-full hover:bg-black/10"
+              >
+                <ChevronLeft aria-hidden className="size-4 rtl:rotate-180" />
+              </button>
+              <button
+                type="button"
+                aria-label={ctx.labels.next}
+                onClick={() => demo.choose((demo.index + 1) % campaigns.length)}
+                className="inline-flex size-8 cursor-pointer items-center justify-center rounded-full hover:bg-black/10"
+              >
+                <ChevronRight aria-hidden className="size-4 rtl:rotate-180" />
+              </button>
+              <DemoControl
+                state={demo.state}
+                onToggle={demo.toggle}
+                className="size-8 border-current/30 bg-transparent text-current"
+              />
+            </>
+          )}
+          {folds && (
+            <button
+              type="button"
+              aria-expanded={!collapsed}
+              aria-controls={regionId}
+              aria-label={collapsed ? ctx.labels.expand : ctx.labels.collapse}
+              onClick={toggle}
+              className="inline-flex size-8 cursor-pointer items-center justify-center rounded-full hover:bg-black/10"
+            >
+              <ChevronDown
+                aria-hidden
+                className={cn(
+                  "size-4 transition-transform motion-reduce:transition-none",
+                  !collapsed && "rotate-180",
+                )}
+              />
+            </button>
+          )}
+          {campaign.display.dismissible && (
+            <button
+              type="button"
+              onClick={() => onDismiss(campaign)}
+              className="inline-flex size-8 cursor-pointer items-center justify-center rounded-full hover:bg-black/10"
+            >
+              <X aria-hidden className="size-4" />
+              <span className="sr-only">{ctx.labels.dismiss}</span>
+            </button>
+          )}
+        </div>
+      </div>
+    </Appearance>
   );
 }

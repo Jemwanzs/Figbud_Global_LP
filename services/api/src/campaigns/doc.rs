@@ -190,10 +190,41 @@ pub struct Display {
     pub trigger_value: u16,
     #[serde(default = "yes")]
     pub dismissible: bool,
+    /// How the announcement bar presents it (owner's brief, 18 Nov 2026).
+    #[serde(default)]
+    pub bar: BarMode,
+    /// Seconds before an `auto_collapse` bar folds to its slim line (3–60).
+    #[serde(default = "eight")]
+    pub collapse_after: u8,
+    /// Takes turns in the announcement bar with the other live announcements that rotate.
+    #[serde(default)]
+    pub rotate: bool,
+    /// Seconds each rotating announcement shows (4–30).
+    #[serde(default = "eight")]
+    pub rotate_every: u8,
 }
 
 fn yes() -> bool {
     true
+}
+
+fn eight() -> u8 {
+    8
+}
+
+/// The announcement bar's presentation (owner's brief, 18 Nov 2026).
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum BarMode {
+    /// The whole message and its buttons, always.
+    #[default]
+    Expanded,
+    /// One narrow line: the badge, the headline and the first button.
+    Compact,
+    /// Expanded, with a button to fold it to the slim line and back.
+    Collapsible,
+    /// Expanded at first, folding to the slim line after `collapse_after` seconds.
+    AutoCollapse,
 }
 
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq, Default)]
@@ -483,6 +514,12 @@ impl CampaignDoc {
             }
             _ => {}
         }
+        if !(3..=60).contains(&display.collapse_after) {
+            c.push("display", "Bars fold after 3–60 seconds.");
+        }
+        if !(4..=30).contains(&display.rotate_every) {
+            c.push("display", "Rotating announcements show for 4–30 seconds each.");
+        }
 
         let schedule = &self.schedule;
         if let (Some(start), Some(end)) = (schedule.starts_at, schedule.ends_at)
@@ -763,6 +800,10 @@ pub fn template(kind: &str, site_name: &str) -> CampaignDoc {
             trigger,
             trigger_value,
             dismissible: true,
+            bar: BarMode::Expanded,
+            collapse_after: 8,
+            rotate: false,
+            rotate_every: 8,
         },
         schedule: Schedule {
             starts_at: None,
@@ -829,6 +870,37 @@ mod tests {
         d.schedule.starts_at = Some(Utc.with_ymd_and_hms(2026, 11, 2, 0, 0, 0).unwrap());
         d.schedule.ends_at = Some(Utc.with_ymd_and_hms(2026, 11, 1, 0, 0, 0).unwrap());
         assert!(d.validate("hero").is_err());
+    }
+
+    #[test]
+    fn announcement_bars_have_modes_and_rotation_within_limits() {
+        // Older documents (without the bar settings) read as expanded, not rotating.
+        let stored = serde_json::to_value(doc("announcement")).unwrap();
+        let mut older = stored.clone();
+        for key in ["bar", "collapse_after", "rotate", "rotate_every"] {
+            older["display"].as_object_mut().unwrap().remove(key);
+        }
+        let older: CampaignDoc = serde_json::from_value(older).unwrap();
+        assert_eq!(older.display.bar, BarMode::Expanded);
+        assert!(!older.display.rotate);
+        assert_eq!((older.display.collapse_after, older.display.rotate_every), (8, 8));
+
+        let mut d = doc("announcement");
+        d.display.bar = BarMode::AutoCollapse;
+        d.display.collapse_after = 5;
+        d.display.rotate = true;
+        d.display.rotate_every = 12;
+        assert!(d.validate("announcement").is_ok());
+        let json = serde_json::to_value(&d).unwrap();
+        assert_eq!(json["display"]["bar"], "auto_collapse");
+        d.display.collapse_after = 2;
+        assert!(
+            d.validate("announcement").is_err(),
+            "folding needs at least 3 seconds"
+        );
+        d.display.collapse_after = 5;
+        d.display.rotate_every = 31;
+        assert!(d.validate("announcement").is_err(), "rotation is 4–30 seconds");
     }
 
     #[test]
