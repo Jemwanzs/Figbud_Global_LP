@@ -103,6 +103,30 @@ const ICONS: Record<string, LucideIcon> = {
   landmark: Landmark,
 };
 
+/*
+ * Columns follow how many figures there are, so a band never shows empty
+ * cells beside them (one figure was a quarter of a grey band, 20 Nov 2026).
+ * Written out in full so the stylesheet keeps every class.
+ */
+const CARD_COLUMNS: Record<number, string> = {
+  1: "mx-auto w-full max-w-xl",
+  2: "@2xl:grid-cols-2",
+  3: "@2xl:grid-cols-3",
+  4: "@2xl:grid-cols-2 @5xl:grid-cols-4",
+};
+const SUPPORT_COLUMNS: Record<number, string> = {
+  0: "",
+  1: "",
+  2: "@2xl:grid-cols-2",
+  3: "@2xl:grid-cols-2 @5xl:grid-cols-3",
+};
+const STRIP_COLUMNS: Record<number, string> = {
+  1: "mx-auto w-full max-w-md grid-cols-1",
+  2: "grid-cols-2",
+  3: "grid-cols-2 @5xl:grid-cols-3",
+  4: "grid-cols-2 @5xl:grid-cols-4",
+};
+
 /** A published metric as a figure for the shared formatter. */
 export function figureOf(m: PublicMetric): Figure {
   return {
@@ -283,7 +307,13 @@ export function ResultsShowcase({
         <dl className="border-b border-line bg-bg @5xl:border-s-4 @5xl:border-e @5xl:border-b-0 @5xl:border-s-accent">
           {cell(first, 0, { big: true, className: "h-full justify-center p-6 @2xl:p-8" })}
         </dl>
-        <dl className="grid divide-y divide-line @2xl:grid-cols-2 @2xl:divide-y-0 @5xl:grid-cols-3 @5xl:divide-x rtl:@5xl:divide-x-reverse">
+        <dl
+          className={cn(
+            "grid divide-y divide-line",
+            rest.length > 1 && "@2xl:divide-y-0 @5xl:divide-x rtl:@5xl:divide-x-reverse",
+            SUPPORT_COLUMNS[Math.min(rest.length, 3)],
+          )}
+        >
           {rest.map((m, i) => cell(m, i + 1, { className: "justify-center p-6 @2xl:p-8" }))}
         </dl>
       </div>
@@ -307,7 +337,10 @@ export function ResultsShowcase({
     body = (
       <dl
         data-results-layout="cards"
-        className="grid gap-px overflow-hidden rounded-[var(--radius-panel)] border border-line bg-line @2xl:grid-cols-2 @5xl:grid-cols-4"
+        className={cn(
+          "grid gap-px overflow-hidden rounded-[var(--radius-panel)] border border-line bg-line",
+          CARD_COLUMNS[Math.min(metrics.length, 4)],
+        )}
       >
         {metrics.map((m, i) => cell(m, i, { className: "bg-surface p-6 @2xl:p-8" }))}
       </dl>
@@ -364,8 +397,8 @@ export function SuccessStory({
             : story.layout === "featured"
               ? "grid-cols-2 gap-4 @5xl:grid-cols-3"
               : story.layout === "counter"
-                ? "grid-cols-1 gap-8 @2xl:grid-cols-2 @5xl:grid-cols-4"
-                : "grid-cols-2 @5xl:grid-cols-4",
+                ? cn("grid-cols-1 gap-8", STRIP_COLUMNS[Math.min(shown.length, 4)])
+                : STRIP_COLUMNS[Math.min(shown.length, 4)],
         story.layout !== "cards" && "divide-white/15",
       )}
     >

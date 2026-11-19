@@ -56,6 +56,10 @@ test("the Results band and Our Success Story are designed, previewed and saved p
   await expect(preview.locator("[data-figure] .sr-only").nth(1)).toHaveText("1.3K+");
   await page.getByLabel("Layout").selectOption("cards");
   await expect(preview.locator("[data-results-layout=cards]")).toBeVisible();
+  // The columns follow the figures: two figures share the band, no empty cells beside them.
+  const band = (await preview.locator("[data-results-layout=cards]").boundingBox())!;
+  for (const figure of await preview.locator("[data-results-layout=cards] [data-figure]").all())
+    expect((await figure.boundingBox())!.width).toBeGreaterThan(band.width * 0.4);
   await page.getByLabel("Heading (optional)").fill(`Measured, not estimated ${testInfo.project.name}`);
   await expect(preview.getByRole("heading", { level: 2 })).toContainText("Measured, not estimated");
   // (Drafts are saved on Expense Now below: other tests save FigBud Global's settings in parallel.)
