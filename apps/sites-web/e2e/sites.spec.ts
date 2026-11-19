@@ -2131,3 +2131,28 @@ test("a device showcase section shows its own devices, starting where the Studio
   await expect(preview.locator("[data-device-frame=phone] img")).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(0);
 });
+
+test("on phones the header steps aside while reading down and returns on scrolling up (UI-MO9)", async ({
+  page,
+  isMobile,
+}) => {
+  test.skip(!isMobile, "wide screens keep the header in place");
+  await page.goto("/zirahr");
+  const header = page.getByRole("banner");
+  await expect(header).toBeVisible();
+  // Until the page is interactive a scroll isn't seen: from the top, down again, until it is.
+  await expect(async () => {
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.evaluate(() => window.scrollBy(0, 1600));
+    await expect(header).toHaveAttribute("data-tucked", "true", { timeout: 1_000 });
+  }).toPass();
+  await expect.poll(async () => (await header.boundingBox())!.y).toBeLessThan(0);
+  await page.evaluate(() => window.scrollBy(0, -200));
+  await expect(header).not.toHaveAttribute("data-tucked", "true");
+  await expect.poll(async () => (await header.boundingBox())!.y).toBeGreaterThanOrEqual(0);
+  // Its links stay reachable: going back to the top always shows it.
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await expect(
+    header.getByRole("link", { name: /Request a demo|Book a demo|Start now/ }).first(),
+  ).toBeVisible();
+});

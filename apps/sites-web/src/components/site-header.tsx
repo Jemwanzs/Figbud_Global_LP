@@ -15,7 +15,7 @@ import {
 import { InverseTheme, ThemeToggle, buttonClasses, cn } from "@figbud/ui";
 import { ArrowRight, Calculator, ChevronDown, LayoutGrid, Plug, Tags, Waypoints } from "lucide-react";
 import { usePathname } from "next/navigation";
-import { useCallback, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 
 import { languageHref, pageHref, splitLocale } from "@/lib/addresses";
 import type { PlatformMenuEntry } from "@/lib/platform-menu";
@@ -77,6 +77,33 @@ export function SiteHeader({
   const hovered = useRef(false);
   const closeMenu = useCallback(() => setOpenMenu(null), []);
   useDismiss(headerRef, openMenu !== null, closeMenu);
+  // On phones the header (three rows there) steps aside while reading down
+  // the page and returns on any scroll up (UI-MO9, 20 Nov 2026); never while
+  // a menu is open or focus is inside it. Wide screens keep it in place.
+  const [tucked, setTucked] = useState(false);
+  useEffect(() => {
+    const narrow = window.matchMedia("(max-width: 47.99rem)");
+    let last = window.scrollY;
+    let frame = 0;
+    const onScroll = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        const y = window.scrollY;
+        const header = headerRef.current;
+        const busy =
+          header?.contains(document.activeElement) || header?.querySelector("[aria-expanded=true]");
+        if (!narrow.matches || busy || y < 160) setTucked(false);
+        else if (y > last + 6) setTucked(true);
+        else if (y < last - 6) setTucked(false);
+        last = y;
+      });
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      cancelAnimationFrame(frame);
+    };
+  }, []);
   // Own-domain requests are rewritten internally; compare the visible address.
   const current = pathname.replace(/^\/~[^/]+/, "") || "/";
   const isActive = (href: string) => href === current || href === pathname;
@@ -120,7 +147,15 @@ export function SiteHeader({
   const openLink = shown.find((l) => l.href === openMenu);
 
   return (
-    <header ref={headerRef} className="sticky top-0 z-40 border-b border-line bg-bg/95 backdrop-blur-xl">
+    <header
+      ref={headerRef}
+      data-tucked={tucked || undefined}
+      onFocusCapture={() => setTucked(false)}
+      className={cn(
+        "sticky top-0 z-40 border-b border-line bg-bg/95 backdrop-blur-xl transition-transform duration-300 motion-reduce:transition-none",
+        tucked && "-translate-y-full",
+      )}
+    >
       <div className="mx-auto flex max-w-[92rem] flex-wrap items-center gap-x-6 gap-y-2 px-5 py-3 sm:px-8 md:px-10 lg:px-16">
         <a href={homeHref} className="flex min-h-11 items-center gap-3 rounded-lg">
           {hasLogo(brand?.logos.horizontal) ? (
