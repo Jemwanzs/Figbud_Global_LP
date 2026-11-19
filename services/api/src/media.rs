@@ -69,6 +69,8 @@ pub fn image_ids(doc: &PageDoc) -> Vec<Uuid> {
                         .flat_map(|e| e.devices.iter().flat_map(|d| d.image_ids())),
                 )
                 .collect(),
+            // A device showcase's screenshots (P14-W6).
+            Block::DeviceShowcase { devices, .. } => devices.image_ids(),
             // An FAQ visual's screenshots (P14-W5).
             Block::Faq { items, .. } => items.iter().filter_map(|i| i.image_id).collect(),
             _ => Vec::new(),
@@ -138,10 +140,14 @@ pub async fn attach(
         .chain(
             sections
                 .iter()
-                .filter(|s| s["type"] == "hero")
                 .flat_map(|s| {
-                    ["desktop", "tablet", "phone"]
-                        .map(|d| s["ess"]["devices"][format!("{d}_image_id")].clone())
+                    // A hero's self-service devices, or a device showcase's.
+                    let devices = if s["type"] == "device_showcase" {
+                        &s["devices"]
+                    } else {
+                        &s["ess"]["devices"]
+                    };
+                    ["desktop", "tablet", "phone"].map(|d| devices[format!("{d}_image_id")].clone())
                 })
                 .filter_map(|id| id.as_str().and_then(|id| Uuid::parse_str(id).ok())),
         )
@@ -213,8 +219,17 @@ pub async fn attach(
     }
     // Self-service device screenshots: each device's file details; on websites,
     // a device whose image is gone is left out, and the preview with the last one.
-    for section in sections.iter_mut().filter(|s| s["type"] == "hero") {
-        let Some(devices) = section["ess"]["devices"].as_object_mut() else {
+    for section in sections
+        .iter_mut()
+        .filter(|s| s["type"] == "hero" || s["type"] == "device_showcase")
+    {
+        let showcase = section["type"] == "device_showcase";
+        let devices = if showcase {
+            section["devices"].as_object_mut()
+        } else {
+            section["ess"]["devices"].as_object_mut()
+        };
+        let Some(devices) = devices else {
             continue;
         };
         let mut media = serde_json::Map::new();
@@ -241,10 +256,18 @@ pub async fn attach(
         devices.insert("media".into(), Value::Object(media));
         if public
             && empty
+            && !showcase
             && let Some(ess) = section["ess"].as_object_mut()
         {
             ess.remove("devices");
         }
+        if public && empty && showcase {
+            section["hidden"] = Value::Bool(true);
+        }
+    }
+    // A device showcase left without a screenshot isn't shown on websites.
+    if public {
+        sections.retain(|s| !(s["type"] == "device_showcase" && s["hidden"] == Value::Bool(true)));
     }
     // FAQ visual screenshots: each question's file details; on websites a
     // missing or archived one is dropped and its scene shows its illustration.

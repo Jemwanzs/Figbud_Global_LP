@@ -120,6 +120,10 @@ pub enum StoryLayout {
     Cards,
     /// Words on one side, figures on the other.
     Split,
+    /// The first figure large, the others beside it (P10-R3).
+    Featured,
+    /// Large counting numbers, centred (P10-R3).
+    Counter,
 }
 
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq, Default)]
@@ -153,6 +157,8 @@ pub struct SuccessStory {
     pub parallax: bool,
     /// Hide the Results band on the home page while this shows the figures.
     pub replaces_results: bool,
+    /// How many figures it may show (1–12; 8 by default), set per website (P10-R3).
+    pub max_figures: u8,
 }
 
 impl Default for SuccessStory {
@@ -170,6 +176,7 @@ impl Default for SuccessStory {
             animation: None,
             parallax: false,
             replaces_results: false,
+            max_figures: 8,
         }
     }
 }
@@ -277,8 +284,12 @@ pub fn check_story(e: &mut Vec<FieldError>, s: &mut SuccessStory, field: &'stati
         );
     }
     let mut seen = std::collections::HashSet::new();
-    if s.metric_ids.len() > 8 || !s.metric_ids.iter().all(|id| seen.insert(*id)) {
-        push(e, field, "Choose up to eight different figures.");
+    if !(1..=12).contains(&s.max_figures) {
+        push(e, field, "A success story shows between 1 and 12 figures.");
+    } else if s.metric_ids.len() > usize::from(s.max_figures)
+        || !s.metric_ids.iter().all(|id| seen.insert(*id))
+    {
+        push(e, field, "Choose different figures, up to the story's limit.");
     }
     if s.overlay > 95 {
         push(e, field, "The overlay is 0–95 %.");

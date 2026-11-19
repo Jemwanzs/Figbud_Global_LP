@@ -7,6 +7,7 @@ import { Suspense } from "react";
 import { AdminUnavailable } from "@/components/admin/admin-shell";
 import type { MediaItem } from "@/components/admin/page-types";
 import { ResultsStudio } from "@/components/admin/results-studio";
+import type { FigureRecord } from "@/components/admin/story-figures";
 import type { AdminSite } from "@/components/admin/site-labels";
 import { StudioSkeleton } from "@/components/admin/studio-states";
 import type { WebsiteSettingsAdmin } from "@/components/admin/website-settings";
@@ -30,11 +31,14 @@ async function Results({ params }: Pick<PageProps<"/admin/sites/[slug]/results">
   if (user === "unavailable") return <AdminUnavailable />;
   const { slug } = await params;
   if (!SLUG.test(slug) || slug.length > 40) notFound();
-  const [site, settings, media, corporate] = await Promise.all([
+  const [site, settings, media, corporate, figures, figureMedia] = await Promise.all([
     adminGet<{ site: AdminSite }>(`sites/${slug}`),
     adminGet<WebsiteSettingsAdmin>(`sites/${slug}/settings`),
     adminGet<{ items: MediaItem[] }>(`sites/${slug}/media`),
     adminGet<WebsiteSettingsAdmin>("sites/figbud/settings"),
+    // Every figure, with drafts (Customers & proof, kept with FigBud Global), and its media library.
+    adminGet<{ items: FigureRecord[]; can_edit: boolean; can_review: boolean }>("proof?kind=metric"),
+    adminGet<{ items: MediaItem[] }>("sites/figbud/media"),
   ]);
   if (site.status === 404 || settings.status === 404) notFound();
   if (!site.data || !settings.data) return <AdminUnavailable />;
@@ -72,6 +76,10 @@ async function Results({ params }: Pick<PageProps<"/admin/sites/[slug]/results">
         metrics={proof.metrics}
         media={media.data?.items ?? []}
         inherited={settings.data.corporate ? null : (corporate.data?.settings.display ?? null)}
+        initialFigures={(figures.data?.items ?? []).filter((f) => f.draft)}
+        figureMedia={figureMedia.data?.items ?? []}
+        canEditFigures={figures.data?.can_edit ?? false}
+        canReviewFigures={figures.data?.can_review ?? false}
       />
     </>
   );

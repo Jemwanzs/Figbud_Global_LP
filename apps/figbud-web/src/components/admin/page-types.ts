@@ -120,6 +120,11 @@ export const BLOCKS: { type: BlockType; label: string; hint: string }[] = [
     label: "Enquiry form",
     hint: "Demo requests and questions, without leaving the website",
   },
+  {
+    type: "device_showcase",
+    label: "Device showcase",
+    hint: "The website on desktop, tablet and phone, in device frames",
+  },
   { type: "call_to_action", label: "Call to action", hint: "A closing invitation with a button" },
   { type: "image", label: "Image", hint: "A picture from the media library, with a caption" },
   { type: "shared", label: "Shared content", hint: "A section from the content library, kept in sync" },
@@ -219,6 +224,23 @@ export function newSection(type: BlockType, ref = ""): PageSection {
         type,
         heading: "Questions",
         items: [{ question: "A common question?", answer: "The answer." }],
+      };
+    case "device_showcase":
+      // Starts with the library's first image as the desktop screenshot; the others are added in the editor.
+      return {
+        id,
+        type,
+        heading: "On every screen your team uses",
+        body: "",
+        devices: {
+          devices: ["desktop"],
+          desktop_image_id: ref,
+          default_device: "visitor",
+          frame: "realistic",
+          tablet_orientation: "landscape",
+          transitions: true,
+          duration_ms: 380,
+        },
       };
     case "call_to_action":
       return {

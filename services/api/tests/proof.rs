@@ -386,3 +386,61 @@ async fn the_publishing_checklist_follows_unsaved_edits_without_saving() {
     let (_, refused) = check(foreign).await;
     assert_eq!(codes(&refused, "errors"), ["logo_id"]);
 }
+
+#[tokio::test]
+async fn figures_for_a_success_story_are_created_deleted_and_published_with_their_extras() {
+    // P10-R3 (owner's brief, 19 Nov 2026): a figure manager on Results & success story.
+    let Some(t) = T::new().await else { return };
+    let editor = t.admin("editor").await;
+    let owner = t.admin("owner").await;
+    let image = t.image().await;
+
+    // A figure never published can be deleted; the list says which are figures and their drafts.
+    let scrap = t.create(&editor, "metric").await;
+    let (status, _) = t.act(&scrap, &editor, "delete", json!({})).await;
+    assert_eq!(status, StatusCode::OK);
+    let (status, _) = t
+        .call("GET", &format!("/v1/admin/proof/{scrap}"), Some(&owner), None)
+        .await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+
+    let id = t.create(&editor, "metric").await;
+    let doc = json!({ "label": format!("Employees managed {}", t.run), "value": 1364.0, "format": "number",
+        "suffix": "+", "icon": "users", "description": "Across every branch.", "image_id": image,
+        "link": "/platform", "source": "HRMIS", "period": "Jan–Nov 2026", "verified": true,
+        "verified_on": "2026-11-01" });
+    let (status, body) = t.save(&id, &editor, doc, &["zirahr"]).await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    let (_, list) = t
+        .call("GET", "/v1/admin/proof?kind=metric", Some(&editor), None)
+        .await;
+    let row = list["items"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|r| r["id"] == id.as_str())
+        .unwrap()
+        .clone();
+    assert_eq!(row["draft"]["icon"], "users");
+    assert_eq!(row["review_requested"], false);
+
+    // Published (owner: maker-checker allows it), it reaches ZiraHR with its extras.
+    let (status, _) = t.act(&id, &editor, "submit", json!({})).await;
+    assert_eq!(status, StatusCode::OK);
+    let (status, body) = t.act(&id, &owner, "publish", json!({})).await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    let public = t.public("zirahr").await;
+    let figure = public["metrics"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|m| m["id"] == id.as_str())
+        .unwrap()
+        .clone();
+    assert_eq!(figure["link"], "/platform");
+    assert_eq!(figure["image"]["alt"], "Example Credit logo");
+    assert_eq!(figure["verified_on"], "2026-11-01");
+    // Once published it can't be deleted, only archived.
+    let (status, _) = t.act(&id, &owner, "delete", json!({})).await;
+    assert_eq!(status, StatusCode::CONFLICT);
+}

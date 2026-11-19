@@ -30,11 +30,14 @@ export function DevicePreviewFields({
   address,
   disabled,
   onChange,
+  required = false,
 }: {
   value: DevicePreviewConfig | null | undefined;
   library: MediaItem[];
   /** The website's name, for the browser bar by default. */
   address: string;
+  /** A device showcase section: always on (no switch). */
+  required?: boolean;
   disabled: boolean;
   onChange: (value: DevicePreviewConfig | null) => void;
 }) {
@@ -55,16 +58,18 @@ export function DevicePreviewFields({
   return (
     <fieldset className="rounded-xl border border-line p-3" data-device-settings="">
       <legend className="px-1 text-xs font-medium text-muted">Device preview</legend>
-      <label className="flex min-h-11 items-center gap-3 text-sm text-text">
-        <input
-          type="checkbox"
-          checked={on}
-          disabled={disabled}
-          onChange={(e) => onChange(e.target.checked ? { ...v, address: v.address ?? address } : null)}
-          className="size-5 accent-[var(--color-accent)]"
-        />
-        Turn the device labels into a preview on desktop, tablet and phone
-      </label>
+      {!required && (
+        <label className="flex min-h-11 items-center gap-3 text-sm text-text">
+          <input
+            type="checkbox"
+            checked={on}
+            disabled={disabled}
+            onChange={(e) => onChange(e.target.checked ? { ...v, address: v.address ?? address } : null)}
+            className="size-5 accent-[var(--color-accent)]"
+          />
+          Turn the device labels into a preview on desktop, tablet and phone
+        </label>
+      )}
       {on && (
         <div className="mt-2 grid gap-4">
           {DEVICES.map(([d, label, hint]) => {

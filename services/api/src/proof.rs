@@ -161,6 +161,12 @@ pub struct Metric {
     pub icon: Option<String>,
     /// A short line under the label.
     pub description: Option<String>,
+    /// An optional supporting image from FigBud Global's media library (P10-R3).
+    pub image_id: Option<Uuid>,
+    /// An optional page it links to (a site path or an https address).
+    pub link: Option<String>,
+    /// When a reviewer last checked it against its source (YYYY-MM-DD).
+    pub verified_on: Option<chrono::NaiveDate>,
     /// Short marks around the number, e.g. ">" or "+".
     pub prefix: Option<String>,
     pub suffix: Option<String>,
@@ -250,7 +256,7 @@ impl ProofDoc {
         match self {
             Self::Organization(o) => o.logo_id.into_iter().chain(o.favicon_id).collect(),
             Self::Testimonial(t) => t.photo_id.into_iter().collect(),
-            Self::Metric(_) => Vec::new(),
+            Self::Metric(m) => m.image_id.into_iter().collect(),
         }
     }
 
@@ -345,6 +351,23 @@ impl ProofDoc {
                 }
                 if too_long(&m.description, 120) {
                     e.push(field("description", "length", "Up to 120 characters."));
+                }
+                tidy(&mut m.link);
+                if m.link.as_deref().is_some_and(|l| {
+                    !valid_link(l) && !(l.starts_with('/') && !l.starts_with("//") && l.len() <= 200)
+                }) {
+                    e.push(field(
+                        "link",
+                        "format",
+                        "Use a page on the website (starting with /) or an https:// address.",
+                    ));
+                }
+                if m.verified_on.is_some_and(|d| d > Utc::now().date_naive()) {
+                    e.push(field(
+                        "verified_on",
+                        "range",
+                        "The date it was last checked can't be in the future.",
+                    ));
                 }
                 if m.format == MetricFormat::Currency
                     && !m
@@ -513,6 +536,9 @@ impl ProofDoc {
                 "auto_decimals": m.auto_decimals.unwrap_or(m.decimals == 0),
                 "icon": m.icon,
                 "description": m.description,
+                "image_id": m.image_id,
+                "link": m.link,
+                "verified_on": m.verified_on,
                 "prefix": m.prefix,
                 "suffix": m.suffix,
                 "source": m.source,
@@ -608,6 +634,11 @@ impl Row {
             "published_sites": self.published_sites,
             "published_at": self.published_at,
             "updated_at": self.draft_updated_at,
+            // Figures' drafts, for the Results & success story figure manager (P10-R3).
+            "draft": if self.kind == "metric" { self.draft.clone() } else { Value::Null },
+            "draft_version": self.draft_version,
+            "review_requested": self.review_requested_at.is_some(),
+            "archived": self.archived_at.is_some(),
         })
     }
 }
@@ -1169,6 +1200,22 @@ async fn action(
                 .await?;
             audit_proof(pool, &session, id, "proof.archived", detail).await?;
         }
+        // A figure that was never published can be deleted outright (P10-R3); anything
+        // ever published is archived instead, so its history stays.
+        "delete" => {
+            require_sites(&session, &all_sites, Role::Editor)?;
+            if row.kind != "metric" || row.published_number > 0 {
+                return Err(ApiError::Conflict(
+                    "Only figures that were never published can be deleted; archive the others.",
+                ));
+            }
+            audit_proof(pool, &session, id, "proof.deleted", detail).await?;
+            sqlx::query("DELETE FROM proof_items WHERE id = $1")
+                .bind(id)
+                .execute(pool)
+                .await?;
+            return Ok(Json(json!({ "deleted": true })));
+        }
         "restore" => {
             require_sites(&session, &all_sites, Role::Reviewer)?;
             sqlx::query("UPDATE proof_items SET archived_at = NULL WHERE id = $1")
@@ -1244,7 +1291,11 @@ async fn public_proof(
                 value["photo"] = media(pool, t.photo_id).await?;
                 testimonials.push(value);
             }
-            ProofDoc::Metric(_) => metrics.push(value),
+            ProofDoc::Metric(m) => {
+                // Its supporting image's file details, while it's in the library (P10-R3).
+                value["image"] = media(pool, m.image_id).await?;
+                metrics.push(value);
+            }
         }
     }
     Ok((
@@ -1360,6 +1411,40 @@ mod tests {
             .map(|e| e.field)
             .collect();
         assert_eq!(fields, ["value", "currency"]);
+    }
+
+    #[test]
+    fn figures_take_a_link_an_icon_and_a_checked_date() {
+        // P10-R3: a page to link to, an icon from the set, a last-checked date not in the future.
+        let base = || Metric {
+            label: "Employees managed".into(),
+            value: 1364.0,
+            ..Metric::default()
+        };
+        let ok = Metric {
+            link: Some("/platform".into()),
+            icon: Some("users".into()),
+            verified_on: Some(chrono::NaiveDate::from_ymd_opt(2026, 11, 1).unwrap()),
+            ..base()
+        };
+        assert!(ProofDoc::Metric(ok).normalise().is_ok());
+        let bad = Metric {
+            link: Some("javascript:alert(1)".into()),
+            icon: Some("rocket".into()),
+            verified_on: Some(chrono::NaiveDate::from_ymd_opt(2999, 1, 1).unwrap()),
+            ..base()
+        };
+        let fields: Vec<_> = ProofDoc::Metric(bad)
+            .normalise()
+            .unwrap_err()
+            .iter()
+            .map(|e| e.field)
+            .collect();
+        assert_eq!(fields, ["icon", "link", "verified_on"]);
+        // Older figures (no auto-decimals choice) read as they did: automatic unless fixed decimals were set.
+        let public = ProofDoc::Metric(base()).public();
+        assert_eq!(public["auto_decimals"], true);
+        assert_eq!(public["notation"], "auto");
     }
 
     #[test]

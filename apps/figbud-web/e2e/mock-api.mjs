@@ -1686,7 +1686,7 @@ const renderDoc = (doc, includeHidden = true) => ({
     })
     // Self-service device screenshots (media.rs, P14-W6).
     .map((s) => {
-      const d = s.type === "hero" && s.ess?.devices;
+      const d = s.type === "device_showcase" ? s.devices : s.type === "hero" && s.ess?.devices;
       if (!d) return s;
       const media = Object.fromEntries(
         ["desktop", "tablet", "phone"]
@@ -1694,6 +1694,7 @@ const renderDoc = (doc, includeHidden = true) => ({
           .filter(([, m]) => m),
       );
       const devices = includeHidden ? d.devices : d.devices.filter((k) => media[k]);
+      if (s.type === "device_showcase") return { ...s, devices: { ...d, devices, media } };
       return { ...s, ess: { ...s.ess, devices: { ...d, devices, media } } };
     })
     .map((s) =>
@@ -2313,6 +2314,24 @@ seedPublishedPage(
             answer: "Book a personalised demo and we'll walk through your approval stages.",
           },
         ],
+      },
+      // The website on every device, as its own section (P14-W6).
+      {
+        id: "zw-devices",
+        type: "device_showcase",
+        heading: "On every screen your team uses",
+        body: "The same workspace in a desktop browser, on a tablet and on a phone.",
+        devices: {
+          enabled: true,
+          devices: ["desktop", "phone"],
+          desktop_image_id: zirahrShotA.id,
+          phone_image_id: zirahrShotB.id,
+          default_device: "desktop",
+          frame: "minimal",
+          tablet_orientation: "landscape",
+          transitions: true,
+          duration_ms: 300,
+        },
       },
     ],
   },
@@ -3424,6 +3443,11 @@ const proofSummary = (i) => ({
   published_sites: i.published_sites,
   published_at: i.published_at,
   updated_at: i.updated_at,
+  // Figures' drafts for the success story figure manager (proof.rs summary, P10-R3).
+  draft: i.kind === "metric" ? i.draft : null,
+  draft_version: i.draft_version,
+  review_requested: Boolean(i.review),
+  archived: Boolean(i.archived_at),
 });
 function newProof(kind, by) {
   const item = {
@@ -3652,7 +3676,13 @@ function proofRoutes(path, req, body, user, send) {
   const canReview = RANKS[user.role] >= RANKS.reviewer;
   if (path === "proof" && req.method === "GET")
     return send(200, {
-      items: [...proofItems.values()].map(proofSummary),
+      // Filtered by kind, like the API (proof.rs list).
+      items: [...proofItems.values()]
+        .filter((i) => {
+          const kind = new URL(req.url ?? "/", "http://mock").searchParams.get("kind");
+          return !kind || i.kind === kind;
+        })
+        .map(proofSummary),
       can_edit: canEdit,
       can_review: canReview,
     });
@@ -3788,6 +3818,12 @@ function proofRoutes(path, req, body, user, send) {
     item.review = null;
   } else if (action === "restore") {
     item.archived_at = null;
+  } else if (action === "delete") {
+    // Only a figure never published (proof.rs, P10-R3).
+    if (item.kind !== "metric" || item.published_number)
+      return conflict("Only figures that were never published can be deleted; archive the others.");
+    proofItems.delete(item.id);
+    return send(200, { deleted: true });
   } else return notFound();
   return send(200, proofSummary(item));
 }

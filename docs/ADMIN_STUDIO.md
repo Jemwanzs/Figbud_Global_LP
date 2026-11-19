@@ -542,6 +542,7 @@ Page builder → a demonstration section → **Guide it with scrolling** (on by 
 
 - Websites → a website → **Results & success story**. The figures themselves stay in Customers & proof (source, period, verification, approval, which websites).
 - **Results band:** show or hide, eyebrow, heading, description, layout (featured figure, equal cards, carousel with optional rotation), placement (with customer proof, or straight after the hero), motion (or the website display's). Save draft, Publish, Discard draft.
+- **Figures** (20 Nov 2026): manage them right there. **+ Add figure** creates one for this website and opens it; edit its title, value, currency, compact notation, suffix, description, source, period, icon, supporting image, link, verification and date last checked. Duplicate, reorder, take in or out of the story, show or hide, delete (never published) or archive (published, kept in Customers & proof). Ask for approval, then a different reviewer (or an owner) approves and publishes; the live story shows published figures only. Set how many figures the story shows (1–12).
 - **Our Success Story:** off until published. Title, headline, description, up to eight figures in order (only those published for this website), layout (strip, cards, words beside the figures), background (dark brand band, band gradient, or a library image with an overlay and optional slow movement), whether it replaces the Results band, motion. Draft and publish; **Published versions** load an earlier one to restore.
 - **Website display:** on FigBud Global, the defaults every website inherits (compact or full figures, Results layout, motion); on another website, "Use FigBud Global's website display" or its own. A change to the defaults never alters a website's figures, wording, colours or chosen layout.
 - Figures everywhere use one formatter: compact by default (25M, 1.3K), never rounded up, a "+" only where entered. Customers & proof → a figure shows exactly how it will read.
@@ -550,6 +551,7 @@ Page builder → a demonstration section → **Guide it with scrolling** (on by 
 - Page builder → a Hero → **Highlight Employee Self-Service** → **Device preview**: turn the Desktop / Tablet / Phone browser labels into buttons that show the website in device frames.
 - For each device shown, choose a **screenshot taken at that device's size** from the media library (desktop about 1440 px wide; tablet 1024 × 768 or 768 × 1024; phone about 390 px wide). Approved images only, with no real customer data.
 - **Shown first:** the visitor's own device (by screen width) or a chosen one. **Frames:** realistic or minimal. **Tablet:** landscape or portrait. **Browser address** in the bar. **Fade** between devices (0.3–0.45 s).
+- Also as its own section: Page builder → Add section → **Device showcase** (heading, description, the same device settings), anywhere on a page.
 - Live pages inside the frames aren't offered: the websites refuse to be framed, to protect visitors from clickjacking.
 ## Enquiry form (UI-F2)
 

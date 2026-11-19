@@ -58,6 +58,7 @@ import {
   newSection,
 } from "./page-types";
 import { DevicePreviewFields } from "./device-preview-fields";
+import type { DevicePreviewConfig } from "@figbud/site-kit";
 import { FaqItemVisualFields, FaqShowcaseFields, newQuestionId, withIds } from "./faq-visual-fields";
 import { ShowcaseFields, newShowcase } from "./showcase-fields";
 
@@ -1336,6 +1337,34 @@ export function BlockForm({
           />
         </div>
       );
+    case "device_showcase":
+      return (
+        <div className="grid gap-3">
+          <TextField
+            label="Heading (optional)"
+            value={section.heading ?? ""}
+            max={120}
+            {...p}
+            onChange={(v) => onChange({ ...section, heading: v })}
+          />
+          <TextField
+            label="Description (optional)"
+            value={section.body ?? ""}
+            max={400}
+            multiline
+            {...p}
+            onChange={(v) => onChange({ ...section, body: v })}
+          />
+          <DevicePreviewFields
+            value={section.devices}
+            library={library ?? []}
+            address={slug}
+            required
+            disabled={p.disabled}
+            onChange={(devices) => devices && onChange({ ...section, devices })}
+          />
+        </div>
+      );
     case "call_to_action":
       return (
         <div className="grid gap-3">
@@ -1559,41 +1588,36 @@ export function PageEditor({ slug, user, initial }: { slug: string; user: AdminU
     sections: sections.map((original) => {
       const server = rendered?.sections.find((s) => s.id === original.id);
       // Device screenshots' file details from the library, for the preview's frames (P14-W6).
+      const withMedia = (devices: DevicePreviewConfig): DevicePreviewConfig => ({
+        ...devices,
+        media: Object.fromEntries(
+          (["desktop", "tablet", "phone"] as const).flatMap((d) => {
+            const id = devices[`${d}_image_id`];
+            const item = id ? library?.find((m) => m.id === id) : undefined;
+            return item
+              ? [
+                  [
+                    d,
+                    {
+                      id: item.id,
+                      alt: item.alt_text,
+                      width: item.width,
+                      height: item.height,
+                      content_type: item.content_type,
+                      widths: [],
+                    },
+                  ],
+                ]
+              : [];
+          }),
+        ),
+      });
       const section =
         original.type === "hero" && original.ess?.devices
-          ? {
-              ...original,
-              ess: {
-                ...original.ess,
-                devices: {
-                  ...original.ess.devices,
-                  media: Object.fromEntries(
-                    (["desktop", "tablet", "phone"] as const).flatMap((d) => {
-                      const id = (
-                        original.ess!.devices as unknown as Record<string, string | null | undefined>
-                      )[`${d}_image_id`];
-                      const item = id ? library?.find((m) => m.id === id) : undefined;
-                      return item
-                        ? [
-                            [
-                              d,
-                              {
-                                id: item.id,
-                                alt: item.alt_text,
-                                width: item.width,
-                                height: item.height,
-                                content_type: item.content_type,
-                                widths: [],
-                              },
-                            ],
-                          ]
-                        : [];
-                    }),
-                  ),
-                },
-              },
-            }
-          : original;
+          ? { ...original, ess: { ...original.ess, devices: withMedia(original.ess.devices) } }
+          : original.type === "device_showcase"
+            ? { ...original, devices: withMedia(original.devices) }
+            : original;
       if (section.type === "shared") {
         // The saved preview's resolved content, or the item's published content while a new choice saves.
         if (server?.shared?.id === section.shared_id) return server;
@@ -2052,7 +2076,7 @@ export function PageEditor({ slug, user, initial }: { slug: string; user: AdminU
                   type="button"
                   disabled={
                     sections.length >= 40 ||
-                    (adding === "image" && !library?.length) ||
+                    ((adding === "image" || adding === "device_showcase") && !library?.length) ||
                     (adding === "shared" && !sharedLibrary?.length)
                   }
                   onClick={() => {

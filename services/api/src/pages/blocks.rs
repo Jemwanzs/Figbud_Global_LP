@@ -189,6 +189,15 @@ pub enum Block {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         showcase: Option<FaqShowcase>,
     },
+    /// The website on desktop, tablet and phone, as its own section (P14-W6):
+    /// a heading, a sentence and the device preview, placed anywhere on a page.
+    DeviceShowcase {
+        #[serde(default)]
+        heading: Option<String>,
+        #[serde(default)]
+        body: Option<String>,
+        devices: DevicePreview,
+    },
     CallToAction {
         heading: String,
         #[serde(default)]
@@ -631,6 +640,29 @@ impl Checker {
         }
     }
 
+    /// A device preview: each device once, a screenshot for each, a 0.3–0.45 s fade.
+    fn devices(&mut self, d: &DevicePreview) {
+        let mut seen = std::collections::HashSet::new();
+        if d.devices.is_empty() || !d.devices.iter().all(|x| seen.insert(*x)) {
+            self.push("sections", "Choose each device once, at least one.");
+        }
+        if d.devices.iter().any(|x| d.image(*x).is_none()) {
+            self.push(
+                "sections",
+                "Each device shown needs its own screenshot, taken at that device's size.",
+            );
+        }
+        if !(300..=450).contains(&d.duration_ms) {
+            self.push("sections", "Device changes take 0.3–0.45 seconds.");
+        }
+        self.optional(
+            "sections",
+            &d.address,
+            60,
+            "The browser address is up to 60 characters.",
+        );
+    }
+
     fn count<T>(&mut self, items: &[T], max: usize) {
         if items.is_empty() || items.len() > max {
             self.push("sections", "Lists need at least one item and at most 12.");
@@ -791,22 +823,7 @@ impl PageDoc {
                     }
                     if let Some(ess) = ess {
                         if let Some(d) = &ess.devices {
-                            let mut seen = std::collections::HashSet::new();
-                            if d.devices.is_empty() || !d.devices.iter().all(|x| seen.insert(*x)) {
-                                c.push("sections", "Choose each device once, at least one.");
-                            }
-                            if d.devices.iter().any(|x| d.image(*x).is_none()) {
-                                c.push("sections", "Each device shown needs its own screenshot, taken at that device's size.");
-                            }
-                            if !(300..=450).contains(&d.duration_ms) {
-                                c.push("sections", "Device changes take 0.3–0.45 seconds.");
-                            }
-                            c.optional(
-                                "sections",
-                                &d.address,
-                                60,
-                                "The browser address is up to 60 characters.",
-                            );
+                            c.devices(d);
                         }
                         c.text(
                             "sections",
@@ -954,6 +971,15 @@ impl PageDoc {
                             "Answers need 1–2,000 characters.",
                         );
                     }
+                }
+                Block::DeviceShowcase {
+                    heading,
+                    body,
+                    devices,
+                } => {
+                    c.optional("sections", heading, 120, "Headings can be up to 120 characters.");
+                    c.optional("sections", body, 400, "Text can be up to 400 characters.");
+                    c.devices(devices);
                 }
                 Block::CallToAction { heading, body, cta } => {
                     c.text("sections", heading, 120, "Headings need 1–120 characters.");
@@ -1247,6 +1273,17 @@ mod tests {
                 "ess": { "heading": "a", "body": "b", "devices": { "devices": ["watch"] } } }]))
             .is_err()
         );
+        // As its own section, placed anywhere on a page.
+        let section = doc(
+            json!([{ "id": "d", "type": "device_showcase", "heading": "On every device",
+            "devices": { "devices": ["tablet"], "tablet_image_id": id } }]),
+        )
+        .unwrap();
+        assert!(section.validate().is_ok());
+        assert_eq!(crate::media::image_ids(&section).len(), 1);
+        let empty =
+            doc(json!([{ "id": "d", "type": "device_showcase", "devices": { "devices": [] } }])).unwrap();
+        assert!(empty.validate().is_err());
     }
 
     #[test]

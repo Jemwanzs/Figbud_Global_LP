@@ -2112,3 +2112,22 @@ test.describe("an FAQ with its product visual (P14-W5)", () => {
     ).toEqual([]);
   });
 });
+
+test("a device showcase section shows its own devices, starting where the Studio chose (P14-W6)", async ({
+  page,
+}) => {
+  await page.goto("/zirahr/workspace");
+  const section = page.locator("[data-device-showcase]");
+  await section.scrollIntoViewIfNeeded();
+  await expect(section.getByRole("heading", { name: "On every screen your team uses" })).toBeVisible();
+  const preview = section.locator("[data-device-preview]");
+  // Desktop chosen first, whatever the visitor's device; only the devices it has screenshots for.
+  await expect(preview).toHaveAttribute("data-device", "desktop");
+  await expect(section.getByRole("button", { name: "Tablet", exact: true })).toHaveCount(0);
+  await expect(async () => {
+    await section.getByRole("button", { name: "Phone browser", exact: true }).click();
+    await expect(preview).toHaveAttribute("data-device", "phone", { timeout: 1_000 });
+  }).toPass();
+  await expect(preview.locator("[data-device-frame=phone] img")).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(0);
+});

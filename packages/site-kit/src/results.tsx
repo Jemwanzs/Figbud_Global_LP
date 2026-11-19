@@ -62,7 +62,7 @@ export interface SuccessStoryConfig {
   eyebrow: string;
   headline: string;
   lead?: string | null;
-  layout: "strip" | "cards" | "split";
+  layout: "strip" | "cards" | "split" | "featured" | "counter";
   background: "brand" | "gradient" | "image";
   image_id?: string | null;
   overlay: number;
@@ -70,6 +70,8 @@ export interface SuccessStoryConfig {
   animation?: FigureMotion | null;
   parallax?: boolean;
   replaces_results?: boolean;
+  /** How many figures it may show (1–12; 8 by default). */
+  max_figures?: number;
 }
 
 export const DEFAULT_MOTION: FigureMotion = {
@@ -208,7 +210,7 @@ function FigureCell({
       <dd
         className={cn(
           "order-1 font-display font-semibold tracking-tight text-text",
-          big ? "text-5xl sm:text-6xl" : "text-3xl sm:text-4xl",
+          big ? "text-5xl @2xl:text-6xl" : "text-3xl @2xl:text-4xl",
         )}
       >
         <Value m={m} locale={locale} notation={notation} motion={motion} />
@@ -276,13 +278,13 @@ export function ResultsShowcase({
     body = (
       <div
         data-results-layout="featured"
-        className="grid overflow-hidden rounded-[var(--radius-panel)] border border-line bg-surface shadow-[var(--shadow-card,0_18px_40px_-28px_rgb(0_0_0/0.35))] lg:grid-cols-[minmax(0,3fr)_minmax(0,7fr)]"
+        className="grid overflow-hidden rounded-[var(--radius-panel)] border border-line bg-surface shadow-[var(--shadow-card,0_18px_40px_-28px_rgb(0_0_0/0.35))] @5xl:grid-cols-[minmax(0,3fr)_minmax(0,7fr)]"
       >
-        <dl className="border-b border-line bg-bg lg:border-s-4 lg:border-e lg:border-b-0 lg:border-s-accent">
-          {cell(first, 0, { big: true, className: "h-full justify-center p-6 sm:p-8" })}
+        <dl className="border-b border-line bg-bg @5xl:border-s-4 @5xl:border-e @5xl:border-b-0 @5xl:border-s-accent">
+          {cell(first, 0, { big: true, className: "h-full justify-center p-6 @2xl:p-8" })}
         </dl>
-        <dl className="grid divide-y divide-line sm:grid-cols-2 sm:divide-y-0 lg:grid-cols-3 lg:divide-x rtl:lg:divide-x-reverse">
-          {rest.map((m, i) => cell(m, i + 1, { className: "justify-center p-6 sm:p-8" }))}
+        <dl className="grid divide-y divide-line @2xl:grid-cols-2 @2xl:divide-y-0 @5xl:grid-cols-3 @5xl:divide-x rtl:@5xl:divide-x-reverse">
+          {rest.map((m, i) => cell(m, i + 1, { className: "justify-center p-6 @2xl:p-8" }))}
         </dl>
       </div>
     );
@@ -296,7 +298,7 @@ export function ResultsShowcase({
         {metrics.map((m, i) =>
           cell(m, i, {
             className:
-              "w-[85%] shrink-0 snap-start rounded-[var(--radius-panel)] border border-line bg-surface p-6 sm:w-[45%] sm:p-8 lg:w-[30%]",
+              "w-[85%] shrink-0 snap-start rounded-[var(--radius-panel)] border border-line bg-surface p-6 @2xl:w-[45%] @2xl:p-8 @5xl:w-[30%]",
           }),
         )}
       </LazyResultsCarousel>
@@ -305,14 +307,14 @@ export function ResultsShowcase({
     body = (
       <dl
         data-results-layout="cards"
-        className="grid gap-px overflow-hidden rounded-[var(--radius-panel)] border border-line bg-line sm:grid-cols-2 lg:grid-cols-4"
+        className="grid gap-px overflow-hidden rounded-[var(--radius-panel)] border border-line bg-line @2xl:grid-cols-2 @5xl:grid-cols-4"
       >
-        {metrics.map((m, i) => cell(m, i, { className: "bg-surface p-6 sm:p-8" }))}
+        {metrics.map((m, i) => cell(m, i, { className: "bg-surface p-6 @2xl:p-8" }))}
       </dl>
     );
   }
   return (
-    <section aria-labelledby="metrics-title" className={className} data-results="">
+    <section aria-labelledby="metrics-title" className={cn("@container", className)} data-results="">
       <Heading
         id="metrics-title"
         eyebrow={display?.eyebrow ?? labels.eyebrow}
@@ -356,10 +358,14 @@ export function SuccessStory({
       className={cn(
         "grid gap-px",
         story.layout === "cards"
-          ? "grid-cols-1 gap-4 sm:grid-cols-2"
+          ? "grid-cols-1 gap-4 @2xl:grid-cols-2 @5xl:grid-cols-3"
           : story.layout === "split"
             ? "grid-cols-2"
-            : "grid-cols-2 lg:grid-cols-4",
+            : story.layout === "featured"
+              ? "grid-cols-2 gap-4 @5xl:grid-cols-3"
+              : story.layout === "counter"
+                ? "grid-cols-1 gap-8 @2xl:grid-cols-2 @5xl:grid-cols-4"
+                : "grid-cols-2 @5xl:grid-cols-4",
         story.layout !== "cards" && "divide-white/15",
       )}
     >
@@ -369,8 +375,11 @@ export function SuccessStory({
           data-figure={m.id}
           className={cn(
             "flex flex-col px-4 py-6 text-center",
-            story.layout === "cards" && "rounded-2xl border border-white/15 bg-white/5 backdrop-blur",
-            story.layout === "strip" && i > 0 && "lg:border-s lg:border-white/15",
+            (story.layout === "cards" || story.layout === "featured") &&
+              "rounded-2xl border border-white/15 bg-white/5 backdrop-blur",
+            story.layout === "featured" && i === 0 && "col-span-2 @5xl:col-span-3 @5xl:py-10",
+            story.layout === "strip" && i > 0 && "@5xl:border-s @5xl:border-white/15",
+            m.link && "relative",
             motion.hover && "transition-transform duration-300 motion-safe:hover:-translate-y-0.5",
           )}
         >
@@ -383,11 +392,40 @@ export function SuccessStory({
             }
           >
             <Icon name={m.icon} className="size-4 shrink-0 text-[var(--story-accent)]" />
-            {m.label}
+            {m.link ? (
+              // The whole figure leads to its page (P10-R3).
+              <a href={m.link} className="underline-offset-4 after:absolute after:inset-0 hover:underline">
+                {m.label}
+              </a>
+            ) : (
+              m.label
+            )}
           </dt>
-          <dd className="order-1 font-display text-4xl font-semibold tracking-tight text-[var(--story-accent)] sm:text-5xl">
+          {m.image && (
+            <dd className="order-first mb-3 flex justify-center">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={`${mediaBase}${m.image.id}`}
+                alt={m.image.alt}
+                width={m.image.width}
+                height={m.image.height}
+                loading="lazy"
+                decoding="async"
+                className="h-14 w-auto rounded-lg object-contain"
+              />
+            </dd>
+          )}
+          <dd
+            className={cn(
+              "order-1 font-display font-semibold tracking-tight text-[var(--story-accent)]",
+              story.layout === "counter" || (story.layout === "featured" && i === 0)
+                ? "text-5xl @2xl:text-7xl"
+                : "text-4xl @2xl:text-5xl",
+            )}
+          >
             <Value m={m} locale={locale} notation={base.notation} motion={motion} />
           </dd>
+          {m.description && <dd className="order-3 mt-1 text-sm text-white/75">{m.description}</dd>}
           <dd className="order-3 mt-2 text-[0.7rem] text-white/60">
             {sourceLabel} {m.source} · {m.period}
           </dd>
@@ -401,7 +439,7 @@ export function SuccessStory({
       data-success-story={story.layout}
       // Dark in both themes: the light theme's band takes the dark theme's colours (UI-TH7 markers).
       data-tone-light="inverse"
-      className="relative isolate overflow-hidden bg-bg text-white"
+      className="@container relative isolate overflow-hidden bg-bg text-white"
       style={{ "--story-accent": "var(--product, var(--accent))" } as CSSProperties}
     >
       {image && (
@@ -413,7 +451,7 @@ export function SuccessStory({
           decoding="async"
           className={cn(
             "absolute inset-0 -z-20 size-full object-cover",
-            story.parallax && "lg:motion-safe:fixed lg:motion-safe:inset-0",
+            story.parallax && "@5xl:motion-safe:fixed @5xl:motion-safe:inset-0",
           )}
         />
       )}
@@ -427,8 +465,8 @@ export function SuccessStory({
       />
       <div
         className={cn(
-          "mx-auto max-w-[92rem] px-5 py-section-sm sm:px-8 md:px-10 lg:px-16",
-          story.layout === "split" && "grid items-center gap-10 lg:grid-cols-2",
+          "mx-auto max-w-[92rem] px-5 py-section-sm @2xl:px-8 @3xl:px-10 @5xl:px-16",
+          story.layout === "split" && "grid items-center gap-10 @5xl:grid-cols-2",
         )}
       >
         <div className={cn(story.layout !== "split" && "max-w-3xl")}>

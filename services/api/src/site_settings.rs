@@ -986,19 +986,21 @@ async fn update(
     if story_published && let Some(story) = &next.success_story {
         results::remember(&mut next.story_history, story, Some(session.user.name.clone()));
     }
-    // A story's figures are this website's published ones; its image, from its library.
-    for story in [&next.success_story, &next.success_story_draft]
-        .into_iter()
-        .flatten()
-    {
+    // A published story's figures are this website's published ones; a draft may
+    // also hold figures still being written or approved for it (P10-R3). Its
+    // image comes from its library.
+    for (story, draft) in [(&next.success_story, false), (&next.success_story_draft, true)] {
+        let Some(story) = story else { continue };
         if !story.metric_ids.is_empty() {
             let found: i64 = sqlx::query_scalar(
                 "SELECT count(*) FROM proof_items p
-                  WHERE p.id = ANY($1) AND p.kind = 'metric' AND p.published IS NOT NULL
-                    AND p.archived_at IS NULL AND $2 = ANY (p.published_sites)",
+                  WHERE p.id = ANY($1) AND p.kind = 'metric' AND p.archived_at IS NULL
+                    AND (($2 = ANY (p.published_sites) AND p.published IS NOT NULL)
+                         OR ($3 AND $2 = ANY (p.draft_sites)))",
             )
             .bind(&story.metric_ids)
             .bind(&slug)
+            .bind(draft)
             .fetch_one(&state.pool)
             .await?;
             if found as usize != story.metric_ids.len() {

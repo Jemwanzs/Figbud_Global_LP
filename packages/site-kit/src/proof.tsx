@@ -58,6 +58,10 @@ export interface PublicMetric {
   auto_decimals?: boolean;
   icon?: string | null;
   description?: string | null;
+  /** A supporting image, a page it links to, and when it was last checked (P10-R3). */
+  image?: ProofImage | null;
+  link?: string | null;
+  verified_on?: string | null;
 }
 
 export interface PublicProof {

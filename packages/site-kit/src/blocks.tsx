@@ -182,6 +182,13 @@ export type PageSection = Base &
         /** The interactive product visual beside the questions (P14-W5). */
         showcase?: FaqShowcaseConfig | null;
       }
+    | {
+        /** The website on desktop, tablet and phone, as its own section (P14-W6). */
+        type: "device_showcase";
+        heading?: string | null;
+        body?: string | null;
+        devices: DevicePreviewConfig;
+      }
     | { type: "call_to_action"; heading: string; body?: string | null; cta: PageCta }
     | {
         type: "modules";
@@ -585,6 +592,26 @@ function Block({
                 </div>
               </details>
             ))}
+          </div>
+        </div>
+      );
+    case "device_showcase":
+      return (
+        <div data-device-showcase="" className="@container">
+          {(section.heading || section.body) && (
+            <div className="mx-auto max-w-2xl text-center">
+              {section.heading && <Heading>{section.heading}</Heading>}
+              {section.body && <p className="mt-3 text-lead text-muted">{section.body}</p>}
+            </div>
+          )}
+          <div className={cn("flex justify-center", (section.heading || section.body) && "mt-8")}>
+            <div className="w-full max-w-5xl [&_[role=group]]:justify-center">
+              <LazyDevicePreview
+                config={section.devices}
+                alt={section.heading ?? undefined}
+                mediaBase={mediaBase}
+              />
+            </div>
           </div>
         </div>
       );

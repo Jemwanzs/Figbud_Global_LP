@@ -13,7 +13,6 @@ import {
   type SuccessStoryConfig,
 } from "@figbud/site-kit";
 import { cn } from "@figbud/ui";
-import { ArrowDown, ArrowUp } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { type ReactElement, cloneElement, useId, useState } from "react";
 
@@ -23,6 +22,7 @@ import { useUnsavedChangesWarning } from "@/lib/form-state";
 import { ActionButton } from "./action-button";
 import { LocalTime } from "./local-time";
 import { MediaPicker } from "./media-picker";
+import { type FigureRecord, StoryFigures, asPublic } from "./story-figures";
 import type { MediaItem } from "./page-types";
 import type { WebsiteSettingsAdmin } from "./website-settings";
 
@@ -168,12 +168,22 @@ export function ResultsStudio({
   metrics,
   media,
   inherited,
+  initialFigures,
+  figureMedia,
+  canEditFigures,
+  canReviewFigures,
 }: {
   slug: string;
   name: string;
   data: WebsiteSettingsAdmin;
   metrics: PublicMetric[];
   media: MediaItem[];
+  /** Every figure (Customers & proof), with drafts, for the figure manager (P10-R3). */
+  initialFigures: FigureRecord[];
+  /** FigBud Global's media library, where figures' images live. */
+  figureMedia: MediaItem[];
+  canEditFigures: boolean;
+  canReviewFigures: boolean;
   /** FigBud Global's defaults, for a product website (null on FigBud Global itself). */
   inherited: DisplayDefaults | null;
 }) {
@@ -194,6 +204,8 @@ export function ResultsStudio({
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState<Message>(null);
   const [inverse, setInverse] = useState(false);
+  const [figures, setFigures] = useState<FigureRecord[]>(initialFigures);
+  const [width, setWidth] = useState<"desktop" | "tablet" | "phone">("desktop");
   const effective = display ?? inherited ?? DEFAULT_DISPLAY;
 
   const resultsSaved = same(
@@ -227,17 +239,13 @@ export function ResultsStudio({
     }
   }
 
-  const choose = (id: string, on: boolean) =>
-    setStory((s) => ({
-      ...s,
-      metric_ids: on ? [...s.metric_ids, id].slice(0, 8) : s.metric_ids.filter((x) => x !== id),
-    }));
-  const move = (i: number, by: -1 | 1) =>
-    setStory((s) => {
-      const ids = [...s.metric_ids];
-      [ids[i], ids[i + by]] = [ids[i + by]!, ids[i]!];
-      return { ...s, metric_ids: ids };
-    });
+  // The story's preview shows figures still in draft too (as the website would, once published).
+  const storyMetrics = [
+    ...metrics,
+    ...figures
+      .filter((f) => f.draft && !f.archived && f.sites.includes(slug) && !metrics.some((m) => m.id === f.id))
+      .map(asPublic),
+  ];
 
   const tabs: [Tab, string][] = [
     ["results", "Results band"],
@@ -481,64 +489,29 @@ export function ResultsStudio({
                   className={cn(input, "py-2")}
                 />
               </Field>
-              <fieldset className="rounded-xl border border-line p-3">
-                <legend className="px-1 text-xs font-medium text-muted">
-                  Figures (up to eight, in order)
-                </legend>
-                {metrics.length === 0 ? (
-                  <p className="text-sm text-subtle">
-                    No figures are published for {name} yet. Add them in Customers &amp; proof, with their
-                    source and period, and publish them for this website.
-                  </p>
-                ) : (
-                  <ul className="space-y-2" data-story-figures="">
-                    {metrics.map((m) => {
-                      const at = story.metric_ids.indexOf(m.id);
-                      return (
-                        <li key={m.id} className="flex items-center gap-2">
-                          <label className="flex min-h-11 flex-1 items-center gap-3 text-sm text-text">
-                            <input
-                              type="checkbox"
-                              checked={at >= 0}
-                              disabled={!canEdit || (at < 0 && story.metric_ids.length >= 8)}
-                              onChange={(e) => choose(m.id, e.target.checked)}
-                              className="size-5 accent-[var(--color-accent)]"
-                            />
-                            <span>
-                              {m.label}
-                              <span className="block text-xs text-subtle">
-                                {m.source} · {m.period}
-                              </span>
-                            </span>
-                          </label>
-                          {at >= 0 && canEdit && (
-                            <span className="flex">
-                              <button
-                                type="button"
-                                disabled={at === 0}
-                                onClick={() => move(at, -1)}
-                                aria-label={`Move ${m.label} earlier`}
-                                className="inline-flex size-9 cursor-pointer items-center justify-center rounded-full text-muted hover:bg-surface-2 disabled:opacity-40"
-                              >
-                                <ArrowUp aria-hidden className="size-4" />
-                              </button>
-                              <button
-                                type="button"
-                                disabled={at === story.metric_ids.length - 1}
-                                onClick={() => move(at, 1)}
-                                aria-label={`Move ${m.label} later`}
-                                className="inline-flex size-9 cursor-pointer items-center justify-center rounded-full text-muted hover:bg-surface-2 disabled:opacity-40"
-                              >
-                                <ArrowDown aria-hidden className="size-4" />
-                              </button>
-                            </span>
-                          )}
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
-              </fieldset>
+              <StoryFigures
+                slug={slug}
+                name={name}
+                figures={figures}
+                setFigures={setFigures}
+                chosen={story.metric_ids}
+                setChosen={(metric_ids) => setStory((st) => ({ ...st, metric_ids }))}
+                limit={story.max_figures ?? 8}
+                library={figureMedia}
+                canEdit={canEdit && canEditFigures}
+                canReview={canReviewFigures}
+              />
+              <Field label="Figures in the story at most" hint="1–12; eight by default.">
+                <input
+                  type="number"
+                  min={1}
+                  max={12}
+                  value={story.max_figures ?? 8}
+                  disabled={!canEdit}
+                  onChange={(e) => setStory({ ...story, max_figures: Number(e.target.value) })}
+                  className={input}
+                />
+              </Field>
               <div className="grid gap-3 sm:grid-cols-2">
                 <Field label="Layout">
                   <select
@@ -552,6 +525,8 @@ export function ResultsStudio({
                     <option value="strip">Horizontal strip</option>
                     <option value="cards">Cards</option>
                     <option value="split">Words beside the figures</option>
+                    <option value="featured">Featured figure with supporting figures</option>
+                    <option value="counter">Large counting numbers</option>
                   </select>
                 </Field>
                 <Field label="Background">
@@ -739,7 +714,25 @@ export function ResultsStudio({
 
         <section aria-label="Preview" className="min-w-0 space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="text-sm font-medium text-text">Preview with {name}&apos;s published figures</p>
+            <p className="text-sm font-medium text-text">Preview with {name}&apos;s figures</p>
+            <div role="group" aria-label="Preview width" className="flex gap-1">
+              {(["desktop", "tablet", "phone"] as const).map((w) => (
+                <button
+                  key={w}
+                  type="button"
+                  aria-pressed={width === w}
+                  onClick={() => setWidth(w)}
+                  className={cn(
+                    "inline-flex min-h-10 cursor-pointer items-center rounded-full px-3 text-xs capitalize",
+                    width === w
+                      ? "bg-accent text-accent-ink"
+                      : "border border-line text-muted hover:text-text",
+                  )}
+                >
+                  {w}
+                </button>
+              ))}
+            </div>
             <label className="flex min-h-11 items-center gap-2 text-sm text-muted">
               <input
                 type="checkbox"
@@ -752,10 +745,13 @@ export function ResultsStudio({
           </div>
           <div
             data-tone={inverse ? "inverse" : undefined}
-            className="overflow-hidden rounded-[var(--radius-panel)] border border-line bg-bg"
+            // The bands respond to their container, so these widths show the real tablet and phone layouts.
+            style={{ maxWidth: width === "desktop" ? undefined : width === "tablet" ? 768 : 390 }}
+            className="mx-auto overflow-hidden rounded-[var(--radius-panel)] border border-line bg-bg"
             data-results-preview=""
+            data-preview-width={width}
           >
-            {metrics.length === 0 ? (
+            {storyMetrics.length === 0 ? (
               <p className="p-8 text-sm text-subtle">
                 Nothing to preview until figures are published for {name}.
               </p>
@@ -763,7 +759,7 @@ export function ResultsStudio({
               story.metric_ids.length ? (
                 <SuccessStory
                   story={{ ...story, enabled: true }}
-                  metrics={metrics}
+                  metrics={storyMetrics}
                   locale="en"
                   sourceLabel="Source:"
                   mediaBase={MEDIA_PATH}
