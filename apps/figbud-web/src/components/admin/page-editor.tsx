@@ -31,6 +31,7 @@ import {
   Plus,
   Redo2,
   Smartphone,
+  Tablet,
   Trash2,
   Undo2,
 } from "lucide-react";
@@ -55,6 +56,7 @@ import {
   STUDIO_MEDIA_BASE,
   blockLabel,
   copySection,
+  alternatingPattern,
   newSection,
 } from "./page-types";
 import { DevicePreviewFields } from "./device-preview-fields";
@@ -338,6 +340,86 @@ const TONE_SWATCH: Partial<Record<SectionTone, string>> = {
   gradient_band: "radial-gradient(circle at 80% 20%, var(--surface-3), var(--bg))",
   gradient_cta: "linear-gradient(140deg, var(--bg), var(--accent-soft), var(--action))",
 };
+
+const REVEALS: Record<string, string> = {
+  "": "None",
+  subtle: "Subtle",
+  standard: "Standard",
+};
+const SPACINGS: Record<string, string> = {
+  compact: "Compact",
+  standard: "Standard",
+  spacious: "Spacious",
+};
+
+/** A section's reveal, spacing and (side-by-side layouts) which side its showcase takes (P14-W7). */
+function SectionLookFields({
+  section,
+  disabled,
+  onChange,
+}: {
+  section: PageSection;
+  disabled: boolean;
+  onChange: (patch: Partial<PageSection>) => void;
+}) {
+  const uid = useId();
+  const sideBySide = section.type === "demo" && section.layout === "split";
+  return (
+    <div className="mt-4 grid gap-3 sm:grid-cols-2" data-section-look="">
+      <label htmlFor={`${uid}-reveal`} className="block text-sm font-medium text-text">
+        Scroll reveal
+        <select
+          id={`${uid}-reveal`}
+          value={section.reveal ?? ""}
+          disabled={disabled}
+          onChange={(e) => onChange({ reveal: (e.target.value || null) as PageSection["reveal"] })}
+          className="mt-1.5 min-h-11 w-full rounded-xl border border-line-strong bg-surface px-3 text-sm text-text"
+        >
+          {Object.entries(REVEALS).map(([value, label]) => (
+            <option key={value || "none"} value={value}>
+              {label}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label htmlFor={`${uid}-spacing`} className="block text-sm font-medium text-text">
+        Spacing
+        <select
+          id={`${uid}-spacing`}
+          value={section.spacing ?? "standard"}
+          disabled={disabled}
+          onChange={(e) =>
+            onChange({
+              spacing: e.target.value === "standard" ? null : (e.target.value as PageSection["spacing"]),
+            })
+          }
+          className="mt-1.5 min-h-11 w-full rounded-xl border border-line-strong bg-surface px-3 text-sm text-text"
+        >
+          {Object.entries(SPACINGS).map(([value, label]) => (
+            <option key={value} value={value}>
+              {label}
+            </option>
+          ))}
+        </select>
+      </label>
+      {sideBySide && (
+        <label className="flex min-h-11 items-center gap-3 text-sm text-text sm:col-span-2">
+          <input
+            type="checkbox"
+            checked={Boolean(section.flip)}
+            disabled={disabled}
+            onChange={(e) => onChange({ flip: e.target.checked })}
+            className="size-5 accent-[var(--color-accent)]"
+          />
+          Showcase first, words after it (wide screens)
+        </label>
+      )}
+      <p className="text-xs text-subtle sm:col-span-2">
+        The reveal plays as the section scrolls into view and back, never for visitors who prefer less motion.
+      </p>
+    </div>
+  );
+}
 
 /** A section's style: none, or a band in the website's theme colours (Colours & themes → Section bands). */
 function ToneField({
@@ -1427,7 +1509,9 @@ export function PageEditor({ slug, user, initial }: { slug: string; user: AdminU
   const [open, setOpen] = useState<string | null>(null);
   const [adding, setAdding] = useState<BlockType>("text");
   const [dragging, setDragging] = useState<number | null>(null);
-  const [device, setDevice] = useState<"desktop" | "mobile">("desktop");
+  const [device, setDevice] = useState<"desktop" | "tablet" | "mobile">("desktop");
+  const [otherTheme, setOtherTheme] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
   const [note, setNote] = useState("");
   const [timing, setTiming] = useState<"approval" | "scheduled">("approval");
   const [publishAt, setPublishAt] = useState("");
@@ -1908,6 +1992,39 @@ export function PageEditor({ slug, user, initial }: { slug: string; user: AdminU
               Sections
             </h2>
             <p className="mt-1 text-sm text-muted">Drag to reorder, or use the arrows.</p>
+            {canEdit && sections.length > 1 && (
+              <button
+                type="button"
+                data-alternate-pattern=""
+                onClick={async () => {
+                  const proposal = alternatingPattern(sections);
+                  if (!proposal.changed) {
+                    setNotice("Every section already has a style of its own; nothing was changed.");
+                    return;
+                  }
+                  if (
+                    await confirm({
+                      title: "Alternate light and dark sections?",
+                      body: `${proposal.changed} section${proposal.changed === 1 ? "" : "s"} set to Auto will alternate light and dark from the hero, and side-by-side demonstrations will swap sides in turn. Sections with a style of their own keep it. Review each one before publishing; nothing reaches the website until you publish.`,
+                      confirmLabel: "Apply the pattern",
+                    })
+                  ) {
+                    setSections(proposal.sections);
+                    setNotice(
+                      `Alternating pattern applied to ${proposal.changed} section${proposal.changed === 1 ? "" : "s"}. Review, then save and publish.`,
+                    );
+                  }
+                }}
+                className="mt-3 inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-full border border-line px-3.5 text-sm text-text hover:border-line-strong"
+              >
+                Apply alternating light and dark
+              </button>
+            )}
+            {notice && (
+              <p role="status" className="mt-2 text-sm text-success">
+                {notice}
+              </p>
+            )}
             <ol className="mt-4 space-y-2" aria-label="Sections">
               {sections.map((section, i) => {
                 const expanded = open === section.id;
@@ -2047,6 +2164,17 @@ export function PageEditor({ slug, user, initial }: { slug: string; user: AdminU
                             setSections(sections.map((s) => (s.id === section.id ? { ...s, tone } : s)))
                           }
                         />
+                        <SectionLookFields
+                          section={section}
+                          disabled={!canEdit}
+                          onChange={(patch) =>
+                            setSections(
+                              sections.map((s) =>
+                                s.id === section.id ? ({ ...s, ...patch } as PageSection) : s,
+                              ),
+                            )
+                          }
+                        />
                       </div>
                     )}
                   </li>
@@ -2120,7 +2248,7 @@ export function PageEditor({ slug, user, initial }: { slug: string; user: AdminU
 
         <div className="space-y-6">
           <section aria-labelledby={`${uid}-preview`} className="fb-panel rounded-[var(--radius-panel)] p-5">
-            <div className="flex items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
               <h2 id={`${uid}-preview`} className="font-semibold text-text">
                 Live preview
               </h2>
@@ -2132,6 +2260,7 @@ export function PageEditor({ slug, user, initial }: { slug: string; user: AdminU
                 {(
                   [
                     ["desktop", "Desktop", Monitor],
+                    ["tablet", "Tablet", Tablet],
                     ["mobile", "Phone", Smartphone],
                   ] as const
                 ).map(([value, label, Icon]) => (
@@ -2150,6 +2279,18 @@ export function PageEditor({ slug, user, initial }: { slug: string; user: AdminU
                   </button>
                 ))}
               </div>
+              {/* The other global theme, as a visitor using it would see the page (sections keep their own looks). */}
+              <button
+                type="button"
+                aria-pressed={otherTheme}
+                onClick={() => setOtherTheme((v) => !v)}
+                className={cn(
+                  "inline-flex min-h-9 items-center rounded-full border border-line px-3 text-sm",
+                  otherTheme ? "bg-surface-2 text-text" : "text-muted hover:text-text",
+                )}
+              >
+                Other theme
+              </button>
             </div>
             {/* The website's colours, not the Studio's. */}
             <div data-site-preview="">
@@ -2159,12 +2300,15 @@ export function PageEditor({ slug, user, initial }: { slug: string; user: AdminU
                 data-product={KNOWN.includes(slug) ? slug : "figbud"}
                 // The website's own surfaces, as on the live site (ZiraHR's warm palette).
                 data-site={slug}
+                data-tone={otherTheme ? "inverse" : undefined}
+                data-preview-device={device}
                 tabIndex={0}
                 role="group"
                 aria-label="Page preview (scrollable)"
                 className={cn(
                   "mt-4 max-h-[44rem] overflow-y-auto rounded-2xl border border-line bg-bg p-6 sm:p-8",
                   device === "mobile" && "mx-auto max-w-[24rem] p-5",
+                  device === "tablet" && "mx-auto max-w-[48rem]",
                 )}
               >
                 {sections.length === 0 ? (

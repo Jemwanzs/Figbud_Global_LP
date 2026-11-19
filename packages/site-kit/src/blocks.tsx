@@ -51,12 +51,21 @@ export interface PageCta {
   href: string;
 }
 
+export type SectionReveal = "none" | "subtle" | "standard";
+export type SectionSpacing = "compact" | "standard" | "spacious";
+
 interface Base {
   id: string;
   /** Kept in the document but not shown on the website (the API never sends it there). */
   hidden?: boolean;
   /** A band behind the section in the website's theme colours (unset: none). */
   tone?: SectionTone;
+  /** A gentle scroll reveal of its contents (P14-W7); none when unset. */
+  reveal?: SectionReveal | null;
+  /** Space above and below; the usual when unset. */
+  spacing?: SectionSpacing | null;
+  /** Screenshot and words swap sides in side-by-side layouts. */
+  flip?: boolean;
   /** Set by the API when the section comes from the content library. */
   shared?: { id: string; name: string; version: number };
 }
@@ -720,7 +729,8 @@ function Block({
       const content =
         section.layout === "split" ? (
           <div className="grid gap-8 @5xl:grid-cols-12 @5xl:items-center @5xl:gap-12">
-            <div className="@5xl:col-span-4">
+            {/* Flipped: the showcase first on wide screens, the words after it. */}
+            <div className={cn("@5xl:col-span-4", section.flip && "@5xl:order-last")}>
               {section.heading && <Heading>{section.heading}</Heading>}
               {section.intro && <p className="mt-4 text-lead text-muted">{section.intro}</p>}
             </div>
@@ -833,6 +843,9 @@ export function PageBlocks({
             data-hidden={section.hidden || undefined}
             data-tone={section.tone}
             data-surface={surfaces.get(section.id) ?? undefined}
+            // Scroll reveal and spacing presets (P14-W7), styled in styles.css.
+            data-reveal={section.reveal && section.reveal !== "none" ? section.reveal : undefined}
+            data-spacing={section.spacing && section.spacing !== "standard" ? section.spacing : undefined}
             // A light or dark surface keeps its colours whatever the visitor's theme.
             data-theme={section.tone === "light" || section.tone === "dark" ? section.tone : undefined}
             className={cn(

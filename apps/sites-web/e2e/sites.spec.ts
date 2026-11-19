@@ -2156,3 +2156,23 @@ test("on phones the header steps aside while reading down and returns on scrolli
     header.getByRole("link", { name: /Request a demo|Book a demo|Start now/ }).first(),
   ).toBeVisible();
 });
+
+test("a section's look reaches the website: dark in either theme, revealed and spaced as set (P14-W7)", async ({
+  page,
+}) => {
+  await page.goto("/zirahr/workspace");
+  const section = page.locator("section[data-section=device_showcase]");
+  await expect(section).toHaveAttribute("data-theme", "dark");
+  await expect(section).toHaveAttribute("data-reveal", "subtle");
+  await expect(section).toHaveAttribute("data-spacing", "compact");
+  // Readable in either global theme: the band keeps its dark colours.
+  for (const theme of ["light", "dark"] as const) {
+    await page.emulateMedia({ colorScheme: theme });
+    await page.evaluate((t) => document.documentElement.setAttribute("data-theme", t), theme);
+    const results = await new AxeBuilder({ page: await themeSettled(page) })
+      .include("section[data-section=device_showcase]")
+      .withTags(["wcag2aa"])
+      .analyze();
+    expect(results.violations.map((v) => v.id)).toEqual([]);
+  }
+});

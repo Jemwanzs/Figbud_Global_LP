@@ -557,8 +557,37 @@ pub struct Section {
     /// Omitted for the default, so existing documents are unchanged.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tone: Option<Tone>,
+    /// A gentle scroll reveal for the section's contents (P14-W7); none when unset.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reveal: Option<Reveal>,
+    /// Space above and below the section; the usual when unset.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub spacing: Option<Spacing>,
+    /// Screenshot and words swap sides (side-by-side layouts on wide screens).
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub flip: bool,
     #[serde(flatten)]
     pub block: Block,
+}
+
+/// How a section's contents arrive as it scrolls into view (owner's brief, 20
+/// Nov 2026). Scroll-driven, so it plays back as well as forwards, and never
+/// with reduced motion.
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum Reveal {
+    None,
+    Subtle,
+    Standard,
+}
+
+/// Spacing presets for a section.
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum Spacing {
+    Compact,
+    Standard,
+    Spacious,
 }
 
 /// Section styles: the website's brand band (light text on its brand
@@ -1244,6 +1273,24 @@ mod tests {
         )
         .unwrap();
         assert!(page.validate().is_err(), "duplicate section ids");
+    }
+
+    #[test]
+    fn sections_take_a_reveal_spacing_and_side() {
+        // P14-W7 (owner's brief, 20 Nov 2026): set per section, omitted when not set.
+        let page = doc(json!([
+            { "id": "a", "type": "demo", "demo": "leave_flow", "layout": "split", "tone": "dark",
+              "reveal": "subtle", "spacing": "compact", "flip": true },
+            { "id": "b", "type": "text", "body": "x" },
+        ]))
+        .unwrap();
+        assert!(page.validate().is_ok());
+        let rendered = page.render(false);
+        assert_eq!(rendered["sections"][0]["reveal"], "subtle");
+        assert_eq!(rendered["sections"][0]["flip"], true);
+        assert!(rendered["sections"][1].get("reveal").is_none());
+        assert!(rendered["sections"][1].get("flip").is_none());
+        assert!(doc(json!([{ "id": "a", "type": "text", "body": "x", "reveal": "wild" }])).is_err());
     }
 
     #[test]

@@ -72,6 +72,9 @@ fn content(value: Value) -> Result<Block, ApiError> {
             id: "content".into(),
             hidden: false,
             tone: None,
+            reveal: None,
+            spacing: None,
+            flip: false,
             block: block.clone(),
         }],
     };

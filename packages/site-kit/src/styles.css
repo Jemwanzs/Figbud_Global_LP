@@ -1548,3 +1548,44 @@ body:has(main [data-section="call_to_action"]:last-child) footer {
     transform: translateY(6px) scale(0.96);
   }
 }
+
+/* Section looks (P14-W7, owner's brief, 20 Nov 2026). A reveal lets a
+   section's contents rise gently into place as it scrolls into view; it is
+   scroll-driven, so scrolling back plays it in reverse, and it never runs
+   with reduced motion or where the browser lacks scroll timelines (the
+   contents simply show). Spacing presets change the space a band takes. */
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    [data-reveal] > * {
+      animation: fb-section-reveal linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 70%;
+    }
+    [data-reveal="subtle"] {
+      --reveal-shift: 14px;
+      --reveal-from: 0.55;
+    }
+    [data-reveal="standard"] {
+      --reveal-shift: 28px;
+      --reveal-from: 0.2;
+    }
+  }
+}
+@keyframes fb-section-reveal {
+  from {
+    opacity: var(--reveal-from, 1);
+    transform: translateY(var(--reveal-shift, 0));
+  }
+}
+[data-spacing="compact"].fb-tone-full {
+  padding-block: clamp(2.25rem, 5cqi, 3.75rem);
+}
+[data-spacing="spacious"].fb-tone-full {
+  padding-block: clamp(4.5rem, 11cqi, 8.5rem);
+}
+[data-spacing="compact"]:not(.fb-tone-full) {
+  margin-block: -1rem;
+}
+[data-spacing="spacious"]:not(.fb-tone-full) {
+  padding-block: 2rem;
+}

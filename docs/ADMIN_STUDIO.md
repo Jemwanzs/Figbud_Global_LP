@@ -553,6 +553,12 @@ Page builder → a demonstration section → **Guide it with scrolling** (on by 
 - **Shown first:** the visitor's own device (by screen width) or a chosen one. **Frames:** realistic or minimal. **Tablet:** landscape or portrait. **Browser address** in the bar. **Fade** between devices (0.3–0.45 s).
 - Also as its own section: Page builder → Add section → **Device showcase** (heading, description, the same device settings), anywhere on a page.
 - Live pages inside the frames aren't offered: the websites refuse to be framed, to protect visitors from clickjacking.
+## Alternating sections and section looks (P14-W7, 20 Nov 2026)
+
+- Page builder → Sections → **Apply alternating light and dark** proposes Light and Dark in turn for the sections left on Auto, from the hero down; the hero, calls to action and shared content keep their own looks, and sections with a style of their own keep it. Confirm, review each section, then save and publish as usual.
+- Each section: **Section style** (as before), **Scroll reveal** (None, Subtle, Standard), **Spacing** (Compact, Standard, Spacious), and for side-by-side demonstrations **Showcase first**.
+- Light and Dark sections keep their colours whatever theme the visitor uses; the global theme switch is unchanged.
+- Live preview: Desktop, Tablet or Phone width, and **Other theme** to see the page as a visitor on the other global theme would.
 ## Enquiry form (UI-F2)
 
 - **Enquiry form** section: the same form as the corporate contact page (demo request, sales, question, partnership), sent to the enquiry inbox. On a product's own website the product is fixed, so there's no product choice.

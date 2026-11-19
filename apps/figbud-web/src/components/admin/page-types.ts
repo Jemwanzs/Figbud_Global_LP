@@ -1,4 +1,4 @@
-import type { PageDocument, PageSection, SiteTheme } from "@figbud/site-kit";
+import type { PageDocument, PageSection, SectionTone, SiteTheme } from "@figbud/site-kit";
 
 /** Admin view of pages (services/api/src/pages). */
 
@@ -268,3 +268,39 @@ export const toPath = (title: string) =>
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
     .slice(0, 60);
+
+/** Styles that read as dark, so the next section alternates to light (and the reverse). */
+const DARK_TONES = new Set<SectionTone | undefined>(["dark", "brand", "inverse", "gradient_cta"]);
+/** Sections with a designed look of their own, which the pattern leaves alone. */
+const OWN_LOOK = new Set(["hero", "call_to_action", "shared"]);
+
+/**
+ * The "Apply alternating light and dark" proposal (owner's brief, 20 Nov
+ * 2026): from the hero down, visible sections set to Auto take Light and
+ * Dark in turn; sections with a style of their own keep it and the turn
+ * continues from them; side-by-side demonstrations swap sides in turn.
+ * Nothing is published until the editor reviews and publishes it.
+ */
+export function alternatingPattern(sections: PageSection[]): { sections: PageSection[]; changed: number } {
+  let next: "light" | "dark" = "dark";
+  let flip = false;
+  let changed = 0;
+  const out = sections.map((section, i) => {
+    if (section.hidden || OWN_LOOK.has(section.type) || (i === 0 && section.type === "hero")) {
+      if (section.tone) next = DARK_TONES.has(section.tone) ? "light" : "dark";
+      return section;
+    }
+    let result = section;
+    if (!section.tone) {
+      result = { ...result, tone: next };
+      changed += 1;
+    }
+    if (result.type === "demo" && result.layout === "split") {
+      result = { ...result, flip };
+      flip = !flip;
+    }
+    next = DARK_TONES.has(result.tone) ? "light" : "dark";
+    return result;
+  });
+  return { sections: out, changed };
+}

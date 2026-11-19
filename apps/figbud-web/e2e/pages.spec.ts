@@ -491,3 +491,40 @@ test("a hero's product screenshots are edited in the page builder, with a live p
   await page.getByLabel("Visual").selectOption("");
   await expect(fields).toHaveCount(0);
 });
+
+test("sections alternate light and dark on request, each reviewable, with reveal and spacing (P14-W7)", async ({
+  page,
+}) => {
+  await signInAsOwner(page);
+  const run = await newSite(page);
+  await page.getByRole("link", { name: "Pages" }).click();
+  await page.getByRole("radio", { name: /^Home page/ }).check();
+  await page.getByLabel("Page title").fill("Platform");
+  await page.getByRole("button", { name: "Create page" }).click();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Platform");
+  const preview = page.getByRole("region", { name: "Live preview" });
+
+  // A proposal for the sections left on Auto, confirmed before it's applied.
+  await page.getByRole("button", { name: "Apply alternating light and dark" }).click();
+  await page.getByRole("button", { name: "Apply the pattern" }).click();
+  await expect(
+    page.getByRole("status").filter({ hasText: /Alternating pattern applied to \d+ section/ }),
+  ).toBeVisible();
+  await expect(preview.locator('[data-tone="dark"]').first()).toBeAttached();
+  await saved(page);
+
+  // Each section can still be changed, with its reveal and spacing.
+  const sections = page.getByRole("list", { name: "Sections" });
+  await sections.getByRole("button", { name: /^Feature grid/ }).click();
+  await sections.getByLabel("Scroll reveal").selectOption("subtle");
+  await sections.getByLabel("Spacing").selectOption("compact");
+  await expect(preview.locator('[data-reveal="subtle"][data-spacing="compact"]')).toHaveCount(1);
+  await saved(page);
+
+  // Previewed at tablet width, and in the other global theme.
+  await preview.getByRole("button", { name: "Tablet" }).click();
+  await expect(preview.locator("[data-preview-device=tablet]")).toBeVisible();
+  await preview.getByRole("button", { name: "Other theme" }).click();
+  await expect(preview.locator('[data-preview-device][data-tone="inverse"]')).toBeVisible();
+  void run;
+});

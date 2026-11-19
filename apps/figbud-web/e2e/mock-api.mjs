@@ -2319,6 +2319,10 @@ seedPublishedPage(
       {
         id: "zw-devices",
         type: "device_showcase",
+        // A section look (P14-W7): dark in either theme, revealed gently, compact.
+        tone: "dark",
+        reveal: "subtle",
+        spacing: "compact",
         heading: "On every screen your team uses",
         body: "The same workspace in a desktop browser, on a tablet and on a phone.",
         devices: {
