@@ -1,4 +1,4 @@
-import { CountUp, Marquee, RevealGroup, cn, revealOrder } from "@figbud/ui";
+import { Marquee, RevealGroup, cn, revealOrder } from "@figbud/ui";
 import { Quote } from "lucide-react";
 
 import { MEDIA_PATH } from "./blocks";
@@ -53,6 +53,11 @@ export interface PublicMetric {
   suffix: string | null;
   source: string;
   period: string;
+  /** Compact, full or the website default (P10-R1); older figures send only `compact`. */
+  notation?: "auto" | "compact" | "full";
+  auto_decimals?: boolean;
+  icon?: string | null;
+  description?: string | null;
 }
 
 export interface PublicProof {
@@ -142,70 +147,6 @@ export function TrustedBy({
           );
         })}
       </Marquee>
-    </section>
-  );
-}
-
-function metricFormat(m: PublicMetric): { format: Intl.NumberFormatOptions; suffix: string } {
-  const digits = { minimumFractionDigits: m.decimals, maximumFractionDigits: m.decimals };
-  const compact = m.compact ? ({ notation: "compact" } as const) : {};
-  if (m.format === "currency" && m.currency)
-    return {
-      format: { style: "currency", currency: m.currency, currencyDisplay: "code", ...compact, ...digits },
-      suffix: m.suffix ?? "",
-    };
-  // Percentages are entered as points (98 means 98%).
-  if (m.format === "percent") return { format: { ...digits }, suffix: `%${m.suffix ?? ""}` };
-  return { format: { ...compact, ...digits }, suffix: m.suffix ?? "" };
-}
-
-/** Verified figures that count up once, each with its source and period. */
-export function ProofMetrics({
-  metrics,
-  locale,
-  labels,
-  className,
-}: {
-  metrics: PublicMetric[];
-  /** BCP 47 tag for number formatting. */
-  locale: string;
-  labels: { eyebrow?: string; title: string; lead?: string; source: string };
-  className?: string;
-}) {
-  if (!metrics.length) return null;
-  return (
-    <section aria-labelledby="metrics-title" className={className}>
-      <Heading id="metrics-title" eyebrow={labels.eyebrow} title={labels.title} lead={labels.lead} />
-      <dl className="mt-12 grid gap-px overflow-hidden rounded-[var(--radius-panel)] border border-line bg-line sm:grid-cols-2 lg:grid-cols-4">
-        {metrics.map((m) => {
-          const { format, suffix } = metricFormat(m);
-          return (
-            <RevealGroup key={m.id} className="flex flex-col bg-surface p-6 sm:p-8">
-              <dt
-                className="fb-reveal-item order-2 mt-2 text-sm font-medium text-text"
-                style={revealOrder(1)}
-              >
-                {m.label}
-              </dt>
-              <dd className="order-1 font-display text-4xl font-semibold tracking-tight text-text sm:text-5xl">
-                <CountUp
-                  value={m.value}
-                  locale={locale}
-                  format={format}
-                  prefix={m.prefix ?? ""}
-                  suffix={suffix}
-                />
-              </dd>
-              <dd
-                className="fb-reveal-item order-3 mt-3 text-xs leading-relaxed text-subtle"
-                style={revealOrder(2)}
-              >
-                {labels.source} {m.source} · {m.period}
-              </dd>
-            </RevealGroup>
-          );
-        })}
-      </dl>
     </section>
   );
 }

@@ -154,8 +154,9 @@ pub struct Metric {
     pub decimals: u8,
     /// Compact, full, or the website display default (P10-R1).
     pub notation: MetricNotation,
-    /// Automatic decimals: up to one, never a trailing zero (P10-R1).
-    pub auto_decimals: bool,
+    /// Automatic decimals: up to one, never a trailing zero (P10-R1). Unset
+    /// (figures saved before): automatic unless fixed decimals were chosen.
+    pub auto_decimals: Option<bool>,
     /// An icon from the approved set (`METRIC_ICONS`).
     pub icon: Option<String>,
     /// A short line under the label.
@@ -509,7 +510,7 @@ impl ProofDoc {
                     (MetricNotation::Auto, true) => MetricNotation::Compact,
                     (n, _) => n,
                 },
-                "auto_decimals": m.auto_decimals,
+                "auto_decimals": m.auto_decimals.unwrap_or(m.decimals == 0),
                 "icon": m.icon,
                 "description": m.description,
                 "prefix": m.prefix,

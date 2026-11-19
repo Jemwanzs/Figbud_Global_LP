@@ -131,6 +131,11 @@ pub async fn assess(pool: &PgPool, site_id: Uuid, rendered: &Value) -> Result<Bu
             let own = (s["type"] == "image").then(|| s["image_id"].clone());
             own.into_iter()
                 .chain(views.into_iter().map(|v| v["image_id"].clone()))
+                // Device screenshots (P14-W6): counted all, though only the shown one loads first.
+                .chain(
+                    ["desktop", "tablet", "phone"]
+                        .map(|d| s["ess"]["devices"][format!("{d}_image_id")].clone()),
+                )
                 .chain(faq.into_iter().map(|i| i["image_id"].clone()))
         })
         .filter_map(|id| id.as_str().and_then(|id| Uuid::parse_str(id).ok()))

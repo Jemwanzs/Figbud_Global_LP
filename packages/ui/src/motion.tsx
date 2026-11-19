@@ -13,6 +13,7 @@ import {
 } from "react";
 
 import { cn } from "./cn";
+import { type Figure, type FigureNotation, formatFigure } from "./numbers";
 
 /**
  * Loads Motion's lightweight DOM feature set once and honours the visitor's
@@ -143,6 +144,10 @@ export function CountUp({
   prefix = "",
   suffix = "",
   className,
+  figure,
+  notation = "compact",
+  duration = 1600,
+  animate = true,
 }: {
   value: number;
   locale: string;
@@ -150,22 +155,40 @@ export function CountUp({
   prefix?: string;
   suffix?: string;
   className?: string;
+  /** A marketing figure: every frame uses `formatFigure`, the same as the static figure (P10-R1). */
+  figure?: Figure;
+  /** The website display default for a figure set to `auto`. */
+  notation?: FigureNotation;
+  duration?: number;
+  /** Off: the final figure, without counting. */
+  animate?: boolean;
 }) {
   const ref = useRef<HTMLSpanElement>(null);
-  const final = `${prefix}${new Intl.NumberFormat(locale, format).format(value)}${suffix}`;
-  const options = JSON.stringify(format ?? {});
+  const text = (n: number) =>
+    figure
+      ? formatFigure(figure, locale, notation, n)
+      : `${prefix}${new Intl.NumberFormat(locale, format).format(n)}${suffix}`;
+  const final = text(value);
+  const options = JSON.stringify({ format: format ?? {}, figure: figure ?? null, notation });
 
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;
-    const fmt = new Intl.NumberFormat(locale, JSON.parse(options) as Intl.NumberFormatOptions);
+    if (!animate) return;
+    const saved = JSON.parse(options) as {
+      format: Intl.NumberFormatOptions;
+      figure: Figure | null;
+      notation: FigureNotation;
+    };
+    const fmt = new Intl.NumberFormat(locale, saved.format);
     const show = (n: number) => {
-      el.textContent = `${prefix}${fmt.format(n)}${suffix}`;
+      el.textContent = saved.figure
+        ? formatFigure(saved.figure, locale, saved.notation, n)
+        : `${prefix}${fmt.format(n)}${suffix}`;
     };
     let frame = 0;
     const stop = armReveal(el, () => {
       const start = performance.now();
-      const duration = 1600;
       const tick = (now: number) => {
         const t = Math.min(1, (now - start) / duration);
         // Ease-out: quick at first, settling exactly on the value.
@@ -181,7 +204,7 @@ export function CountUp({
       cancelAnimationFrame(frame);
       show(value);
     };
-  }, [value, locale, options, prefix, suffix]);
+  }, [value, locale, options, prefix, suffix, duration, animate]);
 
   return (
     <span className={cn("relative inline-grid tabular-nums", className)}>

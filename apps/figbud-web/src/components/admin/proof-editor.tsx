@@ -1,6 +1,6 @@
 "use client";
 
-import { type ConfirmOptions, cn, useConfirm } from "@figbud/ui";
+import { type ConfirmOptions, cn, formatFigure, useConfirm } from "@figbud/ui";
 import { CircleAlert, CircleCheck } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { type ReactNode, useEffect, useId, useState } from "react";
@@ -19,6 +19,22 @@ type Site = { slug: string; name: string; corporate: boolean };
 
 const str = (v: unknown) => (typeof v === "string" ? v : "");
 const bool = (v: unknown) => v === true;
+
+/** The icons a figure can show (services/api/src/proof.rs `METRIC_ICONS`). */
+const METRIC_ICONS: [string, string][] = [
+  ["wallet", "Wallet"],
+  ["users", "People"],
+  ["building", "Building"],
+  ["badge-check", "Verified badge"],
+  ["briefcase", "Briefcase"],
+  ["layers", "Layers"],
+  ["trending-up", "Growth"],
+  ["clock", "Clock"],
+  ["globe", "Globe"],
+  ["award", "Award"],
+  ["receipt", "Receipt"],
+  ["landmark", "Institution"],
+];
 
 /**
  * One Trusted By organisation, testimonial or metric (P10-T1..T3). Saving
@@ -97,6 +113,13 @@ export function ProofEditor({
   const archived = archivedNow;
   const editable = data.can_edit && !archived;
   const set = (key: string, value: unknown) => setForm((f) => ({ ...f, doc: { ...f.doc, [key]: value } }));
+  const setMany = (patch: Doc) => setForm((f) => ({ ...f, doc: { ...f.doc, ...patch } }));
+  // A figure's notation and decimals (P10-R1); figures saved before read as they showed.
+  const notation = str(doc.notation) || (bool(doc.compact) ? "compact" : "auto");
+  const autoDecimals =
+    typeof doc.auto_decimals === "boolean"
+      ? doc.auto_decimals
+      : !(typeof doc.decimals === "number" && doc.decimals > 0);
   const setPermission = (key: string, value: unknown) =>
     set("permission", { ...(doc.permission as Doc | undefined), [key]: value });
   const permission = (doc.permission as Doc | undefined) ?? {};
@@ -408,23 +431,85 @@ export function ProofEditor({
                 <label htmlFor={`${uid}-decimals`} className="block text-sm font-medium text-text">
                   Decimals
                 </label>
-                <input
+                <select
                   id={`${uid}-decimals`}
-                  type="number"
-                  min={0}
-                  max={2}
-                  value={typeof doc.decimals === "number" ? doc.decimals : 0}
+                  value={autoDecimals ? "auto" : String(typeof doc.decimals === "number" ? doc.decimals : 0)}
                   disabled={!editable}
-                  onChange={(e) => set("decimals", Number(e.target.value))}
+                  onChange={(e) =>
+                    e.target.value === "auto"
+                      ? set("auto_decimals", true)
+                      : setMany({ auto_decimals: false, decimals: Number(e.target.value) })
+                  }
                   className={cn(inputClass, "mt-2")}
-                />
+                >
+                  <option value="auto">Automatic (1.3K, 25M)</option>
+                  <option value="0">None</option>
+                  <option value="1">One</option>
+                  <option value="2">Two</option>
+                </select>
               </div>
             </div>
-            {check(
-              bool(doc.compact),
-              (v) => set("compact", v),
-              "Compact notation (1.2M instead of 1,200,000)",
-            )}
+            {/* One notation for every website (P10-R1): compact unless chosen otherwise. */}
+            <div className="grid gap-5 sm:grid-cols-3">
+              <div>
+                <label htmlFor={`${uid}-notation`} className="block text-sm font-medium text-text">
+                  Notation
+                </label>
+                <select
+                  id={`${uid}-notation`}
+                  value={notation}
+                  disabled={!editable}
+                  onChange={(e) =>
+                    setMany({ notation: e.target.value, compact: e.target.value === "compact" })
+                  }
+                  className={cn(inputClass, "mt-2")}
+                >
+                  <option value="auto">Website default (compact)</option>
+                  <option value="compact">Compact (25M)</option>
+                  <option value="full">Full (25,000,000)</option>
+                </select>
+              </div>
+              <div>
+                <label htmlFor={`${uid}-icon`} className="block text-sm font-medium text-text">
+                  Icon
+                </label>
+                <select
+                  id={`${uid}-icon`}
+                  value={str(doc.icon)}
+                  disabled={!editable}
+                  onChange={(e) => set("icon", e.target.value || null)}
+                  className={cn(inputClass, "mt-2")}
+                >
+                  <option value="">None</option>
+                  {METRIC_ICONS.map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <p className="block text-sm font-medium text-text">Shown on websites as</p>
+                <p
+                  className="mt-2 flex min-h-11 items-center font-display text-2xl font-semibold text-text"
+                  data-figure-preview=""
+                >
+                  {formatFigure({
+                    value: typeof doc.value === "number" ? doc.value : 0,
+                    format: (str(doc.format) || "number") as "number" | "currency" | "percent",
+                    currency: str(doc.currency) || null,
+                    notation: notation as "auto" | "compact" | "full",
+                    decimals: autoDecimals ? null : typeof doc.decimals === "number" ? doc.decimals : 0,
+                    prefix: str(doc.prefix) || null,
+                    suffix: str(doc.suffix) || null,
+                  })}
+                </p>
+              </div>
+            </div>
+            {text("description", "Short description (optional)", {
+              max: 120,
+              hint: "One line under the label.",
+            })}
             {text("source", "Source", { max: 200, hint: "Where the figure comes from; shown with it." })}
             {text("period", "Measurement period", { max: 80, hint: "e.g. Jan–Sep 2026; shown with it." })}
           </fieldset>

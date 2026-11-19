@@ -538,6 +538,19 @@ Page builder → a demonstration section → **Guide it with scrolling** (on by 
 
 - A product website shows a language once it's switched on (Websites → a website → Languages) and its translation is reviewed and published (Settings & Security → Languages). Until then visitors see English only: that's why ZiraHR's selector lists English.
 - Once shown, a translated page's skip link, cookie banner, main button, Start Now and demo booking dialogs and enquiry form appear in that language (shared wording, the same as FigBud Global's). The form's own Studio wording (Enquiry form) applies on English pages.
+## Results & success story (P10-R1, P10-R2, 19 Nov 2026)
+
+- Websites → a website → **Results & success story**. The figures themselves stay in Customers & proof (source, period, verification, approval, which websites).
+- **Results band:** show or hide, eyebrow, heading, description, layout (featured figure, equal cards, carousel with optional rotation), placement (with customer proof, or straight after the hero), motion (or the website display's). Save draft, Publish, Discard draft.
+- **Our Success Story:** off until published. Title, headline, description, up to eight figures in order (only those published for this website), layout (strip, cards, words beside the figures), background (dark brand band, band gradient, or a library image with an overlay and optional slow movement), whether it replaces the Results band, motion. Draft and publish; **Published versions** load an earlier one to restore.
+- **Website display:** on FigBud Global, the defaults every website inherits (compact or full figures, Results layout, motion); on another website, "Use FigBud Global's website display" or its own. A change to the defaults never alters a website's figures, wording, colours or chosen layout.
+- Figures everywhere use one formatter: compact by default (25M, 1.3K), never rounded up, a "+" only where entered. Customers & proof → a figure shows exactly how it will read.
+## Device preview (P14-W6, 19 Nov 2026)
+
+- Page builder → a Hero → **Highlight Employee Self-Service** → **Device preview**: turn the Desktop / Tablet / Phone browser labels into buttons that show the website in device frames.
+- For each device shown, choose a **screenshot taken at that device's size** from the media library (desktop about 1440 px wide; tablet 1024 × 768 or 768 × 1024; phone about 390 px wide). Approved images only, with no real customer data.
+- **Shown first:** the visitor's own device (by screen width) or a chosen one. **Frames:** realistic or minimal. **Tablet:** landscape or portrait. **Browser address** in the bar. **Fade** between devices (0.3–0.45 s).
+- Live pages inside the frames aren't offered: the websites refuse to be framed, to protect visitors from clickjacking.
 ## Enquiry form (UI-F2)
 
 - **Enquiry form** section: the same form as the corporate contact page (demo request, sales, question, partnership), sent to the enquiry inbox. On a product's own website the product is fixed, so there's no product choice.

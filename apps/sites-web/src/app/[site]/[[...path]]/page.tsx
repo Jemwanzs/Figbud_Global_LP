@@ -7,7 +7,9 @@ import {
   PageBlocks,
   ProductLogo,
   LazyProductHero as ProductHero,
-  ProofMetrics,
+  MEDIA_PATH,
+  ResultsShowcase,
+  SuccessStory,
   LazyPublicPricing,
   Testimonials,
   TrustedBy,
@@ -362,6 +364,44 @@ export default async function SitePage({ params }: PageProps<"/[site]/[[...path]
     faqLd(page),
   ].filter((d) => d !== null);
   const info = locale === "en" ? null : localeInfo[locale as Locale];
+  // Results & achievements and Our Success Story (P10-R1/R2), from the website's published settings.
+  const settings = site.settings;
+  const numberLocale = info?.tag ?? "en";
+  const story = path === "" && settings?.success_story?.enabled ? settings.success_story : null;
+  const resultsAfterHero = path === "" && settings?.results?.placement === "after_hero";
+  const results = (
+    <ResultsShowcase
+      metrics={proof?.metrics ?? []}
+      locale={numberLocale}
+      labels={PROOF_LABELS.metrics}
+      display={settings?.results}
+      defaults={settings?.display}
+    />
+  );
+  const afterHero = (
+    <>
+      {story && proof && (
+        <SuccessStory
+          story={story}
+          metrics={proof.metrics}
+          locale={numberLocale}
+          sourceLabel={PROOF_LABELS.metrics.source}
+          mediaBase={MEDIA_PATH}
+          defaults={settings?.display}
+        />
+      )}
+      {resultsAfterHero && !story?.replaces_results && (
+        <div className="mx-auto max-w-[92rem] px-5 pt-section-sm sm:px-8 md:px-10 lg:px-16">{results}</div>
+      )}
+    </>
+  );
+  // With no designed hero, the story follows the page's own leading hero section.
+  const firstShown = blocks.sections.findIndex((s) => !s.hidden);
+  // Only when there's something to place there, so other pages keep their structure exactly.
+  const placesAfterHero =
+    Boolean(story && proof?.metrics.length) || (resultsAfterHero && Boolean(proof?.metrics.length));
+  const splitAt =
+    placesAfterHero && !designed && blocks.sections[firstShown]?.type === "hero" ? firstShown + 1 : 0;
   // Customer proof after the page's sections, alternating on from them.
   const proofParts = proof
     ? [
@@ -369,10 +409,12 @@ export default async function SitePage({ params }: PageProps<"/[site]/[[...path]
           key: "trusted",
           node: <TrustedBy organizations={proof.organizations} labels={PROOF_LABELS.trustedBy} />,
         },
-        proof.metrics.length > 0 && {
-          key: "metrics",
-          node: <ProofMetrics metrics={proof.metrics} locale="en" labels={PROOF_LABELS.metrics} />,
-        },
+        proof.metrics.length > 0 &&
+          !resultsAfterHero &&
+          !(story?.replaces_results && story.metric_ids.length > 0) && {
+            key: "metrics",
+            node: results,
+          },
         proof.testimonials.length > 0 && {
           key: "testimonials",
           node: <Testimonials testimonials={proof.testimonials} labels={PROOF_LABELS.testimonials} />,
@@ -400,14 +442,44 @@ export default async function SitePage({ params }: PageProps<"/[site]/[[...path]
           }
         />
       )}
+      {designed && afterHero}
       <div
         data-page-content=""
         className="mx-auto max-w-[92rem] px-5 py-section-sm sm:px-8 md:px-10 lg:px-16"
       >
         <JsonLd data={structured} />
         {path === "" && <CampaignSlot placement="home_hero" className="mb-block block" />}
+        {splitAt > 0 && (
+          <>
+            <PageBlocks
+              document={{ ...blocks, sections: blocks.sections.slice(0, splitAt) }}
+              locale={locale}
+              resolveHref={hrefResolver(site, ownDomain, pages, locale)}
+              mark={
+                KNOWN_PRODUCTS.includes(site.slug) ? (
+                  <ProductLogo
+                    slug={site.slug as ProductSlug}
+                    brand={site.brand}
+                    name={site.name}
+                    size="sm"
+                  />
+                ) : undefined
+              }
+              enquiry={{
+                apiOrigin: publicApiOrigin,
+                product: isEnquiryProduct(site.slug) ? site.slug : undefined,
+                privacyHref: `${figbudOrigin}/en/legal/privacy`,
+                config: site.settings?.enquiry_form,
+                form: site.slug,
+              }}
+            />
+            <div data-after-hero="" className="mx-[calc(50%-50vw)] my-block">
+              {afterHero}
+            </div>
+          </>
+        )}
         <PageBlocks
-          document={blocks}
+          document={splitAt > 0 ? { ...blocks, sections: blocks.sections.slice(splitAt) } : blocks}
           locale={locale}
           resolveHref={hrefResolver(site, ownDomain, pages, locale)}
           mark={

@@ -9,9 +9,11 @@ import type { Locale } from "@figbud/i18n";
 
 import { type EnquiryFormConfig, type EnquiryProduct } from "./enquiry";
 import { enquiryCopyFor } from "./enquiry-translations";
+import type { DevicePreviewConfig } from "./device-preview";
 import type { FaqScene, FaqShowcaseConfig } from "./faq-showcase";
 import { HeroSignal } from "./hero-signal";
 import {
+  LazyDevicePreview,
   LazyEnquiryForm,
   LazyFaqShowcase,
   LazyModuleCatalogue as ModuleCatalogue,
@@ -138,7 +140,7 @@ export type PageSection = Base &
         /** How much the visual moves by itself. */
         motion?: StoryMotion;
         /** Employee Self-Service, highlighted under the hero. */
-        ess?: { heading: string; body: string } | null;
+        ess?: { heading: string; body: string; devices?: DevicePreviewConfig | null } | null;
         /** Hover messages changed in the Studio, by module key; the approved copy otherwise. */
         messages?: Partial<Record<string, string>>;
         /** Product screenshots beside the words (18 Nov 2026); replaces the visual. */
@@ -441,7 +443,7 @@ function Block({
                 <ProductShowcase showcase={showcase} locale={locale} mediaBase={mediaBase} eager={first} />
               </div>
             </div>
-            {section.ess && <SelfServiceHighlight {...section.ess} />}
+            {section.ess && <SelfServiceHighlight {...section.ess} mediaBase={mediaBase} />}
           </>
         );
       if (!section.visual) return words;
@@ -457,7 +459,7 @@ function Block({
               />
             </div>
           </div>
-          {section.ess && <SelfServiceHighlight {...section.ess} />}
+          {section.ess && <SelfServiceHighlight {...section.ess} mediaBase={mediaBase} />}
         </>
       );
     }
@@ -860,7 +862,19 @@ export function PageBlocks({
  * every module, in a web browser on any device. Never presented as an app to
  * download.
  */
-function SelfServiceHighlight({ heading, body }: { heading: string; body: string }) {
+function SelfServiceHighlight({
+  heading,
+  body,
+  devices,
+  mediaBase,
+}: {
+  heading: string;
+  body: string;
+  devices?: DevicePreviewConfig | null;
+  mediaBase?: string;
+}) {
+  // With screenshots per device, the labels become the device switcher (P14-W6).
+  const preview = devices && devices.enabled !== false && devices.devices.some((d) => devices.media?.[d]);
   return (
     <aside
       aria-labelledby="hero-ess"
@@ -876,21 +890,25 @@ function SelfServiceHighlight({ heading, body }: { heading: string; body: string
         </h2>
         <p className="mt-1.5 max-w-3xl text-muted">{body}</p>
       </div>
-      <ul className="flex flex-wrap gap-2 text-sm text-muted" aria-label="Works in the browser on">
-        {[
-          { icon: Monitor, label: "Desktop" },
-          { icon: Tablet, label: "Tablet" },
-          { icon: Smartphone, label: "Phone browser" },
-        ].map(({ icon: Icon, label }) => (
-          <li
-            key={label}
-            className="inline-flex items-center gap-1.5 rounded-full border border-line px-3 py-1.5 whitespace-nowrap"
-          >
-            <Icon aria-hidden className="size-4 text-product-text" />
-            {label}
-          </li>
-        ))}
-      </ul>
+      {preview ? (
+        <LazyDevicePreview config={devices} alt={heading} mediaBase={mediaBase} />
+      ) : (
+        <ul className="flex flex-wrap gap-2 text-sm text-muted" aria-label="Works in the browser on">
+          {[
+            { icon: Monitor, label: "Desktop" },
+            { icon: Tablet, label: "Tablet" },
+            { icon: Smartphone, label: "Phone browser" },
+          ].map(({ icon: Icon, label }) => (
+            <li
+              key={label}
+              className="inline-flex items-center gap-1.5 rounded-full border border-line px-3 py-1.5 whitespace-nowrap"
+            >
+              <Icon aria-hidden className="size-4 text-product-text" />
+              {label}
+            </li>
+          ))}
+        </ul>
+      )}
     </aside>
   );
 }

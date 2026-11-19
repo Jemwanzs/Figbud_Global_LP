@@ -32,8 +32,12 @@ test("the home page shows published Trusted By logos, verified metrics and testi
   const metrics = page.getByRole("region", { name: "Measured, not estimated." });
   await metrics.scrollIntoViewIfNeeded();
   await expect(metrics.getByText("Synthetic test metric")).toBeVisible();
+  // One formatter on every website (P10-R1): compact, never rounded up, the "+" only where it was entered.
+  await expect(metrics.locator("[data-figure] .sr-only").first()).toHaveText("KES 1.2M+");
+  await expect(metrics.locator("[data-figure] .sr-only").nth(1)).toHaveText("1.3K+");
+  await expect(metrics.locator("[data-results-layout=featured]")).toBeVisible();
   // Each figure carries its source and period.
-  await expect(metrics.getByText("Source: Test fixture · Test period")).toBeVisible();
+  await expect(metrics.getByText("Source: Test fixture · Test period").first()).toBeVisible();
   await expect(page.getByRole("region", { name: "In our customers' words." })).toContainText(
     "Synthetic Test Organisation",
   );
@@ -140,6 +144,8 @@ test.describe("Studio", () => {
     await page.getByRole("button", { name: "Save draft" }).click();
     await expect(page.getByText("Use a three-letter currency code such as KES.")).toBeVisible();
     await page.getByLabel("Currency code").fill("KES");
+    // The figure as every website shows it (P10-R1): compact by default.
+    await expect(page.locator("[data-figure-preview]")).toHaveText("KES 2M");
     await page.getByRole("button", { name: "Save draft" }).click();
     await expect(
       page.getByText("Every published figure needs its source and measurement period."),

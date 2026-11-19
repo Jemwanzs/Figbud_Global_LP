@@ -3,7 +3,17 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
-import { CampaignSlot, type HomeSection, JsonLd, sectionTones, websiteLd } from "@figbud/site-kit";
+import {
+  CampaignSlot,
+  type HomeSection,
+  JsonLd,
+  MEDIA_PATH,
+  ResultsShowcase,
+  SuccessStory,
+  sectionTones,
+  websiteLd,
+} from "@figbud/site-kit";
+import { Container } from "@figbud/ui";
 
 import { HeroSlot } from "@/components/home/heroes/hero-slot";
 import {
@@ -19,6 +29,7 @@ import {
 import { getDictionary } from "@/i18n/get-dictionary";
 import {
   getBrands,
+  getCorporateResults,
   getHero,
   getMapProducts,
   getProductRotation,
@@ -51,6 +62,12 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
     getHero(),
     getSectionThemes(),
   ]);
+  // Results & achievements and Our Success Story (P10-R1/R2).
+  const { results, story, display } = await getCorporateResults();
+  const shownStory =
+    story && story.metric_ids.some((id) => proof.metrics.some((m) => m.id === id)) ? story : null;
+  const resultsAfterHero = results?.placement === "after_hero";
+  const metricsInProof = !resultsAfterHero && !shownStory?.replaces_results;
   // Alternating bands (UI-TH6): the hero follows the global theme, Our Platforms
   // takes the opposite, and the sections on the page alternate from there.
   // Trusted By is its own band (owner's brief, 14 Nov 2026), once a published
@@ -61,7 +78,7 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
     "philosophy",
     "africa",
     "engineer",
-    ...(proof.metrics.length || proof.testimonials.length ? (["proof"] as const) : []),
+    ...((metricsInProof && proof.metrics.length) || proof.testimonials.length ? (["proof"] as const) : []),
     "company",
     "closing",
   ];
@@ -77,6 +94,27 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
         className="mx-auto block w-full max-w-[92rem] px-5 pt-page-top sm:px-8 md:px-10 lg:px-16"
       />
       <HeroSlot hero={hero} locale={locale} dict={dict} products={products} brands={brands} />
+      {shownStory && (
+        <SuccessStory
+          story={shownStory}
+          metrics={proof.metrics}
+          locale={localeInfo[locale].tag}
+          sourceLabel={dict.home.proof.metrics.source}
+          mediaBase={MEDIA_PATH}
+          defaults={display}
+        />
+      )}
+      {resultsAfterHero && !shownStory?.replaces_results && proof.metrics.length > 0 && (
+        <Container size="wide" className="py-section-sm">
+          <ResultsShowcase
+            metrics={proof.metrics}
+            locale={localeInfo[locale].tag}
+            labels={dict.home.proof.metrics}
+            display={results}
+            defaults={display}
+          />
+        </Container>
+      )}
       {/* Each boundary hydrates as its own task, keeping the main thread responsive. */}
       <Suspense>
         <PlatformsSection
@@ -108,7 +146,15 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
         <EngineerSection tone={tone.engineer} locale={locale} dict={dict} />
       </Suspense>
       <Suspense>
-        <CustomerProofSection tone={tone.proof} locale={locale} dict={dict} proof={proof} />
+        <CustomerProofSection
+          tone={tone.proof}
+          locale={locale}
+          dict={dict}
+          proof={proof}
+          results={results}
+          display={display}
+          showMetrics={metricsInProof}
+        />
       </Suspense>
       <Suspense>
         <CompanySection tone={tone.company} locale={locale} dict={dict} />

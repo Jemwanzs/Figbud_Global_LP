@@ -1,7 +1,9 @@
 import type { Product } from "@figbud/brand";
 import {
   type BrandProfile,
-  ProofMetrics,
+  type DisplayDefaults,
+  type ResultsDisplay,
+  ResultsShowcase,
   type PublicProof,
   type BandTone,
   type ShowcaseSettings,
@@ -261,15 +263,33 @@ export function TrustedBySection({ dict, proof, tone }: SectionProps & { proof: 
 }
 
 /** Verified metrics and testimonials; each renders only when something is published. */
-export function CustomerProofSection({ locale, dict, proof, tone }: SectionProps & { proof: PublicProof }) {
-  if (!proof.metrics.length && !proof.testimonials.length) return null;
+export function CustomerProofSection({
+  locale,
+  dict,
+  proof,
+  tone,
+  results,
+  display,
+  showMetrics = true,
+}: SectionProps & {
+  proof: PublicProof;
+  /** The Results band's display and the website display defaults (P10-R1). */
+  results?: ResultsDisplay | null;
+  display?: DisplayDefaults | null;
+  /** Off while the figures show after the hero or in Our Success Story instead. */
+  showMetrics?: boolean;
+}) {
+  const metrics = showMetrics ? proof.metrics : [];
+  if (!metrics.length && !proof.testimonials.length) return null;
   return (
     <div {...bandProps(tone)} className={cn("py-section", BAND)}>
       <Container size="wide" className="space-y-section">
-        <ProofMetrics
-          metrics={proof.metrics}
+        <ResultsShowcase
+          metrics={metrics}
           locale={localeInfo[locale].tag}
           labels={dict.home.proof.metrics}
+          display={results}
+          defaults={display}
         />
         <Testimonials testimonials={proof.testimonials} labels={dict.home.proof.testimonials} />
       </Container>

@@ -1684,6 +1684,18 @@ const renderDoc = (doc, includeHidden = true) => ({
       }
       return { ...s, showcase: { ...s.showcase, views } };
     })
+    // Self-service device screenshots (media.rs, P14-W6).
+    .map((s) => {
+      const d = s.type === "hero" && s.ess?.devices;
+      if (!d) return s;
+      const media = Object.fromEntries(
+        ["desktop", "tablet", "phone"]
+          .map((k) => [k, mediaInfo(mediaAssets.get(d[`${k}_image_id`]))])
+          .filter(([, m]) => m),
+      );
+      const devices = includeHidden ? d.devices : d.devices.filter((k) => media[k]);
+      return { ...s, ess: { ...s.ess, devices: { ...d, devices, media } } };
+    })
     .map((s) =>
       s.type === "text"
         ? { ...s, body_html: md(s.body) }
@@ -2320,6 +2332,20 @@ seedPublishedPage("zirahr", "platform", "Platform", {
       ess: {
         heading: "Your team. Their HR. One simple portal.",
         body: "Payslips, leave requests and personal details in a web browser on any device. No app to install.",
+        // The device preview (P14-W6), with synthetic test screenshots.
+        devices: {
+          enabled: true,
+          devices: ["desktop", "tablet", "phone"],
+          desktop_image_id: zirahrShotA.id,
+          tablet_image_id: zirahrShotB.id,
+          phone_image_id: zirahrShotA.id,
+          default_device: "visitor",
+          frame: "realistic",
+          tablet_orientation: "landscape",
+          address: "ZiraHR",
+          transitions: true,
+          duration_ms: 380,
+        },
       },
     },
     {
@@ -3824,6 +3850,23 @@ function proofRoutes(path, req, body, user, send) {
       format: "currency",
       currency: "KES",
       compact: true,
+      suffix: "+",
+      source: "Test fixture",
+      period: "Test period",
+      verified: true,
+    },
+    ["figbud"],
+  );
+  // A second figure (P10-R1): the featured layout has supporting figures; 1,364 shows as 1.3K+ (never rounded up).
+  seed(
+    "metric",
+    {
+      label: "Synthetic test people",
+      value: 1364,
+      format: "number",
+      notation: "auto",
+      auto_decimals: true,
+      icon: "users",
       suffix: "+",
       source: "Test fixture",
       period: "Test period",
@@ -5453,6 +5496,16 @@ function siteSettingsRoutes(slug, req, body, user, send) {
   next.enquiry_form_draft ??= null;
   // Kept by the API: what an editor sends is ignored (site_settings.rs update).
   next.theme_history = clone(site.settings.theme_history ?? []);
+  // Results and Our Success Story (results.rs): a published story is remembered (last 10).
+  next.story_history = clone(site.settings.story_history ?? []);
+  if (
+    JSON.stringify(next.success_story ?? null) !== JSON.stringify(site.settings.success_story ?? null) &&
+    next.success_story
+  )
+    next.story_history = [
+      { published_at: new Date().toISOString(), by: user.name, story: clone(next.success_story) },
+      ...next.story_history,
+    ].slice(0, 10);
   const fields = [];
   // Brand & Theme Studio (site_theme.rs): colours in drafts and published
   // themes; publishing also needs readable core colours.

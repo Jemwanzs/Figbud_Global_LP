@@ -364,6 +364,100 @@ pub struct ShowcaseIndicator {
 pub struct Highlight {
     pub heading: String,
     pub body: String,
+    /// Self-service on each device (P14-W6): the device labels become buttons
+    /// that show the website in a desktop, tablet or phone frame.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub devices: Option<DevicePreview>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[serde(rename_all = "snake_case")]
+pub enum Device {
+    Desktop,
+    Tablet,
+    Phone,
+}
+
+/// Which device shows first: the visitor's own (by screen width), or one chosen.
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum DefaultDevice {
+    #[default]
+    Visitor,
+    Desktop,
+    Tablet,
+    Phone,
+}
+
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum FrameStyle {
+    /// Laptop, tablet and phone hardware with a browser bar.
+    #[default]
+    Realistic,
+    /// Just the screen's rounded outline and the browser bar.
+    Minimal,
+}
+
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum Orientation {
+    #[default]
+    Landscape,
+    Portrait,
+}
+
+/// Approved screenshots, one per device, each taken at that device's width
+/// (never a desktop image scaled down). A live page preview isn't offered:
+/// the websites refuse to be framed (`frame-ancestors 'none'`), and that
+/// protection stays.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct DevicePreview {
+    #[serde(default = "yes")]
+    pub enabled: bool,
+    pub devices: Vec<Device>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub desktop_image_id: Option<Uuid>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tablet_image_id: Option<Uuid>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub phone_image_id: Option<Uuid>,
+    #[serde(default)]
+    pub default_device: DefaultDevice,
+    #[serde(default)]
+    pub frame: FrameStyle,
+    #[serde(default)]
+    pub tablet_orientation: Orientation,
+    /// The address shown in the browser bar (e.g. the website's name or domain).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub address: Option<String>,
+    #[serde(default = "yes")]
+    pub transitions: bool,
+    /// 300–450 ms.
+    #[serde(default = "device_duration")]
+    pub duration_ms: u16,
+}
+
+fn device_duration() -> u16 {
+    380
+}
+
+impl DevicePreview {
+    pub fn image(&self, device: Device) -> Option<Uuid> {
+        match device {
+            Device::Desktop => self.desktop_image_id,
+            Device::Tablet => self.tablet_image_id,
+            Device::Phone => self.phone_image_id,
+        }
+    }
+
+    pub fn image_ids(&self) -> Vec<Uuid> {
+        [self.desktop_image_id, self.tablet_image_id, self.phone_image_id]
+            .into_iter()
+            .flatten()
+            .collect()
+    }
 }
 
 /// How a steps block looks.
@@ -696,6 +790,24 @@ impl PageDoc {
                         );
                     }
                     if let Some(ess) = ess {
+                        if let Some(d) = &ess.devices {
+                            let mut seen = std::collections::HashSet::new();
+                            if d.devices.is_empty() || !d.devices.iter().all(|x| seen.insert(*x)) {
+                                c.push("sections", "Choose each device once, at least one.");
+                            }
+                            if d.devices.iter().any(|x| d.image(*x).is_none()) {
+                                c.push("sections", "Each device shown needs its own screenshot, taken at that device's size.");
+                            }
+                            if !(300..=450).contains(&d.duration_ms) {
+                                c.push("sections", "Device changes take 0.3–0.45 seconds.");
+                            }
+                            c.optional(
+                                "sections",
+                                &d.address,
+                                60,
+                                "The browser address is up to 60 characters.",
+                            );
+                        }
                         c.text(
                             "sections",
                             &ess.heading,
@@ -1106,6 +1218,35 @@ mod tests {
         )
         .unwrap();
         assert!(page.validate().is_err(), "duplicate section ids");
+    }
+
+    #[test]
+    fn device_previews_need_a_screenshot_per_device() {
+        let id = "0192a3b4-c5d6-7e8f-9a0b-1c2d3e4f5a6b";
+        let hero = |devices: Value| {
+            doc(json!([{ "id": "h", "type": "hero", "heading": "Your people.",
+                "ess": { "heading": "Your team. Their HR.", "body": "In any browser.", "devices": devices } }]))
+            .unwrap()
+        };
+        let good =
+            hero(json!({ "devices": ["desktop", "phone"], "desktop_image_id": id, "phone_image_id": id }));
+        assert!(good.validate().is_ok());
+        assert_eq!(
+            crate::media::image_ids(&good).len(),
+            1,
+            "the same screenshot counts once"
+        );
+        let missing = hero(json!({ "devices": ["desktop", "tablet"], "desktop_image_id": id }));
+        assert!(missing.validate().is_err(), "the tablet has no screenshot");
+        let twice = hero(json!({ "devices": ["phone", "phone"], "phone_image_id": id }));
+        assert!(twice.validate().is_err());
+        let slow = hero(json!({ "devices": ["phone"], "phone_image_id": id, "duration_ms": 900 }));
+        assert!(slow.validate().is_err());
+        assert!(
+            doc(json!([{ "id": "h", "type": "hero", "heading": "x",
+                "ess": { "heading": "a", "body": "b", "devices": { "devices": ["watch"] } } }]))
+            .is_err()
+        );
     }
 
     #[test]

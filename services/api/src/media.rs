@@ -60,10 +60,15 @@ pub fn image_ids(doc: &PageDoc) -> Vec<Uuid> {
         .iter()
         .flat_map(|s| match &s.block {
             Block::Image { image_id, .. } => vec![*image_id],
-            Block::Hero {
-                showcase: Some(showcase),
-                ..
-            } => showcase.views.iter().map(|v| v.image_id).collect(),
+            Block::Hero { showcase, ess, .. } => showcase
+                .iter()
+                .flat_map(|s| s.views.iter().map(|v| v.image_id))
+                // Self-service device screenshots (P14-W6).
+                .chain(
+                    ess.iter()
+                        .flat_map(|e| e.devices.iter().flat_map(|d| d.image_ids())),
+                )
+                .collect(),
             // An FAQ visual's screenshots (P14-W5).
             Block::Faq { items, .. } => items.iter().filter_map(|i| i.image_id).collect(),
             _ => Vec::new(),
@@ -133,6 +138,16 @@ pub async fn attach(
         .chain(
             sections
                 .iter()
+                .filter(|s| s["type"] == "hero")
+                .flat_map(|s| {
+                    ["desktop", "tablet", "phone"]
+                        .map(|d| s["ess"]["devices"][format!("{d}_image_id")].clone())
+                })
+                .filter_map(|id| id.as_str().and_then(|id| Uuid::parse_str(id).ok())),
+        )
+        .chain(
+            sections
+                .iter()
                 .filter(|s| s["type"] == "faq")
                 .flat_map(|s| s["items"].as_array().cloned().unwrap_or_default())
                 .filter_map(|i| i["image_id"].as_str().and_then(|id| Uuid::parse_str(id).ok())),
@@ -194,6 +209,41 @@ pub async fn attach(
             {
                 hero.remove("showcase");
             }
+        }
+    }
+    // Self-service device screenshots: each device's file details; on websites,
+    // a device whose image is gone is left out, and the preview with the last one.
+    for section in sections.iter_mut().filter(|s| s["type"] == "hero") {
+        let Some(devices) = section["ess"]["devices"].as_object_mut() else {
+            continue;
+        };
+        let mut media = serde_json::Map::new();
+        for d in ["desktop", "tablet", "phone"] {
+            let id = devices
+                .get(&format!("{d}_image_id"))
+                .and_then(|v| v.as_str())
+                .and_then(|id| Uuid::parse_str(id).ok());
+            if let Some(info) = rows
+                .iter()
+                .find(|r| Some(r.id) == id)
+                .and_then(|r| serde_json::to_value(r).ok())
+            {
+                media.insert(d.into(), info);
+            }
+        }
+        if public && let Some(list) = devices.get_mut("devices").and_then(|v| v.as_array_mut()) {
+            list.retain(|d| d.as_str().is_some_and(|d| media.contains_key(d)));
+        }
+        let empty = devices
+            .get("devices")
+            .and_then(|v| v.as_array())
+            .is_none_or(|l| l.is_empty());
+        devices.insert("media".into(), Value::Object(media));
+        if public
+            && empty
+            && let Some(ess) = section["ess"].as_object_mut()
+        {
+            ess.remove("devices");
         }
     }
     // FAQ visual screenshots: each question's file details; on websites a

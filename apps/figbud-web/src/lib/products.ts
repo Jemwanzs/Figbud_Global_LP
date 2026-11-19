@@ -144,6 +144,19 @@ export async function getSectionThemes(): Promise<SectionThemes> {
   return (themes ?? {}) as SectionThemes;
 }
 
+/**
+ * FigBud Global's Results display, Success Story and website display
+ * defaults, as published (P10-R1/R2).
+ */
+export async function getCorporateResults() {
+  const settings = (await getListedSites())?.find((s) => s.slug === "figbud")?.settings;
+  return {
+    results: settings?.results ?? null,
+    story: settings?.success_story?.enabled ? settings.success_story : null,
+    display: settings?.display ?? null,
+  };
+}
+
 /** FigBud Global's published enquiry form settings (Studio → FigBud Global → Enquiry form, UI-EF3). */
 export async function getCorporateEnquiryForm(): Promise<EnquiryFormConfig | null> {
   return (await getListedSites())?.find((s) => s.slug === "figbud")?.settings?.enquiry_form ?? null;

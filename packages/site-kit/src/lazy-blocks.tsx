@@ -22,3 +22,7 @@ export const LazyModuleCatalogue = dynamic(() => import("./product-demos").then(
 export const LazyProductHero = dynamic(() => import("./product-heroes").then((m) => m.ProductHero));
 // An FAQ's product visual (P14-W5): only pages whose FAQ has one download it.
 export const LazyFaqShowcase = dynamic(() => import("./faq-showcase").then((m) => m.FaqShowcase));
+// The Results carousel (P10-R1): only websites that choose it download it.
+export const LazyResultsCarousel = dynamic(() => import("./results-carousel").then((m) => m.ResultsCarousel));
+// Self-service on each device (P14-W6): only heroes with device screenshots download it.
+export const LazyDevicePreview = dynamic(() => import("./device-preview").then((m) => m.DevicePreview));

@@ -1561,8 +1561,55 @@ test.describe("ZiraHR hero: all eight modules and self-service (owner's brief, 8
     await page.goto("/zirahr/platform");
     const ess = page.getByRole("complementary", { name: "Your team. Their HR. One simple portal." });
     await expect(ess).toBeVisible();
-    await expect(ess.getByRole("list", { name: "Works in the browser on" })).toContainText("Phone browser");
+    await expect(ess.getByRole("group", { name: "Works in the browser on" })).toContainText("Phone browser");
     await expect(ess).not.toContainText(/app store|google play|download the app/i);
+  });
+
+  test("the device labels switch the preview between desktop, tablet and phone (P14-W6)", async ({
+    page,
+    isMobile,
+  }) => {
+    await page.goto("/zirahr/platform");
+    const ess = page.getByRole("complementary", { name: "Your team. Their HR. One simple portal." });
+    const preview = ess.locator("[data-device-preview]");
+    await preview.scrollIntoViewIfNeeded();
+    const button = (name: string) => ess.getByRole("button", { name, exact: true });
+    // The visitor's own device first: a phone on phones, a desktop on wide screens.
+    const own = isMobile ? "phone" : "desktop";
+    await expect(preview).toHaveAttribute("data-device", own);
+    await expect(button(isMobile ? "Phone browser" : "Desktop")).toHaveAttribute("aria-pressed", "true");
+    // Any device can be explored, one selected at a time, without reloading.
+    const url = page.url();
+    for (const [name, device] of [
+      ["Tablet", "tablet"],
+      ["Phone browser", "phone"],
+      ["Desktop", "desktop"],
+    ] as const) {
+      await expect(async () => {
+        await button(name).click();
+        await expect(preview).toHaveAttribute("data-device", device, { timeout: 1_000 });
+      }).toPass();
+      await expect(button(name)).toHaveAttribute("aria-pressed", "true");
+      await expect(ess.getByRole("button", { pressed: true })).toHaveCount(1);
+      await expect(preview.locator(`[data-device-frame=${device}]`)).toBeVisible();
+      await expect(preview.locator(`[data-device-frame=${device}] img`)).toHaveAttribute("src", /^\/media\//);
+    }
+    expect(page.url()).toBe(url);
+    // From the keyboard, too.
+    await button("Tablet").focus();
+    await page.keyboard.press("Enter");
+    await expect(preview).toHaveAttribute("data-device", "tablet");
+    // A desktop frame on a phone scales down: nothing spills sideways.
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(
+      0,
+    );
+    const results = await new AxeBuilder({ page: await themeSettled(page) })
+      .include("[data-ess]")
+      .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
+      .analyze();
+    expect(
+      results.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`),
+    ).toEqual([]);
   });
 
   test("with reduced motion, the modules don't move by themselves, but the dots still choose", async ({

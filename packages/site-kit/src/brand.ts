@@ -9,6 +9,7 @@ import type { SiteLanguages } from "@figbud/i18n";
 import type { EnquiryFormConfig } from "./enquiry";
 
 import type { StudioTheme } from "./site-theme";
+import type { DisplayDefaults, ResultsDisplay, SuccessStoryConfig } from "./results";
 import type { SiteSeo } from "./seo";
 
 export interface BrandAsset {
@@ -93,6 +94,18 @@ export interface WebsiteSettings {
   };
   /** The website's enquiry form (UI-EF3), as published; unset means the form as built. */
   enquiry_form?: EnquiryFormConfig | null;
+  /** The Results band's display (P10-R1); unset: as before, with the display defaults. */
+  results?: ResultsDisplay | null;
+  /** Saved in the Studio, not published; only the Studio ever receives it. */
+  results_draft?: ResultsDisplay | null;
+  /** "Our Success Story" (P10-R2); websites receive it only while it's on. */
+  success_story?: SuccessStoryConfig | null;
+  /** Saved in the Studio, not published. */
+  success_story_draft?: SuccessStoryConfig | null;
+  /** The last published stories, newest first (the Studio's history; never sent to websites). */
+  story_history?: { published_at: string; by?: string | null; story: SuccessStoryConfig }[];
+  /** Website display: FigBud Global's defaults, or this website's own (P10-R1). */
+  display?: DisplayDefaults | null;
   /** Saved in the Studio, not published; only the Studio ever receives it. */
   enquiry_form_draft?: EnquiryFormConfig | null;
   /** The Brand & Theme Studio's colours, section bands included; unset means the built-in ones. */

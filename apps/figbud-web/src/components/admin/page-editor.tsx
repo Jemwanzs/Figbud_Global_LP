@@ -57,6 +57,7 @@ import {
   copySection,
   newSection,
 } from "./page-types";
+import { DevicePreviewFields } from "./device-preview-fields";
 import { FaqItemVisualFields, FaqShowcaseFields, newQuestionId, withIds } from "./faq-visual-fields";
 import { ShowcaseFields, newShowcase } from "./showcase-fields";
 
@@ -822,6 +823,14 @@ export function BlockForm({
                     {...p}
                     onChange={(v) => onChange({ ...section, ess: { ...section.ess!, body: v } })}
                   />
+                  {/* Desktop, tablet and phone as a preview (P14-W6). */}
+                  <DevicePreviewFields
+                    value={section.ess.devices}
+                    library={library ?? []}
+                    address={slug}
+                    disabled={p.disabled}
+                    onChange={(devices) => onChange({ ...section, ess: { ...section.ess!, devices } })}
+                  />
                 </div>
               )}
             </>
@@ -1547,8 +1556,44 @@ export function PageEditor({ slug, user, initial }: { slug: string; user: AdminU
 
   const previewDoc: PageDocument = {
     ...draft.document,
-    sections: sections.map((section) => {
-      const server = rendered?.sections.find((s) => s.id === section.id);
+    sections: sections.map((original) => {
+      const server = rendered?.sections.find((s) => s.id === original.id);
+      // Device screenshots' file details from the library, for the preview's frames (P14-W6).
+      const section =
+        original.type === "hero" && original.ess?.devices
+          ? {
+              ...original,
+              ess: {
+                ...original.ess,
+                devices: {
+                  ...original.ess.devices,
+                  media: Object.fromEntries(
+                    (["desktop", "tablet", "phone"] as const).flatMap((d) => {
+                      const id = (
+                        original.ess!.devices as unknown as Record<string, string | null | undefined>
+                      )[`${d}_image_id`];
+                      const item = id ? library?.find((m) => m.id === id) : undefined;
+                      return item
+                        ? [
+                            [
+                              d,
+                              {
+                                id: item.id,
+                                alt: item.alt_text,
+                                width: item.width,
+                                height: item.height,
+                                content_type: item.content_type,
+                                widths: [],
+                              },
+                            ],
+                          ]
+                        : [];
+                    }),
+                  ),
+                },
+              },
+            }
+          : original;
       if (section.type === "shared") {
         // The saved preview's resolved content, or the item's published content while a new choice saves.
         if (server?.shared?.id === section.shared_id) return server;
