@@ -46,7 +46,7 @@ const axe = async (page: Page) =>
 test("the Results band and Our Success Story are designed, previewed and saved per website", async ({
   page,
 }, testInfo) => {
-  test.skip(testInfo.project.name !== "desktop", "one project saves FigBud Global's settings");
+  test.skip(testInfo.project.name !== "desktop", "one project saves the settings");
   await signInAsOwner(page);
   await page.goto("/admin/sites/figbud/results");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Results & success story");
@@ -58,8 +58,7 @@ test("the Results band and Our Success Story are designed, previewed and saved p
   await expect(preview.locator("[data-results-layout=cards]")).toBeVisible();
   await page.getByLabel("Heading (optional)").fill(`Measured, not estimated ${testInfo.project.name}`);
   await expect(preview.getByRole("heading", { level: 2 })).toContainText("Measured, not estimated");
-  await page.getByRole("button", { name: "Save draft" }).click();
-  await expect(page.getByRole("status").filter({ hasText: "Draft saved." })).toBeVisible();
+  // (Drafts are saved on Expense Now below: other tests save FigBud Global's settings in parallel.)
   expect(await axe(page)).toEqual([]);
 
   // Our Success Story: figures from this website only, in order, previewed on its dark band.
@@ -76,15 +75,25 @@ test("the Results band and Our Success Story are designed, previewed and saved p
   await expect(preview.locator("[data-figure]").first()).toContainText("Synthetic test metric");
   await page.getByLabel("Layout").selectOption("cards");
   await expect(preview.locator("[data-success-story=cards]")).toBeVisible();
-  // A draft only (switched off): nothing reaches the home page from this test.
-  await page.getByRole("button", { name: "Save draft" }).click();
-  await expect(page.getByRole("status").filter({ hasText: "Draft saved." })).toBeVisible();
   expect(await axe(page)).toEqual([]);
 
   // Website display: FigBud Global's are the defaults every website inherits.
   await page.getByRole("tab", { name: /Website display/ }).click();
   await expect(page.getByText("Defaults for every website")).toBeVisible();
   await expect(page.getByLabel("Figures", { exact: true })).toHaveValue("compact");
+
+  // Drafts save per website (Expense Now: no other test writes its settings), never reaching visitors.
+  await page.goto("/admin/sites/expense_now/results");
+  await page.getByLabel("Heading (optional)").fill("Every expense accounted for.");
+  await page.getByRole("button", { name: "Save draft" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Draft saved." })).toBeVisible();
+  await page.getByRole("tab", { name: "Our Success Story" }).click();
+  await page.getByLabel("Headline").fill("Every expense accounted for.");
+  await page.getByRole("button", { name: "Save draft" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Draft saved." })).toBeVisible();
+  // After a reload the drafts are still there.
+  await page.reload();
+  await expect(page.getByLabel("Heading (optional)")).toHaveValue("Every expense accounted for.");
 });
 
 test("a product website inherits FigBud Global's website display until it sets its own", async ({ page }) => {
