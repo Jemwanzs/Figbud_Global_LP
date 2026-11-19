@@ -522,9 +522,19 @@ export function HeroStudio({ data, isOwner }: { data: HeroAdmin; isOwner: boolea
             {text("headline_accent", "Headline, second line", 60)}
             <div className="sm:col-span-2 lg:col-span-4">{text("lead", "Supporting text", 260)}</div>
             {text("primary_label", "Main button label", 32)}
-            {text("primary_href", "Main button goes to", 200, "/contact, #platforms or https://…")}
+            {text(
+              "primary_href",
+              "Main button goes to",
+              200,
+              "/contact, #platforms, https://…, or #start-now / #book-demo to open Start Now or demo booking",
+            )}
             {text("secondary_label", "Second button label", 32)}
-            {text("secondary_href", "Second button goes to", 200, "/contact, #platforms or https://…")}
+            {text(
+              "secondary_href",
+              "Second button goes to",
+              200,
+              "/contact, #platforms, https://…, or #start-now / #book-demo",
+            )}
             {choice("speed", "Animation speed", [
               ["slow", "Slow"],
               ["normal", "Normal"],

@@ -8,7 +8,7 @@ import { adminFetch, describePasskeyError } from "@/lib/admin-client";
 import { ActionButton } from "./action-button";
 import { ENQUIRY_STATUSES, type EnquiryStatus } from "./enquiry-labels";
 
-/** Moves an enquiry along new → contacted → qualified → closed (or spam). */
+/** Moves an enquiry along new → contacted → qualified → demo scheduled → converted or closed (or spam). */
 export function EnquiryStatusForm({ id, status }: { id: string; status: EnquiryStatus }) {
   const router = useRouter();
   const [value, setValue] = useState(status);

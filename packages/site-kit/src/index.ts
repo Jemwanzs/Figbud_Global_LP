@@ -13,6 +13,8 @@ export * from "./blocks";
 export * from "./product-showcase";
 export * from "./brand-logo";
 export * from "./campaigns";
+export * from "./cta-actions";
+export type { FaqScene, FaqShowcaseConfig, FaqShowcaseWords } from "./faq-showcase";
 export * from "./consent";
 export * from "./footer-layout";
 export * from "./section-themes";

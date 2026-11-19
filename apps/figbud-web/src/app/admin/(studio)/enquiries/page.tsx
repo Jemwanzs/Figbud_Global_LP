@@ -29,6 +29,8 @@ interface Row {
   company?: string;
   status: EnquiryStatus;
   created_at: string;
+  assignee?: string | null;
+  demo_at?: string | null;
 }
 
 interface Page {
@@ -75,7 +77,9 @@ async function Enquiries({ searchParams }: Pick<PageProps<"/admin/enquiries">, "
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="font-display text-3xl font-semibold tracking-tight text-text">Enquiries</h1>
-          <p className="mt-2 text-muted">Demo requests, waitlist sign-ups and messages from the website.</p>
+          <p className="mt-2 text-muted">
+            Workspace requests, demo bookings and requests, waitlist sign-ups and messages from the websites.
+          </p>
         </div>
         {user.role === "owner" && (
           <a
@@ -145,7 +149,13 @@ async function Enquiries({ searchParams }: Pick<PageProps<"/admin/enquiries">, "
                     <p className="mt-1 truncate text-sm text-subtle">
                       {KIND_LABELS[row.kind] ?? row.kind} · {PRODUCT_LABELS[row.product] ?? row.product} ·{" "}
                       <span className="font-mono">{row.reference}</span>
+                      {row.assignee && <> · {row.assignee}</>}
                     </p>
+                    {row.demo_at && (
+                      <p className="mt-1 text-sm text-accent-strong">
+                        Demo <LocalTime iso={row.demo_at} />
+                      </p>
+                    )}
                   </div>
                   <EnquiryStatusPill status={row.status} />
                   <span className="shrink-0 text-sm text-subtle">

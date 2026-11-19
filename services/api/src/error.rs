@@ -37,6 +37,9 @@ pub enum ApiError {
     /// The website isn't taking enquiries (Admin Studio → website settings).
     #[error("enquiries closed")]
     EnquiriesClosed,
+    /// The demo slot was taken (or stopped being offered) meanwhile (P8-M8).
+    #[error("slot taken")]
+    SlotTaken,
     #[error("rate limited")]
     RateLimited { retry_after_secs: u64 },
     #[error("database error: {0}")]
@@ -85,6 +88,12 @@ impl IntoResponse for ApiError {
                 StatusCode::CONFLICT,
                 "enquiries_closed",
                 "This product isn't taking enquiries right now.",
+                None,
+            ),
+            ApiError::SlotTaken => (
+                StatusCode::CONFLICT,
+                "slot_taken",
+                "That time was just taken. Please choose another.",
                 None,
             ),
             ApiError::RateLimited { .. } => (

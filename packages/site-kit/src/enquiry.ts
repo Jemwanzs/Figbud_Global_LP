@@ -174,7 +174,9 @@ export function validateEnquiry(values: EnquiryValues, config?: EnquiryFormConfi
   return errors;
 }
 
-export interface EnquiryPayload extends Omit<EnquiryValues, "consent" | "phones"> {
+export interface EnquiryPayload extends Omit<EnquiryValues, "consent" | "phones" | "kind"> {
+  /** The form's kinds, or a Start Now workspace request (P8-M8). */
+  kind: EnquiryKind | "workspace_request";
   consent: boolean;
   /** E.164 when valid; the API validates again with `phone_country`. */
   phone: string;
@@ -186,6 +188,8 @@ export interface EnquiryPayload extends Omit<EnquiryValues, "consent" | "phones"
   elapsed_ms: number;
   /** The campaign that brought the visitor, when there is one. */
   campaign?: string;
+  /** A demo booking's slot (RFC 3339), from the website's offered slots (P8-M8). */
+  demo_slot?: string;
 }
 
 /**
@@ -212,7 +216,7 @@ export function payloadFields(values: EnquiryValues) {
 export type SubmitResult =
   | { ok: true; reference: string }
   | { ok: false; reason: "validation"; fields: string[] }
-  | { ok: false; reason: "rate_limited" | "network" | "server" | "closed" };
+  | { ok: false; reason: "rate_limited" | "network" | "server" | "closed" | "slot_taken" };
 
 export async function submitEnquiry(
   apiOrigin: string,
@@ -245,6 +249,7 @@ export async function submitEnquiry(
   if (response.status === 409) {
     const body = (await response.json().catch(() => null)) as { error?: { code?: string } } | null;
     if (body?.error?.code === "enquiries_closed") return { ok: false, reason: "closed" };
+    if (body?.error?.code === "slot_taken") return { ok: false, reason: "slot_taken" };
   }
   return { ok: false, reason: "server" };
 }

@@ -182,6 +182,8 @@ export const ACTION_LABELS: Record<CampaignAction, string> = {
   waitlist: "Join the waitlist (contact form)",
   contact: "Contact sales (contact form)",
   webinar: "Register for a webinar (contact form)",
+  start_now: "Start now (the workspace request, in place)",
+  book_demo: "Book a demo (choose a time, in place)",
   link: "Open a link",
 };
 

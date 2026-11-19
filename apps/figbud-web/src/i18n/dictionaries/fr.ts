@@ -1,4 +1,4 @@
-import { type DeepPartial, interfaceCopy } from "@figbud/i18n";
+import { consentCopy, type DeepPartial, interfaceCopy } from "@figbud/i18n";
 
 import type { Dictionary } from "./en";
 
@@ -101,48 +101,7 @@ const fr: DeepPartial<Dictionary> = {
     legalTitle: "Mentions légales",
     rights: "Tous droits réservés.",
   },
-  consent: {
-    labels: {
-      region: "Consentement aux cookies",
-      acceptAll: "Tout accepter",
-      rejectOptional: "Refuser les optionnels",
-      customize: "Personnaliser",
-      save: "Enregistrer mes choix",
-      preferencesTitle: "Préférences de cookies",
-      preferencesIntro:
-        "Choisissez les cookies optionnels que nous pouvons utiliser. Vous pouvez changer d’avis à tout moment via « Paramètres des cookies » en bas de chaque page.",
-      alwaysOn: "Toujours actifs",
-      privacyPolicy: "Politique de confidentialité",
-      cookiePolicy: "Politique relative aux cookies",
-      close: "Fermer",
-    },
-    banner: {
-      title: "Votre vie privée compte",
-      body: "Nous utilisons des cookies essentiels au fonctionnement de notre site. Avec votre accord, nous pouvons aussi utiliser des cookies optionnels pour comprendre l’utilisation du site et améliorer votre expérience.",
-    },
-    categories: {
-      necessary: {
-        label: "Strictement nécessaires",
-        description:
-          "Assurent le fonctionnement et la sécurité du site : ils mémorisent vos choix de cookies, votre thème et votre langue, et protègent les formulaires contre les abus. Toujours actifs.",
-      },
-      analytics: {
-        label: "Mesure d’audience",
-        description:
-          "Nous aident à comprendre comment le site est utilisé, par exemple les pages consultées, afin de l’améliorer.",
-      },
-      preferences: {
-        label: "Préférences",
-        description:
-          "Mémorisent des réglages personnels optionnels au-delà de l’essentiel, pour adapter votre expérience.",
-      },
-      marketing: {
-        label: "Marketing",
-        description:
-          "Mesurent la portée de notre marketing et affichent du contenu FigBud pertinent sur d’autres sites.",
-      },
-    },
-  },
+  consent: consentCopy.fr,
 };
 
 export default fr;

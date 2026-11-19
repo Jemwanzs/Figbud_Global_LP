@@ -33,6 +33,11 @@ pub enum Action {
     Waitlist,
     Contact,
     Webinar,
+    /// Opens the website's Start Now workspace request (P8-M8).
+    StartNow,
+    /// Opens demo booking, where the website takes bookings; the demo
+    /// request form otherwise (P8-M8).
+    BookDemo,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
@@ -769,6 +774,8 @@ pub fn template(kind: &str, site_name: &str) -> CampaignDoc {
             Action::Webinar => "Register",
             Action::Contact => "Talk to us",
             Action::Link => "Learn more",
+            Action::StartNow => "Start now",
+            Action::BookDemo => "Book a demo",
         }
         .into(),
         action,

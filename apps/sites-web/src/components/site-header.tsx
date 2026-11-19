@@ -61,8 +61,8 @@ export function SiteHeader({
   slug?: ProductSlug;
   brand?: BrandProfile | null;
   links: NavLink[];
-  /** Absent while the website isn't taking enquiries. */
-  cta?: NavLink | null;
+  /** Absent while the website isn't taking enquiries; `labels` translate it (P7-L3). */
+  cta?: (NavLink & { labels?: Partial<Record<Locale, string>> }) | null;
   /** The languages this website shows visitors (switched on and reviewed, P7-L1). */
   languages: readonly Locale[];
   site: { slug: string; ownDomain: boolean };
@@ -273,7 +273,7 @@ export function SiteHeader({
           <ThemeToggle labels={words.theme} />
           {cta && (
             <a href={cta.href} className={buttonClasses("product", "md")}>
-              {cta.label}
+              {cta.labels?.[locale as Locale] ?? cta.label}
               <ArrowRight aria-hidden className="size-4 rtl:rotate-180" />
             </a>
           )}

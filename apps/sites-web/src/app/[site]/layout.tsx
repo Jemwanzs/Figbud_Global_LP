@@ -3,14 +3,14 @@ import {
   CampaignOverlays,
   CampaignProvider,
   CampaignSlot,
-  CookieConsent,
-  ENGLISH_CONSENT_LABELS,
+  CtaActions,
   brandIcons,
   enquiriesOpen,
   resolveNavPreviews,
   siteThemeCss,
   verificationMeta,
 } from "@figbud/site-kit";
+import type { EnquiryProduct } from "@figbud/site-kit/enquiry";
 import { themeInitScript } from "@figbud/ui";
 import type { Metadata, Viewport } from "next";
 import { Outfit } from "next/font/google";
@@ -18,11 +18,15 @@ import localFont from "next/font/local";
 import { notFound } from "next/navigation";
 import type { CSSProperties } from "react";
 
+import { type Locale, ctaCopy, locales } from "@figbud/i18n";
+
+import { SiteConsent, SkipLink } from "@/components/site-chrome";
 import { SiteFooter } from "@/components/site-footer";
 import { type NavLink, SiteHeader } from "@/components/site-header";
 import { type PlatformMenuEntry, platformMenu } from "@/lib/platform-menu";
 import {
   allowIndexing,
+  actionCta,
   enquiryHref,
   figbudOrigin,
   getListedSites,
@@ -66,6 +70,13 @@ const CTA_LABELS = {
   early_access: "Request early access",
   demo: "Request a demo",
 };
+
+/** The main button's label in every language: its chosen action, else the website's stage. */
+function ctaLabels(site: NonNullable<Awaited<ReturnType<typeof getSite>>>): Record<Locale, string> {
+  const action = site.settings?.enquiries.action;
+  const key = action === "start_now" || action === "book_demo" ? action : site.cta;
+  return Object.fromEntries(locales.map((l) => [l, ctaCopy[l][key]])) as Record<Locale, string>;
+}
 
 export async function generateStaticParams() {
   const sites = (await getListedSites()).filter((s) => s.kind === "product");
@@ -146,6 +157,7 @@ export default async function SiteLayout({ children, params }: LayoutProps<"/[si
   ) as CSSProperties;
   // Its published Brand & Theme Studio colours and section bands, scoped to this website (validated hex only).
   const themeCss = siteThemeCss(slug, site.settings?.theme);
+  const languages = await siteLanguages(site);
 
   return (
     <html
@@ -165,12 +177,7 @@ export default async function SiteLayout({ children, params }: LayoutProps<"/[si
           style={colours}
           className="flex min-h-dvh flex-col"
         >
-          <a
-            href="#main"
-            className="sr-only z-[100] rounded-full bg-accent px-5 py-3 font-medium text-accent-ink focus:not-sr-only focus:fixed focus:start-4 focus:top-4"
-          >
-            Skip to content
-          </a>
+          <SkipLink site={{ slug, ownDomain }} languages={languages} />
           <CampaignProvider
             campaigns={campaigns}
             apiOrigin={publicApiOrigin}
@@ -188,10 +195,17 @@ export default async function SiteLayout({ children, params }: LayoutProps<"/[si
               links={links.slice(0, 6)}
               cta={
                 enquiriesOpen(site)
-                  ? { href: enquiryHref(site, { ownDomain, pages }), label: CTA_LABELS[site.cta] }
+                  ? {
+                      ...(actionCta(site) ?? {
+                        href: enquiryHref(site, { ownDomain, pages }),
+                        label: CTA_LABELS[site.cta],
+                      }),
+                      // Its label in each language, for translated pages (P7-L3).
+                      labels: ctaLabels(site),
+                    }
                   : null
               }
-              languages={await siteLanguages(site)}
+              languages={languages}
               site={{ slug, ownDomain }}
               translations={pages.map((p) => ({
                 path: p.path,
@@ -222,14 +236,24 @@ export default async function SiteLayout({ children, params }: LayoutProps<"/[si
               brand={site.brand}
             />
             {/* The policies are FigBud Global's, on the corporate site. */}
-            <CookieConsent
+            <SiteConsent
               settings={privacy}
-              labels={ENGLISH_CONSENT_LABELS}
-              site={slug}
+              languages={languages}
+              website={{ slug, ownDomain }}
               apiOrigin={publicApiOrigin}
               linkBase={`${figbudOrigin}/en`}
             />
             <CampaignOverlays />
+            {/* Start Now and demo booking, opened by any button set to them (P8-M8). */}
+            {enquiriesOpen(site) && (
+              <CtaActions
+                apiOrigin={publicApiOrigin}
+                product={(KNOWN.includes(slug) ? slug : "figbud") as EnquiryProduct}
+                productName={site.name}
+                privacyHref={`${figbudOrigin}/en/legal/privacy`}
+                demoFallbackHref={enquiryHref({ ...site, cta: "demo" }, { ownDomain, pages })}
+              />
+            )}
           </CampaignProvider>
         </div>
       </body>

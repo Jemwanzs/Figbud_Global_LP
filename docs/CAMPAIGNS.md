@@ -31,6 +31,7 @@ Hero, announcement bar, floating promotion, modal, seasonal, countdown, product 
   - Placements, up to three: announcement bar, banner below the navigation, home page hero (or product landing page), floating corner card, centred dialog, band above the footer.
   - Targeting: pages (every page, home, products, blog, contact, or chosen paths) and devices.
   - Frequency: every page view, once per visit, daily, weekly, or only once. It's kept in the visitor's browser (`fb-campaign:*`, listed on the Cookie Policy page).
+  - Button actions also include **Start now** and **Book a demo** (19 Nov 2026, P8-M8): they open the workspace request or demo booking in place, and the enquiry records the campaign.
   - Trigger: straight away, after a delay, after scrolling, or on exit intent (desktop). Dismissal can be allowed or not; a dismissed campaign doesn't come back for the rest of that visit, whatever its frequency.
   - **Announcement bar (18 Nov 2026):** expanded (headline, supporting headline, both buttons), slim (one line with the first button), collapsible (the visitor folds and unfolds it; remembered per campaign in their browser), or auto-collapse (folds after 3–60 seconds). Announcements set to **rotate** take turns in the bar in priority order, each for 4–30 seconds, with previous, next and pause; rotation pauses while hovered or focused and stays still with reduced motion.
 - **Schedule:** start and end (exact moments, chosen in the admin's time zone), priority (−100 to 100) and yearly recurrence.

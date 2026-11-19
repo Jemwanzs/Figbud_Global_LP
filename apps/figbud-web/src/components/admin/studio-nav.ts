@@ -110,10 +110,14 @@ export function studioNav(
       id: "leads",
       label: "Leads & Enquiries",
       links: [
+        { href: "/admin/enquiries/overview", label: "Leads overview" },
         { href: "/admin/enquiries", label: "All enquiries" },
+        { href: "/admin/enquiries?kind=workspace_request", label: "Workspace requests" },
+        { href: "/admin/enquiries/bookings", label: "Demo bookings" },
         { href: "/admin/enquiries?kind=demo_request", label: "Demo requests" },
         { href: "/admin/enquiries?kind=contact", label: "Contact enquiries" },
         { href: "/admin/enquiries?kind=referral", label: "Referrals" },
+        { href: "/admin/enquiries/availability", label: "Demo availability" },
       ],
     },
     {

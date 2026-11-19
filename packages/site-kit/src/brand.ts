@@ -85,7 +85,12 @@ export interface WebsiteSettings {
   section_themes?: Partial<Record<string, "follow" | "inverse">>;
   /** Saved in the Studio, not published. */
   section_themes_draft?: Partial<Record<string, "follow" | "inverse">> | null;
-  enquiries: { open: boolean; closed_message?: string | null };
+  enquiries: {
+    open: boolean;
+    closed_message?: string | null;
+    /** The main button's action (P8-M8); unset is the enquiry form. */
+    action?: "contact" | "start_now" | "book_demo";
+  };
   /** The website's enquiry form (UI-EF3), as published; unset means the form as built. */
   enquiry_form?: EnquiryFormConfig | null;
   /** Saved in the Studio, not published; only the Studio ever receives it. */

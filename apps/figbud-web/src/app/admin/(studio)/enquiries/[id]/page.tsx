@@ -15,6 +15,14 @@ import {
   PRODUCT_LABELS,
   TEMPLATE_LABELS,
 } from "@/components/admin/enquiry-labels";
+import {
+  AssigneeForm,
+  BOOKING_STATUSES,
+  type BookingInfo,
+  BookingActions,
+  type BookingStatus,
+  NoteForm,
+} from "@/components/admin/enquiry-follow-up";
 import { EnquiryStatusForm } from "@/components/admin/enquiry-status-form";
 import { forSite, hasRole } from "@/lib/admin-client";
 import { adminGet, requireAdmin } from "@/lib/admin-server";
@@ -44,17 +52,52 @@ interface Detail {
     status: EnquiryStatus;
     is_spam: boolean;
     created_at: string;
+    assigned_to?: string | null;
   };
+  booking?: BookingInfo | null;
+  can_edit?: boolean;
   emails: { template: string; status: string; attempts: number; sent_at?: string; last_error?: string }[];
   history: {
     action: string;
     actor_email?: string;
-    detail: { from?: string; to?: string };
+    detail: { from?: string; to?: string | null; note?: string };
     created_at: string;
   }[];
 }
 
-const statusLabel = (value?: string) => ENQUIRY_STATUSES.find((s) => s.value === value)?.label ?? value;
+const statusLabel = (value?: string | null) =>
+  ENQUIRY_STATUSES.find((s) => s.value === value)?.label ?? value;
+
+/** One line of the history, by what happened (P8-M8 adds assignment, notes and bookings). */
+function HistoryLine({ entry }: { entry: Detail["history"][number] }) {
+  const d = entry.detail;
+  switch (entry.action) {
+    case "enquiry.assigned":
+      return <>{d.to ? `Assigned to ${d.to}` : "Unassigned"}</>;
+    case "enquiry.note_added":
+      return <span className="whitespace-pre-wrap">Note: {d.note}</span>;
+    case "demo.status_changed":
+      return (
+        <>
+          Demo {BOOKING_STATUSES[d.from as BookingStatus] ?? d.from} →{" "}
+          {BOOKING_STATUSES[d.to as BookingStatus] ?? d.to}
+        </>
+      );
+    case "demo.rescheduled":
+      return (
+        <>
+          Demo moved from {d.from ? <LocalTime iso={d.from} /> : "?"} to{" "}
+          {d.to ? <LocalTime iso={d.to} /> : "?"}
+        </>
+      );
+    default:
+      return (
+        <>
+          {statusLabel(d.from)} → {statusLabel(d.to)}
+        </>
+      );
+  }
+}
 
 export default function EnquiryPage({ params }: PageProps<"/admin/enquiries/[id]">) {
   return (
@@ -73,6 +116,10 @@ async function Enquiry({ params }: Pick<PageProps<"/admin/enquiries/[id]">, "par
   if (status === 404) notFound();
   if (!data) return <AdminUnavailable />;
   const e = data.enquiry;
+  const editor = hasRole(forSite(user, e.product), "editor");
+  const people = editor
+    ? ((await adminGet<{ items: { id: string; name: string }[] }>("enquiries/assignees")).data?.items ?? [])
+    : [];
 
   return (
     <>
@@ -139,9 +186,19 @@ async function Enquiry({ params }: Pick<PageProps<"/admin/enquiries/[id]">, "par
         </div>
 
         <aside className="space-y-6" aria-label="Follow-up">
-          {hasRole(forSite(user, e.product), "editor") && (
-            <section className="fb-panel rounded-[var(--radius-panel)] p-6">
+          {data.booking && (
+            <section aria-labelledby="demo" className="fb-panel rounded-[var(--radius-panel)] p-6">
+              <h2 id="demo" className="mb-3 font-semibold text-text">
+                Demo booking
+              </h2>
+              <BookingActions booking={data.booking} product={e.product} canEdit={editor} />
+            </section>
+          )}
+          {editor && (
+            <section className="fb-panel space-y-6 rounded-[var(--radius-panel)] p-6">
               <EnquiryStatusForm id={e.id} status={e.status} />
+              <AssigneeForm id={e.id} assigned={e.assigned_to ?? null} people={people} />
+              <NoteForm id={e.id} />
             </section>
           )}
           <section aria-labelledby="emails" className="fb-panel rounded-[var(--radius-panel)] p-6">
@@ -177,7 +234,7 @@ async function Enquiry({ params }: Pick<PageProps<"/admin/enquiries/[id]">, "par
               {data.history.map((h) => (
                 <li key={h.created_at + h.action}>
                   <p className="text-text">
-                    {statusLabel(h.detail.from)} → {statusLabel(h.detail.to)}
+                    <HistoryLine entry={h} />
                   </p>
                   <p className="text-subtle">
                     {h.actor_email ?? "System"} · <LocalTime iso={h.created_at} />

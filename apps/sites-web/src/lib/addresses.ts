@@ -127,6 +127,18 @@ const ENQUIRY_KIND = { waitlist: "waitlist", early_access: "early_access", demo:
 /** Products the corporate enquiry form knows (services/api/src/enquiry.rs). */
 const ENQUIRY_PRODUCTS = ["zirahr", "jasiri", "expense_now", "ziwa"];
 
+/** The main button's action when the Studio sets one (P8-M8), opened in place by `CtaActions`. */
+const ACTION_CTAS = {
+  start_now: { href: "#start-now", label: "Start now" },
+  book_demo: { href: "#book-demo", label: "Book a demo" },
+} as const;
+
+/** The website's main call to action as Start Now or demo booking, or null for its enquiry form. */
+export function actionCta(site: Pick<ListedSite, "settings">): { href: string; label: string } | null {
+  const action = site.settings?.enquiries.action;
+  return action === "start_now" || action === "book_demo" ? ACTION_CTAS[action] : null;
+}
+
 /**
  * Where this website's call to action goes: its own Contact page, when that page
  * has the enquiry form, so visitors stay on the website (owner, 6 Nov 2026);

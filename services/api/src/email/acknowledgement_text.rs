@@ -16,6 +16,8 @@ pub struct Text {
     pub waitlist: [&'static str; 3],
     pub early_access: [&'static str; 3],
     pub demo: [&'static str; 3],
+    /// Start Now: a workspace request (P8-M8).
+    pub workspace: [&'static str; 3],
     pub partnership: [&'static str; 3],
     pub contact_figbud: [&'static str; 3],
     pub contact_product: [&'static str; 3],
@@ -48,6 +50,11 @@ const EN: Text = Text {
         "Your {product} demo request",
         "Thanks for your interest in {product}",
         "A member of our team will contact you to arrange a demo at a time that suits you.",
+    ],
+    workspace: [
+        "Your {product} workspace request",
+        "We've received your workspace request",
+        "Our team will review your organisation's details and contact you about setting up your {product} workspace.",
     ],
     partnership: [
         "Your partnership enquiry with FigBud Global",
@@ -93,6 +100,11 @@ const SW: Text = Text {
         "Asante kwa kupendezwa na {product}",
         "Mmoja wa timu yetu atawasiliana nawe kupanga onyesho kwa wakati unaokufaa.",
     ],
+    workspace: [
+        "Ombi lako la eneo la kazi la {product}",
+        "Tumepokea ombi lako la eneo la kazi",
+        "Timu yetu itakagua maelezo ya shirika lako na kuwasiliana nawe kuhusu kuandaa eneo lako la kazi la {product}.",
+    ],
     partnership: [
         "Ombi lako la ushirikiano na FigBud Global",
         "Asante kwa kuwasiliana nasi kuhusu ushirikiano",
@@ -136,6 +148,11 @@ const FR: Text = Text {
         "Votre demande de démonstration de {product}",
         "Merci de l'intérêt que vous portez à {product}",
         "Un membre de notre équipe vous contactera pour organiser une démonstration au moment qui vous convient.",
+    ],
+    workspace: [
+        "Votre demande d'espace de travail {product}",
+        "Nous avons bien reçu votre demande d'espace de travail",
+        "Notre équipe examinera les informations de votre organisation et vous contactera pour mettre en place votre espace de travail {product}.",
     ],
     partnership: [
         "Votre demande de partenariat avec FigBud Global",
@@ -181,6 +198,11 @@ const AR: Text = Text {
         "شكرًا لاهتمامك بـ {product}",
         "سيتواصل معك أحد أعضاء فريقنا لترتيب عرض توضيحي في الوقت المناسب لك.",
     ],
+    workspace: [
+        "طلب مساحة العمل الخاصة بك على {product}",
+        "تلقّينا طلب مساحة العمل الخاص بك",
+        "سيراجع فريقنا بيانات مؤسستك ويتواصل معك بشأن إعداد مساحة العمل الخاصة بك على {product}.",
+    ],
     partnership: [
         "طلب الشراكة الخاص بك مع FigBud Global",
         "شكرًا لتواصلك معنا بشأن الشراكة",
@@ -225,6 +247,11 @@ const ZH: Text = Text {
         "感谢您对 {product} 的关注",
         "我们的团队成员将与您联系，在您方便的时间安排演示。",
     ],
+    workspace: [
+        "طلب مساحة العمل الخاصة بك على {product}",
+        "تلقّينا طلب مساحة العمل الخاص بك",
+        "سيراجع فريقنا بيانات مؤسستك ويتواصل معك بشأن إعداد مساحة العمل الخاصة بك على {product}.",
+    ],
     partnership: [
         "您与 FigBud Global 的合作咨询",
         "感谢您就合作事宜与我们联系",
@@ -264,6 +291,7 @@ impl Text {
             (EnquiryKind::Waitlist, _) => &self.waitlist,
             (EnquiryKind::EarlyAccess, _) => &self.early_access,
             (EnquiryKind::DemoRequest, _) => &self.demo,
+            (EnquiryKind::WorkspaceRequest, _) => &self.workspace,
             (EnquiryKind::Partnership, _) => &self.partnership,
             (EnquiryKind::Sales | EnquiryKind::Contact, Product::Figbud) => &self.contact_figbud,
             (EnquiryKind::Sales | EnquiryKind::Contact, _) => &self.contact_product,

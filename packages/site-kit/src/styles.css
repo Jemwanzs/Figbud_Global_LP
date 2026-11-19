@@ -1498,3 +1498,53 @@ body:has(main [data-section="call_to_action"]:last-child) footer {
 .fb-brand-plate-light {
   background: var(--fb-paper);
 }
+
+/* An FAQ's product visual (P14-W5): gentle floating, light moving along the
+   connections, small bars growing and labels settling in. Transform and
+   opacity only; nothing moves with reduced motion. `--faq-speed` is the
+   Studio's pace (calm 1.4, normal 1, lively 0.7). */
+@media (prefers-reduced-motion: no-preference) {
+  .fb-faq-float {
+    animation: fb-faq-float calc(6s * var(--faq-speed, 1)) ease-in-out infinite;
+  }
+  .fb-faq-flow {
+    animation: fb-faq-flow calc(2.4s * var(--faq-speed, 1)) linear infinite;
+  }
+  .fb-faq-grow {
+    transform-origin: left center;
+    animation: fb-faq-grow calc(0.9s * var(--faq-speed, 1)) cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  }
+  [dir="rtl"] .fb-faq-grow {
+    transform-origin: right center;
+  }
+  .fb-faq-chip {
+    animation:
+      fb-faq-chip 0.45s ease-out both,
+      fb-faq-float calc(7s * var(--faq-speed, 1)) ease-in-out 0.5s infinite;
+  }
+}
+@keyframes fb-faq-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+@keyframes fb-faq-flow {
+  to {
+    stroke-dashoffset: -11;
+  }
+}
+@keyframes fb-faq-grow {
+  from {
+    transform: scaleX(0);
+  }
+}
+@keyframes fb-faq-chip {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.96);
+  }
+}

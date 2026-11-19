@@ -272,7 +272,75 @@ const enquiries = [
     created_at: "2026-10-20T09:00:00Z",
     history: [],
   },
+  // Start Now and demo booking (P8-M8).
+  {
+    id: "0b6e7a52-3f1e-4c55-9a4b-1f4e2a7c9d03",
+    reference: "FBG-2611-TEST03",
+    kind: "workspace_request",
+    product: "zirahr",
+    name: "Esther Njeri",
+    email: "esther@example.co.ke",
+    company: "Mfano Logistics",
+    company_size: "51-200",
+    status: "contacted",
+    created_at: "2026-11-18T08:00:00Z",
+    history: [],
+  },
+  {
+    id: "0b6e7a52-3f1e-4c55-9a4b-1f4e2a7c9d04",
+    reference: "FBG-2611-TEST04",
+    kind: "demo_request",
+    product: "zirahr",
+    name: "Baraka Otieno",
+    email: "baraka@example.co.ke",
+    company: "Sample Sacco",
+    message: "Requested demo time: Thursday 26 November 2026, 10:00 (Africa/Nairobi)",
+    status: "qualified",
+    created_at: "2026-11-18T09:00:00Z",
+    history: [],
+  },
 ];
+
+/** Demo bookings and each website's availability (bookings.rs). */
+const demoBookings = [
+  {
+    id: "5d0c1f1e-7a52-4c55-9a4b-1f4e2a7c9e01",
+    enquiry_id: "0b6e7a52-3f1e-4c55-9a4b-1f4e2a7c9d04",
+    product: "zirahr",
+    starts_at: "2099-11-26T07:00:00Z",
+    ends_at: "2099-11-26T07:30:00Z",
+    time_zone: "Africa/Nairobi",
+    status: "pending",
+    created_at: "2026-11-18T09:00:00Z",
+  },
+];
+const demoAvailability = new Map();
+const DEFAULT_AVAILABILITY = {
+  enabled: false,
+  time_zone: "Africa/Nairobi",
+  slot_minutes: 30,
+  buffer_minutes: 15,
+  notice_hours: 4,
+  days_ahead: 21,
+  daily_limit: null,
+  hours: [1, 2, 3, 4, 5].flatMap((day) => [
+    { day, start: "09:00", end: "12:00" },
+    { day, start: "14:00", end: "17:00" },
+  ]),
+  closed_dates: [],
+  note: null,
+};
+/** Three fixed future days of slots (synthetic; the API works them out from the rules). */
+function demoSlotDays() {
+  return ["2099-11-25", "2099-11-26", "2099-11-27"].map((date) => ({
+    date,
+    slots: ["06:00", "06:45", "07:30", "11:00", "11:45"]
+      .map((t) => `${date}T${t}:00Z`)
+      .filter(
+        (s) => !demoBookings.some((b) => ["pending", "confirmed"].includes(b.status) && b.starts_at === s),
+      ),
+  }));
+}
 
 function validateArticle(b) {
   const errors = [];
@@ -1620,7 +1688,11 @@ const renderDoc = (doc, includeHidden = true) => ({
       s.type === "text"
         ? { ...s, body_html: md(s.body) }
         : s.type === "faq"
-          ? { ...s, items: s.items.map((i) => ({ question: i.question, answer_html: md(i.answer) })) }
+          ? {
+              ...s,
+              // Like blocks.rs: every field but the Markdown answer, which comes rendered.
+              items: s.items.map(({ answer, ...i }) => ({ ...i, answer_html: md(answer) })),
+            }
           : s,
     ),
 });
@@ -2190,6 +2262,45 @@ seedPublishedPage(
             { title: "Payroll intelligence", body: "Cost visibility and statutory reporting" },
           ],
         },
+      },
+      // An FAQ with its product visual (P14-W5): each question has its own scene.
+      {
+        id: "zw-faq",
+        type: "faq",
+        heading: "Good to know",
+        showcase: {
+          enabled: true,
+          speed: "normal",
+          autoplay: false,
+          cta: { label: "Book a personalised demo", href: "#book-demo" },
+        },
+        items: [
+          {
+            id: "q-install",
+            scene: "employee_access",
+            question: "Do employees need to install an app?",
+            answer: "No. ZiraHR works in any web browser on desktop, tablet or phone.",
+          },
+          {
+            id: "q-branches",
+            scene: "branches",
+            question: "Can ZiraHR work across several branches?",
+            answer: "Yes. Every branch reports into one HR workspace, with branch-level filters.",
+          },
+          {
+            id: "q-payroll",
+            scene: "payroll",
+            labels: ["Gross Pay", "Statutory Deductions", "Net Pay", "Payroll Reports"],
+            question: "Which Kenyan deductions does the payroll calculator show?",
+            answer: "PAYE, NSSF, SHIF and the Housing Levy, from gross to net.",
+          },
+          {
+            id: "q-flows",
+            scene: "workflows",
+            question: "How do I see it with my own workflows?",
+            answer: "Book a personalised demo and we'll walk through your approval stages.",
+          },
+        ],
       },
     ],
   },
@@ -6798,7 +6909,12 @@ function admin(req, res, url, body, send, raw) {
     );
     if (path === "enquiries") {
       return send(200, {
-        items: rows,
+        items: rows.map((e) => ({
+          ...e,
+          demo_at:
+            demoBookings.find((b) => b.enquiry_id === e.id && ["pending", "confirmed"].includes(b.status))
+              ?.starts_at ?? null,
+        })),
         page: 1,
         per_page: 50,
         total: rows.length,
@@ -6817,12 +6933,179 @@ function admin(req, res, url, body, send, raw) {
     });
     return res.end(csv);
   }
-  const enq = /^enquiries\/([0-9a-f-]{36})(\/status)?$/.exec(path);
+  // --- Leads & Enquiries (P8-M8): overview, assignment, notes, bookings, availability ---
+  const bookingRow = (b) => {
+    const e = enquiries.find((x) => x.id === b.enquiry_id);
+    return {
+      ...b,
+      reference: e.reference,
+      name: e.name,
+      email: e.email,
+      company: e.company,
+      company_size: e.company_size,
+      enquiry_status: e.status,
+    };
+  };
+  if (path === "enquiries/overview") {
+    const count = (key) =>
+      Object.entries(
+        enquiries
+          .filter((e) => e.status !== "spam")
+          .reduce((acc, e) => ({ ...acc, [e[key]]: (acc[e[key]] ?? 0) + 1 }), {}),
+      )
+        .map(([k, n]) => ({ key: k, count: n }))
+        .sort((a, b) => b.count - a.count);
+    return send(200, {
+      days: Number(url.searchParams.get("days") ?? 30),
+      total: enquiries.filter((e) => e.status !== "spam").length,
+      converted: enquiries.filter((e) => e.status === "converted").length,
+      by_kind: count("kind"),
+      by_product: count("product"),
+      by_status: count("status"),
+      demos: {
+        booked: demoBookings.length,
+        upcoming: demoBookings.filter((b) => ["pending", "confirmed"].includes(b.status)).length,
+        completed: demoBookings.filter((b) => b.status === "completed").length,
+        no_show: demoBookings.filter((b) => b.status === "no_show").length,
+      },
+      open_unassigned: enquiries.filter((e) => !e.assigned_to && e.status !== "spam").length,
+    });
+  }
+  if (path === "enquiries/assignees")
+    return send(200, {
+      items: [
+        { id: user.id, name: user.name },
+        { id: "a11ce000-0000-4000-8000-000000000001", name: "Alice Editor" },
+      ],
+    });
+  if (path === "enquiries/bookings") {
+    const when = url.searchParams.get("when") ?? "upcoming";
+    const status = url.searchParams.get("status");
+    const now = new Date().toISOString();
+    return send(200, {
+      items: demoBookings
+        .filter((b) => (when === "all" ? true : when === "past" ? b.ends_at < now : b.ends_at >= now))
+        .filter((b) => !status || b.status === status)
+        .map(bookingRow),
+    });
+  }
+  const booking = /^enquiries\/bookings\/([0-9a-f-]{36})\/(status|reschedule)$/.exec(path);
+  if (booking) {
+    const b = demoBookings.find((x) => x.id === booking[1]);
+    if (!b) return send(404, { error: { code: "not_found", message: "Not found." } });
+    const e = enquiries.find((x) => x.id === b.enquiry_id);
+    if (booking[2] === "status") {
+      const moves = { pending: ["confirmed", "cancelled"], confirmed: ["completed", "no_show", "cancelled"] };
+      if (!(moves[b.status] ?? []).includes(body.status))
+        return send(409, {
+          error: { code: "conflict", message: "A booking can't move to that status from where it is." },
+        });
+      e.history.unshift({
+        action: "demo.status_changed",
+        actor_email: user.email,
+        detail: { booking: b.id, from: b.status, to: body.status },
+        created_at: new Date().toISOString(),
+      });
+      b.status = body.status;
+      if (body.status === "confirmed" && ["new", "contacted", "qualified"].includes(e.status))
+        e.status = "demo_scheduled";
+      return send(200, { status: b.status });
+    }
+    const free = demoSlotDays().flatMap((d) => d.slots);
+    if (!free.includes(body.starts_at))
+      return send(409, {
+        error: { code: "slot_taken", message: "That time was just taken. Please choose another." },
+      });
+    e.history.unshift({
+      action: "demo.rescheduled",
+      actor_email: user.email,
+      detail: { booking: b.id, from: b.starts_at, to: body.starts_at },
+      created_at: new Date().toISOString(),
+    });
+    b.starts_at = body.starts_at;
+    b.ends_at = new Date(Date.parse(body.starts_at) + 30 * 60_000).toISOString().replace(".000Z", "Z");
+    return send(200, { starts_at: b.starts_at });
+  }
+  const avail = /^enquiries\/availability\/([a-z0-9_-]+)$/.exec(path);
+  if (avail) {
+    const slug = avail[1];
+    const current = demoAvailability.get(slug) ?? { availability: DEFAULT_AVAILABILITY, version: 0 };
+    const view = (state) => ({
+      ...state,
+      can_edit: ["owner", "reviewer"].includes(user.role),
+      time_zones: ["Africa/Nairobi", "Africa/Kampala", "UTC", "Europe/London"],
+      slot_lengths: [15, 20, 30, 45, 60],
+      preview: state.availability.enabled ? demoSlotDays() : [],
+    });
+    if (req.method === "GET") return send(200, view(current));
+    if (!["owner", "reviewer"].includes(user.role))
+      return send(403, { error: { code: "forbidden", message: "You don't have permission to do that." } });
+    if (body.version !== current.version)
+      return send(409, {
+        error: {
+          code: "conflict",
+          message: "Someone changed the availability after you opened it. Reload to see the latest.",
+        },
+      });
+    const a = body.availability;
+    if (a.enabled && !a.hours?.length)
+      return send(422, {
+        error: {
+          code: "validation_failed",
+          message: "Some fields need attention.",
+          fields: [
+            {
+              field: "hours",
+              code: "required",
+              message: "Add at least one weekly window before turning booking on.",
+            },
+          ],
+        },
+      });
+    const next = { availability: a, version: current.version + 1 };
+    demoAvailability.set(slug, next);
+    return send(200, view(next));
+  }
+  const enq = /^enquiries\/([0-9a-f-]{36})(\/status|\/assignee|\/notes)?$/.exec(path);
   if (enq) {
     const e = enquiries.find((x) => x.id === enq[1]);
     if (!e) return send(404, { error: { code: "not_found", message: "Not found." } });
+    if (enq[2] === "/assignee") {
+      const name = body.user_id === user.id ? user.name : body.user_id ? "Alice Editor" : null;
+      e.assigned_to = body.user_id ?? null;
+      e.assignee = name;
+      e.history.unshift({
+        action: "enquiry.assigned",
+        actor_email: user.email,
+        detail: { to: name },
+        created_at: new Date().toISOString(),
+      });
+      return send(200, { assigned_to: e.assigned_to, name });
+    }
+    if (enq[2] === "/notes") {
+      const note = String(body.note ?? "").trim();
+      if (!note)
+        return send(422, {
+          error: {
+            code: "validation_failed",
+            message: "Some fields need attention.",
+            fields: [{ field: "note", code: "length", message: "Write a note of up to 2,000 characters." }],
+          },
+        });
+      e.history.unshift({
+        action: "enquiry.note_added",
+        actor_email: user.email,
+        detail: { note },
+        created_at: new Date().toISOString(),
+      });
+      return send(200, { ok: true });
+    }
     if (enq[2]) {
-      if (!["new", "contacted", "qualified", "closed", "spam"].includes(body.status))
+      if (
+        !["new", "contacted", "qualified", "demo_scheduled", "converted", "closed", "spam"].includes(
+          body.status,
+        )
+      )
         return send(400, { error: { code: "bad_request", message: "unknown filter value" } });
       e.history.unshift({
         action: "enquiry.status_changed",
@@ -6847,6 +7130,8 @@ function admin(req, res, url, body, send, raw) {
         { template: "visitor_acknowledgement", status: "pending", attempts: 0 },
       ],
       history,
+      booking: demoBookings.find((b) => b.enquiry_id === e.id) ?? null,
+      can_edit: user.role !== "viewer",
     });
   }
 
@@ -7123,6 +7408,22 @@ createServer(async (req, res) => {
     if (!calculator) return send(404, { error: { code: "not_found", message: "Not found." } });
     const answer = payrollCalculate(payrollCalc.published, body ?? {});
     return answer.error ? send(answer.status, { error: answer.error }) : send(200, answer);
+  }
+  const publicSlots = /^\/v1\/sites\/([a-z0-9_-]+)\/demo-slots$/.exec(url.pathname);
+  if (publicSlots) {
+    const a = demoAvailability.get(publicSlots[1])?.availability;
+    return send(
+      200,
+      a?.enabled
+        ? {
+            enabled: true,
+            time_zone: a.time_zone,
+            slot_minutes: a.slot_minutes,
+            note: a.note,
+            days: demoSlotDays(),
+          }
+        : { enabled: false },
+    );
   }
   const publicHero = /^\/v1\/sites\/([a-z0-9_-]+)\/hero$/.exec(url.pathname);
   if (publicHero) return send(200, { hero: heroStates.get(publicHero[1])?.published ?? null });

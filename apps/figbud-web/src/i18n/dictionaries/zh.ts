@@ -1,4 +1,4 @@
-import { type DeepPartial, interfaceCopy } from "@figbud/i18n";
+import { consentCopy, type DeepPartial, interfaceCopy } from "@figbud/i18n";
 
 import type { Dictionary } from "./en";
 
@@ -95,41 +95,7 @@ const zh: DeepPartial<Dictionary> = {
     legalTitle: "法律信息",
     rights: "保留所有权利。",
   },
-  consent: {
-    labels: {
-      region: "Cookie 同意",
-      acceptAll: "全部接受",
-      rejectOptional: "拒绝可选 Cookie",
-      customize: "自定义",
-      save: "保存选择",
-      preferencesTitle: "Cookie 偏好设置",
-      preferencesIntro: "选择我们可以使用的可选 Cookie。您可以随时通过每个页面底部的“Cookie 设置”更改选择。",
-      alwaysOn: "始终开启",
-      privacyPolicy: "隐私政策",
-      cookiePolicy: "Cookie 政策",
-      close: "关闭",
-    },
-    banner: {
-      title: "您的隐私很重要",
-      body: "我们使用必要的 Cookie 来保证网站正常运行。经您许可，我们还可能使用可选 Cookie 来了解网站的使用情况并改善您的体验。",
-    },
-    categories: {
-      necessary: {
-        label: "严格必要",
-        description:
-          "保障网站正常、安全地运行：记住您的 Cookie 选择、主题和语言，并防止表单被滥用。始终开启。",
-      },
-      analytics: {
-        label: "分析",
-        description: "帮助我们了解网站的使用方式（例如访问了哪些页面），以便改进网站。",
-      },
-      preferences: { label: "偏好", description: "记住必要设置之外的可选个人设置，为您提供个性化体验。" },
-      marketing: {
-        label: "营销",
-        description: "衡量我们营销活动的覆盖范围，并在其他网站上展示相关的 FigBud 内容。",
-      },
-    },
-  },
+  consent: consentCopy.zh,
 };
 
 export default zh;

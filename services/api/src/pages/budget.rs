@@ -122,9 +122,16 @@ pub async fn assess(pool: &PgPool, site_id: Uuid, rendered: &Value) -> Result<Bu
         .iter()
         .flat_map(|s| {
             let views = s["showcase"]["views"].as_array().cloned().unwrap_or_default();
+            // An FAQ visual's screenshots download too (P14-W5).
+            let faq = if s["type"] == "faq" {
+                s["items"].as_array().cloned().unwrap_or_default()
+            } else {
+                Vec::new()
+            };
             let own = (s["type"] == "image").then(|| s["image_id"].clone());
             own.into_iter()
                 .chain(views.into_iter().map(|v| v["image_id"].clone()))
+                .chain(faq.into_iter().map(|i| i["image_id"].clone()))
         })
         .filter_map(|id| id.as_str().and_then(|id| Uuid::parse_str(id).ok()))
         .collect::<HashSet<_>>()

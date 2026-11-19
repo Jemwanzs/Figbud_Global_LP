@@ -57,6 +57,7 @@ import {
   copySection,
   newSection,
 } from "./page-types";
+import { FaqItemVisualFields, FaqShowcaseFields, newQuestionId, withIds } from "./faq-visual-fields";
 import { ShowcaseFields, newShowcase } from "./showcase-fields";
 
 type Draft = { title: string; path: string; document: PageDocument };
@@ -168,15 +169,7 @@ function CtaFields({
           disabled={disabled}
           onChange={(v) => onChange({ ...cta, label: v })}
         />
-        <TextField
-          label="Link"
-          value={cta.href}
-          max={300}
-          mono
-          disabled={disabled}
-          hint="/contact, or https://…"
-          onChange={(v) => onChange({ ...cta, href: v })}
-        />
+        <ButtonAction cta={cta} disabled={disabled} onChange={onChange} />
       </div>
       {optional && !disabled && (
         <button
@@ -188,6 +181,62 @@ function CtaFields({
         </button>
       )}
     </fieldset>
+  );
+}
+
+/** What a button does (P8-M8): open a link, or Start Now / demo booking in place. */
+const BUTTON_ACTIONS = {
+  "#start-now": "Open Start Now (workspace request)",
+  "#book-demo": "Open demo booking",
+} as const;
+
+function ButtonAction({
+  cta,
+  disabled,
+  onChange,
+}: {
+  cta: PageCta;
+  disabled?: boolean;
+  onChange: (cta: PageCta) => void;
+}) {
+  const uid = useId();
+  const action = cta.href in BUTTON_ACTIONS ? cta.href : "link";
+  return (
+    <div className="space-y-3">
+      <div>
+        <label htmlFor={`${uid}-action`} className="block text-sm font-medium text-text">
+          What it does
+        </label>
+        <select
+          id={`${uid}-action`}
+          value={action}
+          disabled={disabled}
+          onChange={(e) =>
+            onChange({ ...cta, href: e.target.value === "link" ? "/contact" : e.target.value })
+          }
+          className="mt-1.5 min-h-11 w-full rounded-xl border border-line-strong bg-surface px-3 text-sm text-text"
+          data-button-action=""
+        >
+          <option value="link">Open a link</option>
+          {Object.entries(BUTTON_ACTIONS).map(([value, label]) => (
+            <option key={value} value={value}>
+              {label}
+            </option>
+          ))}
+        </select>
+      </div>
+      {action === "link" && (
+        <TextField
+          label="Link"
+          value={cta.href}
+          max={300}
+          mono
+          disabled={disabled}
+          hint="/contact, or https://…"
+          onChange={(v) => onChange({ ...cta, href: v })}
+        />
+      )}
+    </div>
   );
 }
 
@@ -1234,12 +1283,20 @@ export function BlockForm({
             {...p}
             onChange={(v) => onChange({ ...section, heading: v })}
           />
+          {/* The product visual beside the questions (P14-W5); each question keeps a stable id. */}
+          <FaqShowcaseFields
+            value={section.showcase}
+            disabled={p.disabled}
+            onChange={(showcase) =>
+              onChange({ ...section, items: showcase ? withIds(section.items) : section.items, showcase })
+            }
+          />
           <Items
             items={section.items}
             noun="Question"
-            blank={{ question: "A common question?", answer: "The answer." }}
+            blank={{ id: newQuestionId(), question: "A common question?", answer: "The answer." }}
             {...p}
-            onChange={(items) => onChange({ ...section, items })}
+            onChange={(items) => onChange({ ...section, items: section.showcase ? withIds(items) : items })}
             render={(item, setItem) => (
               <>
                 <TextField
@@ -1251,12 +1308,20 @@ export function BlockForm({
                 />
                 <TextField
                   label="Answer (Markdown)"
-                  value={item.answer}
+                  value={item.answer ?? ""}
                   max={2000}
                   multiline
                   {...p}
                   onChange={(v) => setItem({ ...item, answer: v })}
                 />
+                {section.showcase && (
+                  <FaqItemVisualFields
+                    item={{ ...item, answer: item.answer ?? "" }}
+                    library={library ?? []}
+                    disabled={p.disabled}
+                    onChange={(next) => setItem({ ...item, ...next })}
+                  />
+                )}
               </>
             )}
           />
@@ -1550,15 +1615,29 @@ export function PageEditor({ slug, user, initial }: { slug: string; user: AdminU
       if (section.type === "text" && server?.type === "text" && server.body === section.body) {
         return { ...section, body_html: server.body_html };
       }
-      if (section.type === "faq" && server?.type === "faq") {
+      if (section.type === "faq") {
+        const saved = server?.type === "faq" ? server.items : [];
         return {
           ...section,
           items: section.items.map((item, i) => {
-            const savedItem = server.items[i];
+            const savedItem = saved[i];
             const savedAnswer = initialAnswer(data, section.id, i);
-            return savedItem && savedAnswer === item.answer
-              ? { ...item, answer_html: savedItem.answer_html }
-              : item;
+            // A question's screenshot: the library's details while a new choice saves.
+            const shot = item.image_id ? library?.find((m) => m.id === item.image_id) : undefined;
+            return {
+              ...item,
+              ...(savedItem && savedAnswer === item.answer ? { answer_html: savedItem.answer_html } : {}),
+              media: shot
+                ? {
+                    id: shot.id,
+                    alt: shot.alt_text,
+                    width: shot.width,
+                    height: shot.height,
+                    content_type: shot.content_type,
+                    widths: [],
+                  }
+                : null,
+            };
           }),
         };
       }

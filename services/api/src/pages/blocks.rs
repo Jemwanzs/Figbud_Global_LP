@@ -6,6 +6,8 @@
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
+use uuid::Uuid;
+
 use crate::{cms::markdown, error::FieldError};
 
 pub const MAX_SECTIONS: usize = 40;
@@ -36,6 +38,63 @@ pub struct Stat {
 pub struct Faq {
     pub question: String,
     pub answer: String,
+    /// Stable id given by the Studio, so a visual (and anything else tied to
+    /// the question) follows the item, never its wording (P14-W5).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub id: Option<String>,
+    /// The visual this answer shows while it's open, when the FAQ has a showcase.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub scene: Option<FaqScene>,
+    /// Up to four floating labels for its scene (the scene's own otherwise).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub labels: Vec<String>,
+    /// An approved screenshot from the media library, shown in the scene's frame.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub image_id: Option<Uuid>,
+}
+
+/// The product scenes an FAQ answer can show (owner's brief, 19 Nov 2026).
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum FaqScene {
+    /// Self-service in desktop and phone browsers: payslips, leave, profile.
+    EmployeeAccess,
+    /// Branches reporting into one central HR workspace.
+    Branches,
+    /// Gross to net with PAYE, NSSF, SHIF and Housing Levy (illustrative amounts).
+    Payroll,
+    /// A request moving through configurable approval stages.
+    Workflows,
+}
+
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum ShowcaseSpeed {
+    Calm,
+    #[default]
+    Normal,
+    Lively,
+}
+
+/// An FAQ's interactive visual beside the questions (P14-W5): each open
+/// question shows its scene; with none open, a connected workspace (and,
+/// with `autoplay`, the scenes in turn until someone interacts).
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct FaqShowcase {
+    #[serde(default = "yes")]
+    pub enabled: bool,
+    #[serde(default)]
+    pub speed: ShowcaseSpeed,
+    #[serde(default)]
+    pub autoplay: bool,
+    /// A small button in the workflows scene, e.g. "Book a personalised demo" → `#book-demo`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cta: Option<Cta>,
+}
+
+fn yes() -> bool {
+    true
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
@@ -127,6 +186,8 @@ pub enum Block {
         #[serde(default)]
         heading: Option<String>,
         items: Vec<Faq>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        showcase: Option<FaqShowcase>,
     },
     CallToAction {
         heading: String,
@@ -483,9 +544,16 @@ impl Checker {
     }
 }
 
-/// Site-relative paths or https URLs; nothing that could run code.
+/// Button actions any website's buttons can take instead of a link (P8-M8):
+/// the Start Now workspace request and demo booking, opened in place.
+pub const ACTION_HREFS: [&str; 2] = ["#start-now", "#book-demo"];
+
+/// Site-relative paths, https URLs or a button action; nothing that could run code.
 pub fn safe_href(href: &str) -> bool {
     let href = href.trim();
+    if ACTION_HREFS.contains(&href) {
+        return true;
+    }
     if href.is_empty() || href.len() > 300 || href.chars().any(|c| c.is_control() || c.is_whitespace()) {
         return false;
     }
@@ -725,9 +793,41 @@ impl PageDoc {
                         "Say where the figures come from (1–200 characters): only verified figures are published.",
                     );
                 }
-                Block::Faq { heading, items } => {
+                Block::Faq {
+                    heading,
+                    items,
+                    showcase,
+                } => {
                     c.optional("sections", heading, 120, "Headings can be up to 120 characters.");
                     c.count(items, 12);
+                    let mut ids = std::collections::HashSet::new();
+                    for item in items.iter() {
+                        if let Some(id) = &item.id
+                            && (id.is_empty()
+                                || id.len() > 40
+                                || !id
+                                    .chars()
+                                    .all(|ch| ch.is_ascii_alphanumeric() || ch == '-' || ch == '_')
+                                || !ids.insert(id.clone()))
+                        {
+                            c.push(
+                                "sections",
+                                "FAQ question ids are unique letters, numbers and dashes (up to 40).",
+                            );
+                        }
+                        if item.labels.len() > 4 {
+                            c.push("sections", "A question's visual has up to four labels.");
+                        }
+                        for label in &item.labels {
+                            c.text("sections", label, 32, "Visual labels need 1–32 characters.");
+                        }
+                        if item.image_id.is_some() && item.scene.is_none() {
+                            c.push("sections", "Choose the question's scene before its screenshot.");
+                        }
+                    }
+                    if let Some(cta) = showcase.as_ref().and_then(|s| s.cta.as_ref()) {
+                        c.cta(cta);
+                    }
                     for item in items {
                         c.text(
                             "sections",
@@ -865,7 +965,18 @@ impl PageDoc {
                         value["items"] = json!(
                             items
                                 .iter()
-                                .map(|i| json!({ "question": i.question, "answer_html": markdown::render(&i.answer).html }))
+                                .map(|i| {
+                                    // Everything but the Markdown answer, which websites get rendered.
+                                    let mut item = serde_json::to_value(i).unwrap_or(Value::Null);
+                                    if let Some(map) = item.as_object_mut() {
+                                        map.remove("answer");
+                                        map.insert(
+                                            "answer_html".into(),
+                                            json!(markdown::render(&i.answer).html),
+                                        );
+                                    }
+                                    item
+                                })
                                 .collect::<Vec<_>>()
                         );
                     }
@@ -995,6 +1106,51 @@ mod tests {
         )
         .unwrap();
         assert!(page.validate().is_err(), "duplicate section ids");
+    }
+
+    #[test]
+    fn faq_visuals_follow_stable_question_ids() {
+        let faq = |items: Value, showcase: Value| {
+            doc(json!([{ "id": "f", "type": "faq", "heading": "Good to know", "items": items, "showcase": showcase }]))
+                .unwrap()
+        };
+        let good = faq(
+            json!([
+                { "id": "q-install", "question": "Install an app?", "answer": "No.", "scene": "employee_access",
+                  "labels": ["Payslips", "Leave Requests"] },
+                { "id": "q-flows", "question": "My own workflows?", "answer": "Yes.", "scene": "workflows" },
+            ]),
+            json!({ "speed": "calm", "cta": { "label": "Book a personalised demo", "href": "#book-demo" } }),
+        );
+        assert!(good.validate().is_ok());
+        // Websites get everything but the Markdown answer, which comes rendered.
+        let rendered = good.render(false);
+        let item = &rendered["sections"][0]["items"][0];
+        assert_eq!(item["scene"], "employee_access");
+        assert_eq!(item["id"], "q-install");
+        assert!(item["answer"].is_null() && item["answer_html"].as_str().unwrap().contains("No."));
+        assert_eq!(rendered["sections"][0]["showcase"]["enabled"], true);
+
+        let same_id = faq(
+            json!([{ "id": "q", "question": "A?", "answer": "a" }, { "id": "q", "question": "B?", "answer": "b" }]),
+            Value::Null,
+        );
+        assert!(same_id.validate().is_err(), "ids are unique");
+        let too_many = faq(
+            json!([{ "id": "q", "question": "A?", "answer": "a", "scene": "payroll", "labels": ["1", "2", "3", "4", "5"] }]),
+            Value::Null,
+        );
+        assert!(too_many.validate().is_err());
+        assert!(doc(json!([{ "id": "f", "type": "faq", "items": [{ "question": "A?", "answer": "a", "scene": "rockets" }] }])).is_err());
+        let bad_link = faq(
+            json!([{ "question": "A?", "answer": "a" }]),
+            json!({ "cta": { "label": "Go", "href": "javascript:alert(1)" } }),
+        );
+        assert!(bad_link.validate().is_err());
+        // An FAQ without a visual is as it was.
+        let plain = faq(json!([{ "question": "A?", "answer": "a" }]), Value::Null);
+        assert!(plain.validate().is_ok());
+        assert!(plain.render(false)["sections"][0].get("showcase").is_none());
     }
 
     #[test]

@@ -33,6 +33,8 @@ import { notFound, redirect } from "next/navigation";
 import { LazyPayrollCalculator as WebsitePayrollCalculator } from "@/components/lazy-payroll-calculator";
 import {
   canonicalUrl,
+  actionCta,
+  demoBookingOpen,
   enquiryHref,
   figbudOrigin,
   getPage,
@@ -172,7 +174,11 @@ async function PricingPage({
   site: NonNullable<Awaited<ReturnType<typeof getSite>>>;
   ownDomain: boolean;
 }) {
-  const [book, pages] = await Promise.all([getPublicPricing(site.slug), getPages(site.slug)]);
+  const [book, pages, booking] = await Promise.all([
+    getPublicPricing(site.slug),
+    getPages(site.slug),
+    demoBookingOpen(site.slug),
+  ]);
   const enquire = enquiryHref(site, { ownDomain, pages });
   return (
     <div className="mx-auto max-w-[92rem] px-5 pt-page-top pb-section sm:px-8 md:px-10 lg:px-16">
@@ -188,7 +194,7 @@ async function PricingPage({
               book={book}
               endpoint={pageHref(site.slug, ownDomain, "pricing-calculate")}
               quoteHref={enquire}
-              demoHref={enquiryHref({ ...site, cta: "demo" }, { ownDomain, pages })}
+              demoHref={booking ? "#book-demo" : enquiryHref({ ...site, cta: "demo" }, { ownDomain, pages })}
             />
           </div>
         </>
@@ -239,8 +245,8 @@ async function PayrollCalculatorPage({
         <PayrollSources calculator={calculator} />
       </div>
       <div className="mt-stack flex flex-wrap items-center gap-4">
-        <a href={enquire} className={buttonClasses("product", "lg")}>
-          {CTA_LABELS[site.cta]}
+        <a href={actionCta(site)?.href ?? enquire} className={buttonClasses("product", "lg")}>
+          {actionCta(site)?.label ?? CTA_LABELS[site.cta]}
           <ArrowRight aria-hidden className="size-4 rtl:rotate-180" />
         </a>
       </div>

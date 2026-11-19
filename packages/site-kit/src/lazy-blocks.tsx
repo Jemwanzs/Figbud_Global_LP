@@ -20,3 +20,5 @@ export const LazyModuleCatalogue = dynamic(() => import("./product-demos").then(
 // A designed hero shows only on a website's home page (server-rendered as
 // before, so the first paint doesn't wait for it).
 export const LazyProductHero = dynamic(() => import("./product-heroes").then((m) => m.ProductHero));
+// An FAQ's product visual (P14-W5): only pages whose FAQ has one download it.
+export const LazyFaqShowcase = dynamic(() => import("./faq-showcase").then((m) => m.FaqShowcase));

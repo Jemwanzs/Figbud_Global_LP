@@ -190,3 +190,5 @@ export function fallbackChain(locale: Locale, fallback: Locale): Locale[] {
 }
 
 export { PLATFORM_ENTRIES, type PlatformEntry, interfaceCopy } from "./interface";
+export { type ConsentCopy, consentCopy } from "./visitor";
+export { type CtaText, type LeadText, ctaCopy, leadCopy } from "./actions";

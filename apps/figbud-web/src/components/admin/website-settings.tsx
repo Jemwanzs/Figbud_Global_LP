@@ -32,7 +32,11 @@ const toForm = (s: Partial<WebsiteSettings>): WebsiteSettings => ({
   // Edited on the Section themes page; likewise.
   ...(s.section_themes ? { section_themes: s.section_themes } : {}),
   ...(s.section_themes_draft ? { section_themes_draft: s.section_themes_draft } : {}),
-  enquiries: { open: s.enquiries?.open ?? true, closed_message: s.enquiries?.closed_message ?? "" },
+  enquiries: {
+    open: s.enquiries?.open ?? true,
+    closed_message: s.enquiries?.closed_message ?? "",
+    action: s.enquiries?.action ?? "contact",
+  },
   // Edited in Colours & themes (section bands included); sent back unchanged, draft too,
   // so saving here never changes the published theme or loses a theme draft.
   ...(s.theme ? { theme: s.theme } : {}),
@@ -285,6 +289,45 @@ export function WebsiteSettingsForm({
             />
             <p className="mt-1.5 text-sm text-subtle">
               Optional. Shown on the contact form instead of this product.
+            </p>
+          </div>
+        )}
+        {!data.corporate && (
+          <div>
+            <label htmlFor={`${uid}-action`} className="block text-sm font-medium text-text">
+              Main button
+            </label>
+            <select
+              id={`${uid}-action`}
+              value={form.enquiries.action ?? "contact"}
+              disabled={disabled}
+              onChange={(e) =>
+                setForm((f) => ({
+                  ...f,
+                  enquiries: {
+                    ...f.enquiries,
+                    action: e.target.value as "contact" | "start_now" | "book_demo",
+                  },
+                }))
+              }
+              className={cn(inputClass, "mt-2")}
+              data-main-action=""
+            >
+              <option value="contact">
+                Enquiry form (by the website&apos;s stage: waitlist, early access or demo)
+              </option>
+              <option value="start_now">Start now: the workspace request</option>
+              <option value="book_demo">
+                Book a demo: choose a time (the demo request form while booking is off)
+              </option>
+            </select>
+            <p className="mt-1.5 text-sm text-subtle">
+              The header button and the buttons at the end of pages. Any other button can take these actions
+              too (Page builder, Campaigns). Demo times are set in{" "}
+              <Link href="/admin/enquiries/availability" className="font-medium text-accent-strong underline">
+                Demo availability
+              </Link>
+              .
             </p>
           </div>
         )}

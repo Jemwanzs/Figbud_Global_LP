@@ -116,6 +116,13 @@ async fn public_sites(State(state): State<SharedState>) -> Result<impl IntoRespo
     .fetch_all(&state.pool)
     .await?;
     let mut brands = crate::brand::published_by_slug(&state.pool).await?;
+    // Website display defaults are FigBud Global's; a website's own replace them (P10-R1).
+    let defaults = rows
+        .iter()
+        .find(|s| s.kind == "corporate")
+        .map(|s| crate::site_settings::WebsiteSettings::from_stored(s.settings.clone()).display)
+        .unwrap_or_default()
+        .unwrap_or_default();
     let sites: Vec<Value> = rows
         .into_iter()
         .map(|s| {
@@ -125,6 +132,9 @@ async fn public_sites(State(state): State<SharedState>) -> Result<impl IntoRespo
             let seo = crate::seo::SeoSettings::from_stored(s.seo.clone()).public();
             let mut value = serde_json::to_value(s).unwrap_or(Value::Null);
             value["settings"] = settings;
+            if value["settings"]["display"].is_null() {
+                value["settings"]["display"] = json!(defaults);
+            }
             value["seo"] = seo;
             value["cta"] = json!(cta);
             value["brand"] = brand;

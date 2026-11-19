@@ -1979,3 +1979,89 @@ test.describe("product screenshots in a hero (owner's brief, 18 Nov 2026)", () =
     await expect(hr).toHaveAttribute("aria-selected", "true");
   });
 });
+
+test("ZiraHR: Start Now opens the workspace request in place, for ZiraHR (P8-M8)", async ({ page }) => {
+  const sent: Record<string, unknown>[] = [];
+  await page.route("**/v1/enquiries", async (route) => {
+    sent.push(route.request().postDataJSON());
+    await route.fulfill({ status: 201, json: { reference: "ZR-START-0001", status: "received" } });
+  });
+  await page.goto("/zirahr#start-now");
+  const dialog = page.getByRole("dialog", { name: "Start with ZiraHR" });
+  await expect(dialog).toBeVisible();
+  await dialog.getByLabel("Full name").fill("Amina Wanjiru");
+  await dialog.getByLabel("Work email").fill("amina@example.co.ke");
+  await dialog.getByLabel("Organisation").fill("Mfano Ltd");
+  await dialog.getByText("11-50", { exact: true }).click();
+  await dialog.getByRole("checkbox").check();
+  expect(await axe(page)).toEqual([]);
+  await dialog.getByRole("button", { name: "Request my workspace" }).click();
+  await expect(dialog.locator("[data-reference]")).toHaveText("ZR-START-0001");
+  expect(sent[0]).toMatchObject({ kind: "workspace_request", product: "zirahr", company_size: "11-50" });
+});
+
+test("a translated page's surroundings follow its language: skip link, cookie preferences, main button (P7-L3)", async ({
+  page,
+}) => {
+  // Mock fixture (MOCK_TRANSLATED_ZIWA): Arabic is reviewed and switched on for Ziwa LMS.
+  await page.goto("/ziwa/ar/platform");
+  await expect(page.locator('a[href="#main"]')).toHaveText("انتقل إلى المحتوى");
+  // The cookie preferences (opened from the footer) are in Arabic too.
+  await expect(page.locator("dialog").filter({ hasText: "تفضيلات ملفات تعريف الارتباط" })).toBeAttached();
+  // The header's main button is in Arabic too, whatever its stage.
+  await expect(
+    page
+      .getByRole("banner")
+      .locator("a", { hasText: /انضم إلى قائمة الانتظار|اطلب|ابدأ الآن|احجز/ })
+      .first(),
+  ).toBeAttached();
+  // The English page keeps the English wording.
+  await page.goto("/ziwa/platform");
+  await expect(page.locator('a[href="#main"]')).toHaveText("Skip to content");
+});
+
+test.describe("an FAQ with its product visual (P14-W5)", () => {
+  test("each question shows its own scene, and closing them all brings back the workspace", async ({
+    page,
+    isMobile,
+  }) => {
+    await page.goto("/zirahr/workspace");
+    const faq = page.locator("[data-faq-showcase]");
+    await faq.scrollIntoViewIfNeeded();
+    const stage = faq.locator("[data-faq-scene]");
+    await expect(stage).toHaveAttribute("data-faq-scene", "workspace");
+    const question = (name: RegExp) => faq.getByRole("button", { name });
+    await expect(async () => {
+      await question(/several branches/).click();
+      await expect(stage).toHaveAttribute("data-faq-scene", "branches", { timeout: 1_000 });
+    }).toPass();
+    await expect(question(/several branches/)).toHaveAttribute("aria-expanded", "true");
+    await expect(faq.getByRole("region", { name: /several branches/ })).toContainText("branch-level filters");
+    // One open at a time: the next question takes over, with its own labels.
+    await question(/Kenyan deductions/).click();
+    await expect(stage).toHaveAttribute("data-faq-scene", "payroll");
+    await expect(question(/several branches/)).toHaveAttribute("aria-expanded", "false");
+    if (!isMobile) await expect(stage.getByText("Statutory Deductions")).toBeVisible();
+    // The workflow scene offers a personalised demo through demo booking.
+    await question(/own workflows/).click();
+    await expect(stage).toHaveAttribute("data-faq-scene", "workflows");
+    await expect(stage.getByRole("link", { name: "Book a personalised demo" })).toHaveAttribute(
+      "href",
+      "#book-demo",
+    );
+    // From the keyboard, too; closing the open question restores the default.
+    await question(/own workflows/).focus();
+    await page.keyboard.press("Enter");
+    await expect(stage).toHaveAttribute("data-faq-scene", "workspace");
+    await expect(stage.getByText("Illustrative")).toBeVisible();
+    // Never wider than the screen.
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    const results = await new AxeBuilder({ page: await themeSettled(page) })
+      .include("[data-faq-showcase]")
+      .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
+      .analyze();
+    expect(
+      results.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`),
+    ).toEqual([]);
+  });
+});

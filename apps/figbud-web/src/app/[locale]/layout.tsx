@@ -5,6 +5,7 @@ import {
   CampaignProvider,
   CampaignSlot,
   CookieConsent,
+  CtaActions,
   brandIcons,
   siteThemeCss,
   verificationMeta,
@@ -193,6 +194,15 @@ export default async function LocaleLayout({ children, params }: LayoutProps<"/[
               linkBase={localizePath(locale)}
             />
             <CampaignOverlays />
+            {/* Start Now and demo booking, opened by any button set to them (P8-M8). */}
+            <CtaActions
+              apiOrigin={apiOrigin}
+              product="figbud"
+              productName={company.name}
+              privacyHref={localizePath(locale, "/legal/privacy")}
+              demoFallbackHref={`${localizePath(locale, "/contact")}?kind=demo_request&product=figbud#enquire`}
+              locale={locale}
+            />
           </CampaignProvider>
         </MotionProvider>
         <script

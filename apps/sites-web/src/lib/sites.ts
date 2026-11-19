@@ -175,6 +175,24 @@ export async function getPublicPricing(slug: string): Promise<PriceBook | null> 
   return fetchPublicPricing(apiBase, slug);
 }
 
+/**
+ * Whether the website takes demo bookings (P8-M8): its "Book a demo" buttons
+ * then open booking in place; otherwise they go to the demo request form.
+ * The slots themselves are always fetched live by the dialog.
+ */
+export async function demoBookingOpen(slug: string): Promise<boolean> {
+  "use cache";
+  cacheLife("minutes");
+  cacheTag("demo-booking", `demo-booking:${slug}`);
+  try {
+    const response = await fetch(`${apiBase}/v1/sites/${encodeURIComponent(slug)}/demo-slots`);
+    if (!response.ok) return false;
+    return ((await response.json()) as { enabled?: boolean }).enabled === true;
+  } catch {
+    return false;
+  }
+}
+
 /** The website's published payroll calculator, or `null` while it's off (the default). */
 export async function getPayrollCalculator(slug: string): Promise<PublicPayrollCalculator | null> {
   "use cache";

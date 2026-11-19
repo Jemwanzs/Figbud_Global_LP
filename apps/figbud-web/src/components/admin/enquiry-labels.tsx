@@ -1,11 +1,15 @@
 import { cn } from "@figbud/ui";
 
-export type EnquiryStatus = "new" | "contacted" | "qualified" | "closed" | "spam";
+export type EnquiryStatus =
+  "new" | "contacted" | "qualified" | "demo_scheduled" | "converted" | "closed" | "spam";
 
+/** New → Contacted → Qualified → Demo scheduled → Converted or Closed (P8-M8). */
 export const ENQUIRY_STATUSES: { value: EnquiryStatus; label: string }[] = [
   { value: "new", label: "New" },
   { value: "contacted", label: "Contacted" },
   { value: "qualified", label: "Qualified" },
+  { value: "demo_scheduled", label: "Demo scheduled" },
+  { value: "converted", label: "Converted" },
   { value: "closed", label: "Closed" },
   { value: "spam", label: "Spam" },
 ];
@@ -18,6 +22,7 @@ export const KIND_LABELS: Record<string, string> = {
   partnership: "Partnership",
   sales: "Sales",
   referral: "Referral",
+  workspace_request: "Workspace request",
 };
 
 export const PRODUCT_LABELS: Record<string, string> = {
@@ -47,6 +52,8 @@ const STYLES: Record<EnquiryStatus, string> = {
   new: "border-accent/40 bg-accent-soft text-accent-strong",
   contacted: "border-warning/40 bg-warning/10 text-warning",
   qualified: "border-success/30 bg-success/10 text-success",
+  demo_scheduled: "border-accent/40 bg-accent-soft text-accent-strong",
+  converted: "border-success/40 bg-success/15 text-success",
   closed: "border-line bg-surface-2 text-subtle",
   spam: "border-danger/30 bg-danger/10 text-danger",
 };

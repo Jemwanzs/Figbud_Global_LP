@@ -64,6 +64,8 @@ pub fn image_ids(doc: &PageDoc) -> Vec<Uuid> {
                 showcase: Some(showcase),
                 ..
             } => showcase.views.iter().map(|v| v.image_id).collect(),
+            // An FAQ visual's screenshots (P14-W5).
+            Block::Faq { items, .. } => items.iter().filter_map(|i| i.image_id).collect(),
             _ => Vec::new(),
         })
         .chain(doc.seo_image_id)
@@ -128,6 +130,13 @@ pub async fn attach(
         .filter(|s| s["type"] == "image")
         .filter_map(|s| s["image_id"].as_str().and_then(|id| Uuid::parse_str(id).ok()))
         .chain(sections.iter().filter(|s| s["type"] == "hero").flat_map(view_ids))
+        .chain(
+            sections
+                .iter()
+                .filter(|s| s["type"] == "faq")
+                .flat_map(|s| s["items"].as_array().cloned().unwrap_or_default())
+                .filter_map(|i| i["image_id"].as_str().and_then(|id| Uuid::parse_str(id).ok())),
+        )
         .chain(seo_image)
         .collect();
     if ids.is_empty() {
@@ -184,6 +193,28 @@ pub async fn attach(
                 && let Some(hero) = section.as_object_mut()
             {
                 hero.remove("showcase");
+            }
+        }
+    }
+    // FAQ visual screenshots: each question's file details; on websites a
+    // missing or archived one is dropped and its scene shows its illustration.
+    for section in sections.iter_mut().filter(|s| s["type"] == "faq") {
+        for item in section["items"].as_array_mut().into_iter().flatten() {
+            let id = item["image_id"].as_str().and_then(|id| Uuid::parse_str(id).ok());
+            if id.is_none() {
+                continue;
+            }
+            let media = rows
+                .iter()
+                .find(|r| Some(r.id) == id)
+                .and_then(|r| serde_json::to_value(r).ok())
+                .unwrap_or(Value::Null);
+            if public && media.is_null() {
+                if let Some(map) = item.as_object_mut() {
+                    map.remove("image_id");
+                }
+            } else {
+                item["media"] = media;
             }
         }
     }

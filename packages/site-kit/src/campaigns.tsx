@@ -23,7 +23,7 @@ import { BrandLogo } from "./brand-logo";
 
 /* ------------------------------------------------------------------ types */
 
-export type CampaignAction = "link" | "demo" | "waitlist" | "contact" | "webinar";
+export type CampaignAction = "link" | "demo" | "waitlist" | "contact" | "webinar" | "start_now" | "book_demo";
 export type CampaignPlacement =
   "announcement_bar" | "below_nav" | "home_hero" | "floating" | "modal" | "footer";
 
@@ -177,7 +177,7 @@ const CampaignContext = createContext<Context | null>(null);
 
 /* ---------------------------------------------------------------- helpers */
 
-const ENQUIRY_KIND: Record<Exclude<CampaignAction, "link">, string> = {
+const ENQUIRY_KIND: Record<Exclude<CampaignAction, "link" | "start_now" | "book_demo">, string> = {
   demo: "demo_request",
   waitlist: "waitlist",
   contact: "contact",
@@ -192,6 +192,9 @@ function ctaHref(cta: CampaignCta, campaign: LiveCampaign, ctx: Context): string
       ? `${ctx.pathPrefix}${href === "/" ? "" : href}` || "/"
       : href;
   }
+  // Opened in place by `CtaActions`, which reads the campaign from `data-campaign` (P8-M8).
+  if (cta.action === "start_now") return "#start-now";
+  if (cta.action === "book_demo") return "#book-demo";
   const sep = ctx.enquiryUrl.includes("?") ? "&" : "?";
   return `${ctx.enquiryUrl}${sep}kind=${ENQUIRY_KIND[cta.action]}&campaign=${campaign.id}`;
 }
@@ -495,6 +498,7 @@ function Button({
   return (
     <a
       href={href}
+      data-campaign={campaign.id}
       {...(external ? { target: "_blank", rel: "noopener" } : {})}
       onClick={() => track(ctx, campaign.id, "click")}
       className={cn(
@@ -1189,6 +1193,7 @@ function AnnouncementBar({
   const link = (cta: CampaignCta, strong: boolean) => (
     <a
       href={ctaHref(cta, campaign, ctx)}
+      data-campaign={campaign.id}
       onClick={() => track(ctx, campaign.id, "click")}
       className={cn(
         "inline-flex min-h-9 items-center gap-1 whitespace-nowrap underline-offset-4",

@@ -1,4 +1,4 @@
-import { type DeepPartial, interfaceCopy } from "@figbud/i18n";
+import { consentCopy, type DeepPartial, interfaceCopy } from "@figbud/i18n";
 
 import type { Dictionary } from "./en";
 
@@ -101,45 +101,7 @@ const ar: DeepPartial<Dictionary> = {
     legalTitle: "قانوني",
     rights: "جميع الحقوق محفوظة.",
   },
-  consent: {
-    labels: {
-      region: "الموافقة على ملفات تعريف الارتباط",
-      acceptAll: "قبول الكل",
-      rejectOptional: "رفض الاختيارية",
-      customize: "تخصيص",
-      save: "حفظ الاختيارات",
-      preferencesTitle: "تفضيلات ملفات تعريف الارتباط",
-      preferencesIntro:
-        "اختر ملفات تعريف الارتباط الاختيارية التي يمكننا استخدامها. يمكنك تغيير رأيك في أي وقت من «إعدادات ملفات تعريف الارتباط» أسفل كل صفحة.",
-      alwaysOn: "مفعّلة دائمًا",
-      privacyPolicy: "سياسة الخصوصية",
-      cookiePolicy: "سياسة ملفات تعريف الارتباط",
-      close: "إغلاق",
-    },
-    banner: {
-      title: "خصوصيتك تهمّنا",
-      body: "نستخدم ملفات تعريف الارتباط الأساسية لضمان عمل موقعنا. وبإذنك، قد نستخدم أيضًا ملفات اختيارية لفهم كيفية استخدام الموقع وتحسين تجربتك.",
-    },
-    categories: {
-      necessary: {
-        label: "ضرورية للغاية",
-        description:
-          "تحافظ على عمل الموقع وأمانه: تتذكر اختياراتك لملفات تعريف الارتباط والسمة واللغة، وتحمي النماذج من إساءة الاستخدام. مفعّلة دائمًا.",
-      },
-      analytics: {
-        label: "التحليلات",
-        description: "تساعدنا على فهم كيفية استخدام الموقع، مثل الصفحات التي تتم زيارتها، لنتمكن من تحسينه.",
-      },
-      preferences: {
-        label: "التفضيلات",
-        description: "تتذكر إعدادات شخصية اختيارية تتجاوز الأساسيات لتخصيص تجربتك.",
-      },
-      marketing: {
-        label: "التسويق",
-        description: "تقيس مدى وصول حملاتنا التسويقية وتعرض محتوى FigBud ذا صلة على مواقع أخرى.",
-      },
-    },
-  },
+  consent: consentCopy.ar,
 };
 
 export default ar;

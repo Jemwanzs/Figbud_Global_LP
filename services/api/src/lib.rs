@@ -9,6 +9,7 @@
 pub mod admin;
 pub mod approvals;
 pub mod authority;
+pub mod bookings;
 pub mod brand;
 pub mod campaigns;
 pub mod cms;
@@ -26,6 +27,7 @@ pub mod pricing;
 pub mod privacy;
 pub mod proof;
 pub mod rate_limit;
+pub mod results;
 pub mod routes;
 pub mod seo;
 pub mod shared;

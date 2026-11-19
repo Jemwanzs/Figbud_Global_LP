@@ -1,4 +1,4 @@
-import { interfaceCopy } from "@figbud/i18n";
+import { consentCopy, interfaceCopy } from "@figbud/i18n";
 import { enquiryFormCopy, enquiryStagesCopy } from "@figbud/site-kit/enquiry";
 
 /**
@@ -358,47 +358,7 @@ const en = {
     cookies: "Cookie Policy",
     rights: "All rights reserved.",
   },
-  consent: {
-    labels: {
-      region: "Cookie consent",
-      acceptAll: "Accept all",
-      rejectOptional: "Reject optional",
-      customize: "Customize",
-      save: "Save choices",
-      preferencesTitle: "Cookie preferences",
-      preferencesIntro:
-        "Choose which optional cookies we may use. You can change your mind at any time from “Cookie settings” at the bottom of every page.",
-      alwaysOn: "Always on",
-      privacyPolicy: "Privacy Policy",
-      cookiePolicy: "Cookie Policy",
-      close: "Close",
-    },
-    // Shown on other languages' pages; English pages show the Studio's text.
-    banner: {
-      title: "Your privacy matters",
-      body: "We use essential cookies to keep our website working. With your permission, we may also use optional cookies to understand website usage and improve your experience.",
-    },
-    categories: {
-      necessary: {
-        label: "Strictly necessary",
-        description:
-          "Keep the website working and secure: they remember your cookie choices, your theme and your language, and protect forms from abuse. Always on.",
-      },
-      analytics: {
-        label: "Analytics",
-        description:
-          "Help us understand how the website is used, such as which pages are visited, so we can improve it.",
-      },
-      preferences: {
-        label: "Preferences",
-        description: "Remember optional personal settings beyond the essentials, to tailor your experience.",
-      },
-      marketing: {
-        label: "Marketing",
-        description: "Measure the reach of our marketing and show relevant FigBud content on other websites.",
-      },
-    },
-  },
+  consent: consentCopy.en,
   pages: {
     products: {
       title: "Products",

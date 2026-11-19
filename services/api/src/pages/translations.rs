@@ -40,7 +40,8 @@ use crate::{
 pub const LOCALES: [&str; 4] = ["sw", "fr", "ar", "zh"];
 
 /// Keys whose strings (or the strings inside them) are visible text.
-const TEXT_KEYS: [&str; 17] = [
+const TEXT_KEYS: [&str; 18] = [
+    "labels",
     "eyebrow",
     "heading",
     "headline",

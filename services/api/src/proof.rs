@@ -113,6 +113,32 @@ pub enum MetricFormat {
     Percent,
 }
 
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum MetricNotation {
+    /// The website display default (compact unless set otherwise).
+    #[default]
+    Auto,
+    Compact,
+    Full,
+}
+
+/// The icons a figure can show (lucide names the websites draw).
+pub const METRIC_ICONS: [&str; 12] = [
+    "wallet",
+    "users",
+    "building",
+    "badge-check",
+    "briefcase",
+    "layers",
+    "trending-up",
+    "clock",
+    "globe",
+    "award",
+    "receipt",
+    "landmark",
+];
+
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Default)]
 #[serde(default, deny_unknown_fields)]
 pub struct Metric {
@@ -121,9 +147,19 @@ pub struct Metric {
     pub format: MetricFormat,
     /// ISO 4217 code for currency figures (e.g. KES).
     pub currency: Option<String>,
-    /// Compact notation (1.2M).
+    /// Compact notation (1.2M). Superseded by `notation` (P10-R1): still read,
+    /// so a figure saved compact stays compact.
     pub compact: bool,
+    /// Fixed decimals (with `auto_decimals` off).
     pub decimals: u8,
+    /// Compact, full, or the website display default (P10-R1).
+    pub notation: MetricNotation,
+    /// Automatic decimals: up to one, never a trailing zero (P10-R1).
+    pub auto_decimals: bool,
+    /// An icon from the approved set (`METRIC_ICONS`).
+    pub icon: Option<String>,
+    /// A short line under the label.
+    pub description: Option<String>,
     /// Short marks around the number, e.g. ">" or "+".
     pub prefix: Option<String>,
     pub suffix: Option<String>,
@@ -301,6 +337,14 @@ impl ProofDoc {
                 if m.decimals > 2 {
                     e.push(field("decimals", "range", "Up to 2 decimals."));
                 }
+                tidy(&mut m.icon);
+                tidy(&mut m.description);
+                if m.icon.as_deref().is_some_and(|i| !METRIC_ICONS.contains(&i)) {
+                    e.push(field("icon", "format", "Choose an icon from the list."));
+                }
+                if too_long(&m.description, 120) {
+                    e.push(field("description", "length", "Up to 120 characters."));
+                }
                 if m.format == MetricFormat::Currency
                     && !m
                         .currency
@@ -460,6 +504,14 @@ impl ProofDoc {
                 "currency": m.currency,
                 "compact": m.compact,
                 "decimals": m.decimals,
+                // One notation for websites: a figure saved compact before stays compact.
+                "notation": match (m.notation, m.compact) {
+                    (MetricNotation::Auto, true) => MetricNotation::Compact,
+                    (n, _) => n,
+                },
+                "auto_decimals": m.auto_decimals,
+                "icon": m.icon,
+                "description": m.description,
                 "prefix": m.prefix,
                 "suffix": m.suffix,
                 "source": m.source,

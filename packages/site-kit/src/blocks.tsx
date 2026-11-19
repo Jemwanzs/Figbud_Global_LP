@@ -5,10 +5,15 @@ import { type ReactNode, Suspense } from "react";
 import { GuidedDemo } from "./guided-demo";
 import { GUIDED_STEPS } from "./guided-steps";
 import type { DemoKind, ModuleItem } from "./product-demos";
-import { type EnquiryFormConfig, enquiryFormCopy, enquiryStagesCopy, type EnquiryProduct } from "./enquiry";
+import type { Locale } from "@figbud/i18n";
+
+import { type EnquiryFormConfig, type EnquiryProduct } from "./enquiry";
+import { enquiryCopyFor } from "./enquiry-translations";
+import type { FaqScene, FaqShowcaseConfig } from "./faq-showcase";
 import { HeroSignal } from "./hero-signal";
 import {
   LazyEnquiryForm,
+  LazyFaqShowcase,
   LazyModuleCatalogue as ModuleCatalogue,
   LazyProductDemo as ProductDemo,
   LazyReferralForm,
@@ -161,7 +166,19 @@ export type PageSection = Base &
     | {
         type: "faq";
         heading?: string | null;
-        items: { question: string; answer?: string; answer_html?: string }[];
+        items: {
+          question: string;
+          answer?: string;
+          answer_html?: string;
+          /** Stable id, so its visual follows the question (P14-W5). */
+          id?: string;
+          scene?: FaqScene | null;
+          labels?: string[];
+          image_id?: string | null;
+          media?: MediaInfo | null;
+        }[];
+        /** The interactive product visual beside the questions (P14-W5). */
+        showcase?: FaqShowcaseConfig | null;
       }
     | { type: "call_to_action"; heading: string; body?: string | null; cta: PageCta }
     | {
@@ -321,6 +338,25 @@ function Heading({
       </Tag>
     </>
   );
+}
+
+const asLocale = (locale?: string): Locale =>
+  locale === "sw" || locale === "fr" || locale === "ar" || locale === "zh" ? locale : "en";
+
+/** The enquiry form's wording in the page's language (P7-L3). */
+function enquiryProps(locale?: string) {
+  const { form, stages } = enquiryCopyFor(asLocale(locale));
+  return { locale: asLocale(locale), copy: form, stages };
+}
+
+/**
+ * The website's form settings for a page's language: its fields and rules
+ * always apply; its own wording (written in English in the Studio) only on
+ * English pages, so a translated page never mixes in English labels.
+ */
+function localConfig(config: EnquiryFormConfig | null | undefined, locale?: string) {
+  if (!config || asLocale(locale) === "en") return config;
+  return { ...config, labels: {}, hints: {}, texts: {} };
 }
 
 function Block({
@@ -514,6 +550,20 @@ function Block({
         </div>
       );
     case "faq":
+      // With its product visual (P14-W5): questions on one side, the matching scene on the other.
+      if (section.showcase && section.showcase.enabled !== false)
+        return (
+          <LazyFaqShowcase
+            heading={section.heading}
+            headingNode={section.heading ? <Heading>{section.heading}</Heading> : undefined}
+            items={section.items}
+            answers={section.items.map((item, i) => (
+              <Prose key={i} html={item.answer_html} text={item.answer} />
+            ))}
+            showcase={section.showcase}
+            mediaBase={mediaBase ?? ""}
+          />
+        );
       return (
         <div>
           {section.heading && <Heading>{section.heading}</Heading>}
@@ -590,13 +640,11 @@ function Block({
                 fallback={<div className="fb-panel h-[40rem] rounded-[var(--radius-panel)]" aria-hidden />}
               >
                 <LazyEnquiryForm
-                  locale="en"
-                  copy={enquiryFormCopy}
-                  stages={enquiryStagesCopy}
+                  {...enquiryProps(locale)}
                   privacyHref={enquiry.privacyHref}
                   apiOrigin={enquiry.apiOrigin}
                   product={enquiry.product}
-                  config={enquiry.config}
+                  config={localConfig(enquiry.config, locale)}
                   form={enquiry.form}
                 />
               </Suspense>

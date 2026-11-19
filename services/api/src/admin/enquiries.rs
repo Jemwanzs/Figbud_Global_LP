@@ -1,7 +1,8 @@
 //! Enquiries inbox (admin): review and follow up website enquiries.
 //!
 //! - Viewers and up read the inbox; editors and up change an enquiry's status
-//!   (new → contacted → qualified → closed, or spam).
+//!   (new → contacted → qualified → demo scheduled → converted or closed,
+//!   or spam), assign it to a teammate and add notes (P8-M8).
 //! - CSV export is owner-only (personal data, Kenya Data Protection Act 2019)
 //!   and every export is audited with its row count.
 
@@ -22,14 +23,24 @@ use super::{AdminSession, Role, audit};
 use crate::{error::ApiError, routes::SharedState};
 
 const PER_PAGE: i64 = 50;
-const STATUSES: [&str; 5] = ["new", "contacted", "qualified", "closed", "spam"];
-const KINDS: [&str; 6] = [
+const STATUSES: [&str; 7] = [
+    "new",
+    "contacted",
+    "qualified",
+    "demo_scheduled",
+    "converted",
+    "closed",
+    "spam",
+];
+const KINDS: [&str; 8] = [
     "demo_request",
     "contact",
     "early_access",
     "waitlist",
     "partnership",
     "sales",
+    "referral",
+    "workspace_request",
 ];
 const PRODUCTS: [&str; 5] = ["figbud", "zirahr", "jasiri", "expense_now", "ziwa"];
 const EXPORT_LIMIT: i64 = 10_000;
@@ -38,8 +49,12 @@ pub fn router() -> Router<SharedState> {
     Router::new()
         .route("/v1/admin/enquiries", get(list))
         .route("/v1/admin/enquiries/export", get(export))
+        .route("/v1/admin/enquiries/overview", get(overview))
+        .route("/v1/admin/enquiries/assignees", get(assignees))
         .route("/v1/admin/enquiries/{id}", get(read))
         .route("/v1/admin/enquiries/{id}/status", post(set_status))
+        .route("/v1/admin/enquiries/{id}/assignee", post(set_assignee))
+        .route("/v1/admin/enquiries/{id}/notes", post(add_note))
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -106,6 +121,8 @@ struct Row {
     status: String,
     is_spam: bool,
     created_at: DateTime<Utc>,
+    assignee: Option<String>,
+    demo_at: Option<DateTime<Utc>>,
     total: i64,
 }
 
@@ -135,6 +152,9 @@ async fn list(
     let page = filters.page.unwrap_or(1).clamp(1, 1000);
     let rows: Vec<Row> = sqlx::query_as(filtered!(
         "SELECT e.id, e.reference, e.kind, e.product, e.name, e.email, e.company, e.status, e.is_spam, e.created_at,
+                (SELECT u.name FROM admin_users u WHERE u.id = e.assigned_to) AS assignee,
+                (SELECT b.starts_at FROM demo_bookings b WHERE b.enquiry_id = e.id
+                    AND b.status IN ('pending', 'confirmed')) AS demo_at,
                 COUNT(*) OVER () AS total",
         // People limited to selected websites see those websites' enquiries (P7-F1).
         "AND ($8::text[] IS NULL OR e.product = ANY($8)) ORDER BY e.created_at DESC, e.id LIMIT $6 OFFSET $7"
@@ -180,6 +200,16 @@ struct Detail {
     is_spam: bool,
     created_at: DateTime<Utc>,
     updated_at: DateTime<Utc>,
+    assigned_to: Option<Uuid>,
+}
+
+#[derive(Debug, Serialize, FromRow)]
+struct Booking {
+    id: Uuid,
+    starts_at: DateTime<Utc>,
+    ends_at: DateTime<Utc>,
+    time_zone: String,
+    status: String,
 }
 
 #[derive(Debug, Serialize, FromRow)]
@@ -207,7 +237,7 @@ async fn read(
     session.require(Role::Viewer)?;
     let detail: Detail = sqlx::query_as(
         "SELECT id, reference, kind, product, name, email, company, job_title, phone, phone_secondary, country, company_size, message,
-                locale, source_path, status, is_spam, created_at, updated_at
+                locale, source_path, status, is_spam, created_at, updated_at, assigned_to
            FROM enquiries WHERE id = $1",
     )
     .bind(id)
@@ -233,9 +263,20 @@ async fn read(
     .bind(id.to_string())
     .fetch_all(&state.pool)
     .await?;
-    Ok(Json(
-        json!({ "enquiry": detail, "emails": emails, "history": history }),
-    ))
+    let booking: Option<Booking> = sqlx::query_as(
+        "SELECT id, starts_at, ends_at, time_zone, status FROM demo_bookings WHERE enquiry_id = $1",
+    )
+    .bind(id)
+    .fetch_optional(&state.pool)
+    .await?;
+    let can_edit = session.slug_role(&detail.product) >= Some(Role::Editor);
+    Ok(Json(json!({
+        "enquiry": detail,
+        "emails": emails,
+        "history": history,
+        "booking": booking,
+        "can_edit": can_edit,
+    })))
 }
 
 #[derive(Deserialize)]
@@ -281,6 +322,203 @@ async fn set_status(
     )
     .await?;
     Ok(Json(json!({ "status": status })))
+}
+
+/// The enquiry's website, checked for an editor or above.
+async fn editable(pool: &sqlx::PgPool, session: &AdminSession, id: Uuid) -> Result<String, ApiError> {
+    session.require(Role::Editor)?;
+    let product: Option<String> = sqlx::query_scalar("SELECT product FROM enquiries WHERE id = $1")
+        .bind(id)
+        .fetch_optional(pool)
+        .await?;
+    match product.as_deref().and_then(|p| session.slug_role(p)) {
+        None => Err(ApiError::NotFound),
+        Some(role) if role < Role::Editor => Err(ApiError::Forbidden),
+        Some(_) => Ok(product.unwrap_or_default()),
+    }
+}
+
+/// People who can follow enquiries up: active editors and above.
+async fn assignees(
+    State(state): State<SharedState>,
+    session: AdminSession,
+) -> Result<impl IntoResponse, ApiError> {
+    session.require(Role::Viewer)?;
+    let people: Vec<(Uuid, String)> = sqlx::query_as(
+        "SELECT id, name FROM admin_users
+          WHERE disabled_at IS NULL AND role IN ('owner', 'reviewer', 'editor') ORDER BY name",
+    )
+    .fetch_all(&state.pool)
+    .await?;
+    Ok(Json(json!({
+        "items": people.into_iter().map(|(id, name)| json!({ "id": id, "name": name })).collect::<Vec<_>>(),
+    })))
+}
+
+#[derive(Deserialize)]
+struct AssigneeInput {
+    user_id: Option<Uuid>,
+}
+
+async fn set_assignee(
+    State(state): State<SharedState>,
+    session: AdminSession,
+    Path(id): Path<Uuid>,
+    Json(input): Json<AssigneeInput>,
+) -> Result<impl IntoResponse, ApiError> {
+    editable(&state.pool, &session, id).await?;
+    let name: Option<String> = match input.user_id {
+        None => None,
+        Some(user) => Some(
+            sqlx::query_scalar(
+                "SELECT name FROM admin_users
+                  WHERE id = $1 AND disabled_at IS NULL AND role IN ('owner', 'reviewer', 'editor')",
+            )
+            .bind(user)
+            .fetch_optional(&state.pool)
+            .await?
+            .ok_or(ApiError::BadRequest("Choose someone from the team list."))?,
+        ),
+    };
+    sqlx::query("UPDATE enquiries SET assigned_to = $2, updated_at = now() WHERE id = $1")
+        .bind(id)
+        .bind(input.user_id)
+        .execute(&state.pool)
+        .await?;
+    audit(
+        &state.pool,
+        Some(session.user.id),
+        "enquiry.assigned",
+        Some(("enquiry", id.to_string())),
+        json!({ "to": name }),
+        None,
+    )
+    .await?;
+    Ok(Json(json!({ "assigned_to": input.user_id, "name": name })))
+}
+
+#[derive(Deserialize)]
+struct NoteInput {
+    note: String,
+}
+
+/// A follow-up note, kept in the enquiry's activity.
+async fn add_note(
+    State(state): State<SharedState>,
+    session: AdminSession,
+    Path(id): Path<Uuid>,
+    Json(input): Json<NoteInput>,
+) -> Result<impl IntoResponse, ApiError> {
+    editable(&state.pool, &session, id).await?;
+    let note = input.note.trim();
+    if note.is_empty() || note.chars().count() > 2000 {
+        return Err(ApiError::Validation(vec![crate::error::FieldError {
+            field: "note",
+            code: "length",
+            message: "Write a note of up to 2,000 characters.",
+        }]));
+    }
+    audit(
+        &state.pool,
+        Some(session.user.id),
+        "enquiry.note_added",
+        Some(("enquiry", id.to_string())),
+        json!({ "note": note }),
+        None,
+    )
+    .await?;
+    Ok(Json(json!({ "ok": true })))
+}
+
+#[derive(Deserialize)]
+struct OverviewQuery {
+    days: Option<i32>,
+}
+
+macro_rules! grouped_by {
+    ($column:literal) => {
+        concat!(
+            "SELECT ",
+            $column,
+            ", COUNT(*) FROM enquiries
+              WHERE NOT is_spam AND created_at >= now() - make_interval(days => $1)
+                AND ($2::text[] IS NULL OR product = ANY($2))
+              GROUP BY 1 ORDER BY 2 DESC, 1"
+        )
+    };
+}
+
+async fn grouped(
+    pool: &sqlx::PgPool,
+    column: &str,
+    days: i32,
+    slugs: &Option<Vec<String>>,
+) -> Result<Vec<(String, i64)>, sqlx::Error> {
+    let sql = match column {
+        "kind" => grouped_by!("kind"),
+        "product" => grouped_by!("product"),
+        _ => grouped_by!("status"),
+    };
+    sqlx::query_as(sql).bind(days).bind(slugs).fetch_all(pool).await
+}
+
+/// Leads & Enquiries at a glance (P8-M8): what arrived in the period, by
+/// kind, website and status, plus demos booked and conversion. Counts only,
+/// for the websites the person can see; spam is left out.
+async fn overview(
+    State(state): State<SharedState>,
+    session: AdminSession,
+    Query(q): Query<OverviewQuery>,
+) -> Result<impl IntoResponse, ApiError> {
+    session.require(Role::Viewer)?;
+    let days = q.days.unwrap_or(30);
+    if ![7, 30, 90, 365].contains(&days) {
+        return Err(ApiError::BadRequest("days is 7, 30, 90 or 365"));
+    }
+    let slugs = session.site_slugs();
+    let by_kind = grouped(&state.pool, "kind", days, &slugs).await?;
+    let by_product = grouped(&state.pool, "product", days, &slugs).await?;
+    let by_status = grouped(&state.pool, "status", days, &slugs).await?;
+    let total: i64 = by_kind.iter().map(|(_, n)| n).sum();
+    let converted = by_status
+        .iter()
+        .find(|(k, _)| k == "converted")
+        .map_or(0, |(_, n)| *n);
+    let demos: (i64, i64, i64, i64) = sqlx::query_as(
+        "SELECT COUNT(*) FILTER (WHERE b.created_at >= now() - make_interval(days => $1)),
+                COUNT(*) FILTER (WHERE b.status IN ('pending', 'confirmed') AND b.ends_at >= now()),
+                COUNT(*) FILTER (WHERE b.status = 'completed' AND b.starts_at >= now() - make_interval(days => $1)),
+                COUNT(*) FILTER (WHERE b.status = 'no_show' AND b.starts_at >= now() - make_interval(days => $1))
+           FROM demo_bookings b
+          WHERE ($2::text[] IS NULL OR b.product = ANY($2))",
+    )
+    .bind(days)
+    .bind(&slugs)
+    .fetch_one(&state.pool)
+    .await?;
+    let unassigned: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM enquiries
+          WHERE NOT is_spam AND assigned_to IS NULL AND status IN ('new', 'contacted', 'qualified', 'demo_scheduled')
+            AND ($1::text[] IS NULL OR product = ANY($1))",
+    )
+    .bind(&slugs)
+    .fetch_one(&state.pool)
+    .await?;
+    let list = |rows: Vec<(String, i64)>| {
+        rows.into_iter()
+            .map(|(key, count)| json!({ "key": key, "count": count }))
+            .collect::<Vec<_>>()
+    };
+    Ok(Json(json!({
+        "days": days,
+        "total": total,
+        "converted": converted,
+        "by_kind": list(by_kind),
+        "by_product": list(by_product),
+        "by_status": list(by_status),
+        "demos": { "booked": demos.0, "upcoming": demos.1, "completed": demos.2, "no_show": demos.3 },
+        "open_unassigned": unassigned,
+    })))
 }
 
 #[derive(FromRow)]

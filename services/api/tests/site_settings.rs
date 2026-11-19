@@ -557,3 +557,113 @@ async fn a_websites_form_rules_are_enforced_by_the_api() {
         .await
         .unwrap();
 }
+
+#[tokio::test]
+async fn results_and_success_stories_publish_per_website_with_history() {
+    // P10-R1 and P10-R2 (owner's briefs, 19 Nov 2026), on a website of its own.
+    let Some(pool) = database().await else { return };
+    let url = std::env::var("TEST_DATABASE_URL").unwrap();
+    let app = app_with(pool.clone(), config(&url));
+    let run = Uuid::now_v7().simple().to_string();
+    let slug = format!("story_{}", &run[run.len() - 10..]);
+    sqlx::query(
+        "INSERT INTO sites (id, slug, kind, name, category, template, status, position)
+         VALUES ($1, $2, 'product', 'Story Site', 'hr_workforce', 'hr', 'active', 92)",
+    )
+    .bind(Uuid::now_v7())
+    .bind(&slug)
+    .execute(&pool)
+    .await
+    .unwrap();
+    let site_uri = format!("/v1/admin/sites/{slug}/settings");
+    // A verified figure published for this website, and one for another.
+    let (ours, theirs) = (Uuid::now_v7(), Uuid::now_v7());
+    for (id, site) in [(ours, slug.as_str()), (theirs, "jasiri")] {
+        let doc = json!({ "label": "Expenses processed", "value": 25000000.0, "format": "currency", "currency": "KES",
+                          "source": "Expense Now ledger", "period": "Jan–Nov 2026", "verified": true, "suffix": "+" });
+        sqlx::query(
+            "INSERT INTO proof_items (id, kind, draft, draft_sites, published, published_sites, published_at)
+             VALUES ($1, 'metric', $2, ARRAY[$3], $2, ARRAY[$3], now())",
+        )
+        .bind(id)
+        .bind(&doc)
+        .bind(site)
+        .execute(&pool)
+        .await
+        .unwrap();
+    }
+    let reviewer = admin(&pool, "reviewer").await;
+    let (_, read) = call(&app, "GET", &site_uri, Some(&reviewer), None).await;
+    let mut settings = read["settings"].clone();
+    let version = read["version"].clone();
+    let story = |ids: Vec<Uuid>| {
+        json!({ "enabled": true, "eyebrow": "Our Success Story", "headline": "Every expense accounted for.",
+                "layout": "strip", "metric_ids": ids })
+    };
+
+    // Another website's figure is refused; this website's is published, with history.
+    settings["success_story"] = story(vec![theirs]);
+    let (status, _) = call(
+        &app,
+        "POST",
+        &site_uri,
+        Some(&reviewer),
+        Some(json!({ "settings": settings, "version": version })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
+    settings["success_story"] = story(vec![ours]);
+    settings["results"] = json!({ "title": "Measured, not estimated.", "layout": "featured" });
+    let (status, saved) = call(
+        &app,
+        "POST",
+        &site_uri,
+        Some(&reviewer),
+        Some(json!({ "settings": settings, "version": version })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{saved}");
+    assert_eq!(saved["settings"]["story_history"].as_array().unwrap().len(), 1);
+
+    // Websites get the published story, the results display and the inherited defaults.
+    let (_, sites) = call(&app, "GET", "/v1/sites", None, None).await;
+    let site = sites
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|s| s["slug"] == slug.as_str())
+        .unwrap()
+        .clone();
+    assert_eq!(
+        site["settings"]["success_story"]["headline"],
+        "Every expense accounted for."
+    );
+    assert_eq!(site["settings"]["results"]["title"], "Measured, not estimated.");
+    assert_eq!(site["settings"]["display"]["notation"], "compact");
+    assert!(site["settings"].get("success_story_draft").is_none());
+    assert!(site["settings"].get("story_history").is_none());
+
+    // A story switched off disappears from the website; history can't be written by editors.
+    let mut next = saved["settings"].clone();
+    next["success_story"]["enabled"] = json!(false);
+    next["story_history"] = json!([]);
+    let (status, saved) = call(
+        &app,
+        "POST",
+        &site_uri,
+        Some(&reviewer),
+        Some(json!({ "settings": next, "version": saved["version"] })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{saved}");
+    assert_eq!(saved["settings"]["story_history"].as_array().unwrap().len(), 2);
+    let (_, sites) = call(&app, "GET", "/v1/sites", None, None).await;
+    let site = sites
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|s| s["slug"] == slug.as_str())
+        .unwrap()
+        .clone();
+    assert!(site["settings"]["success_story"].is_null());
+}

@@ -27,6 +27,7 @@ use crate::{
     enquiry_form::FormSettings,
     error::{ApiError, FieldError},
     privacy::valid_link,
+    results,
     routes::SharedState,
     site_theme::{self, Bands, Gradients, ModeTokens, Swatch, ThemeVersion},
     sites::audit_site,
@@ -308,6 +309,8 @@ pub struct Enquiries {
     pub open: bool,
     /// Shown instead of the form while closed (the websites have a default).
     pub closed_message: Option<String>,
+    /// What the website's main button (header and page ends) does (P8-M8).
+    pub action: CtaAction,
 }
 
 impl Default for Enquiries {
@@ -315,8 +318,21 @@ impl Default for Enquiries {
         Self {
             open: true,
             closed_message: None,
+            action: CtaAction::Contact,
         }
     }
+}
+
+/// The website's main call to action: the enquiry form (as before), the
+/// Start Now workspace request, or demo booking (the demo request form
+/// while booking is off).
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum CtaAction {
+    #[default]
+    Contact,
+    StartNow,
+    BookDemo,
 }
 
 /// A website's colours from the Brand & Theme Studio (owner's brief, 11 Nov
@@ -588,6 +604,21 @@ pub struct WebsiteSettings {
     pub enquiry_form: Option<FormSettings>,
     /// Saved in the Studio but not published.
     pub enquiry_form_draft: Option<FormSettings>,
+    /// How the Results band shows the website's verified figures (P10-R1);
+    /// unset means as before, with the website display defaults.
+    pub results: Option<results::ResultsDisplay>,
+    /// Saved in the Studio but not published.
+    pub results_draft: Option<results::ResultsDisplay>,
+    /// "Our Success Story" after the home page's hero (P10-R2); off by default.
+    pub success_story: Option<results::SuccessStory>,
+    /// Saved in the Studio but not published.
+    pub success_story_draft: Option<results::SuccessStory>,
+    /// Published success stories, newest first, for rollback. Kept by the
+    /// API: what an editor sends is ignored.
+    pub story_history: Vec<results::StoryVersion>,
+    /// Website display (P10-R1). On FigBud Global: the defaults every website
+    /// inherits; on another website, its own override (unset: inherit).
+    pub display: Option<results::DisplayDefaults>,
 }
 
 /// The languages every website can offer (packages/i18n `locales`), in order.
@@ -799,6 +830,26 @@ impl WebsiteSettings {
                 message: "List each product once, by its website address name.",
             });
         }
+        for (r, field) in [
+            (&mut self.results, "results"),
+            (&mut self.results_draft, "results_draft"),
+        ] {
+            if let Some(r) = r {
+                results::check_results(&mut e, r, field);
+            }
+        }
+        for (s, field) in [
+            (&mut self.success_story, "success_story"),
+            (&mut self.success_story_draft, "success_story_draft"),
+        ] {
+            if let Some(s) = s {
+                results::check_story(&mut e, s, field);
+            }
+        }
+        // On FigBud Global: the defaults every website inherits; elsewhere, that website's override.
+        if let Some(d) = &self.display {
+            results::check_animation(&mut e, &d.animation, "display");
+        }
         if corporate && !self.enquiries.open {
             e.push(FieldError {
                 field: "enquiries.open",
@@ -822,6 +873,9 @@ impl WebsiteSettings {
             "section_themes": self.section_themes,
             "languages": self.languages,
             "enquiry_form": self.enquiry_form,
+            "results": self.results,
+            "success_story": self.success_story.as_ref().filter(|s| s.enabled),
+            "display": self.display,
         })
     }
 }
@@ -926,6 +980,52 @@ async fn update(
         .map_err(ApiError::Validation)?;
     // Publishing a theme (or rolling one back) records who and when.
     next.theme_history = site.settings.theme_history.clone();
+    // Likewise a success story (P10-R2).
+    next.story_history = site.settings.story_history.clone();
+    let story_published = next.success_story != site.settings.success_story;
+    if story_published && let Some(story) = &next.success_story {
+        results::remember(&mut next.story_history, story, Some(session.user.name.clone()));
+    }
+    // A story's figures are this website's published ones; its image, from its library.
+    for story in [&next.success_story, &next.success_story_draft]
+        .into_iter()
+        .flatten()
+    {
+        if !story.metric_ids.is_empty() {
+            let found: i64 = sqlx::query_scalar(
+                "SELECT count(*) FROM proof_items p
+                  WHERE p.id = ANY($1) AND p.kind = 'metric' AND p.published IS NOT NULL
+                    AND p.archived_at IS NULL AND $2 = ANY (p.published_sites)",
+            )
+            .bind(&story.metric_ids)
+            .bind(&slug)
+            .fetch_one(&state.pool)
+            .await?;
+            if found as usize != story.metric_ids.len() {
+                return Err(ApiError::Validation(vec![FieldError {
+                    field: "success_story",
+                    code: "metrics",
+                    message: "Choose figures published for this website in Customers & proof.",
+                }]));
+            }
+        }
+        if let Some(image) = story.image_id {
+            let ok: bool = sqlx::query_scalar(
+                "SELECT EXISTS (SELECT 1 FROM media_assets WHERE id = $1 AND site_id = $2 AND archived_at IS NULL)",
+            )
+            .bind(image)
+            .bind(site.id)
+            .fetch_one(&state.pool)
+            .await?;
+            if !ok {
+                return Err(ApiError::Validation(vec![FieldError {
+                    field: "success_story",
+                    code: "image",
+                    message: "Choose the background from this website's media library.",
+                }]));
+            }
+        }
+    }
     let theme_published = next.theme != site.settings.theme;
     let languages_published = next.languages != site.settings.languages;
     // A website opens in English or a language published with a recorded
@@ -976,6 +1076,13 @@ async fn update(
         (true, false) => "site.enquiries_closed",
         (false, true) => "site.enquiries_opened",
         _ if theme_published => "site.theme_published",
+        _ if story_published => "site.success_story_published",
+        _ if next.results != site.settings.results => "site.results_published",
+        _ if next.display != site.settings.display => "site.display_defaults_saved",
+        _ if next.success_story_draft != site.settings.success_story_draft => {
+            "site.success_story_draft_saved"
+        }
+        _ if next.results_draft != site.settings.results_draft => "site.results_draft_saved",
         _ if languages_published => "site.languages_published",
         _ if next.enquiry_form != site.settings.enquiry_form => "site.enquiry_form_published",
         _ if next.enquiry_form_draft != site.settings.enquiry_form_draft => "site.enquiry_form_draft_saved",

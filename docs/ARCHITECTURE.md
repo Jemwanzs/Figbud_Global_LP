@@ -78,6 +78,11 @@ Shared packages ship TypeScript source and are compiled by each app (`transpileP
 | `POST /v1/admin/cms/categories` · `POST /v1/admin/cms/authors` | New topic (reviewer+) · new byline (owner) |
 | `GET /v1/admin/enquiries` · `GET /v1/admin/enquiries/{id}` | Inbox (viewer+): filters `status`, `kind`, `product`, `q`, `include_spam`, `page`; detail with email delivery states and status history |
 | `POST /v1/admin/enquiries/{id}/status` · `GET /v1/admin/enquiries/export` | Follow-up status (editor+) · CSV export (owner only, audited, formula-safe cells) |
+| `POST /v1/admin/enquiries/{id}/assignee` · `POST /v1/admin/enquiries/{id}/notes` · `GET /v1/admin/enquiries/assignees` | Assign to an editor or above, or nobody · add a note (both editor+, in the history) · who can be assigned (P8-M8) |
+| `GET /v1/admin/enquiries/overview?days=7\|30\|90\|365` | Counts by kind, website and status, conversion, demos (viewer+, the person's websites, no spam) |
+| `GET /v1/sites/{slug}/demo-slots` | Public: `{ enabled, time_zone, slot_minutes, note, days: [{ date, slots: [RFC 3339] }] }`, free times only |
+| `GET`/`POST /v1/admin/enquiries/availability/{slug}` | A website's demo availability (viewer+ reads; reviewer+ saves, version-checked, audited `site.demo_availability_saved`) with a preview of free times |
+| `GET /v1/admin/enquiries/bookings` · `POST …/bookings/{id}/status` · `POST …/bookings/{id}/reschedule` | Bookings (`when`, `status`, `product`) · Pending → Confirmed → Completed / No-show, or Cancelled (editor+) · move to a free time; audited on the enquiry |
 
 **Editorial rules:** draft → in_review → published → archived (restore returns a draft). Published and archived articles are edited only by reviewers or owners. Maker-checker: a reviewer cannot publish an article they edited last; owners can (audited as `self_approved`). Every save writes a version; every action writes the audit log. The editorial routes accept bodies up to 512 KB; all other routes stay at 16 KB.
 
@@ -98,7 +103,8 @@ CMS reads return only articles with `status = 'published'` whose `published_at` 
 
 ## Data model
 
-- `enquiries` — reference (`FBG-YYMM-XXXXXX`), idempotency key, kind, product, contact fields, locale, source path, user agent, IP hash, spam flag, workflow status (`new → contacted → qualified → closed`), timestamps.
+- `enquiries` — reference (`FBG-YYMM-XXXXXX`), idempotency key, kind, product, contact fields, locale, source path, user agent, IP hash, spam flag, workflow status (`new → contacted → qualified → demo_scheduled → converted` or `closed`, or `spam`), assignee, timestamps.
+- `demo_availability` (per website, JSON rules, version) and `demo_bookings` (enquiry, product, start, end, the zone it was offered in, status; one live booking per website and start, `demo_bookings_live_slot`). `POST /v1/enquiries` with `demo_slot` reserves the slot in the enquiry's transaction under `pg_advisory_xact_lock` and answers `409 slot_taken` when it's gone.
 - `email_outbox` — rendered subject/HTML/text, recipients, status (`pending | sending | retry | sent | failed | skipped`), attempts, next attempt, last error, provider message id.
 - `cms_articles` — localised (`locale`, `slug` unique together), title, excerpt, Markdown body, cover image, SEO fields, author, category, status (`draft → in_review → published`, or `archived`), `published_at`, approval (`approved_by`, `approved_at`; required by a database constraint before publishing), version, generated full-text `search` vector. Related: `cms_authors`, `cms_categories`, `cms_tags`, `cms_article_tags`, `cms_article_versions` (revision history).
 - `admin_users` (email, name, role, disabled), `admin_passkeys` (credential id, serialised passkey, last used), `admin_invites` and `admin_sessions` (token hashes, expiry, revocation), `admin_challenges` (WebAuthn ceremony state), `audit_log` (actor, action, target, detail, IP hash).

@@ -103,6 +103,7 @@ pub fn router(state: SharedState) -> Router {
         .merge(brand::router())
         .merge(privacy::router())
         .merge(site_settings::router())
+        .merge(crate::bookings::router())
         .merge(media::router())
         .merge(shared::router())
         .layer(RequestBodyLimitLayer::new(16 * 1024))
@@ -219,7 +220,15 @@ async fn create_enquiry(
     let automated = input.looks_automated(min_fill_ms);
     let campaign = input.campaign.as_deref().and_then(|c| Uuid::parse_str(c).ok());
     let form = input.form.clone().filter(|f| f.len() <= 40);
+    let demo_slot = input.demo_slot.clone().filter(|s| !s.trim().is_empty());
     let mut enquiry = input.validate().map_err(ApiError::Validation)?;
+    if demo_slot.is_some() && enquiry.kind != crate::enquiry::EnquiryKind::DemoRequest {
+        return Err(ApiError::Validation(vec![crate::error::FieldError {
+            field: "demo_slot",
+            code: "invalid",
+            message: "Only demo requests book a time.",
+        }]));
+    }
     // The form's own website rules (Studio → a website → Enquiry form, UI-EF3).
     if let Some(slug) = form
         && let Some(rules) = enquiry_form::published(&state.pool, &slug).await?
@@ -252,6 +261,24 @@ async fn create_enquiry(
     let ip_hash = ip_hash(&state.config.ip_hash_salt, ip);
 
     let mut tx = state.pool.begin().await?;
+    // A demo booking holds its slot first (P8-M8): the website's booking lock
+    // lasts until this transaction ends. Automated submissions never hold one.
+    let held = match demo_slot.as_deref() {
+        Some(slot) if !automated => {
+            let held = crate::bookings::hold(&mut tx, enquiry.product.as_str(), slot).await?;
+            let line = format!("Requested demo time: {}", held.label);
+            enquiry.message = Some(match enquiry.message.take() {
+                Some(m) => format!(
+                    "{line}
+
+{m}"
+                ),
+                None => line,
+            });
+            Some(held)
+        }
+        _ => None,
+    };
     let inserted = sqlx::query(
         "INSERT INTO enquiries (id, reference, idempotency_key, kind, product, name, email, company, job_title,
                                 phone, country, company_size, message, locale, source_path, user_agent, ip_hash,
@@ -294,6 +321,11 @@ async fn create_enquiry(
         .bind(campaign)
         .execute(&mut *tx)
         .await?;
+    }
+    if inserted.rows_affected() > 0
+        && let Some(held) = &held
+    {
+        crate::bookings::insert_booking(&mut tx, id, enquiry.product.as_str(), held).await?;
     }
     if inserted.rows_affected() == 0 {
         // Lost a race with a concurrent replay of the same submission.

@@ -16,6 +16,8 @@ pub enum EnquiryKind {
     Partnership,
     Sales,
     Referral,
+    /// Start Now: an organisation asking for its own workspace (P8-M8).
+    WorkspaceRequest,
 }
 
 impl EnquiryKind {
@@ -28,6 +30,7 @@ impl EnquiryKind {
             "partnership" => Self::Partnership,
             "sales" => Self::Sales,
             "referral" => Self::Referral,
+            "workspace_request" => Self::WorkspaceRequest,
             _ => return None,
         })
     }
@@ -41,6 +44,7 @@ impl EnquiryKind {
             Self::Partnership => "partnership",
             Self::Sales => "sales",
             Self::Referral => "referral",
+            Self::WorkspaceRequest => "workspace_request",
         }
     }
 
@@ -53,11 +57,20 @@ impl EnquiryKind {
             Self::Partnership => "Partnership enquiry",
             Self::Sales => "Sales enquiry",
             Self::Referral => "Referral",
+            Self::WorkspaceRequest => "Workspace request",
         }
     }
 
     fn requires_company(self) -> bool {
-        matches!(self, Self::DemoRequest | Self::Partnership | Self::Sales)
+        matches!(
+            self,
+            Self::DemoRequest | Self::Partnership | Self::Sales | Self::WorkspaceRequest
+        )
+    }
+
+    /// A workspace is sized from the organisation's headcount.
+    fn requires_company_size(self) -> bool {
+        matches!(self, Self::WorkspaceRequest)
     }
 
     pub(crate) fn requires_message(self) -> bool {
@@ -147,6 +160,9 @@ pub struct EnquiryInput {
     /// The website whose form sent it (UI-EF3): its categories and required
     /// fields apply on top of these rules. Absent: these rules alone.
     pub form: Option<String>,
+    /// A demo booking (P8-M8): the slot's start, RFC 3339, from that website's
+    /// offered slots. Reserved with the enquiry, atomically, or refused.
+    pub demo_slot: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, serde::Deserialize)]
@@ -316,6 +332,8 @@ impl EnquiryInput {
             .is_some_and(|s| !COMPANY_SIZES.contains(&s))
         {
             fail("company_size", "invalid", "Choose a company size from the list.");
+        } else if company_size.is_none() && kind.is_some_and(EnquiryKind::requires_company_size) {
+            fail("company_size", "required", "Choose how many people work there.");
         }
 
         // A referral's details are checked here and kept as readable text, so

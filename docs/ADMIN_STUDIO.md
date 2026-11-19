@@ -518,6 +518,26 @@ Page builder → a demonstration section → **Guide it with scrolling** (on by 
 - **Demonstration → Layout:** heading above the demonstration, or beside it on wide screens.
 - Previews follow the theme you choose, exactly as visitors see it.
 
+## Leads & Enquiries: Start Now, demo booking and follow-up (P8-M8, 19 Nov 2026)
+
+- **Leads overview:** what arrived from the websites you can see in the last 7, 30, 90 or 365 days (no spam): totals, conversion, demos booked, upcoming, completed, open and unassigned, and breakdowns by kind, website and status; each count opens the matching list.
+- **Workspace requests:** the Start Now form's requests (`workspace_request`), in the same inbox as every enquiry.
+- **Follow-up:** status New → Contacted → Qualified → Demo scheduled → Converted or Closed (or Spam); **Assigned to** (an editor or above); **Add a note**. Status changes, assignment, notes and booking changes all appear in the enquiry's History.
+- **Demo bookings:** upcoming, past or all, by status. Confirm or cancel a pending booking; mark a confirmed one completed or no-show, or cancel it; reschedule either to a free time. Confirming moves the enquiry to Demo scheduled. Cancelling frees the time for visitors.
+- **Demo availability:** per website. Off until turned on. Time zone (East Africa Time by default), demo length (15–60 minutes), buffer between demos, minimum notice, how many days ahead, an optional daily limit, weekly hours (several windows a day), closed dates and a note beside the times. Reviewers and owners save; the API checks every rule; a preview shows the free times visitors get. While off, Book a demo opens the demo request form.
+- **Button actions:** any page-builder button (What it does: Open a link, Open Start Now, Open demo booking), campaign button (Start now, Book a demo) or hero link (`#start-now`, `#book-demo`) opens them in place; a product website's main button is chosen in Navigation & enquiries → Main button.
+- Calendar sync, meeting links and booking emails need integrations that aren't configured, so the Studio doesn't offer or imply them.
+## FAQ product visual (P14-W5, 19 Nov 2026)
+
+- Page builder → a Questions section → **Product visual**: on or off, animation pace (calm, normal, lively), scenes in turn while no question is open (off by default), and an optional button in the workflow scene (it opens demo booking, Start Now or the contact page).
+- Each question then has **Visual for this question** (the connected workspace by default, or employee self-service, branches, payroll, workflows), **floating labels** (up to four, comma-separated; empty for the scene's own) and an optional **screenshot** from the media library (approved images only, never real customer data).
+- Every question keeps a stable id from the moment the visual is on, so rewording or translating it never loses its scene. Labels are translated with the page (Pages → Translations).
+- Saved, previewed, approved and published like any page change.
+
+## Languages on product websites (P7-L3, 19 Nov 2026)
+
+- A product website shows a language once it's switched on (Websites → a website → Languages) and its translation is reviewed and published (Settings & Security → Languages). Until then visitors see English only: that's why ZiraHR's selector lists English.
+- Once shown, a translated page's skip link, cookie banner, main button, Start Now and demo booking dialogs and enquiry form appear in that language (shared wording, the same as FigBud Global's). The form's own Studio wording (Enquiry form) applies on English pages.
 ## Enquiry form (UI-F2)
 
 - **Enquiry form** section: the same form as the corporate contact page (demo request, sales, question, partnership), sent to the enquiry inbox. On a product's own website the product is fixed, so there's no product choice.
