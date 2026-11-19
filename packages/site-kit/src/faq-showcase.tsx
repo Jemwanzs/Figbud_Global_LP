@@ -97,7 +97,7 @@ function Frame({ children, className }: { children: ReactNode; className?: strin
   return (
     <div
       className={cn(
-        "overflow-hidden rounded-2xl border border-line bg-surface shadow-[0_24px_60px_-28px_rgb(0_0_0/0.55)]",
+        "flex flex-col overflow-hidden rounded-2xl border border-line bg-surface shadow-[0_24px_60px_-28px_rgb(0_0_0/0.55)]",
         className,
       )}
     >
@@ -107,7 +107,8 @@ function Frame({ children, className }: { children: ReactNode; className?: strin
         <span className="size-2 rounded-full bg-line-strong" />
         <span className="ms-2 h-3.5 flex-1 rounded-full bg-bg/70" />
       </div>
-      {children}
+      {/* The screen: shorter scenes sit in its middle rather than at the top. */}
+      <div className="flex min-h-0 flex-1 flex-col justify-center">{children}</div>
     </div>
   );
 }
@@ -162,7 +163,7 @@ function SceneArt({ scene, words, step }: { scene: Scene; words: FaqShowcaseWord
     case "branches":
       return (
         <Frame className="h-full">
-          <div className="relative h-[calc(100%-1.9rem)]">
+          <div className="relative min-h-0 flex-1">
             <svg
               aria-hidden
               viewBox="0 0 100 100"
@@ -217,7 +218,7 @@ function SceneArt({ scene, words, step }: { scene: Scene; words: FaqShowcaseWord
     case "payroll":
       return (
         <Frame className="h-full">
-          <div className="space-y-3 p-4">
+          <div className="mx-auto w-full max-w-md space-y-3 p-4 @lg:p-6">
             {[
               { label: words.gross, width: 100, tone: "bg-product/80" },
               { label: words.deductions, width: 34, tone: "bg-line-strong" },
@@ -257,14 +258,14 @@ function SceneArt({ scene, words, step }: { scene: Scene; words: FaqShowcaseWord
     case "workflows":
       return (
         <Frame className="h-full">
-          <div className="p-4">
-            <p className="text-[0.7rem] font-medium text-text">{words.newRequest}</p>
+          <div className="mx-auto w-full max-w-sm p-4 @lg:p-6">
+            <p className="text-[0.7rem] font-medium text-text @lg:text-sm">{words.newRequest}</p>
             <ol className="relative mt-3 space-y-2.5 border-s border-line ps-4">
               {words.stages.map((stage, i) => {
                 const done = i < step % (words.stages.length + 1);
                 const now = i === step % (words.stages.length + 1);
                 return (
-                  <li key={stage} className="relative text-[0.7rem]">
+                  <li key={stage} className="relative text-[0.7rem] @lg:text-sm">
                     <span
                       aria-hidden
                       className={cn(
@@ -291,7 +292,7 @@ function SceneArt({ scene, words, step }: { scene: Scene; words: FaqShowcaseWord
     default:
       return (
         <Frame className="h-full">
-          <div className="relative grid h-[calc(100%-1.9rem)] grid-cols-2 gap-3 p-4">
+          <div className="relative grid min-h-0 flex-1 grid-cols-2 gap-3 p-4">
             {words.labels.workspace.map((label, i) => (
               <div
                 key={label}
@@ -439,7 +440,7 @@ export function FaqShowcase({
         data-faq-scene={scene}
         className="relative mx-auto w-full max-w-xl lg:sticky lg:top-28"
       >
-        <div aria-hidden className="relative aspect-[5/4] w-full">
+        <div aria-hidden className="relative aspect-square w-full @lg:aspect-[5/4]">
           <div className="pointer-events-none absolute inset-[-10%] rounded-full bg-[radial-gradient(closest-side,var(--product-soft),transparent)] opacity-80" />
           {(["workspace", "employee_access", "branches", "payroll", "workflows"] as Scene[]).map((s) => (
             <div
@@ -459,7 +460,7 @@ export function FaqShowcase({
                     height={shot.height}
                     loading="lazy"
                     decoding="async"
-                    className="h-[calc(100%-1.9rem)] w-full bg-bg object-contain object-top"
+                    className="min-h-0 w-full flex-1 bg-bg object-contain object-top"
                   />
                 </Frame>
               ) : (
