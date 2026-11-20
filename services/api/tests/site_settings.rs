@@ -886,3 +886,89 @@ async fn sample_identities_are_managed_on_figbud_global_only() {
     assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY, "{body}");
     assert!(body.to_string().contains("FigBud Global"));
 }
+
+#[tokio::test]
+async fn our_platforms_visibility_is_drafted_published_and_kept() {
+    // P14-W13 (owner's brief, 20 Nov 2026), on a website of its own.
+    let Some(pool) = database().await else { return };
+    let url = std::env::var("TEST_DATABASE_URL").unwrap();
+    let app = app_with(pool.clone(), config(&url));
+    let run = Uuid::now_v7().simple().to_string();
+    let slug = format!("plat_{}", &run[run.len() - 10..]);
+    sqlx::query(
+        "INSERT INTO sites (id, slug, kind, name, category, template, status, position)
+         VALUES ($1, $2, 'product', 'Platforms Site', 'hr_workforce', 'hr', 'active', 96)",
+    )
+    .bind(Uuid::now_v7())
+    .bind(&slug)
+    .execute(&pool)
+    .await
+    .unwrap();
+    let uri = format!("/v1/admin/sites/{slug}/settings");
+    let reviewer = admin(&pool, "reviewer").await;
+    let (_, read) = call(&app, "GET", &uri, Some(&reviewer), None).await;
+    assert_eq!(read["settings"]["showcase"]["enabled"], true);
+    assert_eq!(read["settings"]["showcase"]["hidden"], json!([]));
+    let site = |sites: &Value| {
+        sites
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|s| s["slug"] == slug.as_str())
+            .unwrap()
+            .clone()
+    };
+
+    // A draft stays private.
+    let mut settings = read["settings"].clone();
+    let mut draft_showcase = settings["showcase"].clone();
+    draft_showcase["hidden"] = json!(["expense_now"]);
+    settings["showcase_draft"] = json!({ "showcase": draft_showcase, "motion": settings["motion"] });
+    let (status, saved) = call(
+        &app,
+        "POST",
+        &uri,
+        Some(&reviewer),
+        Some(json!({ "settings": settings, "version": read["version"] })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{saved}");
+    let (_, sites) = call(&app, "GET", "/v1/sites", None, None).await;
+    assert_eq!(site(&sites)["settings"]["showcase"]["hidden"], json!([]));
+    assert!(site(&sites)["settings"].get("showcase_draft").is_none());
+
+    // Published: the website receives it, a version is kept, and it's audited.
+    let mut next = saved["settings"].clone();
+    next["showcase"] = draft_showcase;
+    next["showcase_draft"] = Value::Null;
+    let (status, published) = call(
+        &app,
+        "POST",
+        &uri,
+        Some(&reviewer),
+        Some(json!({ "settings": next, "version": saved["version"] })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{published}");
+    assert_eq!(
+        published["settings"]["showcase_history"]
+            .as_array()
+            .unwrap()
+            .len(),
+        1
+    );
+    let (_, sites) = call(&app, "GET", "/v1/sites", None, None).await;
+    assert_eq!(
+        site(&sites)["settings"]["showcase"]["hidden"],
+        json!(["expense_now"])
+    );
+    assert!(site(&sites)["settings"].get("showcase_history").is_none());
+    let audited: i64 = sqlx::query_scalar(
+        "SELECT count(*) FROM audit_log WHERE action = 'site.showcase_published' AND target_id = (SELECT id::text FROM sites WHERE slug = $1)",
+    )
+    .bind(&slug)
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert_eq!(audited, 1);
+}

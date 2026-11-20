@@ -471,6 +471,9 @@ const SHOWCASE_DEFAULT = {
   show_arrows: true,
   show_progress: true,
   order: [],
+  // Our Platforms visibility (P14-W13): the section on, every product shown.
+  enabled: true,
+  hidden: [],
 };
 const seedSite = (n, slug, kind, name, tagline, category, template, status) => ({
   id: `01928d6c-0000-7000-8000-00000000000${n}`,
@@ -714,6 +717,8 @@ const publicSites = () =>
                 "nav_previews_draft",
                 "footer_draft",
                 "section_themes_draft",
+                "showcase_draft",
+                "showcase_history",
                 "theme_draft",
                 "theme_history",
                 "languages_draft",
@@ -5575,6 +5580,22 @@ function siteSettingsRoutes(slug, req, body, user, send) {
   next.theme ??= {};
   next.motion ??= { product_rotation: false, rotation_seconds: 9 };
   next.showcase = { ...SHOWCASE_DEFAULT, ...next.showcase };
+  next.showcase_draft ??= null;
+  // Our Platforms (site_settings.rs): a published change is remembered (last 10).
+  next.showcase_history = clone(site.settings.showcase_history ?? []);
+  if (
+    JSON.stringify([next.showcase, next.motion]) !==
+    JSON.stringify([{ ...SHOWCASE_DEFAULT, ...site.settings.showcase }, site.settings.motion])
+  )
+    next.showcase_history = [
+      {
+        published_at: new Date().toISOString(),
+        by: user.name,
+        showcase: clone(next.showcase),
+        motion: clone(next.motion),
+      },
+      ...next.showcase_history,
+    ].slice(0, 10);
   next.nav_previews = { enabled: true, items: [], ...next.nav_previews };
   next.nav_previews_draft ??= null;
   next.footer_draft ??= null;

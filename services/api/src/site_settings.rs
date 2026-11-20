@@ -438,11 +438,37 @@ pub struct Showcase {
     pub show_progress: bool,
     /// Product slugs in display order; products not listed follow in their usual order.
     pub order: Vec<String>,
+    /// The whole section on FigBud Global's home page (owner's brief, 20 Nov 2026).
+    pub enabled: bool,
+    /// Products left out of the showcase, by slug; they keep their place in
+    /// `order`, so showing one again restores its position. Their websites
+    /// and every other listing are unaffected.
+    pub hidden: Vec<String>,
+}
+
+/// Our Platforms as saved in the Studio but not published (P14-W13).
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct ShowcaseDraft {
+    pub showcase: Showcase,
+    pub motion: Motion,
+}
+
+/// A published Our Platforms set-up, kept for rollback (newest first, up to 10).
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct ShowcaseVersion {
+    pub published_at: String,
+    pub by: Option<String>,
+    pub showcase: Showcase,
+    pub motion: Motion,
 }
 
 impl Default for Showcase {
     fn default() -> Self {
         Self {
+            enabled: true,
+            hidden: Vec::new(),
             scroll_driven: true,
             sticky: true,
             intensity: Intensity::default(),
@@ -575,6 +601,10 @@ pub struct WebsiteSettings {
     pub theme: Theme,
     pub motion: Motion,
     pub showcase: Showcase,
+    /// Our Platforms saved but not published (P14-W13); only the Studio receives it.
+    pub showcase_draft: Option<ShowcaseDraft>,
+    /// Published Our Platforms set-ups, newest first (kept by the API).
+    pub showcase_history: Vec<ShowcaseVersion>,
     /// What the website shows.
     pub nav_previews: NavPreviews,
     /// Saved in the Studio but not published: never sent to the websites.
@@ -812,7 +842,10 @@ impl WebsiteSettings {
         if let Some(draft) = &mut self.theme_draft {
             site_theme::check(&mut e, draft, false);
         }
-        if !ROTATION_SECONDS.contains(&self.motion.rotation_seconds) {
+        let draft_seconds = self.showcase_draft.as_ref().map(|d| d.motion.rotation_seconds);
+        if !ROTATION_SECONDS.contains(&self.motion.rotation_seconds)
+            || draft_seconds.is_some_and(|s| !ROTATION_SECONDS.contains(&s))
+        {
             e.push(FieldError {
                 field: "motion.rotation_seconds",
                 code: "range",
@@ -837,17 +870,27 @@ impl WebsiteSettings {
         if let Some(draft) = &mut self.nav_previews_draft {
             check_nav_previews(&mut e, draft, "nav_previews");
         }
-        let order = &mut self.showcase.order;
-        for slug in order.iter_mut() {
-            *slug = slug.trim().to_ascii_lowercase();
+        let mut showcases = vec![&mut self.showcase];
+        if let Some(draft) = &mut self.showcase_draft {
+            showcases.push(&mut draft.showcase);
         }
-        let mut seen = std::collections::HashSet::new();
-        if order.len() > MAX_ORDER || !order.iter().all(|s| valid_slug(s) && seen.insert(s.clone())) {
-            e.push(FieldError {
-                field: "showcase.order",
-                code: "format",
-                message: "List each product once, by its website address name.",
-            });
+        for showcase in showcases {
+            for (list, field) in [
+                (&mut showcase.order, "showcase.order"),
+                (&mut showcase.hidden, "showcase.hidden"),
+            ] {
+                for slug in list.iter_mut() {
+                    *slug = slug.trim().to_ascii_lowercase();
+                }
+                let mut seen = std::collections::HashSet::new();
+                if list.len() > MAX_ORDER || !list.iter().all(|s| valid_slug(s) && seen.insert(s.clone())) {
+                    e.push(FieldError {
+                        field,
+                        code: "format",
+                        message: "List each product once, by its website address name.",
+                    });
+                }
+            }
         }
         for (r, field) in [
             (&mut self.results, "results"),
@@ -1025,6 +1068,21 @@ async fn update(
     // Likewise a success story (P10-R2) and device settings (P14-W8).
     next.story_history = site.settings.story_history.clone();
     next.devices_history = site.settings.devices_history.clone();
+    // Our Platforms (P14-W13): a published change is remembered (last 10).
+    next.showcase_history = site.settings.showcase_history.clone();
+    let showcase_published = next.showcase != site.settings.showcase || next.motion != site.settings.motion;
+    if showcase_published {
+        next.showcase_history.insert(
+            0,
+            ShowcaseVersion {
+                published_at: Utc::now().to_rfc3339(),
+                by: Some(session.user.name.clone()),
+                showcase: next.showcase.clone(),
+                motion: next.motion.clone(),
+            },
+        );
+        next.showcase_history.truncate(10);
+    }
     next.demo_identities_history = site.settings.demo_identities_history.clone();
     let identities_published = next.demo_identities != site.settings.demo_identities;
     if identities_published && let Some(d) = &next.demo_identities {
@@ -1136,6 +1194,8 @@ async fn update(
         _ if theme_published => "site.theme_published",
         _ if story_published => "site.success_story_published",
         _ if devices_published => "site.devices_published",
+        _ if showcase_published => "site.showcase_published",
+        _ if next.showcase_draft != site.settings.showcase_draft => "site.showcase_draft_saved",
         _ if identities_published => "site.demo_identities_published",
         _ if next.demo_identities_draft != site.settings.demo_identities_draft => {
             "site.demo_identities_draft_saved"
@@ -1458,6 +1518,18 @@ mod tests {
                 "{bad}"
             );
         }
+    }
+
+    #[test]
+    fn the_showcase_shows_every_product_by_default_and_checks_hidden_ones() {
+        let settings = WebsiteSettings::from_stored(json!({}));
+        assert!(settings.showcase.enabled && settings.showcase.hidden.is_empty());
+        let hidden = WebsiteSettings::from_stored(json!({ "showcase": { "hidden": [" Expense_Now "] } }))
+            .normalise(true)
+            .unwrap();
+        assert_eq!(hidden.showcase.hidden, ["expense_now"]);
+        let bad = WebsiteSettings::from_stored(json!({ "showcase": { "hidden": ["zirahr", "zirahr"] } }));
+        assert_eq!(bad.normalise(true).unwrap_err()[0].field, "showcase.hidden");
     }
 
     #[test]

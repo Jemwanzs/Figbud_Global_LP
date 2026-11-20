@@ -1,6 +1,12 @@
 "use client";
 
-import { type ShowcaseSettings, type WebsiteSettings, orderBySlug, showcaseSettings } from "@figbud/site-kit";
+import {
+  type ShowcaseSettings,
+  type WebsiteSettings,
+  orderBySlug,
+  showcaseProducts,
+  showcaseSettings,
+} from "@figbud/site-kit";
 import { cn } from "@figbud/ui";
 import { ArrowDown, ArrowUp, ExternalLink } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -10,6 +16,7 @@ import { AdminError, type FieldError, adminFetch } from "@/lib/admin-client";
 import { useSavedBaseline, useUnsavedChangesWarning } from "@/lib/form-state";
 
 import { ActionButton } from "./action-button";
+import { LocalTime } from "./local-time";
 import type { WebsiteSettingsAdmin } from "./website-settings";
 
 type Motion = NonNullable<WebsiteSettings["motion"]>;
@@ -36,9 +43,11 @@ const MOBILE: [ShowcaseSettings["mobile"], string, string][] = [
 
 /**
  * Studio → FigBud Global → Our Platforms (UI-MO5): how the home page's
- * product showcase behaves. Stored in the website's settings (the same
- * document, audit and version check as navigation and forms), so saving
- * never touches anything else, and the home page updates at once.
+ * product showcase behaves, and (P14-W13) whether it shows at all and which
+ * products it shows. Stored in the website's settings (the same document,
+ * audit and version check as navigation and forms): saved as a draft,
+ * published, kept for rollback. Hiding a product here never touches its
+ * website or any other listing.
  */
 export function PlatformsSettingsForm({
   slug,
@@ -53,17 +62,29 @@ export function PlatformsSettingsForm({
   const router = useRouter();
   const uid = useId();
   const canEdit = data.can_edit;
-  const [form, setForm] = useState<Form>(() => {
-    const showcase = showcaseSettings(data.settings.showcase);
+  // The document as last saved, sent back with each change (the rest unchanged).
+  const [base, setBase] = useState(data.settings);
+  /** A form from stored settings: every public product listed, in the saved order. */
+  const toForm = (
+    showcaseIn: Partial<ShowcaseSettings> | undefined,
+    motionIn: WebsiteSettings["motion"],
+  ): Form => {
+    const showcase = showcaseSettings(showcaseIn);
     return {
-      // Every public product is listed, in the saved order.
       showcase: { ...showcase, order: orderBySlug(products, showcase.order).map((p) => p.slug) },
       motion: {
-        product_rotation: data.settings.motion?.product_rotation ?? false,
-        rotation_seconds: data.settings.motion?.rotation_seconds ?? 9,
+        product_rotation: motionIn?.product_rotation ?? false,
+        rotation_seconds: motionIn?.rotation_seconds ?? 9,
       },
     };
-  });
+  };
+  const published = () => toForm(base.showcase, base.motion);
+  // A saved draft opens first; otherwise what visitors see.
+  const [form, setForm] = useState<Form>(() =>
+    data.settings.showcase_draft
+      ? toForm(data.settings.showcase_draft.showcase, data.settings.showcase_draft.motion)
+      : toForm(data.settings.showcase, data.settings.motion),
+  );
   // The settings version to save against: from the last save, or a newer one from a refresh.
   const [version, setVersion] = useState(data.version);
   const [seenVersion, setSeenVersion] = useState(data.version);
@@ -83,19 +104,35 @@ export function PlatformsSettingsForm({
     setForm((f) => ({ ...f, showcase: { ...f.showcase, ...patch } }));
   const names = new Map(products.map((p) => [p.slug, p.name]));
 
-  async function save() {
+  async function save(kind: "draft" | "publish" | "discard") {
     setBusy(true);
     setFields([]);
     setMessage(null);
+    const patch =
+      kind === "draft"
+        ? { showcase_draft: { showcase: form.showcase, motion: form.motion } }
+        : kind === "publish"
+          ? { showcase: form.showcase, motion: form.motion, showcase_draft: null }
+          : { showcase_draft: null };
     try {
       // The rest of the document is sent back unchanged.
       const saved = await adminFetch<WebsiteSettingsAdmin>(`sites/${slug}/settings`, {
-        settings: { ...data.settings, showcase: form.showcase, motion: form.motion },
+        settings: { ...base, ...patch },
         version,
       });
       setVersion(saved.version);
+      setBase(saved.settings);
+      if (kind === "discard") setForm(toForm(saved.settings.showcase, saved.settings.motion));
       markSaved();
-      setMessage({ tone: "ok", text: "Saved. The home page shows the change at once." });
+      setMessage({
+        tone: "ok",
+        text:
+          kind === "draft"
+            ? "Draft saved. Visitors still see the published Our Platforms."
+            : kind === "publish"
+              ? "Published. The home page shows the change at once."
+              : "Draft discarded.",
+      });
       router.refresh();
     } catch (err) {
       if (err instanceof AdminError) {
@@ -196,6 +233,17 @@ export function PlatformsSettingsForm({
     [next[i], next[to]] = [next[to]!, next[i]!];
     set({ order: next });
   };
+  const hidden = new Set(form.showcase.hidden);
+  // A hidden product keeps its place, so showing it again restores its position.
+  const toggleShown = (product: string) =>
+    set({
+      hidden: hidden.has(product)
+        ? form.showcase.hidden.filter((p) => p !== product)
+        : [...form.showcase.hidden, product],
+    });
+  // What visitors will see once published: the same rule as the home page.
+  const shown = showcaseProducts(products, form.showcase);
+  const sameAsPublished = JSON.stringify(form) === JSON.stringify(published());
 
   return (
     <form
@@ -203,9 +251,20 @@ export function PlatformsSettingsForm({
       noValidate
       onSubmit={(e) => {
         e.preventDefault();
-        if (canEdit) void save();
+        if (canEdit) void save("publish");
       }}
     >
+      <fieldset className="space-y-4">
+        <legend className="font-semibold text-text">The section</legend>
+        {toggle(
+          "enabled",
+          "Show Our Platforms on FigBud Global",
+          "Off: the home page leaves the section out entirely. Every setting below is kept for when it's back.",
+          form.showcase.enabled,
+          () => set({ enabled: !form.showcase.enabled }),
+        )}
+      </fieldset>
+
       <fieldset className="space-y-4">
         <legend className="font-semibold text-text">Scroll-driven showcase</legend>
         {toggle(
@@ -247,9 +306,10 @@ export function PlatformsSettingsForm({
       </fieldset>
 
       <fieldset className="space-y-3">
-        <legend className="font-semibold text-text">Product order</legend>
+        <legend className="font-semibold text-text">Products and order</legend>
         <p className="text-sm text-muted">
-          The order of the tabs and cards. Products added later follow at the end.
+          Which products Our Platforms shows, and in what order. A hidden product keeps its place and its
+          website, and stays on every other page. Products added later follow at the end, shown.
         </p>
         <ol className="space-y-2">
           {order.map((product, i) => (
@@ -259,7 +319,34 @@ export function PlatformsSettingsForm({
               data-order={product}
             >
               <span className="w-5 font-mono text-sm text-subtle">{i + 1}</span>
-              <span className="flex-1 font-medium text-text">{names.get(product) ?? product}</span>
+              <span className={cn("flex-1 font-medium", hidden.has(product) ? "text-subtle" : "text-text")}>
+                {names.get(product) ?? product}
+                {hidden.has(product) && <span className="ms-2 text-xs font-normal">Hidden</span>}
+              </span>
+              {/* Show on FigBud: independent of the order. */}
+              <button
+                type="button"
+                role="switch"
+                aria-checked={!hidden.has(product)}
+                aria-label={`Show ${names.get(product) ?? product} in Our Platforms`}
+                disabled={disabled}
+                onClick={() => toggleShown(product)}
+                data-shown={!hidden.has(product)}
+                className={cn(
+                  "relative me-1 inline-flex h-7 w-12 shrink-0 items-center rounded-full border transition-colors disabled:opacity-50",
+                  !hidden.has(product) ? "border-accent bg-accent" : "border-line-strong bg-surface-3",
+                )}
+              >
+                <span
+                  aria-hidden
+                  className={cn(
+                    "size-5 rounded-full bg-white shadow-sm transition-transform motion-reduce:transition-none",
+                    !hidden.has(product)
+                      ? "translate-x-6 rtl:-translate-x-6"
+                      : "translate-x-1 rtl:-translate-x-1",
+                  )}
+                />
+              </button>
               {[
                 { label: "Move up", Icon: ArrowUp, to: i - 1 },
                 { label: "Move down", Icon: ArrowDown, to: i + 1 },
@@ -279,6 +366,38 @@ export function PlatformsSettingsForm({
           ))}
         </ol>
         {errorFor("showcase.order") && <p className="text-sm text-danger">{errorFor("showcase.order")}</p>}
+        {errorFor("showcase.hidden") && <p className="text-sm text-danger">{errorFor("showcase.hidden")}</p>}
+        {/* The preview: exactly what the home page will show once published. */}
+        <div className="rounded-2xl border border-line bg-surface-2/60 p-4" data-showcase-preview="">
+          <p className="text-sm font-medium text-text">Visitors will see</p>
+          {shown.length === 0 ? (
+            <p className="mt-1 text-sm text-muted" data-preview-empty="">
+              {form.showcase.enabled
+                ? "No products: the home page leaves Our Platforms out."
+                : "Our Platforms is switched off: the home page leaves it out."}
+            </p>
+          ) : (
+            <>
+              <ol className="mt-2 flex flex-wrap items-center gap-2 text-sm" aria-label="Products shown">
+                {shown.map((p, i) => (
+                  <li key={p.slug} className="flex items-center gap-2">
+                    {i > 0 && (
+                      <span aria-hidden className="text-subtle">
+                        →
+                      </span>
+                    )}
+                    <span className="rounded-full bg-surface px-3 py-1 text-text">{p.name}</span>
+                  </li>
+                ))}
+              </ol>
+              <p className="mt-2 text-xs text-subtle" data-preview-position="">
+                {shown.length === 1
+                  ? "One product: shown on its own, without carousel controls or rotation."
+                  : `1 of ${shown.length}, with ${shown.length} dots${form.motion.product_rotation ? ", rotating through these alone" : ""}.`}
+              </p>
+            </>
+          )}
+        </div>
       </fieldset>
 
       <fieldset className="space-y-4">
@@ -330,9 +449,35 @@ export function PlatformsSettingsForm({
 
       <div className="flex flex-wrap items-center gap-4">
         {canEdit && (
-          <ActionButton type="submit" ready={dirty} busy={busy} hint="Nothing to save">
-            Save Our Platforms
-          </ActionButton>
+          <>
+            <ActionButton
+              type="button"
+              variant="secondary"
+              ready={dirty}
+              busy={busy}
+              hint="Nothing new to save"
+              onClick={() => void save("draft")}
+            >
+              Save draft
+            </ActionButton>
+            <ActionButton type="submit" ready={!sameAsPublished} busy={busy} hint="Matches what's published">
+              Publish
+            </ActionButton>
+            {base.showcase_draft && (
+              <button
+                type="button"
+                onClick={() => void save("discard")}
+                className="text-sm text-muted hover:text-text"
+              >
+                Discard draft
+              </button>
+            )}
+          </>
+        )}
+        {dirty && (
+          <p className="text-sm text-warning" data-unsaved="">
+            Unsaved changes
+          </p>
         )}
         <a
           href="/en#platforms"
@@ -350,6 +495,36 @@ export function PlatformsSettingsForm({
           </p>
         )}
       </div>
+      {(base.showcase_history?.length ?? 0) > 0 && (
+        <details className="rounded-2xl border border-line p-4 text-sm">
+          <summary className="cursor-pointer font-medium text-text">Published versions</summary>
+          <ul className="mt-2 space-y-2">
+            {base.showcase_history!.map((v) => (
+              <li key={v.published_at} className="flex flex-wrap items-center justify-between gap-2">
+                <span className="text-muted">
+                  <LocalTime iso={v.published_at} />
+                  {v.by && ` · ${v.by}`} ·{" "}
+                  {showcaseProducts(products, showcaseSettings(v.showcase))
+                    .map((p) => p.name)
+                    .join(", ") || "section off"}
+                </span>
+                {canEdit && (
+                  <button
+                    type="button"
+                    onClick={() => setForm(toForm(v.showcase, v.motion))}
+                    className="text-accent-strong underline underline-offset-2"
+                  >
+                    Load to restore
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+          <p className="mt-2 text-xs text-subtle">
+            Loading a version fills the form; publish it to restore it.
+          </p>
+        </details>
+      )}
     </form>
   );
 }

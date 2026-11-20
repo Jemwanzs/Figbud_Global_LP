@@ -12,6 +12,7 @@ import {
   SuccessStory,
   sectionTones,
   websiteLd,
+  showcaseProducts,
 } from "@figbud/site-kit";
 import { Container } from "@figbud/ui";
 
@@ -73,7 +74,8 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
   // Trusted By is its own band (owner's brief, 14 Nov 2026), once a published
   // organisation has a logo to show.
   const present: HomeSection[] = [
-    "platforms",
+    // Our Platforms only while it shows a product (Studio → Our Platforms, P14-W13).
+    ...(showcaseProducts(products, showcase).length ? (["platforms"] as const) : []),
     ...(proof.organizations.some((o) => o.logo) ? (["trusted"] as const) : []),
     "philosophy",
     "africa",

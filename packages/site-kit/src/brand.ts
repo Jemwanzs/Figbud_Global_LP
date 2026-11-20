@@ -143,6 +143,18 @@ export interface WebsiteSettings {
   motion?: { product_rotation: boolean; rotation_seconds: number };
   /** Our Platforms on the corporate home page (UI-MO5). */
   showcase?: Partial<ShowcaseSettings>;
+  /** Our Platforms saved but not published (Studio only). */
+  showcase_draft?: {
+    showcase: ShowcaseSettings;
+    motion: { product_rotation: boolean; rotation_seconds: number };
+  } | null;
+  /** Published Our Platforms set-ups, newest first (Studio only). */
+  showcase_history?: {
+    published_at: string;
+    by?: string | null;
+    showcase: ShowcaseSettings;
+    motion: { product_rotation: boolean; rotation_seconds: number };
+  }[];
   /** Hover previews on the menu (UI-NAV2), as published. */
   nav_previews?: NavPreviewSettings;
   /** Saved in the Studio, not published; only the Studio ever receives it. */
@@ -240,6 +252,10 @@ export interface ShowcaseSettings {
   show_progress: boolean;
   /** Product slugs in display order; products not listed follow in their usual order. */
   order: string[];
+  /** The whole section on FigBud Global's home page (P14-W13). */
+  enabled: boolean;
+  /** Products left out of the showcase, by slug; they keep their place in `order`. */
+  hidden: string[];
 }
 
 export const DEFAULT_SHOWCASE: ShowcaseSettings = {
@@ -251,6 +267,8 @@ export const DEFAULT_SHOWCASE: ShowcaseSettings = {
   show_arrows: true,
   show_progress: true,
   order: [],
+  enabled: true,
+  hidden: [],
 };
 
 /** Stored settings with the defaults filled in. */
@@ -258,7 +276,18 @@ export const showcaseSettings = (s?: Partial<ShowcaseSettings> | null): Showcase
   ...DEFAULT_SHOWCASE,
   ...s,
   order: s?.order ?? [],
+  enabled: s?.enabled ?? true,
+  hidden: s?.hidden ?? [],
 });
+
+/**
+ * The products Our Platforms shows (P14-W13): in the configured order,
+ * without the hidden ones; none when the section is off.
+ */
+export function showcaseProducts<T extends { slug: string }>(items: T[], showcase: ShowcaseSettings): T[] {
+  if (!showcase.enabled) return [];
+  return orderBySlug(items, showcase.order).filter((item) => !showcase.hidden.includes(item.slug));
+}
 
 /** Items in the configured order; the rest follow in their usual order. */
 export function orderBySlug<T extends { slug: string }>(items: T[], order: string[]): T[] {

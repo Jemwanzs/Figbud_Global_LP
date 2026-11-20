@@ -553,6 +553,13 @@ Page builder → a demonstration section → **Guide it with scrolling** (on by 
 - **Shown first:** the visitor's own device (by screen width) or a chosen one. **Frames:** realistic or minimal. **Tablet:** landscape or portrait. **Browser address** in the bar. **Fade** between devices (0.3–0.45 s).
 - Also as its own section: Page builder → Add section → **Device showcase** (heading, description, the same device settings), anywhere on a page.
 - Live pages inside the frames aren't offered: the websites refuse to be framed, to protect visitors from clickjacking.
+## Our Platforms visibility (P14-W13, 20 Nov 2026)
+
+- Products & Branding → **Our Platforms showcase** → **Show Our Platforms on FigBud Global**: the whole home-page section on or off; every setting is kept while it's off.
+- **Products and order**: a switch beside each product (**Show … in Our Platforms**) and the arrows to reorder; a hidden product keeps its place. Products added later appear at the end, shown.
+- **Visitors will see**: the products in order and "1 of n"; one product shows without carousel controls, none leaves the section out.
+- **Save draft**, **Publish**, **Discard draft**, and **Published versions** → Load to restore. Visitors see the published set until you publish.
+- Hiding a product never changes its website or any other listing (menu, footer, cards, map).
 ## Product names and logos (P14-W11, 20 Nov 2026)
 
 - A product's name lives in one place: Websites → **Manage sites** (the website record). Publishing it there renames the product everywhere: its website, the corporate menu, footer, cards and copy in every language, enquiry forms and emails. Brand names are never translated.

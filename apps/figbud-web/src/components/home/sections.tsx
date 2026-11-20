@@ -10,7 +10,7 @@ import {
   Testimonials,
   TrustedBy,
   bandProps,
-  orderBySlug,
+  showcaseProducts,
   type TestimonialsDisplay,
 } from "@figbud/site-kit";
 import { type Locale, localeInfo, localizePath } from "@figbud/i18n";
@@ -75,6 +75,9 @@ export function PlatformsSection({
   showcase: ShowcaseSettings;
 }) {
   const platforms = dict.home.platforms;
+  // Only the products shown in Our Platforms, in order (P14-W13); with none, or the section off, nothing at all.
+  const items = showcaseProducts(products, showcase);
+  if (!items.length) return null;
   return (
     <section
       id="platforms"
@@ -94,7 +97,7 @@ export function PlatformsSection({
             locale={locale}
             platforms={platforms}
             products={dict.products}
-            items={orderBySlug(products, showcase.order)}
+            items={items}
             brands={brands}
             common={dict.common}
             rotation={rotation}

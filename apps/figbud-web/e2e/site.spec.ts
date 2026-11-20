@@ -839,7 +839,13 @@ test("site search finds pages, products and articles from the header, and isn't 
   await page.goto("/en/about");
   await page.getByRole("banner").getByRole("link", { name: "Search", exact: true }).click();
   await expect(page).toHaveURL(/\/en\/search$/);
-  await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", /noindex/);
+  // After an in-page navigation the previous page's tag can linger a moment beside the new one; every one says noindex.
+  await expect(page.locator('meta[name="robots"]').first()).toHaveAttribute("content", /noindex/);
+  expect(
+    await page
+      .locator('meta[name="robots"]')
+      .evaluateAll((tags) => tags.map((t) => t.getAttribute("content"))),
+  ).not.toContainEqual(expect.not.stringMatching(/noindex/));
   const box = page.getByRole("searchbox", { name: "Search FigBud Global" });
   await box.fill("payroll");
   await box.press("Enter");

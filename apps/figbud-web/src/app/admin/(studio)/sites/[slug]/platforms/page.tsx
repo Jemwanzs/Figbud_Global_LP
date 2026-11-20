@@ -53,9 +53,10 @@ async function Platforms({ params }: Pick<PageProps<"/admin/sites/[slug]/platfor
       </p>
       <h1 className="mt-3 font-display text-3xl font-semibold tracking-tight text-text">Our Platforms</h1>
       <p className="mt-2 max-w-3xl text-muted">
-        How the home page&apos;s product showcase moves. Changes apply directly (no approval round), are
-        recorded in the activity log, and show on the home page at once. The cards themselves come from the
-        product registry and each product&apos;s branding.
+        Whether the home page shows its product showcase, which products it shows, in what order, and how it
+        moves. Save a draft while you work: visitors see what you publish, at once, and every change is
+        recorded in the activity log. Hiding a product here never changes its own website. The cards come from
+        the products&apos; published names and branding.
       </p>
       <section
         aria-label="Our Platforms settings"

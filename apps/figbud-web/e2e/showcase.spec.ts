@@ -199,18 +199,65 @@ test("Studio: Our Platforms controls, saved with the website's settings", async 
     .click();
   await expect(rows.first()).toHaveAttribute("data-order", first!);
 
+  // Visibility (P14-W13): every product shown at first; hiding one keeps its place and the preview follows.
+  const preview = page.locator("[data-showcase-preview]");
+  await expect(preview.getByRole("list", { name: "Products shown" }).getByRole("listitem")).toHaveCount(4);
+  await expect(preview.locator("[data-preview-position]")).toHaveText(/1 of 4/);
+  const expense = page.getByRole("switch", { name: "Show Expense Now in Our Platforms" });
+  await expect(expense).toHaveAttribute("aria-checked", "true");
+  await expense.click();
+  await expect(expense).toHaveAttribute("aria-checked", "false");
+  await expect(page.locator('[data-order="expense_now"]')).toContainText("Hidden");
+  await expect(preview.getByRole("list", { name: "Products shown" })).not.toContainText("Expense Now");
+  await expect(preview.locator("[data-preview-position]")).toHaveText(/1 of 3/);
+  await expect(page.locator("[data-unsaved]")).toBeVisible();
+  // Reordering still works while it's hidden, and showing it again restores its place.
+  const before = await rows.evaluateAll((r) => r.map((x) => x.getAttribute("data-order")));
+  await expense.click();
+  expect(await rows.evaluateAll((r) => r.map((x) => x.getAttribute("data-order")))).toEqual(before);
+  await expect(preview.locator("[data-preview-position]")).toHaveText(/1 of 4/);
+  // One product: no carousel controls; the section off: nothing at all.
+  for (const name of ["ZiraHR", "Jasiri LMS", "Expense Now"])
+    await page.getByRole("switch", { name: `Show ${name} in Our Platforms` }).click();
+  await expect(preview.locator("[data-preview-position]")).toHaveText(/One product/);
+  await page.getByRole("switch", { name: "Show Our Platforms on FigBud Global" }).click();
+  await expect(preview.locator("[data-preview-empty]")).toHaveText(/switched off/);
+  // A draft is saved for review; the home page keeps the published set until it's published.
+  await page.getByRole("button", { name: "Save draft", exact: true }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Draft saved" })).toBeVisible();
+  const published = async () =>
+    (
+      (await (await request.get(`${API}/v1/sites`)).json()) as {
+        slug: string;
+        settings: { showcase: { enabled: boolean; hidden: string[] } };
+      }[]
+    ).find((s) => s.slug === "figbud")!.settings.showcase;
+  expect(await published()).toMatchObject({ enabled: true, hidden: [] });
+  await page.reload();
+  await expect(page.getByRole("switch", { name: "Show Our Platforms on FigBud Global" })).toHaveAttribute(
+    "aria-checked",
+    "false",
+  );
+  await page.getByRole("button", { name: "Discard draft" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Draft discarded." })).toBeVisible();
+  await expect(page.getByRole("switch", { name: "Show Our Platforms on FigBud Global" })).toHaveAttribute(
+    "aria-checked",
+    "true",
+  );
+  await expect(preview.locator("[data-preview-position]")).toHaveText(/1 of 4/);
+
   // Rotation moved here, still never faster than 6 seconds.
   await page.getByRole("switch", { name: "Rotate products slowly" }).click();
   await page.getByLabel("Seconds on each product").fill("3");
-  await page.getByRole("button", { name: "Save Our Platforms" }).click();
+  await page.getByRole("button", { name: "Publish", exact: true }).click();
   await expect(page.getByText("Between 6 and 20 seconds, so visitors have time to read.")).toBeVisible();
   // Turning it off again clears the hidden invalid value, so it can't block the next save.
   await page.getByRole("switch", { name: "Rotate products slowly" }).click();
 
   // A change nobody else depends on: the intensity, saved and put back.
   await page.getByRole("radio", { name: /Subtle/ }).check();
-  await page.getByRole("button", { name: "Save Our Platforms" }).click();
-  await expect(page.getByRole("status").filter({ hasText: "Saved." })).toBeVisible();
+  await page.getByRole("button", { name: "Publish", exact: true }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Published." })).toBeVisible();
   const listed = async () =>
     (
       (await (await request.get(`${API}/v1/sites`)).json()) as {
@@ -239,8 +286,8 @@ test("Studio: Our Platforms controls, saved with the website's settings", async 
 
   await page.goto("/admin/sites/figbud/platforms");
   await page.getByRole("radio", { name: /Standard/ }).check();
-  await page.getByRole("button", { name: "Save Our Platforms" }).click();
-  await expect(page.getByRole("status").filter({ hasText: "Saved." })).toBeVisible();
+  await page.getByRole("button", { name: "Publish", exact: true }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Published." })).toBeVisible();
   expect((await listed()).intensity).toBe("standard");
 
   // Saving refreshes the page, head included: scan once it has settled (CI caught it mid-refresh).

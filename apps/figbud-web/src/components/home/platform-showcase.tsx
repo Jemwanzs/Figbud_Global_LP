@@ -649,79 +649,81 @@ export function PlatformShowcase({
             </div>
           </div>
 
-          {/* Discovery: where you are, what's next, and the controls. */}
-          <div className="mt-4 flex items-center justify-between gap-4">
-            <div className="flex min-w-0 items-center gap-3">
-              <div
-                aria-hidden
-                className={cn("flex items-center gap-1.5", !showcase.show_progress && "hidden")}
-              >
-                {items.map((product, i) => (
-                  <span
-                    key={product.slug}
-                    data-product={product.slug}
-                    className={cn(
-                      "h-1.5 rounded-full transition-[width,background-color] duration-[var(--motion-base)] ease-out-expo",
-                      i === index ? "w-6 bg-product" : "w-1.5 bg-line-strong",
-                    )}
-                  />
-                ))}
+          {/* Discovery: where you are, what's next, and the controls; none for a single product (P14-W13). */}
+          {items.length > 1 && (
+            <div className="mt-4 flex items-center justify-between gap-4">
+              <div className="flex min-w-0 items-center gap-3">
+                <div
+                  aria-hidden
+                  className={cn("flex items-center gap-1.5", !showcase.show_progress && "hidden")}
+                >
+                  {items.map((product, i) => (
+                    <span
+                      key={product.slug}
+                      data-product={product.slug}
+                      className={cn(
+                        "h-1.5 rounded-full transition-[width,background-color] duration-[var(--motion-base)] ease-out-expo",
+                        i === index ? "w-6 bg-product" : "w-1.5 bg-line-strong",
+                      )}
+                    />
+                  ))}
+                </div>
+                <p
+                  className={cn("truncate text-xs text-subtle", !showcase.show_progress && "sr-only")}
+                  aria-live="polite"
+                >
+                  <span className="sr-only">{items[index]?.name} · </span>
+                  {fill(platforms.position, { current: String(index + 1), total: String(items.length) })}
+                  <span className="ms-2 md:hidden">· {platforms.swipeHint}</span>
+                </p>
               </div>
-              <p
-                className={cn("truncate text-xs text-subtle", !showcase.show_progress && "sr-only")}
-                aria-live="polite"
-              >
-                <span className="sr-only">{items[index]?.name} · </span>
-                {fill(platforms.position, { current: String(index + 1), total: String(items.length) })}
-                <span className="ms-2 md:hidden">· {platforms.swipeHint}</span>
-              </p>
+              <div className="flex shrink-0 items-center gap-2">
+                {rotation ? (
+                  <button
+                    type="button"
+                    onClick={() => setPlaying((p) => !p)}
+                    aria-label={playing ? platforms.pauseRotation : platforms.playRotation}
+                    className="inline-flex size-11 items-center justify-center rounded-full text-muted transition-colors hover:bg-surface-2 hover:text-text motion-reduce:hidden"
+                  >
+                    {playing ? (
+                      <Pause aria-hidden className="size-4" />
+                    ) : (
+                      <Play aria-hidden className="size-4" />
+                    )}
+                  </button>
+                ) : null}
+                {showcase.show_arrows && (
+                  <button
+                    type="button"
+                    onClick={() => go(current() - 1)}
+                    aria-label={platforms.previous}
+                    aria-controls={`${baseId}-panel-${active}`}
+                    className="inline-flex size-11 items-center justify-center rounded-full border border-line bg-surface text-muted transition-[color,border-color,transform] duration-[var(--motion-fast)] hover:border-line-strong hover:text-text active:scale-95"
+                  >
+                    <ChevronLeft aria-hidden className="size-4 rtl:rotate-180" />
+                  </button>
+                )}
+                {showcase.show_arrows && (
+                  <button
+                    type="button"
+                    onClick={() => go(current() + 1)}
+                    aria-controls={`${baseId}-panel-${active}`}
+                    data-product={nextProduct?.slug}
+                    className="group inline-flex min-h-11 items-center gap-2 rounded-full border border-line bg-surface ps-4 pe-3 text-sm text-muted transition-[color,border-color,transform] duration-[var(--motion-fast)] hover:border-product/50 hover:text-text active:scale-95"
+                  >
+                    {/* Visible from sm up; the accessible name always names the next product. */}
+                    <span className="sr-only sm:not-sr-only">
+                      {fill(platforms.upNext, { product: nextProduct?.name ?? "" })}
+                    </span>
+                    <ChevronRight
+                      aria-hidden
+                      className="size-4 transition-transform group-hover:translate-x-0.5 rtl:rotate-180 rtl:group-hover:-translate-x-0.5"
+                    />
+                  </button>
+                )}
+              </div>
             </div>
-            <div className="flex shrink-0 items-center gap-2">
-              {rotation ? (
-                <button
-                  type="button"
-                  onClick={() => setPlaying((p) => !p)}
-                  aria-label={playing ? platforms.pauseRotation : platforms.playRotation}
-                  className="inline-flex size-11 items-center justify-center rounded-full text-muted transition-colors hover:bg-surface-2 hover:text-text motion-reduce:hidden"
-                >
-                  {playing ? (
-                    <Pause aria-hidden className="size-4" />
-                  ) : (
-                    <Play aria-hidden className="size-4" />
-                  )}
-                </button>
-              ) : null}
-              {showcase.show_arrows && (
-                <button
-                  type="button"
-                  onClick={() => go(current() - 1)}
-                  aria-label={platforms.previous}
-                  aria-controls={`${baseId}-panel-${active}`}
-                  className="inline-flex size-11 items-center justify-center rounded-full border border-line bg-surface text-muted transition-[color,border-color,transform] duration-[var(--motion-fast)] hover:border-line-strong hover:text-text active:scale-95"
-                >
-                  <ChevronLeft aria-hidden className="size-4 rtl:rotate-180" />
-                </button>
-              )}
-              {showcase.show_arrows && (
-                <button
-                  type="button"
-                  onClick={() => go(current() + 1)}
-                  aria-controls={`${baseId}-panel-${active}`}
-                  data-product={nextProduct?.slug}
-                  className="group inline-flex min-h-11 items-center gap-2 rounded-full border border-line bg-surface ps-4 pe-3 text-sm text-muted transition-[color,border-color,transform] duration-[var(--motion-fast)] hover:border-product/50 hover:text-text active:scale-95"
-                >
-                  {/* Visible from sm up; the accessible name always names the next product. */}
-                  <span className="sr-only sm:not-sr-only">
-                    {fill(platforms.upNext, { product: nextProduct?.name ?? "" })}
-                  </span>
-                  <ChevronRight
-                    aria-hidden
-                    className="size-4 transition-transform group-hover:translate-x-0.5 rtl:rotate-180 rtl:group-hover:-translate-x-0.5"
-                  />
-                </button>
-              )}
-            </div>
-          </div>
+          )}
         </div>
       </div>
       {/* Scroll distance for the products while the stage is pinned (styles.css). */}
