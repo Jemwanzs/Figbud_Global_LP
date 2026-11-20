@@ -472,6 +472,7 @@ export default async function SitePage({ params }: PageProps<"/[site]/[[...path]
                 config: site.settings?.enquiry_form,
                 form: site.slug,
               }}
+              deviceExperience={site.settings?.devices}
             />
             <div data-after-hero="" className="mx-[calc(50%-50vw)] my-block">
               {afterHero}
@@ -494,6 +495,7 @@ export default async function SitePage({ params }: PageProps<"/[site]/[[...path]
             config: site.settings?.enquiry_form,
             form: site.slug,
           }}
+          deviceExperience={site.settings?.devices}
         />
         {/* Approved customer proof for this website (home page); nothing renders without it.
             Each part present is its own band, continuing the page's alternation

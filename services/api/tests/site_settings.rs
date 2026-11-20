@@ -667,3 +667,106 @@ async fn results_and_success_stories_publish_per_website_with_history() {
         .clone();
     assert!(site["settings"]["success_story"].is_null());
 }
+
+#[tokio::test]
+async fn device_experience_is_drafted_published_and_kept_per_website() {
+    // P14-W8 (owner's brief, 20 Nov 2026), on a website of its own.
+    let Some(pool) = database().await else { return };
+    let url = std::env::var("TEST_DATABASE_URL").unwrap();
+    let app = app_with(pool.clone(), config(&url));
+    let run = Uuid::now_v7().simple().to_string();
+    let slug = format!("devx_{}", &run[run.len() - 10..]);
+    sqlx::query(
+        "INSERT INTO sites (id, slug, kind, name, category, template, status, position)
+         VALUES ($1, $2, 'product', 'Device Site', 'hr_workforce', 'hr', 'active', 93)",
+    )
+    .bind(Uuid::now_v7())
+    .bind(&slug)
+    .execute(&pool)
+    .await
+    .unwrap();
+    let uri = format!("/v1/admin/sites/{slug}/settings");
+    let reviewer = admin(&pool, "reviewer").await;
+    let editor = admin(&pool, "editor").await;
+    let (_, read) = call(&app, "GET", &uri, Some(&reviewer), None).await;
+    let mut settings = read["settings"].clone();
+    let approved = json!({ "devices": ["desktop", "tablet", "phone"], "default_device": "phone",
+        "visitor_switching": false, "transitions": false, "synchronized_previews": false });
+
+    // A draft stays private; the device shown must be enabled.
+    settings["devices_draft"] = json!({ "devices": ["desktop"], "default_device": "phone" });
+    let (status, _) = call(
+        &app,
+        "POST",
+        &uri,
+        Some(&reviewer),
+        Some(json!({ "settings": settings, "version": read["version"] })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
+    settings["devices_draft"] = approved.clone();
+    let (status, saved) = call(
+        &app,
+        "POST",
+        &uri,
+        Some(&reviewer),
+        Some(json!({ "settings": settings, "version": read["version"] })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{saved}");
+    let site = |sites: &Value| {
+        sites
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|s| s["slug"] == slug.as_str())
+            .unwrap()
+            .clone()
+    };
+    let (_, sites) = call(&app, "GET", "/v1/sites", None, None).await;
+    assert!(
+        site(&sites)["settings"]["devices"].is_null(),
+        "a draft never reaches the website"
+    );
+
+    // Editors can't publish website settings; reviewers can, and it's kept for rollback.
+    let mut next = saved["settings"].clone();
+    next["devices"] = approved;
+    next["devices_draft"] = Value::Null;
+    let (status, _) = call(
+        &app,
+        "POST",
+        &uri,
+        Some(&editor),
+        Some(json!({ "settings": next, "version": saved["version"] })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::FORBIDDEN);
+    let (status, published) = call(
+        &app,
+        "POST",
+        &uri,
+        Some(&reviewer),
+        Some(json!({ "settings": next, "version": saved["version"] })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{published}");
+    assert_eq!(
+        published["settings"]["devices_history"].as_array().unwrap().len(),
+        1
+    );
+    let (_, sites) = call(&app, "GET", "/v1/sites", None, None).await;
+    let devices = site(&sites)["settings"]["devices"].clone();
+    assert_eq!(devices["default_device"], "phone");
+    assert_eq!(devices["visitor_switching"], false);
+    assert_eq!(devices["frames"]["phone"], "portrait");
+    assert!(site(&sites)["settings"].get("devices_history").is_none());
+    let audited: i64 = sqlx::query_scalar(
+        "SELECT count(*) FROM audit_log WHERE action = 'site.devices_published' AND target_id = (SELECT id::text FROM sites WHERE slug = $1)",
+    )
+    .bind(&slug)
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert_eq!(audited, 1);
+}

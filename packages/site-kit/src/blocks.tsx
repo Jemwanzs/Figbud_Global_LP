@@ -9,7 +9,7 @@ import type { Locale } from "@figbud/i18n";
 
 import { type EnquiryFormConfig, type EnquiryProduct } from "./enquiry";
 import { enquiryCopyFor } from "./enquiry-translations";
-import type { DevicePreviewConfig } from "./device-preview";
+import type { DeviceExperience, DevicePreviewConfig } from "./device-experience";
 import type { FaqScene, FaqShowcaseConfig } from "./faq-showcase";
 import { HeroSignal } from "./hero-signal";
 import {
@@ -387,6 +387,7 @@ function Block({
   enquiry,
   mark,
   locale,
+  deviceExperience,
 }: {
   section: PageSection;
   mode: Mode;
@@ -398,6 +399,7 @@ function Block({
   enquiry?: EnquiryContext;
   mark?: BrandMark;
   locale?: string;
+  deviceExperience?: DeviceExperience | null;
 }) {
   switch (section.type) {
     case "hero": {
@@ -459,7 +461,9 @@ function Block({
                 <ProductShowcase showcase={showcase} locale={locale} mediaBase={mediaBase} eager={first} />
               </div>
             </div>
-            {section.ess && <SelfServiceHighlight {...section.ess} mediaBase={mediaBase} />}
+            {section.ess && (
+              <SelfServiceHighlight {...section.ess} mediaBase={mediaBase} website={deviceExperience} />
+            )}
           </>
         );
       if (!section.visual) return words;
@@ -475,7 +479,9 @@ function Block({
               />
             </div>
           </div>
-          {section.ess && <SelfServiceHighlight {...section.ess} mediaBase={mediaBase} />}
+          {section.ess && (
+            <SelfServiceHighlight {...section.ess} mediaBase={mediaBase} website={deviceExperience} />
+          )}
         </>
       );
     }
@@ -617,6 +623,7 @@ function Block({
             <div className="w-full max-w-5xl [&_[role=group]]:justify-center">
               <LazyDevicePreview
                 config={section.devices}
+                website={deviceExperience}
                 alt={section.heading ?? undefined}
                 mediaBase={mediaBase}
               />
@@ -806,6 +813,7 @@ export function PageBlocks({
   enquiry,
   mark,
   locale,
+  deviceExperience,
 }: {
   document: PageDocument;
   mode?: Mode;
@@ -822,6 +830,8 @@ export function PageBlocks({
   mark?: BrandMark;
   /** The page's language, for built-in controls such as a showcase's (English by default). */
   locale?: string;
+  /** The website's published device settings, for device previews that inherit them (P14-W8). */
+  deviceExperience?: DeviceExperience | null;
 }) {
   // Automatic alternation, from the sections visitors see (hidden ones never count).
   const shown = document.sections.filter((section) => !section.hidden);
@@ -844,7 +854,7 @@ export function PageBlocks({
             data-tone={section.tone}
             data-surface={surfaces.get(section.id) ?? undefined}
             // Scroll reveal and spacing presets (P14-W7), styled in styles.css.
-            data-reveal={section.reveal && section.reveal !== "none" ? section.reveal : undefined}
+            data-section-reveal={section.reveal && section.reveal !== "none" ? section.reveal : undefined}
             data-spacing={section.spacing && section.spacing !== "standard" ? section.spacing : undefined}
             // A light or dark surface keeps its colours whatever the visitor's theme.
             data-theme={section.tone === "light" || section.tone === "dark" ? section.tone : undefined}
@@ -876,6 +886,7 @@ export function PageBlocks({
                   enquiry={enquiry}
                   mark={mark}
                   locale={locale}
+                  deviceExperience={deviceExperience}
                 />
               </div>
             ) : (
@@ -889,6 +900,7 @@ export function PageBlocks({
                 enquiry={enquiry}
                 mark={mark}
                 locale={locale}
+                deviceExperience={deviceExperience}
               />
             )}
           </section>
@@ -907,11 +919,13 @@ function SelfServiceHighlight({
   body,
   devices,
   mediaBase,
+  website,
 }: {
   heading: string;
   body: string;
   devices?: DevicePreviewConfig | null;
   mediaBase?: string;
+  website?: DeviceExperience | null;
 }) {
   // With screenshots per device, the labels become the device switcher (P14-W6).
   const preview = devices && devices.enabled !== false && devices.devices.some((d) => devices.media?.[d]);
@@ -931,7 +945,7 @@ function SelfServiceHighlight({
         <p className="mt-1.5 max-w-3xl text-muted">{body}</p>
       </div>
       {preview ? (
-        <LazyDevicePreview config={devices} alt={heading} mediaBase={mediaBase} />
+        <LazyDevicePreview config={devices} website={website} alt={heading} mediaBase={mediaBase} />
       ) : (
         <ul className="flex flex-wrap gap-2 text-sm text-muted" aria-label="Works in the browser on">
           {[

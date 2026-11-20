@@ -7,34 +7,35 @@ import { type CSSProperties, type ReactNode, useEffect, useState } from "react";
 import type { MediaInfo } from "./blocks";
 
 /**
- * The website on desktop, tablet and phone (owner's brief, 19 Nov 2026,
- * P14-W6). The self-service highlight's device labels become buttons, one
- * selected at a time, each showing an approved screenshot taken at that
- * device's size in a realistic frame: a laptop with a browser bar, a tablet
- * (landscape or portrait), a phone with its camera cut-out and browser bar.
- * The visitor's own device is selected first (unless the Studio chose one);
- * any can be explored without reloading. Frames scale to the space they're
- * given and never widen the page. Only the shown screenshot loads first.
+ * The website on desktop, tablet and phone (owner's briefs, 19 and 20 Nov
+ * 2026, P14-W6 and P14-W8). Each device shows an approved screenshot taken
+ * at that device's size, in a frame from the library (desktop: browser,
+ * laptop or monitor; tablet: portrait, landscape or minimal; phone:
+ * portrait, landscape or minimal), fitted and aligned as configured.
+ *
+ * - With visitor switching on, the device labels are buttons (one selected),
+ *   the visitor's own device first unless one is chosen, with an optional
+ *   short fade.
+ * - With it off (the approved setting), only the configured device shows:
+ *   no buttons, no handlers, no following the visitor's device, no fade.
+ *
+ * A website's published device settings apply to every section that
+ * inherits them (`resolveDevicePreview`); the screenshots are always the
+ * section's own. Frames scale to their space and never widen the page.
  */
 
-export type DeviceKind = "desktop" | "tablet" | "phone";
+import {
+  type DeviceExperience,
+  type DeviceFrames,
+  type DeviceKind,
+  type DevicePreviewConfig,
+  type ImageAlign,
+  type ImageFit,
+  framesOf,
+  resolveDevicePreview,
+} from "./device-experience";
 
-export interface DevicePreviewConfig {
-  enabled?: boolean;
-  devices: DeviceKind[];
-  /** Approved screenshots from the media library, one per device. */
-  desktop_image_id?: string | null;
-  tablet_image_id?: string | null;
-  phone_image_id?: string | null;
-  default_device?: "visitor" | DeviceKind;
-  frame?: "realistic" | "minimal";
-  tablet_orientation?: "landscape" | "portrait";
-  address?: string | null;
-  transitions?: boolean;
-  duration_ms?: number;
-  /** The screenshots' file details, by device (from the media library). */
-  media?: Partial<Record<DeviceKind, MediaInfo>>;
-}
+export type { DeviceExperience, DeviceKind, DevicePreviewConfig } from "./device-experience";
 
 export interface DeviceWords {
   label: string;
@@ -51,6 +52,9 @@ export const DEVICE_WORDS: DeviceWords = {
 };
 
 const ICONS = { desktop: Monitor, tablet: Tablet, phone: Smartphone } as const;
+
+/** Sent when a visitor picks a device, for synchronised previews on the same page. */
+const SYNC_EVENT = "figbud:device";
 
 /** The visitor's device by screen width (a phone below 640 px, a tablet below 1024 px). */
 function visitorDevice(): DeviceKind {
@@ -93,11 +97,15 @@ function Screen({
   alt,
   eager,
   mediaBase,
+  fit,
+  align,
 }: {
   media?: MediaInfo;
   alt: string;
   eager: boolean;
   mediaBase: string;
+  fit: ImageFit;
+  align: ImageAlign;
 }) {
   if (!media) return <div className="size-full bg-[#f6f2ec]" />;
   return (
@@ -109,62 +117,92 @@ function Screen({
       height={media.height}
       loading={eager ? "eager" : "lazy"}
       decoding="async"
-      className="block size-full bg-[#f6f2ec] object-cover object-top"
+      className={cn(
+        "block size-full bg-[#f6f2ec]",
+        fit === "contain" ? "object-contain" : "object-cover",
+        align === "center" ? "object-center" : "object-top",
+      )}
     />
   );
 }
 
-/** One device's frame, sized by its width; the screen keeps the device's proportions. */
+const SHELL = "shadow-[0_30px_60px_-30px_rgb(0_0_0/0.6)]";
+
+/** One device's frame from the library, sized by its width; the screen keeps the device's proportions. */
 function Frame({
   device,
-  config,
+  frames,
+  address,
   children,
 }: {
   device: DeviceKind;
-  config: DevicePreviewConfig;
+  frames: DeviceFrames;
+  address: string;
   children: ReactNode;
 }) {
-  const real = config.frame !== "minimal";
-  const address = config.address || "";
-  if (device === "desktop")
+  if (device === "desktop") {
+    const style = frames.desktop;
     return (
-      <div className="mx-auto w-full max-w-[44rem]" data-device-frame="desktop">
-        <div
-          className={cn(
-            "overflow-hidden bg-[#1b1a19] shadow-[0_30px_60px_-30px_rgb(0_0_0/0.6)]",
-            real ? "rounded-t-[1rem] p-[1.6%] pb-[2%]" : "rounded-xl border border-line p-0",
-          )}
-        >
-          {real && <span aria-hidden className="mx-auto mb-[1%] block size-1.5 rounded-full bg-white/25" />}
-          <div className="overflow-hidden rounded-[0.35rem] bg-white">
+      <div className="mx-auto w-full max-w-[44rem]" data-device-frame="desktop" data-frame-style={style}>
+        {style === "browser" ? (
+          <div className={cn("overflow-hidden rounded-xl border border-black/15 bg-white", SHELL)}>
             <BrowserBar address={address} />
             <div className="aspect-[16/10]">{children}</div>
           </div>
-        </div>
-        {real && (
-          <div
-            aria-hidden
-            className="relative mx-auto h-3 w-[112%] -translate-x-[5.4%] rounded-b-[1rem] bg-gradient-to-b from-[#3a3836] to-[#1f1e1d] rtl:translate-x-[5.4%]"
-          >
-            <span className="absolute start-1/2 top-0 h-1 w-[16%] -translate-x-1/2 rounded-b-md bg-[#141312] rtl:translate-x-1/2" />
-          </div>
+        ) : (
+          <>
+            <div
+              className={cn(
+                "overflow-hidden bg-[#1b1a19]",
+                SHELL,
+                style === "monitor" ? "rounded-[0.9rem] p-[1.4%]" : "rounded-t-[1rem] p-[1.6%] pb-[2%]",
+              )}
+            >
+              {style === "laptop" && (
+                <span aria-hidden className="mx-auto mb-[1%] block size-1.5 rounded-full bg-white/25" />
+              )}
+              <div className="overflow-hidden rounded-[0.35rem] bg-white">
+                <BrowserBar address={address} />
+                <div className="aspect-[16/10]">{children}</div>
+              </div>
+            </div>
+            {style === "laptop" ? (
+              <div
+                aria-hidden
+                className="relative mx-auto h-3 w-[112%] -translate-x-[5.4%] rounded-b-[1rem] bg-gradient-to-b from-[#3a3836] to-[#1f1e1d] rtl:translate-x-[5.4%]"
+              >
+                <span className="absolute start-1/2 top-0 h-1 w-[16%] -translate-x-1/2 rounded-b-md bg-[#141312] rtl:translate-x-1/2" />
+              </div>
+            ) : (
+              // The monitor's stand.
+              <div aria-hidden className="flex flex-col items-center">
+                <span className="h-6 w-[12%] bg-gradient-to-b from-[#2a2826] to-[#1b1a19]" />
+                <span className="h-2 w-[28%] rounded-full bg-[#1b1a19]" />
+              </div>
+            )}
+          </>
         )}
       </div>
     );
+  }
   if (device === "tablet") {
-    const portrait = config.tablet_orientation === "portrait";
+    const style = frames.tablet;
+    const portrait = style === "portrait";
+    const minimal = style === "minimal";
     return (
       <div
         className={cn("mx-auto w-full", portrait ? "max-w-[22rem]" : "max-w-[36rem]")}
         data-device-frame="tablet"
+        data-frame-style={style}
       >
         <div
           className={cn(
-            "relative overflow-hidden bg-[#1b1a19] shadow-[0_30px_60px_-30px_rgb(0_0_0/0.6)]",
-            real ? "rounded-[1.6rem] p-[3.2%]" : "rounded-xl border border-line",
+            "relative overflow-hidden",
+            SHELL,
+            minimal ? "rounded-xl border border-black/15 bg-white" : "rounded-[1.6rem] bg-[#1b1a19] p-[3.2%]",
           )}
         >
-          {real && (
+          {!minimal && (
             <span
               aria-hidden
               className={cn(
@@ -173,7 +211,7 @@ function Frame({
               )}
             />
           )}
-          <div className="overflow-hidden rounded-[0.7rem] bg-white">
+          <div className={cn("overflow-hidden bg-white", !minimal && "rounded-[0.7rem]")}>
             <BrowserBar address={address} compact />
             <div className={portrait ? "aspect-[3/4]" : "aspect-[4/3]"}>{children}</div>
           </div>
@@ -181,23 +219,41 @@ function Frame({
       </div>
     );
   }
+  const style = frames.phone;
+  const landscape = style === "landscape";
+  const minimal = style === "minimal";
   return (
-    <div className="mx-auto w-full max-w-[16rem]" data-device-frame="phone">
+    <div
+      className={cn("mx-auto w-full", landscape ? "max-w-[30rem]" : "max-w-[16rem]")}
+      data-device-frame="phone"
+      data-frame-style={style}
+    >
       <div
         className={cn(
-          "relative overflow-hidden bg-[#1b1a19] shadow-[0_30px_60px_-30px_rgb(0_0_0/0.6)]",
-          real ? "rounded-[2.4rem] p-[4.5%]" : "rounded-[1.6rem] border border-line",
+          "relative overflow-hidden",
+          SHELL,
+          minimal
+            ? "rounded-[1.6rem] border border-black/15 bg-white"
+            : "rounded-[2.4rem] bg-[#1b1a19] p-[4.5%]",
+          landscape && !minimal && "p-[2.4%]",
         )}
       >
-        <div className="relative overflow-hidden rounded-[1.9rem] bg-white">
+        <div className={cn("relative overflow-hidden bg-white", !minimal && "rounded-[1.9rem]")}>
           {/* The camera cut-out. */}
-          {real && (
+          {!minimal && (
             <span
               aria-hidden
-              className="absolute start-1/2 top-[1.6%] z-10 h-[3.2%] w-[30%] -translate-x-1/2 rounded-full bg-[#1b1a19] rtl:translate-x-1/2"
+              className={cn(
+                "absolute z-10 rounded-full bg-[#1b1a19]",
+                landscape
+                  ? "start-[1.6%] top-1/2 h-[30%] w-[3.2%] -translate-y-1/2"
+                  : "start-1/2 top-[1.6%] h-[3.2%] w-[30%] -translate-x-1/2 rtl:translate-x-1/2",
+              )}
             />
           )}
-          <div className="aspect-[9/17.5] pt-[9%]">{children}</div>
+          <div className={landscape ? "aspect-[17.5/9]" : cn("aspect-[9/17.5]", !minimal && "pt-[9%]")}>
+            {children}
+          </div>
           <BrowserBar address={address} compact />
         </div>
       </div>
@@ -205,42 +261,107 @@ function Frame({
   );
 }
 
+/** The device to show from the configured one: it, else the next with a screenshot (or none). */
+function shownDevice(config: DevicePreviewConfig, devices: DeviceKind[]): DeviceKind | null {
+  const wanted = config.default_device && config.default_device !== "visitor" ? config.default_device : null;
+  if (wanted && devices.includes(wanted)) return wanted;
+  if (wanted && config.fallback === "hide") return null;
+  return devices[0] ?? null;
+}
+
 export function DevicePreview({
-  config,
+  config: section,
+  website,
   words = DEVICE_WORDS,
   alt,
   mediaBase = "/media/",
 }: {
   config: DevicePreviewConfig;
+  /** The website's published device settings, for sections that inherit them. */
+  website?: DeviceExperience | null;
   words?: DeviceWords;
-  mediaBase?: string;
   /** What the screenshots show, for screen readers (the library's alt text otherwise). */
   alt?: string;
+  mediaBase?: string;
 }) {
+  const config = resolveDevicePreview(section, website);
   const devices = config.devices.filter((d) => config.media?.[d]);
+  const switching = config.visitor_switching !== false;
   const chosen = config.default_device && config.default_device !== "visitor" ? config.default_device : null;
+  const fixed = shownDevice(config, devices);
   // The server and first paint show the chosen device (desktop by default); then the visitor's own.
-  const [device, setDevice] = useState<DeviceKind>(
-    chosen && devices.includes(chosen) ? chosen : (devices[0] ?? "desktop"),
-  );
-  const [seen, setSeen] = useState<Set<DeviceKind>>(() => new Set([device]));
+  const first = chosen && devices.includes(chosen) ? chosen : (devices[0] ?? null);
+  const [picked, setDevice] = useState<DeviceKind | null>(switching ? first : fixed);
+  // Worked out on every render, so a preview whose screenshots change (the Studio's) always
+  // shows a device it has: without switching, the configured one; with it, the visitor's pick.
+  const device = !switching ? fixed : picked && devices.includes(picked) ? picked : first;
+  const [seen, setSeen] = useState<Set<DeviceKind>>(() => new Set(picked ? [picked] : []));
   useEffect(() => {
-    if (chosen) return;
+    // Only when visitors may switch, and only on arrival: afterwards their choice stands.
+    if (!switching || chosen) return;
     const own = visitorDevice();
     if (devices.includes(own)) {
       setDevice(own);
       setSeen((s) => new Set(s).add(own));
     }
-    // Only on arrival: afterwards the visitor's choice stands.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  if (!devices.length || config.enabled === false) return null;
-  const duration = config.transitions === false ? 0 : (config.duration_ms ?? 380);
+  const sync = switching && config.synchronized_previews === true;
+  useEffect(() => {
+    if (!sync) return;
+    const follow = (e: Event) => {
+      const d = (e as CustomEvent<DeviceKind>).detail;
+      if (!devices.includes(d)) return;
+      setDevice(d);
+      setSeen((s) => new Set(s).add(d));
+    };
+    window.addEventListener(SYNC_EVENT, follow);
+    return () => window.removeEventListener(SYNC_EVENT, follow);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sync]);
+  if (!devices.length || config.enabled === false || !device) return null;
+  const frames = framesOf(config);
+  const fit = config.fit ?? "cover";
+  const align = config.align ?? "top";
+  const address = config.address || "";
+  const duration = !switching || config.transitions === false ? 0 : (config.duration_ms ?? 380);
+  const limits: CSSProperties = {
+    ...(config.max_width ? { maxWidth: `${config.max_width}px` } : {}),
+    ...(config.max_height ? { maxHeight: `${config.max_height}px` } : {}),
+  };
   const choose = (d: DeviceKind) => {
     if (d === device) return;
     setDevice(d);
     setSeen((s) => new Set(s).add(d));
+    // Synchronised previews: the page's other previews follow.
+    if (sync) window.dispatchEvent(new CustomEvent<DeviceKind>(SYNC_EVENT, { detail: d }));
   };
+  const frame = (d: DeviceKind) => (
+    <Frame device={d} frames={frames} address={address}>
+      <Screen
+        media={config.media?.[d]}
+        alt={alt ?? ""}
+        eager={d === device}
+        mediaBase={mediaBase}
+        fit={fit}
+        align={align}
+      />
+    </Frame>
+  );
+
+  // Switching off: the configured device alone, no controls, no motion (P14-W8).
+  if (!switching)
+    return (
+      <div
+        data-device-preview=""
+        data-device={device}
+        data-switching="off"
+        className="mx-auto w-full min-w-0 @3xl:col-span-3"
+        style={limits}
+      >
+        {frame(device)}
+      </div>
+    );
 
   return (
     <div data-device-preview="" data-device={device} className="min-w-0 @3xl:col-span-3">
@@ -269,8 +390,8 @@ export function DevicePreview({
       </div>
       {/* A stage that keeps its height while devices change (no layout shift). */}
       <div
-        className="relative mt-5 grid min-h-[min(34rem,95vw)] place-items-center overflow-hidden"
-        style={{ "--device-duration": `${duration}ms` } as CSSProperties}
+        className="relative mx-auto mt-5 grid min-h-[min(34rem,95vw)] place-items-center overflow-hidden"
+        style={{ "--device-duration": `${duration}ms`, ...limits } as CSSProperties}
       >
         {devices.map((d) => (
           <div
@@ -284,16 +405,7 @@ export function DevicePreview({
             style={{ transitionDuration: "var(--device-duration)" }}
           >
             {/* Each screenshot loads once its device is first shown. */}
-            {seen.has(d) && (
-              <Frame device={d} config={config}>
-                <Screen
-                  media={config.media?.[d]}
-                  alt={alt ?? ""}
-                  eager={d === device}
-                  mediaBase={mediaBase}
-                />
-              </Frame>
-            )}
+            {(seen.has(d) || d === device) && frame(d)}
           </div>
         ))}
       </div>

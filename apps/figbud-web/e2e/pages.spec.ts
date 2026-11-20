@@ -518,7 +518,7 @@ test("sections alternate light and dark on request, each reviewable, with reveal
   await sections.getByRole("button", { name: /^Feature grid/ }).click();
   await sections.getByLabel("Scroll reveal").selectOption("subtle");
   await sections.getByLabel("Spacing").selectOption("compact");
-  await expect(preview.locator('[data-reveal="subtle"][data-spacing="compact"]')).toHaveCount(1);
+  await expect(preview.locator('[data-section-reveal="subtle"][data-spacing="compact"]')).toHaveCount(1);
   await saved(page);
 
   // Previewed at tablet width, and in the other global theme.

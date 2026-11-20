@@ -48,6 +48,8 @@ export function siteTools(site: NavSite): NavLink[] {
     { href: `${base}/theme`, label: "Colours & themes" },
     // Results & achievements and Our Success Story (P10-R1/R2).
     { href: `${base}/results`, label: "Results & success story" },
+    // Website display → Device experience (P14-W8).
+    { href: `${base}/devices`, label: "Device experience" },
     ...(site.kind === "corporate" ? [{ href: `${base}/section-themes`, label: "Section themes" }] : []),
     { href: `${base}/seo`, label: "Website SEO" },
   ];

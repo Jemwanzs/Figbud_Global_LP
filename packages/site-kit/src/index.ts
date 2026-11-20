@@ -14,7 +14,20 @@ export * from "./product-showcase";
 export * from "./brand-logo";
 export * from "./campaigns";
 export * from "./cta-actions";
-export type { DeviceKind, DevicePreviewConfig } from "./device-preview";
+export type {
+  DeviceExperience,
+  DeviceFallback,
+  DeviceFrames,
+  DeviceKind,
+  DevicePreviewConfig,
+  DesktopFrame,
+  ImageAlign,
+  ImageFit,
+  PhoneFrame,
+  TabletFrame,
+} from "./device-experience";
+export { DEFAULT_DEVICE_EXPERIENCE, framesOf, resolveDevicePreview } from "./device-experience";
+export { DevicePreview } from "./device-preview";
 export type { FaqScene, FaqShowcaseConfig, FaqShowcaseWords } from "./faq-showcase";
 export * from "./consent";
 export * from "./footer-layout";

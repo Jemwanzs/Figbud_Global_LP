@@ -507,8 +507,11 @@ async fn read(
             .bind(page.site_id)
             .fetch_one(&state.pool)
             .await?;
-    // The website's section band colours, so previews look like the website.
-    let theme = crate::site_settings::WebsiteSettings::from_stored(site.2).theme;
+    // The website's section band colours and published device settings
+    // (P14-W8), so previews look like the website.
+    let stored = crate::site_settings::WebsiteSettings::from_stored(site.2);
+    let theme = stored.theme;
+    let devices = stored.devices.filter(|d| d.enabled);
     let revisions: Vec<Revision> = sqlx::query_as(
         "SELECT r.id, r.number, r.note, r.state, rq.name AS requested_by, r.requested_by AS requested_by_id,
                 dc.name AS decided_by, r.decision_note, r.created_at, r.decided_at, r.publish_at
@@ -537,7 +540,7 @@ async fn read(
     Ok(Json(json!({
         "page": page,
         "redirects": redirects.into_iter().map(|(from, at)| json!({ "from_path": format!("/{from}"), "created_at": at })).collect::<Vec<_>>(),
-        "site": { "slug": site.0, "name": site.1, "theme": theme },
+        "site": { "slug": site.0, "name": site.1, "theme": theme, "devices": devices },
         "draft_differs": draft_differs,
         "preview": preview,
         "budget": budget,

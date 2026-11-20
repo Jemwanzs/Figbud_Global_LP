@@ -446,6 +446,27 @@ pub struct DevicePreview {
     /// 300–450 ms.
     #[serde(default = "device_duration")]
     pub duration_ms: u16,
+    /// Use the website's device settings (P14-W8) when it has published some;
+    /// off: this section's own. The screenshots are always the section's.
+    #[serde(default = "yes")]
+    pub inherit: bool,
+    /// Visitors may switch devices (unset: yes, as before).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub visitor_switching: Option<bool>,
+    /// Frames from the library, per device (unset: from `frame` and `tablet_orientation`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub frames: Option<crate::devices::Frames>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fit: Option<crate::devices::ImageFit>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub align: Option<crate::devices::ImageAlign>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fallback: Option<crate::devices::Fallback>,
+    /// Frame size limits in pixels (240–1400), on wide screens.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_width: Option<u16>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_height: Option<u16>,
 }
 
 fn device_duration() -> u16 {
@@ -683,6 +704,13 @@ impl Checker {
         }
         if !(300..=450).contains(&d.duration_ms) {
             self.push("sections", "Device changes take 0.3–0.45 seconds.");
+        }
+        if [d.max_width, d.max_height]
+            .into_iter()
+            .flatten()
+            .any(|px| !(240..=1400).contains(&px))
+        {
+            self.push("sections", "Frame sizes are between 240 and 1,400 pixels.");
         }
         self.optional(
             "sections",

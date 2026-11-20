@@ -2113,7 +2113,7 @@ test.describe("an FAQ with its product visual (P14-W5)", () => {
   });
 });
 
-test("a device showcase section shows its own devices, starting where the Studio chose (P14-W6)", async ({
+test("a device showcase follows the website's device settings: the phone alone, no buttons, never the visitor's device (P14-W8)", async ({
   page,
 }) => {
   await page.goto("/zirahr/workspace");
@@ -2121,15 +2121,21 @@ test("a device showcase section shows its own devices, starting where the Studio
   await section.scrollIntoViewIfNeeded();
   await expect(section.getByRole("heading", { name: "On every screen your team uses" })).toBeVisible();
   const preview = section.locator("[data-device-preview]");
-  // Desktop chosen first, whatever the visitor's device; only the devices it has screenshots for.
-  await expect(preview).toHaveAttribute("data-device", "desktop");
-  await expect(section.getByRole("button", { name: "Tablet", exact: true })).toHaveCount(0);
-  await expect(async () => {
-    await section.getByRole("button", { name: "Phone browser", exact: true }).click();
-    await expect(preview).toHaveAttribute("data-device", "phone", { timeout: 1_000 });
-  }).toPass();
-  await expect(preview.locator("[data-device-frame=phone] img")).toBeVisible();
+  // ZiraHR publishes the approved settings; the section inherits them (its own say Desktop first, with switching).
+  await expect(preview).toHaveAttribute("data-device", "phone");
+  await expect(preview).toHaveAttribute("data-switching", "off");
+  await expect(section.getByRole("button")).toHaveCount(0);
+  await expect(section.locator("[data-device-frame]")).toHaveCount(1);
+  const phone = preview.locator("[data-device-frame=phone][data-frame-style=portrait]");
+  await expect(phone.locator("img")).toBeVisible();
+  // Nothing follows the visitor's device after arrival.
+  await page.waitForTimeout(300);
+  await expect(preview).toHaveAttribute("data-device", "phone");
+  // Scaled to its space: never wider than the page, never distorted (the screen keeps the phone's shape).
   expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(0);
+  const box = (await phone.boundingBox())!;
+  expect(box.width).toBeLessThanOrEqual(page.viewportSize()!.width);
+  expect(box.height / box.width).toBeGreaterThan(1.6);
 });
 
 test("on phones the header steps aside while reading down and returns on scrolling up (UI-MO9)", async ({
@@ -2163,7 +2169,7 @@ test("a section's look reaches the website: dark in either theme, revealed and s
   await page.goto("/zirahr/workspace");
   const section = page.locator("section[data-section=device_showcase]");
   await expect(section).toHaveAttribute("data-theme", "dark");
-  await expect(section).toHaveAttribute("data-reveal", "subtle");
+  await expect(section).toHaveAttribute("data-section-reveal", "subtle");
   await expect(section).toHaveAttribute("data-spacing", "compact");
   // Readable in either global theme: the band keeps its dark colours.
   for (const theme of ["light", "dark"] as const) {

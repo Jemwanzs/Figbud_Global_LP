@@ -662,6 +662,21 @@ sites.find((s) => s.slug === "expense_now").settings.theme = {
     },
   },
 };
+// ZiraHR's published device experience (P14-W8): the approved settings,
+// Phone shown, no switching, no fades. Sections inherit them unless they
+// override (the platform hero's preview does, to keep visitor switching).
+sites.find((s) => s.slug === "zirahr").settings.devices = {
+  enabled: true,
+  devices: ["desktop", "tablet", "phone"],
+  default_device: "phone",
+  visitor_switching: false,
+  transitions: false,
+  synchronized_previews: false,
+  frames: { desktop: "browser", tablet: "landscape", phone: "portrait" },
+  fit: "cover",
+  align: "top",
+  fallback: "next_device",
+};
 // A product website's own hover preview (UI-NAV2), for the renderer's tests.
 sites[4].settings.nav_previews = {
   enabled: true,
@@ -690,20 +705,24 @@ const publicSites = () =>
           ([k]) => !["requests", "archived_at", "version", "settings_version"].includes(k),
         ),
       ),
-      // Drafts never reach the websites.
+      // Drafts never reach the websites; device settings only once on (site_settings.rs public).
       settings: Object.fromEntries(
-        Object.entries(s.settings).filter(
-          ([k]) =>
-            ![
-              "nav_previews_draft",
-              "footer_draft",
-              "section_themes_draft",
-              "theme_draft",
-              "theme_history",
-              "languages_draft",
-              "enquiry_form_draft",
-            ].includes(k),
-        ),
+        Object.entries(s.settings)
+          .filter(
+            ([k]) =>
+              ![
+                "nav_previews_draft",
+                "footer_draft",
+                "section_themes_draft",
+                "theme_draft",
+                "theme_history",
+                "languages_draft",
+                "enquiry_form_draft",
+                "devices_draft",
+                "devices_history",
+              ].includes(k),
+          )
+          .map(([k, v]) => [k, k === "devices" && !v?.enabled ? null : v]),
       ),
       cta: SITE_CTA[s.status],
       brand: publishedBrand(s.slug),
@@ -1779,7 +1798,12 @@ const pageDetail = (p) => ({
     offline: Boolean(p.offline),
     show_in_nav: p.show_in_nav !== false,
   },
-  site: { slug: p.site.slug, name: p.site.name, theme: p.site.settings.theme },
+  site: {
+    slug: p.site.slug,
+    name: p.site.name,
+    theme: p.site.settings.theme,
+    devices: p.site.settings.devices?.enabled ? p.site.settings.devices : null,
+  },
   draft_differs: JSON.stringify(p.draft) !== JSON.stringify(p.published),
   preview: renderDoc(p.draft),
   budget: pageBudget(p.draft),
@@ -2368,6 +2392,8 @@ seedPublishedPage("zirahr", "platform", "Platform", {
           address: "ZiraHR",
           transitions: true,
           duration_ms: 380,
+          // Its own settings, not the website's (P14-W8): visitors switch here.
+          inherit: false,
         },
       },
     },
@@ -5546,7 +5572,26 @@ function siteSettingsRoutes(slug, req, body, user, send) {
       { published_at: new Date().toISOString(), by: user.name, story: clone(next.success_story) },
       ...next.story_history,
     ].slice(0, 10);
+  // Device experience (devices.rs): published versions are remembered (last 10).
+  next.devices_history = clone(site.settings.devices_history ?? []);
+  if (JSON.stringify(next.devices ?? null) !== JSON.stringify(site.settings.devices ?? null) && next.devices)
+    next.devices_history = [
+      { published_at: new Date().toISOString(), by: user.name, devices: clone(next.devices) },
+      ...next.devices_history,
+    ].slice(0, 10);
   const fields = [];
+  for (const field of ["devices", "devices_draft"]) {
+    const d = next[field];
+    if (!d) continue;
+    if (!d.devices?.length || new Set(d.devices).size !== d.devices.length)
+      fields.push({ field, code: "devices", message: "Choose each device once, at least one." });
+    else if (!d.devices.includes(d.default_device))
+      fields.push({
+        field,
+        code: "default",
+        message: "The device shown must be one of the enabled devices.",
+      });
+  }
   // Brand & Theme Studio (site_theme.rs): colours in drafts and published
   // themes; publishing also needs readable core colours.
   const hex = (v) => typeof v === "string" && /^#[0-9a-f]{6}$/.test(v);

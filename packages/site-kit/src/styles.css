@@ -1556,16 +1556,16 @@ body:has(main [data-section="call_to_action"]:last-child) footer {
    contents simply show). Spacing presets change the space a band takes. */
 @supports (animation-timeline: view()) {
   @media (prefers-reduced-motion: no-preference) {
-    [data-reveal] > * {
+    [data-section-reveal] > * {
       animation: fb-section-reveal linear both;
       animation-timeline: view();
       animation-range: entry 0% entry 70%;
     }
-    [data-reveal="subtle"] {
+    [data-section-reveal="subtle"] {
       --reveal-shift: 14px;
       --reveal-from: 0.55;
     }
-    [data-reveal="standard"] {
+    [data-section-reveal="standard"] {
       --reveal-shift: 28px;
       --reveal-from: 0.2;
     }

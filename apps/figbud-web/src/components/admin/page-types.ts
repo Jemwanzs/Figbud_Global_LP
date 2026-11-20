@@ -1,4 +1,4 @@
-import type { PageDocument, PageSection, SectionTone, SiteTheme } from "@figbud/site-kit";
+import type { DeviceExperience, PageDocument, PageSection, SectionTone, SiteTheme } from "@figbud/site-kit";
 
 /** Admin view of pages (services/api/src/pages). */
 
@@ -90,8 +90,8 @@ export interface PageDetail {
     offline: boolean;
     show_in_nav: boolean;
   };
-  /** `theme`: the website's section band colours, for previews. */
-  site: { slug: string; name: string; theme?: SiteTheme };
+  /** `theme` and `devices`: the website's section band colours and published device settings, for previews. */
+  site: { slug: string; name: string; theme?: SiteTheme; devices?: DeviceExperience | null };
   draft_differs: boolean;
   /** The saved draft as websites would receive it (Markdown rendered). */
   preview: PageDocument | null;
@@ -235,10 +235,12 @@ export function newSection(type: BlockType, ref = ""): PageSection {
         devices: {
           devices: ["desktop"],
           desktop_image_id: ref,
-          default_device: "visitor",
-          frame: "realistic",
-          tablet_orientation: "landscape",
-          transitions: true,
+          // The approved settings (P14-W8): inherit the website's, else the device chosen, no switching or fades.
+          default_device: "desktop",
+          inherit: true,
+          visitor_switching: false,
+          frames: { desktop: "browser", tablet: "landscape", phone: "portrait" },
+          transitions: false,
           duration_ms: 380,
         },
       };

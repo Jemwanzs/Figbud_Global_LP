@@ -553,6 +553,15 @@ Page builder → a demonstration section → **Guide it with scrolling** (on by 
 - **Shown first:** the visitor's own device (by screen width) or a chosen one. **Frames:** realistic or minimal. **Tablet:** landscape or portrait. **Browser address** in the bar. **Fade** between devices (0.3–0.45 s).
 - Also as its own section: Page builder → Add section → **Device showcase** (heading, description, the same device settings), anywhere on a page.
 - Live pages inside the frames aren't offered: the websites refuse to be framed, to protect visitors from clickjacking.
+## Device experience (P14-W8, 20 Nov 2026)
+
+- Websites → a website → **Device experience** (Website display). One set of device settings for the whole website, saved as a draft, published, kept for rollback (**Published versions**, the last 10) and audited. Only that website changes.
+- **General settings:** on/off, devices, **Device shown**, **Visitors may switch devices**, **Fade between devices** and **Synchronised previews** (both need switching), **Screenshot fit**, **Screenshot alignment**, and what to show when the device shown has no screenshot.
+- **Frame library:** Desktop (browser window, laptop, monitor), Tablet (landscape, portrait, minimal), Phone (portrait, landscape, minimal).
+- **Media library:** the website's images with size and alt text, each checked for each device (shape and width); pick one per device to preview. Upload and alt text stay on the Media page.
+- Starts from the approved settings: all three devices, Phone shown, no switching, no fades, previews not synchronised. Nothing changes on the website until you publish.
+- Each section's **Device preview**: **Inherit website settings** (default) or **Override for this section**. Screenshots, browser address and largest width/height are always the section's own. Until the website publishes device settings, sections use their own.
+- With switching off, visitors see only the device shown: no buttons, and never their own device instead.
 ## Alternating sections and section looks (P14-W7, 20 Nov 2026)
 
 - Page builder → Sections → **Apply alternating light and dark** proposes Light and Dark in turn for the sections left on Auto, from the hero down; the hero, calls to action and shared content keep their own looks, and sections with a style of their own keep it. Confirm, review each section, then save and publish as usual.

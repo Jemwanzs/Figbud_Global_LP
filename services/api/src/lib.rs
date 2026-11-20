@@ -14,6 +14,7 @@ pub mod brand;
 pub mod campaigns;
 pub mod cms;
 pub mod config;
+pub mod devices;
 pub mod email;
 pub mod enquiry;
 pub mod enquiry_form;

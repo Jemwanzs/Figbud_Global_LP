@@ -59,7 +59,7 @@ import {
   alternatingPattern,
   newSection,
 } from "./page-types";
-import { DevicePreviewFields } from "./device-preview-fields";
+import { DevicePreviewFields, WebsiteDevicesContext } from "./device-preview-fields";
 import type { DevicePreviewConfig } from "@figbud/site-kit";
 import { FaqItemVisualFields, FaqShowcaseFields, newQuestionId, withIds } from "./faq-visual-fields";
 import { ShowcaseFields, newShowcase } from "./showcase-fields";
@@ -366,8 +366,8 @@ function SectionLookFields({
   const sideBySide = section.type === "demo" && section.layout === "split";
   return (
     <div className="mt-4 grid gap-3 sm:grid-cols-2" data-section-look="">
-      <label htmlFor={`${uid}-reveal`} className="block text-sm font-medium text-text">
-        Scroll reveal
+      <div className="block text-sm font-medium text-text">
+        <label htmlFor={`${uid}-reveal`}>Scroll reveal</label>
         <select
           id={`${uid}-reveal`}
           value={section.reveal ?? ""}
@@ -381,9 +381,9 @@ function SectionLookFields({
             </option>
           ))}
         </select>
-      </label>
-      <label htmlFor={`${uid}-spacing`} className="block text-sm font-medium text-text">
-        Spacing
+      </div>
+      <div className="block text-sm font-medium text-text">
+        <label htmlFor={`${uid}-spacing`}>Spacing</label>
         <select
           id={`${uid}-spacing`}
           value={section.spacing ?? "standard"}
@@ -401,7 +401,7 @@ function SectionLookFields({
             </option>
           ))}
         </select>
-      </label>
+      </div>
       {sideBySide && (
         <label className="flex min-h-11 items-center gap-3 text-sm text-text sm:col-span-2">
           <input
@@ -1838,894 +1838,914 @@ export function PageEditor({ slug, user, initial }: { slug: string; user: AdminU
   };
 
   return (
-    <div className="space-y-6">
-      <div className="sticky top-0 z-10 -mx-5 flex flex-wrap items-center gap-3 border-b border-line bg-bg/90 px-5 py-3 backdrop-blur sm:-mx-8 sm:px-8">
-        <p role="status" aria-live="polite" className="flex items-center gap-2 text-sm text-muted">
-          {save === "saving" ? (
-            <LoaderCircle aria-hidden className="size-4 animate-spin" />
-          ) : save === "saved" ? (
-            <CircleCheck aria-hidden className="size-4 text-success" />
-          ) : (
-            <CircleAlert
-              aria-hidden
-              className={cn("size-4", save === "unsaved" ? "text-muted" : "text-danger")}
-            />
-          )}
-          {saveText[save]} · not public until published
-        </p>
-        {save === "conflict" && (
-          <button
-            type="button"
-            onClick={() => reload(true)}
-            className="text-sm font-medium text-accent hover:underline"
-          >
-            Reload their changes
-          </button>
-        )}
-        <div className="ms-auto flex flex-wrap gap-1">
-          {canEdit && (
-            <>
-              <button
-                type="button"
-                onClick={undo}
-                disabled={!past.length}
-                className={buttonClasses("ghost", "md", "px-3")}
-              >
-                <Undo2 aria-hidden className="size-4" />
-                Undo
-              </button>
-              <button
-                type="button"
-                onClick={redo}
-                disabled={!future.length}
-                className={buttonClasses("ghost", "md", "px-3")}
-              >
-                <Redo2 aria-hidden className="size-4" />
-                Redo
-              </button>
-            </>
-          )}
-          <Link
-            href={`/admin/sites/${slug}/pages/${pageId}/preview`}
-            target="_blank"
-            className={buttonClasses("secondary", "md", "px-4")}
-          >
-            <ExternalLink aria-hidden className="size-4" />
-            Full preview<span className="sr-only"> (opens in a new tab, shows the saved draft)</span>
-          </Link>
-          <Link
-            href={`/admin/sites/${slug}/pages/${pageId}/translations`}
-            className={buttonClasses("secondary", "md", "px-4")}
-          >
-            <Languages aria-hidden className="size-4" />
-            Translations
-          </Link>
-        </div>
-      </div>
-
-      {saveError && (
-        <p
-          role="alert"
-          className="rounded-xl border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-text"
-        >
-          {saveError}
-        </p>
-      )}
-      {data.page.archived_at && (
-        <p className="rounded-xl border border-line bg-surface-2 px-4 py-3 text-sm text-muted">
-          This page is archived and not on the website. Restore it from the page list to edit it.
-        </p>
-      )}
-
-      <div className="grid grid-cols-[minmax(0,1fr)] gap-8 xl:grid-cols-[minmax(0,30rem)_minmax(0,1fr)]">
-        <div className="space-y-6">
-          <section aria-labelledby={`${uid}-settings`} className="fb-panel rounded-[var(--radius-panel)] p-5">
-            <h2 id={`${uid}-settings`} className="font-semibold text-text">
-              Page
-            </h2>
-            <div className="mt-4 grid gap-3">
-              <TextField
-                label="Page title"
-                value={draft.title}
-                max={120}
-                disabled={!canEdit}
-                onChange={(v) => change({ ...draft, title: v })}
-              />
-              <TextField
-                label="Address"
-                value={draft.path}
-                max={180}
-                mono
-                disabled={!canEdit}
-                hint={
-                  !pathValid
-                    ? "Lower-case words joined by hyphens; up to three levels."
-                    : initial.page.published && draft.path !== initial.page.path
-                      ? `/${draft.path} · the old address /${initial.page.path} will forward here`
-                      : `/${draft.path} · empty for the home page`
-                }
-                onChange={(v) => change({ ...draft, path: v })}
-              />
-              <TextField
-                label="Search title (optional)"
-                value={draft.document.seo_title}
-                max={70}
-                disabled={!canEdit}
-                hint={`${(draft.document.seo_title ?? "").length}/70`}
-                onChange={(v) => change({ ...draft, document: { ...draft.document, seo_title: v } })}
-              />
-              <TextField
-                label="Search description (optional)"
-                value={draft.document.seo_description}
-                max={170}
-                multiline
-                disabled={!canEdit}
-                hint={`${(draft.document.seo_description ?? "").length}/170`}
-                onChange={(v) => change({ ...draft, document: { ...draft.document, seo_description: v } })}
-              />
-            </div>
-            <SearchSettings
-              siteName={initial.site.name}
-              title={draft.document.seo_title || draft.title}
-              path={draft.path}
-              description={draft.document.seo_description ?? ""}
-              imageId={draft.document.seo_image_id ?? null}
-              noindex={!!draft.document.seo_noindex}
-              library={library}
-              redirects={redirects}
-              disabled={!canEdit}
-              onImage={(id) =>
-                change({ ...draft, document: { ...draft.document, seo_image_id: id ?? undefined } })
-              }
-              onNoindex={(on) =>
-                change({ ...draft, document: { ...draft.document, seo_noindex: on || undefined } })
-              }
-              onRemoveRedirect={async (from) => {
-                await adminFetch(`pages/${pageId}/redirects/remove`, { from_path: from });
-                setRedirects((list) => list.filter((r) => r.from_path !== from));
-              }}
-            />
-          </section>
-
-          <section aria-labelledby={`${uid}-sections`} className="fb-panel rounded-[var(--radius-panel)] p-5">
-            <h2 id={`${uid}-sections`} className="font-semibold text-text">
-              Sections
-            </h2>
-            <p className="mt-1 text-sm text-muted">Drag to reorder, or use the arrows.</p>
-            {canEdit && sections.length > 1 && (
-              <button
-                type="button"
-                data-alternate-pattern=""
-                onClick={async () => {
-                  const proposal = alternatingPattern(sections);
-                  if (!proposal.changed) {
-                    setNotice("Every section already has a style of its own; nothing was changed.");
-                    return;
-                  }
-                  if (
-                    await confirm({
-                      title: "Alternate light and dark sections?",
-                      body: `${proposal.changed} section${proposal.changed === 1 ? "" : "s"} set to Auto will alternate light and dark from the hero, and side-by-side demonstrations will swap sides in turn. Sections with a style of their own keep it. Review each one before publishing; nothing reaches the website until you publish.`,
-                      confirmLabel: "Apply the pattern",
-                    })
-                  ) {
-                    setSections(proposal.sections);
-                    setNotice(
-                      `Alternating pattern applied to ${proposal.changed} section${proposal.changed === 1 ? "" : "s"}. Review, then save and publish.`,
-                    );
-                  }
-                }}
-                className="mt-3 inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-full border border-line px-3.5 text-sm text-text hover:border-line-strong"
-              >
-                Apply alternating light and dark
-              </button>
-            )}
-            {notice && (
-              <p role="status" className="mt-2 text-sm text-success">
-                {notice}
-              </p>
-            )}
-            <ol className="mt-4 space-y-2" aria-label="Sections">
-              {sections.map((section, i) => {
-                const expanded = open === section.id;
-                return (
-                  <li
-                    key={section.id}
-                    draggable={canEdit && !expanded}
-                    onDragStart={() => setDragging(i)}
-                    onDragOver={(e) => e.preventDefault()}
-                    onDrop={() => {
-                      if (dragging !== null) moveSection(dragging, i);
-                      setDragging(null);
-                    }}
-                    onDragEnd={() => setDragging(null)}
-                    className={cn(
-                      "rounded-2xl border border-line bg-surface",
-                      dragging === i && "border-accent opacity-70",
-                    )}
-                  >
-                    <div className="flex items-center gap-2 p-2">
-                      {canEdit && (
-                        <GripVertical aria-hidden className="size-5 shrink-0 cursor-grab text-subtle" />
-                      )}
-                      <button
-                        type="button"
-                        aria-expanded={expanded}
-                        onClick={() => setOpen(expanded ? null : section.id)}
-                        className="flex min-h-11 min-w-0 flex-1 items-center gap-2 rounded-lg px-1 text-start"
-                      >
-                        <span className="shrink-0 rounded-full border border-line px-2 py-0.5 text-xs text-muted">
-                          {blockLabel(section.type)}
-                        </span>
-                        {section.hidden && (
-                          <span className="shrink-0 rounded-full bg-surface-2 px-2 py-0.5 text-xs text-muted">
-                            Hidden
-                          </span>
-                        )}
-                        <span
-                          className={cn("truncate text-sm", section.hidden ? "text-subtle" : "text-text")}
-                        >
-                          {summary(section)}
-                        </span>
-                        <ChevronDown
-                          aria-hidden
-                          className={cn(
-                            "ms-auto size-4 shrink-0 text-subtle transition-transform",
-                            expanded && "rotate-180",
-                          )}
-                        />
-                      </button>
-                      {canEdit && (
-                        <span className="flex shrink-0">
-                          {/* Hidden sections stay in the page and its versions but aren't shown on the website. */}
-                          <button
-                            type="button"
-                            aria-pressed={!!section.hidden}
-                            title={section.hidden ? "Hidden on the website" : "Shown on the website"}
-                            onClick={() =>
-                              setSections(
-                                sections.map((s) =>
-                                  s.id === section.id ? { ...s, hidden: !s.hidden || undefined } : s,
-                                ),
-                              )
-                            }
-                            className={buttonClasses("ghost", "md", "px-2")}
-                          >
-                            {section.hidden ? (
-                              <EyeOff aria-hidden className="size-4" />
-                            ) : (
-                              <Eye aria-hidden className="size-4" />
-                            )}
-                            <span className="sr-only">Hide {blockLabel(section.type)} section</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => moveSection(i, i - 1)}
-                            disabled={i === 0}
-                            className={buttonClasses("ghost", "md", "px-2")}
-                          >
-                            <ArrowUp aria-hidden className="size-4" />
-                            <span className="sr-only">Move {blockLabel(section.type)} section up</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => moveSection(i, i + 1)}
-                            disabled={i === sections.length - 1}
-                            className={buttonClasses("ghost", "md", "px-2")}
-                          >
-                            <ArrowDown aria-hidden className="size-4" />
-                            <span className="sr-only">Move {blockLabel(section.type)} section down</span>
-                          </button>
-                          <button
-                            type="button"
-                            disabled={sections.length >= 40}
-                            onClick={() =>
-                              setSections([
-                                ...sections.slice(0, i + 1),
-                                copySection(section),
-                                ...sections.slice(i + 1),
-                              ])
-                            }
-                            className={buttonClasses("ghost", "md", "px-2")}
-                          >
-                            <Copy aria-hidden className="size-4" />
-                            <span className="sr-only">Duplicate {blockLabel(section.type)} section</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setSections(sections.filter((s) => s.id !== section.id))}
-                            className={buttonClasses("ghost", "md", "px-2 hover:text-danger")}
-                          >
-                            <Trash2 aria-hidden className="size-4" />
-                            <span className="sr-only">Remove {blockLabel(section.type)} section</span>
-                          </button>
-                        </span>
-                      )}
-                    </div>
-                    {expanded && (
-                      <div className="border-t border-line p-4">
-                        <BlockForm
-                          section={section}
-                          library={library}
-                          sharedLibrary={sharedLibrary}
-                          slug={slug}
-                          disabled={!canEdit}
-                          onChange={(next) =>
-                            setSections(sections.map((s) => (s.id === section.id ? next : s)))
-                          }
-                        />
-                        <ToneField
-                          tone={section.tone}
-                          label={blockLabel(section.type)}
-                          slug={slug}
-                          theme={initial.site.theme}
-                          disabled={!canEdit}
-                          onChange={(tone) =>
-                            setSections(sections.map((s) => (s.id === section.id ? { ...s, tone } : s)))
-                          }
-                        />
-                        <SectionLookFields
-                          section={section}
-                          disabled={!canEdit}
-                          onChange={(patch) =>
-                            setSections(
-                              sections.map((s) =>
-                                s.id === section.id ? ({ ...s, ...patch } as PageSection) : s,
-                              ),
-                            )
-                          }
-                        />
-                      </div>
-                    )}
-                  </li>
-                );
-              })}
-            </ol>
-            {canEdit && (
-              <div className="mt-4 flex flex-wrap items-end gap-2">
-                <div className="min-w-0 flex-1">
-                  <label htmlFor={`${uid}-block`} className="block text-xs font-medium text-muted">
-                    Add a section
-                  </label>
-                  <select
-                    id={`${uid}-block`}
-                    value={adding}
-                    onChange={(e) => setAdding(e.target.value as BlockType)}
-                    className={cn(inputClass, "px-3")}
-                  >
-                    {BLOCKS.map((b) => (
-                      <option key={b.type} value={b.type}>
-                        {b.label} · {b.hint}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <button
-                  type="button"
-                  disabled={
-                    sections.length >= 40 ||
-                    ((adding === "image" || adding === "device_showcase") && !library?.length) ||
-                    (adding === "shared" && !sharedLibrary?.length)
-                  }
-                  onClick={() => {
-                    const section = newSection(
-                      adding,
-                      adding === "shared" ? sharedLibrary?.[0]?.id : library?.[0]?.id,
-                    );
-                    setSections([...sections, section]);
-                    setOpen(section.id);
-                  }}
-                  className={buttonClasses("secondary", "md")}
-                >
-                  <Plus aria-hidden className="size-4" />
-                  Add
-                </button>
-                {adding === "shared" && sharedLibrary?.length === 0 && (
-                  <p className="w-full text-sm text-subtle">
-                    The content library is empty.{" "}
-                    <Link href="/admin/content" className="text-accent underline underline-offset-2">
-                      Create shared content
-                    </Link>{" "}
-                    first.
-                  </p>
-                )}
-                {adding === "image" && library?.length === 0 && (
-                  <p className="w-full text-sm text-subtle">
-                    No images yet.{" "}
-                    <Link
-                      href={`/admin/sites/${slug}/media`}
-                      className="text-accent underline underline-offset-2"
-                    >
-                      Upload one in Media
-                    </Link>{" "}
-                    first.
-                  </p>
-                )}
-              </div>
-            )}
-          </section>
-        </div>
-
-        <div className="space-y-6">
-          <section aria-labelledby={`${uid}-preview`} className="fb-panel rounded-[var(--radius-panel)] p-5">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <h2 id={`${uid}-preview`} className="font-semibold text-text">
-                Live preview
-              </h2>
-              <div
-                role="group"
-                aria-label="Preview width"
-                className="flex gap-1 rounded-full border border-line p-1"
-              >
-                {(
-                  [
-                    ["desktop", "Desktop", Monitor],
-                    ["tablet", "Tablet", Tablet],
-                    ["mobile", "Phone", Smartphone],
-                  ] as const
-                ).map(([value, label, Icon]) => (
-                  <button
-                    key={value}
-                    type="button"
-                    aria-pressed={device === value}
-                    onClick={() => setDevice(value)}
-                    className={cn(
-                      "inline-flex min-h-9 items-center gap-1.5 rounded-full px-3 text-sm",
-                      device === value ? "bg-surface-2 text-text" : "text-muted hover:text-text",
-                    )}
-                  >
-                    <Icon aria-hidden className="size-3.5" />
-                    {label}
-                  </button>
-                ))}
-              </div>
-              {/* The other global theme, as a visitor using it would see the page (sections keep their own looks). */}
-              <button
-                type="button"
-                aria-pressed={otherTheme}
-                onClick={() => setOtherTheme((v) => !v)}
-                className={cn(
-                  "inline-flex min-h-9 items-center rounded-full border border-line px-3 text-sm",
-                  otherTheme ? "bg-surface-2 text-text" : "text-muted hover:text-text",
-                )}
-              >
-                Other theme
-              </button>
-            </div>
-            {/* The website's colours, not the Studio's. */}
-            <div data-site-preview="">
-              {/* Its published Brand & Theme Studio colours, as on the website. */}
-              <style>{siteThemeCss(slug, initial.site.theme)}</style>
-              <div
-                data-product={KNOWN.includes(slug) ? slug : "figbud"}
-                // The website's own surfaces, as on the live site (ZiraHR's warm palette).
-                data-site={slug}
-                data-tone={otherTheme ? "inverse" : undefined}
-                data-preview-device={device}
-                tabIndex={0}
-                role="group"
-                aria-label="Page preview (scrollable)"
-                className={cn(
-                  "mt-4 max-h-[44rem] overflow-y-auto rounded-2xl border border-line bg-bg p-6 sm:p-8",
-                  device === "mobile" && "mx-auto max-w-[24rem] p-5",
-                  device === "tablet" && "mx-auto max-w-[48rem]",
-                )}
-              >
-                {sections.length === 0 ? (
-                  <p className="py-16 text-center text-muted">Add a section to start building this page.</p>
-                ) : (
-                  <PageBlocks
-                    document={previewDoc}
-                    mode="preview"
-                    mediaBase={STUDIO_MEDIA_BASE}
-                    firstHeading={2}
-                    className={device === "mobile" ? "space-y-12" : undefined}
-                  />
-                )}
-              </div>
-            </div>
-          </section>
-
-          <PerformancePanel budget={budget} headingId={`${uid}-performance`} />
-
-          <section aria-labelledby={`${uid}-publish`} className="fb-panel rounded-[var(--radius-panel)] p-5">
-            <h2 id={`${uid}-publish`} className="font-semibold text-text">
-              Publishing
-            </h2>
-            {pending ? (
-              <div className="mt-4 rounded-xl border border-warning/40 bg-warning/10 p-4">
-                <p className="text-sm font-medium text-text">Version {pending.number} is awaiting approval</p>
-                <p className="mt-1 text-sm text-muted">{pending.note}</p>
-                <p className="mt-1 text-xs text-subtle">
-                  Submitted by {pending.requested_by ?? "a former admin"} ·{" "}
-                  <LocalTime iso={pending.created_at} />
-                </p>
-                {pending.publish_at && (
-                  <p className="mt-2 flex items-start gap-2 text-sm text-text">
-                    <CalendarClock aria-hidden className="mt-0.5 size-4 shrink-0 text-accent" />
-                    <span>
-                      {pendingLater ? (
-                        <>
-                          Goes live <LocalTime iso={pendingLater} /> once approved.
-                        </>
-                      ) : (
-                        <>
-                          The requested time (<LocalTime iso={pending.publish_at} />) has passed: approving
-                          publishes it now.
-                        </>
-                      )}
-                    </span>
-                  </p>
-                )}
-                {canDecide && (
-                  <TextField
-                    label="Note (optional)"
-                    value={decisionNote}
-                    max={300}
-                    onChange={setDecisionNote}
-                  />
-                )}
-                <div className="mt-4 flex flex-wrap gap-2">
-                  {canDecide && (
-                    <>
-                      <ActionButton
-                        ready={!busy}
-                        busy={busy === "approve"}
-                        onClick={() =>
-                          run(
-                            "approve",
-                            `pages/${pageId}/revisions/${pending.id}/approve`,
-                            { note: decisionNote || null },
-                            pendingLater ? "Approved and scheduled." : "Page published.",
-                          )
-                        }
-                      >
-                        {pendingLater
-                          ? ownPending
-                            ? "Schedule my change"
-                            : "Approve and schedule"
-                          : ownPending
-                            ? "Publish my change"
-                            : "Approve and publish"}
-                      </ActionButton>
-                      <ActionButton
-                        variant="secondary"
-                        ready={!busy}
-                        busy={busy === "reject"}
-                        onClick={() =>
-                          run(
-                            "reject",
-                            `pages/${pageId}/revisions/${pending.id}/reject`,
-                            { note: decisionNote || null },
-                            "Change rejected.",
-                          )
-                        }
-                      >
-                        Reject
-                      </ActionButton>
-                    </>
-                  )}
-                  {canCancel && (
-                    <ActionButton
-                      variant="ghost"
-                      ready={!busy}
-                      busy={busy === "cancel"}
-                      onClick={() =>
-                        run(
-                          "cancel",
-                          `pages/${pageId}/revisions/${pending.id}/cancel`,
-                          {},
-                          "Submission withdrawn.",
-                        )
-                      }
-                    >
-                      Withdraw
-                    </ActionButton>
-                  )}
-                </div>
-                {ownPending && user.role !== "owner" && (
-                  <p className="mt-3 text-xs text-subtle">
-                    A reviewer or an owner needs to approve your change.
-                  </p>
-                )}
-              </div>
-            ) : scheduled ? (
-              <div className="mt-4 rounded-xl border border-accent/40 bg-accent-soft/50 p-4">
-                <p className="flex items-start gap-2 text-sm font-medium text-text">
-                  <CalendarClock aria-hidden className="mt-0.5 size-4 shrink-0 text-accent" />
-                  <span>
-                    Version {scheduled.number} goes live <LocalTime iso={scheduled.publish_at!} />
-                  </span>
-                </p>
-                <p className="mt-1 text-sm text-muted">{scheduled.note}</p>
-                <p className="mt-1 text-xs text-subtle">
-                  Approved by {scheduled.decided_by ?? "a former admin"}
-                  {scheduled.decided_at && (
-                    <>
-                      {" · "}
-                      <LocalTime iso={scheduled.decided_at} />
-                    </>
-                  )}
-                  . The current version stays live until then; draft edits made now are not part of it.
-                </p>
-                {canUnschedule && (
-                  <div className="mt-4">
-                    <ActionButton
-                      variant="secondary"
-                      ready={!busy}
-                      busy={busy === "unschedule"}
-                      onClick={() =>
-                        run(
-                          "unschedule",
-                          `pages/${pageId}/revisions/${scheduled.id}/cancel`,
-                          {},
-                          "Schedule cancelled. Submit again when you're ready.",
-                        )
-                      }
-                    >
-                      Cancel schedule
-                    </ActionButton>
-                  </div>
-                )}
-              </div>
-            ) : canEdit ? (
-              <form
-                className="mt-4 space-y-4"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  if (submitBlocker === null && !busy)
-                    run(
-                      "submit",
-                      `pages/${pageId}/submit`,
-                      { note, publish_at: publishAtIso },
-                      publishAtIso
-                        ? "Sent for approval, to go live at the time you chose."
-                        : "Sent for approval.",
-                    );
-                }}
-              >
-                <TextField label="What changed?" value={note} max={300} multiline onChange={setNote} />
-                <fieldset>
-                  <legend className="text-xs font-medium text-muted">When should it go live?</legend>
-                  <div className="mt-1.5 grid gap-2 sm:grid-cols-2">
-                    {(
-                      [
-                        ["approval", "When approved"],
-                        ["scheduled", "At a set time"],
-                      ] as const
-                    ).map(([value, label]) => (
-                      <label
-                        key={value}
-                        className={cn(
-                          "flex min-h-11 cursor-pointer items-center gap-2.5 rounded-xl border px-3 text-sm transition-colors has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-accent",
-                          timing === value
-                            ? "border-accent bg-accent-soft/60 text-text"
-                            : "border-line text-muted hover:border-line-strong",
-                        )}
-                      >
-                        <input
-                          type="radio"
-                          name={`${uid}-timing`}
-                          value={value}
-                          checked={timing === value}
-                          onChange={() => {
-                            setTiming(value);
-                            if (value === "scheduled" && !publishAt) setPublishAt(zoned.fromNow(60));
-                          }}
-                          className="size-4 accent-[var(--color-accent)]"
-                        />
-                        {label}
-                      </label>
-                    ))}
-                  </div>
-                  {timing === "scheduled" && (
-                    <div className="mt-3">
-                      <label htmlFor={`${uid}-publish-at`} className="block text-xs font-medium text-muted">
-                        Go-live time <span className="font-normal">({zoned.name})</span>
-                      </label>
-                      <input
-                        id={`${uid}-publish-at`}
-                        type="datetime-local"
-                        value={publishAt}
-                        onChange={(e) => setPublishAt(e.target.value)}
-                        className={inputClass}
-                      />
-                      <p className="mt-1.5 text-xs text-subtle">
-                        It still needs approval. Once approved it waits, and the current version stays live
-                        until then.
-                      </p>
-                    </div>
-                  )}
-                </fieldset>
-                <div className="flex flex-wrap items-center gap-2">
-                  <ActionButton
-                    type="submit"
-                    ready={submitBlocker === null && !busy}
-                    busy={busy === "submit"}
-                    hint={submitBlocker ?? undefined}
-                  >
-                    Submit for publishing
-                  </ActionButton>
-                  {data.page.published_revision && (
-                    <ActionButton
-                      variant="ghost"
-                      ready={data.draft_differs && save === "saved" && !busy}
-                      busy={busy === "discard"}
-                      onClick={() =>
-                        run(
-                          "discard",
-                          `pages/${pageId}/revisions/${data.page.published_revision}/restore`,
-                          {},
-                          "Draft reset to the published page.",
-                          true,
-                        )
-                      }
-                    >
-                      Discard draft changes
-                    </ActionButton>
-                  )}
-                </div>
-              </form>
+    <WebsiteDevicesContext.Provider value={initial.site.devices ?? null}>
+      <div className="space-y-6">
+        <div className="sticky top-0 z-10 -mx-5 flex flex-wrap items-center gap-3 border-b border-line bg-bg/90 px-5 py-3 backdrop-blur sm:-mx-8 sm:px-8">
+          <p role="status" aria-live="polite" className="flex items-center gap-2 text-sm text-muted">
+            {save === "saving" ? (
+              <LoaderCircle aria-hidden className="size-4 animate-spin" />
+            ) : save === "saved" ? (
+              <CircleCheck aria-hidden className="size-4 text-success" />
             ) : (
-              <p className="mt-4 text-sm text-muted">Editors and above can change pages.</p>
+              <CircleAlert
+                aria-hidden
+                className={cn("size-4", save === "unsaved" ? "text-muted" : "text-danger")}
+              />
             )}
-            {message && (
-              <p
-                role={message.tone === "error" ? "alert" : "status"}
-                className={cn("mt-4 text-sm", message.tone === "error" ? "text-danger" : "text-success")}
-              >
-                {message.text}
-              </p>
-            )}
-            {hasRole(user, "reviewer") && !data.page.archived_at && (
-              <div className="mt-5 border-t border-line pt-4">
+            {saveText[save]} · not public until published
+          </p>
+          {save === "conflict" && (
+            <button
+              type="button"
+              onClick={() => reload(true)}
+              className="text-sm font-medium text-accent hover:underline"
+            >
+              Reload their changes
+            </button>
+          )}
+          <div className="ms-auto flex flex-wrap gap-1">
+            {canEdit && (
+              <>
                 <button
                   type="button"
-                  disabled={!!busy}
+                  onClick={undo}
+                  disabled={!past.length}
+                  className={buttonClasses("ghost", "md", "px-3")}
+                >
+                  <Undo2 aria-hidden className="size-4" />
+                  Undo
+                </button>
+                <button
+                  type="button"
+                  onClick={redo}
+                  disabled={!future.length}
+                  className={buttonClasses("ghost", "md", "px-3")}
+                >
+                  <Redo2 aria-hidden className="size-4" />
+                  Redo
+                </button>
+              </>
+            )}
+            <Link
+              href={`/admin/sites/${slug}/pages/${pageId}/preview`}
+              target="_blank"
+              className={buttonClasses("secondary", "md", "px-4")}
+            >
+              <ExternalLink aria-hidden className="size-4" />
+              Full preview<span className="sr-only"> (opens in a new tab, shows the saved draft)</span>
+            </Link>
+            <Link
+              href={`/admin/sites/${slug}/pages/${pageId}/translations`}
+              className={buttonClasses("secondary", "md", "px-4")}
+            >
+              <Languages aria-hidden className="size-4" />
+              Translations
+            </Link>
+          </div>
+        </div>
+
+        {saveError && (
+          <p
+            role="alert"
+            className="rounded-xl border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-text"
+          >
+            {saveError}
+          </p>
+        )}
+        {data.page.archived_at && (
+          <p className="rounded-xl border border-line bg-surface-2 px-4 py-3 text-sm text-muted">
+            This page is archived and not on the website. Restore it from the page list to edit it.
+          </p>
+        )}
+
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-8 xl:grid-cols-[minmax(0,30rem)_minmax(0,1fr)]">
+          <div className="space-y-6">
+            <section
+              aria-labelledby={`${uid}-settings`}
+              className="fb-panel rounded-[var(--radius-panel)] p-5"
+            >
+              <h2 id={`${uid}-settings`} className="font-semibold text-text">
+                Page
+              </h2>
+              <div className="mt-4 grid gap-3">
+                <TextField
+                  label="Page title"
+                  value={draft.title}
+                  max={120}
+                  disabled={!canEdit}
+                  onChange={(v) => change({ ...draft, title: v })}
+                />
+                <TextField
+                  label="Address"
+                  value={draft.path}
+                  max={180}
+                  mono
+                  disabled={!canEdit}
+                  hint={
+                    !pathValid
+                      ? "Lower-case words joined by hyphens; up to three levels."
+                      : initial.page.published && draft.path !== initial.page.path
+                        ? `/${draft.path} · the old address /${initial.page.path} will forward here`
+                        : `/${draft.path} · empty for the home page`
+                  }
+                  onChange={(v) => change({ ...draft, path: v })}
+                />
+                <TextField
+                  label="Search title (optional)"
+                  value={draft.document.seo_title}
+                  max={70}
+                  disabled={!canEdit}
+                  hint={`${(draft.document.seo_title ?? "").length}/70`}
+                  onChange={(v) => change({ ...draft, document: { ...draft.document, seo_title: v } })}
+                />
+                <TextField
+                  label="Search description (optional)"
+                  value={draft.document.seo_description}
+                  max={170}
+                  multiline
+                  disabled={!canEdit}
+                  hint={`${(draft.document.seo_description ?? "").length}/170`}
+                  onChange={(v) => change({ ...draft, document: { ...draft.document, seo_description: v } })}
+                />
+              </div>
+              <SearchSettings
+                siteName={initial.site.name}
+                title={draft.document.seo_title || draft.title}
+                path={draft.path}
+                description={draft.document.seo_description ?? ""}
+                imageId={draft.document.seo_image_id ?? null}
+                noindex={!!draft.document.seo_noindex}
+                library={library}
+                redirects={redirects}
+                disabled={!canEdit}
+                onImage={(id) =>
+                  change({ ...draft, document: { ...draft.document, seo_image_id: id ?? undefined } })
+                }
+                onNoindex={(on) =>
+                  change({ ...draft, document: { ...draft.document, seo_noindex: on || undefined } })
+                }
+                onRemoveRedirect={async (from) => {
+                  await adminFetch(`pages/${pageId}/redirects/remove`, { from_path: from });
+                  setRedirects((list) => list.filter((r) => r.from_path !== from));
+                }}
+              />
+            </section>
+
+            <section
+              aria-labelledby={`${uid}-sections`}
+              className="fb-panel rounded-[var(--radius-panel)] p-5"
+            >
+              <h2 id={`${uid}-sections`} className="font-semibold text-text">
+                Sections
+              </h2>
+              <p className="mt-1 text-sm text-muted">Drag to reorder, or use the arrows.</p>
+              {canEdit && sections.length > 1 && (
+                <button
+                  type="button"
+                  data-alternate-pattern=""
                   onClick={async () => {
+                    const proposal = alternatingPattern(sections);
+                    if (!proposal.changed) {
+                      setNotice("Every section already has a style of its own; nothing was changed.");
+                      return;
+                    }
                     if (
                       await confirm({
-                        title: `Archive "${draft.title}"?`,
-                        body: "It's taken off the website until restored. Its content and history are kept.",
-                        confirmLabel: "Archive page",
-                        tone: "danger",
+                        title: "Alternate light and dark sections?",
+                        body: `${proposal.changed} section${proposal.changed === 1 ? "" : "s"} set to Auto will alternate light and dark from the hero, and side-by-side demonstrations will swap sides in turn. Sections with a style of their own keep it. Review each one before publishing; nothing reaches the website until you publish.`,
+                        confirmLabel: "Apply the pattern",
                       })
                     ) {
-                      run("archive", `pages/${pageId}/archive`, {}, "Page archived.", false, () =>
-                        router.push(`/admin/sites/${slug}/pages`),
+                      setSections(proposal.sections);
+                      setNotice(
+                        `Alternating pattern applied to ${proposal.changed} section${proposal.changed === 1 ? "" : "s"}. Review, then save and publish.`,
                       );
                     }
                   }}
-                  className={buttonClasses("ghost", "md")}
+                  className="mt-3 inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-full border border-line px-3.5 text-sm text-text hover:border-line-strong"
                 >
-                  Archive page
+                  Apply alternating light and dark
+                </button>
+              )}
+              {notice && (
+                <p role="status" className="mt-2 text-sm text-success">
+                  {notice}
+                </p>
+              )}
+              <ol className="mt-4 space-y-2" aria-label="Sections">
+                {sections.map((section, i) => {
+                  const expanded = open === section.id;
+                  return (
+                    <li
+                      key={section.id}
+                      draggable={canEdit && !expanded}
+                      onDragStart={() => setDragging(i)}
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={() => {
+                        if (dragging !== null) moveSection(dragging, i);
+                        setDragging(null);
+                      }}
+                      onDragEnd={() => setDragging(null)}
+                      className={cn(
+                        "rounded-2xl border border-line bg-surface",
+                        dragging === i && "border-accent opacity-70",
+                      )}
+                    >
+                      <div className="flex items-center gap-2 p-2">
+                        {canEdit && (
+                          <GripVertical aria-hidden className="size-5 shrink-0 cursor-grab text-subtle" />
+                        )}
+                        <button
+                          type="button"
+                          aria-expanded={expanded}
+                          onClick={() => setOpen(expanded ? null : section.id)}
+                          className="flex min-h-11 min-w-0 flex-1 items-center gap-2 rounded-lg px-1 text-start"
+                        >
+                          <span className="shrink-0 rounded-full border border-line px-2 py-0.5 text-xs text-muted">
+                            {blockLabel(section.type)}
+                          </span>
+                          {section.hidden && (
+                            <span className="shrink-0 rounded-full bg-surface-2 px-2 py-0.5 text-xs text-muted">
+                              Hidden
+                            </span>
+                          )}
+                          <span
+                            className={cn("truncate text-sm", section.hidden ? "text-subtle" : "text-text")}
+                          >
+                            {summary(section)}
+                          </span>
+                          <ChevronDown
+                            aria-hidden
+                            className={cn(
+                              "ms-auto size-4 shrink-0 text-subtle transition-transform",
+                              expanded && "rotate-180",
+                            )}
+                          />
+                        </button>
+                        {canEdit && (
+                          <span className="flex shrink-0">
+                            {/* Hidden sections stay in the page and its versions but aren't shown on the website. */}
+                            <button
+                              type="button"
+                              aria-pressed={!!section.hidden}
+                              title={section.hidden ? "Hidden on the website" : "Shown on the website"}
+                              onClick={() =>
+                                setSections(
+                                  sections.map((s) =>
+                                    s.id === section.id ? { ...s, hidden: !s.hidden || undefined } : s,
+                                  ),
+                                )
+                              }
+                              className={buttonClasses("ghost", "md", "px-2")}
+                            >
+                              {section.hidden ? (
+                                <EyeOff aria-hidden className="size-4" />
+                              ) : (
+                                <Eye aria-hidden className="size-4" />
+                              )}
+                              <span className="sr-only">Hide {blockLabel(section.type)} section</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => moveSection(i, i - 1)}
+                              disabled={i === 0}
+                              className={buttonClasses("ghost", "md", "px-2")}
+                            >
+                              <ArrowUp aria-hidden className="size-4" />
+                              <span className="sr-only">Move {blockLabel(section.type)} section up</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => moveSection(i, i + 1)}
+                              disabled={i === sections.length - 1}
+                              className={buttonClasses("ghost", "md", "px-2")}
+                            >
+                              <ArrowDown aria-hidden className="size-4" />
+                              <span className="sr-only">Move {blockLabel(section.type)} section down</span>
+                            </button>
+                            <button
+                              type="button"
+                              disabled={sections.length >= 40}
+                              onClick={() =>
+                                setSections([
+                                  ...sections.slice(0, i + 1),
+                                  copySection(section),
+                                  ...sections.slice(i + 1),
+                                ])
+                              }
+                              className={buttonClasses("ghost", "md", "px-2")}
+                            >
+                              <Copy aria-hidden className="size-4" />
+                              <span className="sr-only">Duplicate {blockLabel(section.type)} section</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setSections(sections.filter((s) => s.id !== section.id))}
+                              className={buttonClasses("ghost", "md", "px-2 hover:text-danger")}
+                            >
+                              <Trash2 aria-hidden className="size-4" />
+                              <span className="sr-only">Remove {blockLabel(section.type)} section</span>
+                            </button>
+                          </span>
+                        )}
+                      </div>
+                      {expanded && (
+                        <div className="border-t border-line p-4">
+                          <BlockForm
+                            section={section}
+                            library={library}
+                            sharedLibrary={sharedLibrary}
+                            slug={slug}
+                            disabled={!canEdit}
+                            onChange={(next) =>
+                              setSections(sections.map((s) => (s.id === section.id ? next : s)))
+                            }
+                          />
+                          <ToneField
+                            tone={section.tone}
+                            label={blockLabel(section.type)}
+                            slug={slug}
+                            theme={initial.site.theme}
+                            disabled={!canEdit}
+                            onChange={(tone) =>
+                              setSections(sections.map((s) => (s.id === section.id ? { ...s, tone } : s)))
+                            }
+                          />
+                          <SectionLookFields
+                            section={section}
+                            disabled={!canEdit}
+                            onChange={(patch) =>
+                              setSections(
+                                sections.map((s) =>
+                                  s.id === section.id ? ({ ...s, ...patch } as PageSection) : s,
+                                ),
+                              )
+                            }
+                          />
+                        </div>
+                      )}
+                    </li>
+                  );
+                })}
+              </ol>
+              {canEdit && (
+                <div className="mt-4 flex flex-wrap items-end gap-2">
+                  <div className="min-w-0 flex-1">
+                    <label htmlFor={`${uid}-block`} className="block text-xs font-medium text-muted">
+                      Add a section
+                    </label>
+                    <select
+                      id={`${uid}-block`}
+                      value={adding}
+                      onChange={(e) => setAdding(e.target.value as BlockType)}
+                      className={cn(inputClass, "px-3")}
+                    >
+                      {BLOCKS.map((b) => (
+                        <option key={b.type} value={b.type}>
+                          {b.label} · {b.hint}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={
+                      sections.length >= 40 ||
+                      ((adding === "image" || adding === "device_showcase") && !library?.length) ||
+                      (adding === "shared" && !sharedLibrary?.length)
+                    }
+                    onClick={() => {
+                      const section = newSection(
+                        adding,
+                        adding === "shared" ? sharedLibrary?.[0]?.id : library?.[0]?.id,
+                      );
+                      setSections([...sections, section]);
+                      setOpen(section.id);
+                    }}
+                    className={buttonClasses("secondary", "md")}
+                  >
+                    <Plus aria-hidden className="size-4" />
+                    Add
+                  </button>
+                  {adding === "shared" && sharedLibrary?.length === 0 && (
+                    <p className="w-full text-sm text-subtle">
+                      The content library is empty.{" "}
+                      <Link href="/admin/content" className="text-accent underline underline-offset-2">
+                        Create shared content
+                      </Link>{" "}
+                      first.
+                    </p>
+                  )}
+                  {adding === "image" && library?.length === 0 && (
+                    <p className="w-full text-sm text-subtle">
+                      No images yet.{" "}
+                      <Link
+                        href={`/admin/sites/${slug}/media`}
+                        className="text-accent underline underline-offset-2"
+                      >
+                        Upload one in Media
+                      </Link>{" "}
+                      first.
+                    </p>
+                  )}
+                </div>
+              )}
+            </section>
+          </div>
+
+          <div className="space-y-6">
+            <section
+              aria-labelledby={`${uid}-preview`}
+              className="fb-panel rounded-[var(--radius-panel)] p-5"
+            >
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <h2 id={`${uid}-preview`} className="font-semibold text-text">
+                  Live preview
+                </h2>
+                <div
+                  role="group"
+                  aria-label="Preview width"
+                  className="flex gap-1 rounded-full border border-line p-1"
+                >
+                  {(
+                    [
+                      ["desktop", "Desktop", Monitor],
+                      ["tablet", "Tablet", Tablet],
+                      ["mobile", "Phone", Smartphone],
+                    ] as const
+                  ).map(([value, label, Icon]) => (
+                    <button
+                      key={value}
+                      type="button"
+                      aria-pressed={device === value}
+                      onClick={() => setDevice(value)}
+                      className={cn(
+                        "inline-flex min-h-9 items-center gap-1.5 rounded-full px-3 text-sm",
+                        device === value ? "bg-surface-2 text-text" : "text-muted hover:text-text",
+                      )}
+                    >
+                      <Icon aria-hidden className="size-3.5" />
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                {/* The other global theme, as a visitor using it would see the page (sections keep their own looks). */}
+                <button
+                  type="button"
+                  aria-pressed={otherTheme}
+                  onClick={() => setOtherTheme((v) => !v)}
+                  className={cn(
+                    "inline-flex min-h-9 items-center rounded-full border border-line px-3 text-sm",
+                    otherTheme ? "bg-surface-2 text-text" : "text-muted hover:text-text",
+                  )}
+                >
+                  Other theme
                 </button>
               </div>
-            )}
-          </section>
+              {/* The website's colours, not the Studio's. */}
+              <div data-site-preview="">
+                {/* Its published Brand & Theme Studio colours, as on the website. */}
+                <style>{siteThemeCss(slug, initial.site.theme)}</style>
+                <div
+                  data-product={KNOWN.includes(slug) ? slug : "figbud"}
+                  // The website's own surfaces, as on the live site (ZiraHR's warm palette).
+                  data-site={slug}
+                  data-tone={otherTheme ? "inverse" : undefined}
+                  data-preview-device={device}
+                  tabIndex={0}
+                  role="group"
+                  aria-label="Page preview (scrollable)"
+                  className={cn(
+                    "mt-4 max-h-[44rem] overflow-y-auto rounded-2xl border border-line bg-bg p-6 sm:p-8",
+                    device === "mobile" && "mx-auto max-w-[24rem] p-5",
+                    device === "tablet" && "mx-auto max-w-[48rem]",
+                  )}
+                >
+                  {sections.length === 0 ? (
+                    <p className="py-16 text-center text-muted">Add a section to start building this page.</p>
+                  ) : (
+                    <PageBlocks
+                      document={previewDoc}
+                      mode="preview"
+                      mediaBase={STUDIO_MEDIA_BASE}
+                      firstHeading={2}
+                      deviceExperience={initial.site.devices}
+                      className={device === "mobile" ? "space-y-12" : undefined}
+                    />
+                  )}
+                </div>
+              </div>
+            </section>
 
-          <section
-            aria-labelledby={`${uid}-visibility`}
-            className="fb-panel rounded-[var(--radius-panel)] p-5"
-          >
-            <h2 id={`${uid}-visibility`} className="font-semibold text-text">
-              Visibility
-            </h2>
-            <p className="mt-1 text-sm text-muted">
-              Takes effect on the website straight away, separately from publishing. Content and versions are
-              kept.
-            </p>
-            <div className="mt-4 divide-y divide-line">
-              <VisibilitySwitch
-                label="Online"
-                on={!data.page.offline}
-                hint={
-                  data.page.path === ""
-                    ? "The home page is always online."
-                    : data.page.offline
-                      ? "Visitors get “page not found” until it is back online."
-                      : "Visitors can open this page."
-                }
-                disabled={!canChangeVisibility || data.page.path === "" || !!busy}
-                onToggle={async () => {
-                  const goingOffline = !data.page.offline;
-                  if (
-                    goingOffline &&
-                    !(await confirm({
-                      title: `Take "${draft.title}" offline?`,
-                      body: "Visitors will get “page not found” until it's back online. Its content stays here.",
-                      confirmLabel: "Take offline",
-                      tone: "warning",
-                    }))
-                  )
-                    return;
-                  run(
-                    "visibility",
-                    `pages/${pageId}/${goingOffline ? "offline" : "online"}`,
-                    {},
-                    goingOffline ? "Page taken offline." : "Page back online.",
-                  );
-                }}
-              />
-              <VisibilitySwitch
-                label="Show in navigation"
-                on={data.page.show_in_nav}
-                hint={
-                  data.page.show_in_nav
-                    ? "Listed in the website's menu."
-                    : "Left out of the menu; still reachable at its address."
-                }
-                disabled={!canChangeVisibility || !!busy}
-                onToggle={() =>
-                  run(
-                    "visibility",
-                    `pages/${pageId}/${data.page.show_in_nav ? "hide-from-nav" : "show-in-nav"}`,
-                    {},
-                    data.page.show_in_nav ? "Removed from the navigation." : "Added to the navigation.",
-                  )
-                }
-              />
-            </div>
-            {!canChangeVisibility && (
-              <p className="mt-3 text-xs text-subtle">Reviewers and owners can change visibility.</p>
-            )}
-          </section>
+            <PerformancePanel budget={budget} headingId={`${uid}-performance`} />
 
-          <section aria-labelledby={`${uid}-history`} className="fb-panel rounded-[var(--radius-panel)] p-5">
-            <h2 id={`${uid}-history`} className="font-semibold text-text">
-              Version history
-            </h2>
-            {data.revisions.length === 0 ? (
-              <p className="mt-3 text-sm text-subtle">Nothing published yet.</p>
-            ) : (
-              <ol className="mt-3 space-y-4 text-sm">
-                {data.revisions.map((r) => (
-                  <li key={r.id}>
-                    <p className="text-text">
-                      Version {r.number} · {STATE_LABELS[r.state]}
-                      {r.state === "scheduled" && r.publish_at && (
-                        <>
-                          {" "}
-                          for <LocalTime iso={r.publish_at} />
-                        </>
-                      )}
-                      {r.id === data.page.published_revision && (
-                        <span className="ms-2 rounded-full border border-success/30 px-2 py-0.5 text-xs text-success">
-                          Live
-                        </span>
-                      )}
+            <section
+              aria-labelledby={`${uid}-publish`}
+              className="fb-panel rounded-[var(--radius-panel)] p-5"
+            >
+              <h2 id={`${uid}-publish`} className="font-semibold text-text">
+                Publishing
+              </h2>
+              {pending ? (
+                <div className="mt-4 rounded-xl border border-warning/40 bg-warning/10 p-4">
+                  <p className="text-sm font-medium text-text">
+                    Version {pending.number} is awaiting approval
+                  </p>
+                  <p className="mt-1 text-sm text-muted">{pending.note}</p>
+                  <p className="mt-1 text-xs text-subtle">
+                    Submitted by {pending.requested_by ?? "a former admin"} ·{" "}
+                    <LocalTime iso={pending.created_at} />
+                  </p>
+                  {pending.publish_at && (
+                    <p className="mt-2 flex items-start gap-2 text-sm text-text">
+                      <CalendarClock aria-hidden className="mt-0.5 size-4 shrink-0 text-accent" />
+                      <span>
+                        {pendingLater ? (
+                          <>
+                            Goes live <LocalTime iso={pendingLater} /> once approved.
+                          </>
+                        ) : (
+                          <>
+                            The requested time (<LocalTime iso={pending.publish_at} />) has passed: approving
+                            publishes it now.
+                          </>
+                        )}
+                      </span>
                     </p>
-                    <p className="text-muted">{r.note}</p>
-                    <p className="text-xs text-subtle">
-                      {r.decided_by ?? r.requested_by ?? "FigBud"} ·{" "}
-                      <LocalTime iso={r.decided_at ?? r.created_at} />
-                    </p>
-                    {canEdit && r.state === "published" && r.id !== data.page.published_revision && (
-                      <button
-                        type="button"
-                        disabled={!!busy}
+                  )}
+                  {canDecide && (
+                    <TextField
+                      label="Note (optional)"
+                      value={decisionNote}
+                      max={300}
+                      onChange={setDecisionNote}
+                    />
+                  )}
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {canDecide && (
+                      <>
+                        <ActionButton
+                          ready={!busy}
+                          busy={busy === "approve"}
+                          onClick={() =>
+                            run(
+                              "approve",
+                              `pages/${pageId}/revisions/${pending.id}/approve`,
+                              { note: decisionNote || null },
+                              pendingLater ? "Approved and scheduled." : "Page published.",
+                            )
+                          }
+                        >
+                          {pendingLater
+                            ? ownPending
+                              ? "Schedule my change"
+                              : "Approve and schedule"
+                            : ownPending
+                              ? "Publish my change"
+                              : "Approve and publish"}
+                        </ActionButton>
+                        <ActionButton
+                          variant="secondary"
+                          ready={!busy}
+                          busy={busy === "reject"}
+                          onClick={() =>
+                            run(
+                              "reject",
+                              `pages/${pageId}/revisions/${pending.id}/reject`,
+                              { note: decisionNote || null },
+                              "Change rejected.",
+                            )
+                          }
+                        >
+                          Reject
+                        </ActionButton>
+                      </>
+                    )}
+                    {canCancel && (
+                      <ActionButton
+                        variant="ghost"
+                        ready={!busy}
+                        busy={busy === "cancel"}
                         onClick={() =>
                           run(
-                            `restore-${r.id}`,
-                            `pages/${pageId}/revisions/${r.id}/restore`,
+                            "cancel",
+                            `pages/${pageId}/revisions/${pending.id}/cancel`,
                             {},
-                            `Version ${r.number} copied into the draft. Review it, then submit.`,
+                            "Submission withdrawn.",
+                          )
+                        }
+                      >
+                        Withdraw
+                      </ActionButton>
+                    )}
+                  </div>
+                  {ownPending && user.role !== "owner" && (
+                    <p className="mt-3 text-xs text-subtle">
+                      A reviewer or an owner needs to approve your change.
+                    </p>
+                  )}
+                </div>
+              ) : scheduled ? (
+                <div className="mt-4 rounded-xl border border-accent/40 bg-accent-soft/50 p-4">
+                  <p className="flex items-start gap-2 text-sm font-medium text-text">
+                    <CalendarClock aria-hidden className="mt-0.5 size-4 shrink-0 text-accent" />
+                    <span>
+                      Version {scheduled.number} goes live <LocalTime iso={scheduled.publish_at!} />
+                    </span>
+                  </p>
+                  <p className="mt-1 text-sm text-muted">{scheduled.note}</p>
+                  <p className="mt-1 text-xs text-subtle">
+                    Approved by {scheduled.decided_by ?? "a former admin"}
+                    {scheduled.decided_at && (
+                      <>
+                        {" · "}
+                        <LocalTime iso={scheduled.decided_at} />
+                      </>
+                    )}
+                    . The current version stays live until then; draft edits made now are not part of it.
+                  </p>
+                  {canUnschedule && (
+                    <div className="mt-4">
+                      <ActionButton
+                        variant="secondary"
+                        ready={!busy}
+                        busy={busy === "unschedule"}
+                        onClick={() =>
+                          run(
+                            "unschedule",
+                            `pages/${pageId}/revisions/${scheduled.id}/cancel`,
+                            {},
+                            "Schedule cancelled. Submit again when you're ready.",
+                          )
+                        }
+                      >
+                        Cancel schedule
+                      </ActionButton>
+                    </div>
+                  )}
+                </div>
+              ) : canEdit ? (
+                <form
+                  className="mt-4 space-y-4"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (submitBlocker === null && !busy)
+                      run(
+                        "submit",
+                        `pages/${pageId}/submit`,
+                        { note, publish_at: publishAtIso },
+                        publishAtIso
+                          ? "Sent for approval, to go live at the time you chose."
+                          : "Sent for approval.",
+                      );
+                  }}
+                >
+                  <TextField label="What changed?" value={note} max={300} multiline onChange={setNote} />
+                  <fieldset>
+                    <legend className="text-xs font-medium text-muted">When should it go live?</legend>
+                    <div className="mt-1.5 grid gap-2 sm:grid-cols-2">
+                      {(
+                        [
+                          ["approval", "When approved"],
+                          ["scheduled", "At a set time"],
+                        ] as const
+                      ).map(([value, label]) => (
+                        <label
+                          key={value}
+                          className={cn(
+                            "flex min-h-11 cursor-pointer items-center gap-2.5 rounded-xl border px-3 text-sm transition-colors has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-accent",
+                            timing === value
+                              ? "border-accent bg-accent-soft/60 text-text"
+                              : "border-line text-muted hover:border-line-strong",
+                          )}
+                        >
+                          <input
+                            type="radio"
+                            name={`${uid}-timing`}
+                            value={value}
+                            checked={timing === value}
+                            onChange={() => {
+                              setTiming(value);
+                              if (value === "scheduled" && !publishAt) setPublishAt(zoned.fromNow(60));
+                            }}
+                            className="size-4 accent-[var(--color-accent)]"
+                          />
+                          {label}
+                        </label>
+                      ))}
+                    </div>
+                    {timing === "scheduled" && (
+                      <div className="mt-3">
+                        <label htmlFor={`${uid}-publish-at`} className="block text-xs font-medium text-muted">
+                          Go-live time <span className="font-normal">({zoned.name})</span>
+                        </label>
+                        <input
+                          id={`${uid}-publish-at`}
+                          type="datetime-local"
+                          value={publishAt}
+                          onChange={(e) => setPublishAt(e.target.value)}
+                          className={inputClass}
+                        />
+                        <p className="mt-1.5 text-xs text-subtle">
+                          It still needs approval. Once approved it waits, and the current version stays live
+                          until then.
+                        </p>
+                      </div>
+                    )}
+                  </fieldset>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <ActionButton
+                      type="submit"
+                      ready={submitBlocker === null && !busy}
+                      busy={busy === "submit"}
+                      hint={submitBlocker ?? undefined}
+                    >
+                      Submit for publishing
+                    </ActionButton>
+                    {data.page.published_revision && (
+                      <ActionButton
+                        variant="ghost"
+                        ready={data.draft_differs && save === "saved" && !busy}
+                        busy={busy === "discard"}
+                        onClick={() =>
+                          run(
+                            "discard",
+                            `pages/${pageId}/revisions/${data.page.published_revision}/restore`,
+                            {},
+                            "Draft reset to the published page.",
                             true,
                           )
                         }
-                        className="mt-1 text-sm font-medium text-accent hover:underline"
                       >
-                        Restore to draft<span className="sr-only"> (version {r.number})</span>
-                      </button>
+                        Discard draft changes
+                      </ActionButton>
                     )}
-                  </li>
-                ))}
-              </ol>
-            )}
-          </section>
+                  </div>
+                </form>
+              ) : (
+                <p className="mt-4 text-sm text-muted">Editors and above can change pages.</p>
+              )}
+              {message && (
+                <p
+                  role={message.tone === "error" ? "alert" : "status"}
+                  className={cn("mt-4 text-sm", message.tone === "error" ? "text-danger" : "text-success")}
+                >
+                  {message.text}
+                </p>
+              )}
+              {hasRole(user, "reviewer") && !data.page.archived_at && (
+                <div className="mt-5 border-t border-line pt-4">
+                  <button
+                    type="button"
+                    disabled={!!busy}
+                    onClick={async () => {
+                      if (
+                        await confirm({
+                          title: `Archive "${draft.title}"?`,
+                          body: "It's taken off the website until restored. Its content and history are kept.",
+                          confirmLabel: "Archive page",
+                          tone: "danger",
+                        })
+                      ) {
+                        run("archive", `pages/${pageId}/archive`, {}, "Page archived.", false, () =>
+                          router.push(`/admin/sites/${slug}/pages`),
+                        );
+                      }
+                    }}
+                    className={buttonClasses("ghost", "md")}
+                  >
+                    Archive page
+                  </button>
+                </div>
+              )}
+            </section>
+
+            <section
+              aria-labelledby={`${uid}-visibility`}
+              className="fb-panel rounded-[var(--radius-panel)] p-5"
+            >
+              <h2 id={`${uid}-visibility`} className="font-semibold text-text">
+                Visibility
+              </h2>
+              <p className="mt-1 text-sm text-muted">
+                Takes effect on the website straight away, separately from publishing. Content and versions
+                are kept.
+              </p>
+              <div className="mt-4 divide-y divide-line">
+                <VisibilitySwitch
+                  label="Online"
+                  on={!data.page.offline}
+                  hint={
+                    data.page.path === ""
+                      ? "The home page is always online."
+                      : data.page.offline
+                        ? "Visitors get “page not found” until it is back online."
+                        : "Visitors can open this page."
+                  }
+                  disabled={!canChangeVisibility || data.page.path === "" || !!busy}
+                  onToggle={async () => {
+                    const goingOffline = !data.page.offline;
+                    if (
+                      goingOffline &&
+                      !(await confirm({
+                        title: `Take "${draft.title}" offline?`,
+                        body: "Visitors will get “page not found” until it's back online. Its content stays here.",
+                        confirmLabel: "Take offline",
+                        tone: "warning",
+                      }))
+                    )
+                      return;
+                    run(
+                      "visibility",
+                      `pages/${pageId}/${goingOffline ? "offline" : "online"}`,
+                      {},
+                      goingOffline ? "Page taken offline." : "Page back online.",
+                    );
+                  }}
+                />
+                <VisibilitySwitch
+                  label="Show in navigation"
+                  on={data.page.show_in_nav}
+                  hint={
+                    data.page.show_in_nav
+                      ? "Listed in the website's menu."
+                      : "Left out of the menu; still reachable at its address."
+                  }
+                  disabled={!canChangeVisibility || !!busy}
+                  onToggle={() =>
+                    run(
+                      "visibility",
+                      `pages/${pageId}/${data.page.show_in_nav ? "hide-from-nav" : "show-in-nav"}`,
+                      {},
+                      data.page.show_in_nav ? "Removed from the navigation." : "Added to the navigation.",
+                    )
+                  }
+                />
+              </div>
+              {!canChangeVisibility && (
+                <p className="mt-3 text-xs text-subtle">Reviewers and owners can change visibility.</p>
+              )}
+            </section>
+
+            <section
+              aria-labelledby={`${uid}-history`}
+              className="fb-panel rounded-[var(--radius-panel)] p-5"
+            >
+              <h2 id={`${uid}-history`} className="font-semibold text-text">
+                Version history
+              </h2>
+              {data.revisions.length === 0 ? (
+                <p className="mt-3 text-sm text-subtle">Nothing published yet.</p>
+              ) : (
+                <ol className="mt-3 space-y-4 text-sm">
+                  {data.revisions.map((r) => (
+                    <li key={r.id}>
+                      <p className="text-text">
+                        Version {r.number} · {STATE_LABELS[r.state]}
+                        {r.state === "scheduled" && r.publish_at && (
+                          <>
+                            {" "}
+                            for <LocalTime iso={r.publish_at} />
+                          </>
+                        )}
+                        {r.id === data.page.published_revision && (
+                          <span className="ms-2 rounded-full border border-success/30 px-2 py-0.5 text-xs text-success">
+                            Live
+                          </span>
+                        )}
+                      </p>
+                      <p className="text-muted">{r.note}</p>
+                      <p className="text-xs text-subtle">
+                        {r.decided_by ?? r.requested_by ?? "FigBud"} ·{" "}
+                        <LocalTime iso={r.decided_at ?? r.created_at} />
+                      </p>
+                      {canEdit && r.state === "published" && r.id !== data.page.published_revision && (
+                        <button
+                          type="button"
+                          disabled={!!busy}
+                          onClick={() =>
+                            run(
+                              `restore-${r.id}`,
+                              `pages/${pageId}/revisions/${r.id}/restore`,
+                              {},
+                              `Version ${r.number} copied into the draft. Review it, then submit.`,
+                              true,
+                            )
+                          }
+                          className="mt-1 text-sm font-medium text-accent hover:underline"
+                        >
+                          Restore to draft<span className="sr-only"> (version {r.number})</span>
+                        </button>
+                      )}
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </section>
+          </div>
         </div>
       </div>
-    </div>
+    </WebsiteDevicesContext.Provider>
   );
 }
 

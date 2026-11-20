@@ -616,6 +616,13 @@ pub struct WebsiteSettings {
     /// Published success stories, newest first, for rollback. Kept by the
     /// API: what an editor sends is ignored.
     pub story_history: Vec<results::StoryVersion>,
+    /// Device experience (P14-W8): how this website shows its product on
+    /// desktop, tablet and phone. Unset: each section's own, as before.
+    pub devices: Option<crate::devices::DeviceExperience>,
+    /// Saved in the Studio but not published.
+    pub devices_draft: Option<crate::devices::DeviceExperience>,
+    /// Published device experiences, newest first, for rollback (kept by the API).
+    pub devices_history: Vec<crate::devices::DeviceVersion>,
     /// Website display (P10-R1). On FigBud Global: the defaults every website
     /// inherits; on another website, its own override (unset: inherit).
     pub display: Option<results::DisplayDefaults>,
@@ -846,6 +853,11 @@ impl WebsiteSettings {
                 results::check_story(&mut e, s, field);
             }
         }
+        for (d, field) in [(&self.devices, "devices"), (&self.devices_draft, "devices_draft")] {
+            if let Some(d) = d {
+                crate::devices::check(&mut e, d, field);
+            }
+        }
         // On FigBud Global: the defaults every website inherits; elsewhere, that website's override.
         if let Some(d) = &self.display {
             results::check_animation(&mut e, &d.animation, "display");
@@ -876,6 +888,7 @@ impl WebsiteSettings {
             "results": self.results,
             "success_story": self.success_story.as_ref().filter(|s| s.enabled),
             "display": self.display,
+            "devices": self.devices.as_ref().filter(|d| d.enabled),
         })
     }
 }
@@ -980,8 +993,13 @@ async fn update(
         .map_err(ApiError::Validation)?;
     // Publishing a theme (or rolling one back) records who and when.
     next.theme_history = site.settings.theme_history.clone();
-    // Likewise a success story (P10-R2).
+    // Likewise a success story (P10-R2) and device settings (P14-W8).
     next.story_history = site.settings.story_history.clone();
+    next.devices_history = site.settings.devices_history.clone();
+    let devices_published = next.devices != site.settings.devices;
+    if devices_published && let Some(d) = &next.devices {
+        crate::devices::remember(&mut next.devices_history, d, Some(session.user.name.clone()));
+    }
     let story_published = next.success_story != site.settings.success_story;
     if story_published && let Some(story) = &next.success_story {
         results::remember(&mut next.story_history, story, Some(session.user.name.clone()));
@@ -1079,6 +1097,8 @@ async fn update(
         (false, true) => "site.enquiries_opened",
         _ if theme_published => "site.theme_published",
         _ if story_published => "site.success_story_published",
+        _ if devices_published => "site.devices_published",
+        _ if next.devices_draft != site.settings.devices_draft => "site.devices_draft_saved",
         _ if next.results != site.settings.results => "site.results_published",
         _ if next.display != site.settings.display => "site.display_defaults_saved",
         _ if next.success_story_draft != site.settings.success_story_draft => {

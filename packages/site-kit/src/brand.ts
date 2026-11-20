@@ -9,6 +9,7 @@ import type { SiteLanguages } from "@figbud/i18n";
 import type { EnquiryFormConfig } from "./enquiry";
 
 import type { StudioTheme } from "./site-theme";
+import type { DeviceExperience } from "./device-experience";
 import type { DisplayDefaults, ResultsDisplay, SuccessStoryConfig } from "./results";
 import type { SiteSeo } from "./seo";
 
@@ -106,6 +107,12 @@ export interface WebsiteSettings {
   story_history?: { published_at: string; by?: string | null; story: SuccessStoryConfig }[];
   /** Website display: FigBud Global's defaults, or this website's own (P10-R1). */
   display?: DisplayDefaults | null;
+  /** Device experience (P14-W8); websites receive it only once published and on. */
+  devices?: DeviceExperience | null;
+  /** Saved in the Studio, not published; only the Studio ever receives it. */
+  devices_draft?: DeviceExperience | null;
+  /** The last published device settings, newest first (Studio only). */
+  devices_history?: { published_at: string; by?: string | null; devices: DeviceExperience }[];
   /** Saved in the Studio, not published; only the Studio ever receives it. */
   enquiry_form_draft?: EnquiryFormConfig | null;
   /** The Brand & Theme Studio's colours, section bands included; unset means the built-in ones. */

@@ -48,7 +48,12 @@ async function Preview({ params }: Pick<PageProps<"/admin/sites/[slug]/pages/[id
           </Link>
         </div>
         <main className="mx-auto max-w-6xl px-5 py-14 sm:px-8 sm:py-20">
-          <PageBlocks document={data.preview} mode="preview" mediaBase={STUDIO_MEDIA_BASE} />
+          <PageBlocks
+            document={data.preview}
+            mode="preview"
+            mediaBase={STUDIO_MEDIA_BASE}
+            deviceExperience={data.site.devices}
+          />
         </main>
       </div>
     </div>

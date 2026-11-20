@@ -7,6 +7,7 @@ import {
   GalleryHorizontal,
   Images,
   Languages,
+  MonitorSmartphone,
   Palette,
   PanelBottom,
   PanelsTopLeft,
@@ -105,6 +106,10 @@ async function Site({ params }: Pick<PageProps<"/admin/sites/[slug]">, "params">
         <Link href={`/admin/sites/${site.slug}/hero`} className={buttonClasses("secondary", "md")}>
           <Sparkles aria-hidden className="size-4" />
           Hero Design Studio
+        </Link>
+        <Link href={`/admin/sites/${site.slug}/devices`} className={buttonClasses("secondary", "md")}>
+          <MonitorSmartphone aria-hidden className="size-4" />
+          Device experience
         </Link>
         {site.kind === "corporate" && (
           <Link href={`/admin/sites/${site.slug}/platforms`} className={buttonClasses("secondary", "md")}>
