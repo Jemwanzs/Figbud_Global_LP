@@ -469,16 +469,82 @@ test("Trusted By and testimonials alternate with the page, in the website's colo
     const c = await colours();
     expect(c.band, theme).not.toBe(c.page);
   }
-  // A single testimonial sits centred, not stranded to one side.
+  // A single testimonial sits centred, not stranded to one side, as one compact card (P10-R4).
+  await expect(page.locator('[data-testimonials="card"]')).toBeVisible();
   const card = page.getByRole("list", { name: "Customer testimonials" }).getByRole("listitem").first();
   const box = (await card.boundingBox())!;
   const width = page.viewportSize()!.width;
   if (width >= 768) expect(Math.abs(box.x + box.width / 2 - width / 2)).toBeLessThan(40);
+  expect(box.width).toBeLessThanOrEqual(736 + 1);
+  // Compact: 32-64 px between the card and the footer (on a band or the page's own surface),
+  // and a 32 px gap under the heading (measured once the card's entrance has finished).
+  await page.locator("[data-testimonial]").scrollIntoViewIfNeeded();
+  await expect(page.locator('[data-testimonials] [data-reveal="shown"]')).toBeAttached();
+  await expect
+    .poll(() =>
+      page
+        .locator("[data-testimonial]")
+        .evaluate((el) =>
+          getComputedStyle(el.parentElement!).transform.replace("matrix(1, 0, 0, 1, 0, 0)", "none"),
+        ),
+    )
+    .toBe("none");
+  const cardBox = (await page.locator("[data-testimonial]").boundingBox())!;
+  const footer = (await page.getByRole("contentinfo").boundingBox())!;
+  const below = footer.y - (cardBox.y + cardBox.height);
+  expect(below).toBeGreaterThanOrEqual(30);
+  expect(below).toBeLessThanOrEqual(66);
+  const heading = (await page.locator("#testimonials-title").boundingBox())!;
+  expect(cardBox.y - (heading.y + heading.height)).toBeLessThanOrEqual(48);
   const results = await new AxeBuilder({ page: await themeSettled(page) })
     .include("[data-proof]")
     .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
     .analyze();
   expect(results.violations.map((v) => v.id)).toEqual([]);
+});
+
+test("several testimonials share one compact carousel, moved by hand, never by itself (P10-R4)", async ({
+  page,
+}) => {
+  // Mock fixture: two synthetic testimonials published for Ziwa LMS alone.
+  await page.goto("/ziwa");
+  const carousel = page.getByRole("region", { name: "Customer testimonials" });
+  await carousel.scrollIntoViewIfNeeded();
+  await expect(page.locator('[data-testimonials="carousel"]')).toBeVisible();
+  const shown = carousel.locator("li[data-current]");
+  await expect(shown).toHaveCount(1);
+  await expect(shown).toContainText("Synthetic carousel quotation one");
+  const height = (await carousel.boundingBox())!.height;
+  // Nothing turns by itself.
+  await page.waitForTimeout(1_500);
+  await expect(shown).toContainText("Synthetic carousel quotation one");
+  // Next, previous and the dots; one shown at a time, the band's height unchanged.
+  await expect(async () => {
+    await carousel.getByRole("button", { name: "Next testimonial" }).click();
+    await expect(shown).toContainText("quotation two", { timeout: 1_000 });
+  }).toPass();
+  expect(Math.abs((await carousel.boundingBox())!.height - height)).toBeLessThanOrEqual(1);
+  await expect(carousel.getByRole("button", { name: "Testimonial 2: Test Person Two" })).toHaveAttribute(
+    "aria-current",
+    "true",
+  );
+  await carousel.getByRole("button", { name: "Previous testimonial" }).click();
+  await expect(shown).toContainText("quotation one");
+  await carousel.getByRole("button", { name: "Testimonial 2: Test Person Two" }).click();
+  await expect(shown).toContainText("quotation two");
+  // From the keyboard too; hidden cards can't be reached.
+  await carousel.getByRole("button", { name: "Next testimonial" }).focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(shown).toContainText("quotation one");
+  await expect(carousel.locator("li:not([data-current])")).toHaveAttribute("aria-hidden", "true");
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(0);
+  const results = await new AxeBuilder({ page: await themeSettled(page) })
+    .include("[data-testimonials]")
+    .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
+    .analyze();
+  expect(
+    results.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`),
+  ).toEqual([]);
 });
 
 test.describe("pages in other languages (P7-L2b)", () => {
@@ -1036,44 +1102,50 @@ test.describe("ZiraHR: payroll calculator and demonstrations (P14)", () => {
     await page.goto("/zirahr/platform");
     const story = page.locator('[data-story="scattered-to-connected"]');
     const steps = story.locator("[data-story-step]");
-    await expect(steps).toHaveCount(4);
+    // Three steps, opening with the platform drawing HR together (P14-W9).
+    await expect(steps).toHaveCount(3);
+    await expect(steps.first()).toContainText("ZiraHR draws it together.");
+    await expect(story).not.toContainText("HR usually lives in too many places.");
+    await expect(story.getByRole("button", { name: /^Step \d:/ })).toHaveCount(3);
     // Right under its heading and introduction: no blank band before the panel.
     const lead = page.locator("section").filter({ has: story }).locator("p").first();
     const leadBox = (await lead.boundingBox())!;
     expect((await story.boundingBox())!.y - (leadBox.y + leadBox.height)).toBeLessThanOrEqual(64);
     // All the words are there at once, in order, whatever the visual is doing.
-    await expect(steps.nth(3)).toContainText("So the work moves by itself.");
+    await expect(steps.nth(2)).toContainText("So the work moves by itself.");
     await expect(story.locator('[aria-hidden="true"]').first()).toBeAttached();
 
     // Compact (owner's brief, 7 Nov 2026): one screen to settle, about a third of a screen per further step.
     const viewport = page.viewportSize()!.height;
-    expect((await story.boundingBox())!.height).toBeLessThanOrEqual(viewport * (1 + 3 * 0.34) + 2);
+    expect((await story.boundingBox())!.height).toBeLessThanOrEqual(viewport * (1 + 2 * 0.34) + 2);
 
     // Scrolling moves the words and the visual on together, step by step, and back again.
     const dot = (i: number) => story.getByRole("button", { name: new RegExp(`^Step ${i + 1}:`) });
     const scrollTo = (fraction: number) => story.evaluate(scrollToFraction, fraction);
     for (const [fraction, i] of [
       [0.1, 0],
-      [0.35, 1],
-      [0.6, 2],
-      [0.9, 3],
-      [0.35, 1],
+      [0.5, 1],
+      [0.9, 2],
+      [0.5, 1],
       [0.1, 0],
     ] as const) {
       await scrollTo(fraction);
       await expect(story).toHaveAttribute("data-step", String(i));
       await expect(steps.nth(i)).toHaveAttribute("data-place", "current");
       await expect(dot(i)).toHaveAttribute("aria-current", "step");
-      await expect(story).toContainText(`0${i + 1} / 04`);
+      await expect(story).toContainText(`0${i + 1} / 03`);
+      // Never a blank stage: the first step shows the lines drawn to ZiraHR, the others the record.
+      if (i === 0) await expect(story.locator('[data-paths="drawn"]')).toBeAttached();
+      else await expect(story.locator('.fb-story-unfold[data-open="true"]')).toBeAttached();
     }
     // The dots jump to a step.
-    await dot(3).click();
+    await dot(2).click();
     // The chosen step shows at once; the page then arrives at it.
-    await expect(story).toHaveAttribute("data-step", "3");
+    await expect(story).toHaveAttribute("data-step", "2");
     await expect
       .poll(async () => Number(await story.evaluate((el) => el.style.getPropertyValue("--story-progress"))))
       .toBeGreaterThan(0.5);
-    await expect(story).toHaveAttribute("data-step", "3");
+    await expect(story).toHaveAttribute("data-step", "2");
     // The visual stays in view while the steps go past.
     const stage = story.locator(".fb-story-stage");
     await expect(stage).toBeInViewport();

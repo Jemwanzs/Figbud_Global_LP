@@ -417,7 +417,14 @@ export default async function SitePage({ params }: PageProps<"/[site]/[[...path]
           },
         proof.testimonials.length > 0 && {
           key: "testimonials",
-          node: <Testimonials testimonials={proof.testimonials} labels={PROOF_LABELS.testimonials} />,
+          // Compact and automatic unless the website publishes its own display (P10-R4).
+          node: (
+            <Testimonials
+              testimonials={proof.testimonials}
+              labels={PROOF_LABELS.testimonials}
+              display={settings?.testimonials ?? { layout: "auto" }}
+            />
+          ),
         },
       ].filter((part) => part !== false)
     : [];

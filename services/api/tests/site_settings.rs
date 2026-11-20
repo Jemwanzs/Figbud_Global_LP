@@ -770,3 +770,84 @@ async fn device_experience_is_drafted_published_and_kept_per_website() {
     .unwrap();
     assert_eq!(audited, 1);
 }
+
+#[tokio::test]
+async fn testimonial_display_is_drafted_and_published_per_website() {
+    // P10-R4 (owner's brief, 20 Nov 2026), on a website of its own.
+    let Some(pool) = database().await else { return };
+    let url = std::env::var("TEST_DATABASE_URL").unwrap();
+    let app = app_with(pool.clone(), config(&url));
+    let run = Uuid::now_v7().simple().to_string();
+    let slug = format!("tsti_{}", &run[run.len() - 10..]);
+    sqlx::query(
+        "INSERT INTO sites (id, slug, kind, name, category, template, status, position)
+         VALUES ($1, $2, 'product', 'Quote Site', 'hr_workforce', 'hr', 'active', 94)",
+    )
+    .bind(Uuid::now_v7())
+    .bind(&slug)
+    .execute(&pool)
+    .await
+    .unwrap();
+    let uri = format!("/v1/admin/sites/{slug}/settings");
+    let reviewer = admin(&pool, "reviewer").await;
+    let (_, read) = call(&app, "GET", &uri, Some(&reviewer), None).await;
+    let site = |sites: &Value| {
+        sites
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|s| s["slug"] == slug.as_str())
+            .unwrap()
+            .clone()
+    };
+
+    // Unknown layouts are refused; a draft stays private.
+    let mut settings = read["settings"].clone();
+    settings["testimonials_draft"] = json!({ "layout": "wall" });
+    let (status, _) = call(
+        &app,
+        "POST",
+        &uri,
+        Some(&reviewer),
+        Some(json!({ "settings": settings, "version": read["version"] })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
+    settings["testimonials_draft"] = json!({ "layout": "carousel", "spacing": "compact" });
+    let (status, saved) = call(
+        &app,
+        "POST",
+        &uri,
+        Some(&reviewer),
+        Some(json!({ "settings": settings, "version": read["version"] })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{saved}");
+    let (_, sites) = call(&app, "GET", "/v1/sites", None, None).await;
+    assert!(site(&sites)["settings"]["testimonials"].is_null());
+    assert!(site(&sites)["settings"].get("testimonials_draft").is_none());
+
+    // Published: the website receives it, and it's audited.
+    let mut next = saved["settings"].clone();
+    next["testimonials"] = json!({ "layout": "carousel", "spacing": "compact" });
+    next["testimonials_draft"] = Value::Null;
+    let (status, published) = call(
+        &app,
+        "POST",
+        &uri,
+        Some(&reviewer),
+        Some(json!({ "settings": next, "version": saved["version"] })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{published}");
+    let (_, sites) = call(&app, "GET", "/v1/sites", None, None).await;
+    assert_eq!(site(&sites)["settings"]["testimonials"]["layout"], "carousel");
+    let audited: i64 = sqlx::query_scalar(
+        "SELECT count(*) FROM audit_log WHERE action = 'site.testimonials_published' AND target_id = (SELECT id::text FROM sites WHERE slug = $1)",
+    )
+    .bind(&slug)
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert_eq!(audited, 1);
+}

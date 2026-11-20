@@ -616,6 +616,11 @@ pub struct WebsiteSettings {
     /// Published success stories, newest first, for rollback. Kept by the
     /// API: what an editor sends is ignored.
     pub story_history: Vec<results::StoryVersion>,
+    /// The testimonial band's layout and spacing (P10-R4); unset: automatic
+    /// and compact.
+    pub testimonials: Option<results::TestimonialsDisplay>,
+    /// Saved in the Studio but not published.
+    pub testimonials_draft: Option<results::TestimonialsDisplay>,
     /// Device experience (P14-W8): how this website shows its product on
     /// desktop, tablet and phone. Unset: each section's own, as before.
     pub devices: Option<crate::devices::DeviceExperience>,
@@ -886,6 +891,7 @@ impl WebsiteSettings {
             "languages": self.languages,
             "enquiry_form": self.enquiry_form,
             "results": self.results,
+            "testimonials": self.testimonials,
             "success_story": self.success_story.as_ref().filter(|s| s.enabled),
             "display": self.display,
             "devices": self.devices.as_ref().filter(|d| d.enabled),
@@ -1100,6 +1106,8 @@ async fn update(
         _ if devices_published => "site.devices_published",
         _ if next.devices_draft != site.settings.devices_draft => "site.devices_draft_saved",
         _ if next.results != site.settings.results => "site.results_published",
+        _ if next.testimonials != site.settings.testimonials => "site.testimonials_published",
+        _ if next.testimonials_draft != site.settings.testimonials_draft => "site.testimonials_draft_saved",
         _ if next.display != site.settings.display => "site.display_defaults_saved",
         _ if next.success_story_draft != site.settings.success_story_draft => {
             "site.success_story_draft_saved"

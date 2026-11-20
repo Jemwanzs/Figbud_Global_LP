@@ -176,13 +176,20 @@ const ACTIVITY = [
   ["Team update shared", "Teams · Finance"],
 ];
 
-function toolStyle(index: number, step: number): CSSProperties {
+/**
+ * The visual's scenes: 1, the tools drawn together around ZiraHR; 2, settled
+ * as the modules over one record; 3, the work moving by itself. Scene 0 (the
+ * tools scattered) opened the story until the owner's brief of 20 Nov 2026
+ * (P14-W9), which starts it at "ZiraHR draws it together."; its positions
+ * are kept, as the point the tools are drawn in from.
+ */
+function toolStyle(index: number, scene: number): CSSProperties {
   const [x, y, turn] = TOOLS[index]!.scattered;
-  // Scattered, then drawn in, then settled as the platform's modules along the top.
+  // Drawn in, then settled as the platform's modules along the top.
   const at =
-    step === 0
+    scene === 0
       ? { x, y, turn, scale: 1 }
-      : step === 1
+      : scene === 1
         ? { x: 50 + (x - 50) * 0.72, y: 50 + (y - 50) * 0.8, turn: 0, scale: 0.92 }
         : { x: 12 + index * 19, y: 9, turn: 0, scale: 0.9 };
   return {
@@ -192,8 +199,10 @@ function toolStyle(index: number, step: number): CSSProperties {
 }
 
 function ScatteredStage({ step, onScreen, mark }: { step: number; onScreen: boolean; mark?: ReactNode }) {
+  // The story's first step is the visual's first scene, "drawn together".
+  const scene = step + 1;
   const [stage, setStage] = useState(0);
-  const running = step === 3 && onScreen;
+  const running = scene === 3 && onScreen;
   // The pay run moves on by itself once it's reached, and stops at Locked.
   useEffect(() => {
     if (!running || stage >= PAY_STAGES.length - 1) return;
@@ -203,21 +212,26 @@ function ScatteredStage({ step, onScreen, mark }: { step: number; onScreen: bool
 
   return (
     <>
-      <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 size-full">
+      {/* The lines draw in as the story comes into view, and fade once the tools settle. */}
+      <svg
+        viewBox="0 0 100 100"
+        preserveAspectRatio="none"
+        data-paths={!onScreen ? "waiting" : scene >= 2 ? "faded" : "drawn"}
+        className="absolute inset-0 size-full"
+      >
         {TOOLS.map((tool, i) => (
           <path
             key={tool.name}
             d={`M${50 + (tool.scattered[0] - 50) * 0.72} ${50 + (tool.scattered[1] - 50) * 0.8} L 50 50`}
             pathLength={1}
             className="fb-story-path"
-            // Drawn while "drawing together" is the step (the second quarter of the story).
-            style={{ "--path-start": 0.24 + i * 0.03 } as CSSProperties}
+            style={{ transitionDelay: `${i * 70}ms` }}
           />
         ))}
       </svg>
 
       <div
-        data-open={step === 1}
+        data-open={scene === 1 && onScreen}
         className="fb-story-rise absolute top-1/2 left-1/2 -mt-6 -ml-6 grid size-12 place-items-center rounded-2xl border border-line bg-surface p-1.5 shadow-lg"
       >
         {mark ?? <span className="size-3 rounded-full bg-product" />}
@@ -225,9 +239,9 @@ function ScatteredStage({ step, onScreen, mark }: { step: number; onScreen: bool
 
       {TOOLS.map((tool, i) => {
         const Icon = tool.icon;
-        const settled = step >= 2;
+        const settled = scene >= 2;
         return (
-          <div key={tool.name} style={toolStyle(i, step)} className="fb-story-move absolute top-0 left-0">
+          <div key={tool.name} style={toolStyle(i, scene)} className="fb-story-move absolute top-0 left-0">
             <div
               // Settled, they light up one after another.
               style={{ transitionDelay: settled ? `${200 + i * 110}ms` : "0ms" }}
@@ -256,7 +270,7 @@ function ScatteredStage({ step, onScreen, mark }: { step: number; onScreen: bool
 
       {/* One record unfolds where the lines meet: who, six facts, then what's happening on it. */}
       <div
-        data-open={step >= 2}
+        data-open={scene >= 2}
         className="fb-story-unfold absolute inset-x-[4%] top-[17%] overflow-hidden rounded-2xl border border-line bg-surface p-3 shadow-2xl @lg:inset-x-[5%] @lg:p-4"
       >
         <div className="flex items-center gap-3">
@@ -274,7 +288,7 @@ function ScatteredStage({ step, onScreen, mark }: { step: number; onScreen: bool
         <dl className="mt-2.5 grid grid-cols-3 gap-1.5 text-[0.68rem] @lg:mt-3 @lg:gap-2 @lg:text-xs">
           {(
             [
-              ["Leave left", step >= 3 ? "11 days" : "14 days", CalendarCheck],
+              ["Leave left", scene >= 3 ? "11 days" : "14 days", CalendarCheck],
               ["Today", "In 08:02", Clock],
               ["Payslip", stage === PAY_STAGES.length - 1 ? "Ready" : "Soon", Wallet],
               ["Team", "Finance · 6", Users],
@@ -284,9 +298,9 @@ function ScatteredStage({ step, onScreen, mark }: { step: number; onScreen: bool
           ).map(([label, value, Icon], i) => (
             <div
               key={label}
-              data-open={step >= 2}
+              data-open={scene >= 2}
               // The facts arrive one after another once the record opens.
-              style={{ transitionDelay: step >= 2 ? `${120 + i * 70}ms` : "0ms" }}
+              style={{ transitionDelay: scene >= 2 ? `${120 + i * 70}ms` : "0ms" }}
               className="fb-story-rise min-w-0 rounded-xl bg-surface-2 p-2 @lg:p-2.5"
             >
               <dt className="flex items-center gap-1 text-subtle">
@@ -299,7 +313,7 @@ function ScatteredStage({ step, onScreen, mark }: { step: number; onScreen: bool
         </dl>
         {/* The record's activity, then the pay run moving through: one place, no gap kept for later. */}
         <div className="mt-2.5 grid @lg:mt-3">
-          <ul data-open={step === 2} className="fb-story-rise grid content-start gap-1.5 [grid-area:1/1]">
+          <ul data-open={scene === 2} className="fb-story-rise grid content-start gap-1.5 [grid-area:1/1]">
             {ACTIVITY.map(([what, where], i) => (
               <li
                 key={what}
@@ -316,7 +330,7 @@ function ScatteredStage({ step, onScreen, mark }: { step: number; onScreen: bool
               </li>
             ))}
           </ul>
-          <div data-open={step >= 3} className="fb-story-rise [grid-area:1/1]">
+          <div data-open={scene >= 3} className="fb-story-rise [grid-area:1/1]">
             <p className="text-xs text-subtle">November pay run</p>
             <ol className="mt-1.5 flex items-center gap-1.5">
               {PAY_STAGES.map((name, i) => (
@@ -365,11 +379,9 @@ export function ScatteredToConnectedStory({
       label="scattered-to-connected"
       motion={motion}
       intro={intro}
+      // Three steps, starting with the platform drawing HR together (owner's brief, 20 Nov 2026, P14-W9);
+      // the scroll distance and dots follow the number of steps.
       steps={[
-        {
-          title: "HR usually lives in too many places.",
-          body: "A payroll spreadsheet here, a leave request in someone's inbox, contracts in a folder, and the answer to who approved what lost in a chat.",
-        },
         {
           title: "ZiraHR draws it together.",
           body: "Employee information, pay, time and approvals connect in one cloud platform, so a change made once reaches everything that depends on it.",

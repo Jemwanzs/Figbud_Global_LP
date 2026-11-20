@@ -80,6 +80,7 @@ async function Results({ params }: Pick<PageProps<"/admin/sites/[slug]/results">
         figureMedia={figureMedia.data?.items ?? []}
         canEditFigures={figures.data?.can_edit ?? false}
         canReviewFigures={figures.data?.can_review ?? false}
+        testimonials={proof.testimonials}
       />
     </>
   );

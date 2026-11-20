@@ -11,8 +11,12 @@ import {
   ResultsShowcase,
   SuccessStory,
   type SuccessStoryConfig,
+  type PublicTestimonial,
+  Testimonials,
+  type TestimonialsDisplay,
 } from "@figbud/site-kit";
 import { cn } from "@figbud/ui";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { type ReactElement, cloneElement, useId, useState } from "react";
 
@@ -43,7 +47,20 @@ const NEW_STORY: SuccessStoryConfig = {
   replaces_results: false,
 };
 
-type Tab = "results" | "story" | "display";
+type Tab = "results" | "story" | "testimonials" | "display";
+
+const TESTIMONIAL_LAYOUTS: Record<string, string> = {
+  auto: "Automatic: a card for one, a carousel for more",
+  card: "Compact card",
+  carousel: "Carousel (moved by hand)",
+  grid: "Grid",
+};
+const TESTIMONIAL_SPACING: Record<string, string> = {
+  compact: "Compact",
+  standard: "Standard",
+  spacious: "Spacious",
+};
+const NEW_TESTIMONIALS: TestimonialsDisplay = { layout: "auto", spacing: "compact" };
 type Message = { tone: "ok" | "error"; text: string } | null;
 
 const same = (a: unknown, b: unknown) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
@@ -172,11 +189,14 @@ export function ResultsStudio({
   figureMedia,
   canEditFigures,
   canReviewFigures,
+  testimonials: approved = [],
 }: {
   slug: string;
   name: string;
   data: WebsiteSettingsAdmin;
   metrics: PublicMetric[];
+  /** This website's published testimonials (Customers & proof), for the preview. */
+  testimonials?: PublicTestimonial[];
   media: MediaItem[];
   /** Every figure (Customers & proof), with drafts, for the figure manager (P10-R3). */
   initialFigures: FigureRecord[];
@@ -201,6 +221,9 @@ export function ResultsStudio({
     () => base.success_story_draft ?? base.success_story ?? NEW_STORY,
   );
   const [display, setDisplay] = useState<DisplayDefaults | null>(() => base.display ?? null);
+  const [quotes, setQuotes] = useState<TestimonialsDisplay>(
+    () => base.testimonials_draft ?? base.testimonials ?? NEW_TESTIMONIALS,
+  );
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState<Message>(null);
   const [inverse, setInverse] = useState(false);
@@ -214,7 +237,8 @@ export function ResultsStudio({
   );
   const storySaved = same(story, base.success_story_draft ?? base.success_story ?? NEW_STORY);
   const displaySaved = same(display, base.display ?? null);
-  useUnsavedChangesWarning(canEdit && !(resultsSaved && storySaved && displaySaved));
+  const quotesSaved = same(quotes, base.testimonials_draft ?? base.testimonials ?? NEW_TESTIMONIALS);
+  useUnsavedChangesWarning(canEdit && !(resultsSaved && storySaved && displaySaved && quotesSaved));
 
   async function save(label: string, patch: Partial<typeof base>, done: string) {
     setBusy(label);
@@ -250,13 +274,14 @@ export function ResultsStudio({
   const tabs: [Tab, string][] = [
     ["results", "Results band"],
     ["story", "Our Success Story"],
+    ["testimonials", "Testimonials"],
     ["display", corporate ? "Website display (all websites)" : "Website display"],
   ];
   const actions = (
-    draftKey: "results_draft" | "success_story_draft",
-    publishKey: "results" | "success_story",
+    draftKey: "results_draft" | "success_story_draft" | "testimonials_draft",
+    publishKey: "results" | "success_story" | "testimonials",
   ) => {
-    const value = draftKey === "results_draft" ? results : story;
+    const value = draftKey === "results_draft" ? results : draftKey === "testimonials_draft" ? quotes : story;
     const published = base[publishKey];
     const hasDraft = Boolean(base[draftKey]);
     return (
@@ -293,6 +318,7 @@ export function ResultsStudio({
               onClick={() => {
                 if (draftKey === "results_draft")
                   setResults(base.results ?? { enabled: true, placement: "proof" });
+                else if (draftKey === "testimonials_draft") setQuotes(base.testimonials ?? NEW_TESTIMONIALS);
                 else setStory(base.success_story ?? NEW_STORY);
                 void save("discard", { [draftKey]: null }, "Draft discarded.");
               }}
@@ -628,6 +654,59 @@ export function ResultsStudio({
             </>
           )}
 
+          {tab === "testimonials" && (
+            <>
+              <p className="text-sm text-muted">
+                How {name}&apos;s approved testimonials are laid out. The testimonials themselves (quotation,
+                person, organisation, logo, consent, order and publishing) are managed in{" "}
+                <Link
+                  href="/admin/proof?kind=testimonial"
+                  className="font-medium text-accent-strong underline"
+                >
+                  Customers & proof
+                </Link>
+                ; nothing here changes their wording.
+              </p>
+              <Field label="Layout">
+                <select
+                  value={quotes.layout ?? "auto"}
+                  disabled={!canEdit}
+                  onChange={(e) =>
+                    setQuotes({ ...quotes, layout: e.target.value as TestimonialsDisplay["layout"] })
+                  }
+                  className={input}
+                >
+                  {Object.entries(TESTIMONIAL_LAYOUTS).map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Spacing" hint="Compact: the band is as tall as its content needs.">
+                <select
+                  value={quotes.spacing ?? "compact"}
+                  disabled={!canEdit}
+                  onChange={(e) =>
+                    setQuotes({ ...quotes, spacing: e.target.value as TestimonialsDisplay["spacing"] })
+                  }
+                  className={input}
+                >
+                  {Object.entries(TESTIMONIAL_SPACING).map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <p className="text-xs text-subtle">
+                A carousel never turns by itself: visitors move it with the arrows or dots. With one
+                testimonial it shows as a card.
+              </p>
+              {actions("testimonials_draft", "testimonials")}
+            </>
+          )}
+
           {tab === "display" && (
             <>
               <p className="text-sm text-muted">
@@ -714,7 +793,9 @@ export function ResultsStudio({
 
         <section aria-label="Preview" className="min-w-0 space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="text-sm font-medium text-text">Preview with {name}&apos;s figures</p>
+            <p className="text-sm font-medium text-text">
+              Preview with {name}&apos;s {tab === "testimonials" ? "testimonials" : "figures"}
+            </p>
             <div role="group" aria-label="Preview width" className="flex gap-1">
               {(["desktop", "tablet", "phone"] as const).map((w) => (
                 <button
@@ -751,7 +832,25 @@ export function ResultsStudio({
             data-results-preview=""
             data-preview-width={width}
           >
-            {storyMetrics.length === 0 ? (
+            {tab === "testimonials" ? (
+              approved.length ? (
+                <div className="fb-tone fb-tone-full fb-tone-alternate px-5" data-testimonials-preview="">
+                  <Testimonials
+                    testimonials={approved}
+                    labels={{
+                      eyebrow: "Customers",
+                      title: "In our customers' words.",
+                      list: "Customer testimonials",
+                    }}
+                    display={quotes}
+                  />
+                </div>
+              ) : (
+                <p className="p-8 text-sm text-subtle">
+                  Nothing to preview until testimonials are published for {name} in Customers & proof.
+                </p>
+              )
+            ) : storyMetrics.length === 0 ? (
               <p className="p-8 text-sm text-subtle">
                 Nothing to preview until figures are published for {name}.
               </p>

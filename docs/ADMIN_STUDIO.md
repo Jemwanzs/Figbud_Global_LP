@@ -553,6 +553,11 @@ Page builder → a demonstration section → **Guide it with scrolling** (on by 
 - **Shown first:** the visitor's own device (by screen width) or a chosen one. **Frames:** realistic or minimal. **Tablet:** landscape or portrait. **Browser address** in the bar. **Fade** between devices (0.3–0.45 s).
 - Also as its own section: Page builder → Add section → **Device showcase** (heading, description, the same device settings), anywhere on a page.
 - Live pages inside the frames aren't offered: the websites refuse to be framed, to protect visitors from clickjacking.
+## Testimonial band (P10-R4, 20 Nov 2026)
+
+- Websites → a website → Results & success story → **Testimonials**: **Layout** (Automatic: a card for one, a carousel for more; Compact card; Carousel; Grid) and **Spacing** (Compact by default, Standard, Spacious). Preview with the website's published testimonials at desktop, tablet and phone width and in the other theme; Save draft, Publish, Discard draft.
+- The carousel never turns by itself: visitors use the arrows, the dots or the arrow keys.
+- The testimonials themselves (quotation, person, organisation, logo, consent, order, publishing and hiding) stay in Marketing → **Testimonials** (Customers & proof).
 ## Device experience (P14-W8, 20 Nov 2026)
 
 - Websites → a website → **Device experience** (Website display). One set of device settings for the whole website, saved as a draft, published, kept for rollback (**Published versions**, the last 10) and audited. Only that website changes.

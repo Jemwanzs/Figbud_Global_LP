@@ -3908,6 +3908,26 @@ function proofRoutes(path, req, body, user, send) {
     // On ZiraHR too, beside its Trusted By, for the section alternation tests (14 Nov 2026).
     ["figbud", "zirahr"],
   );
+  // Two on Ziwa LMS alone (P10-R4): its testimonial band becomes a carousel moved by hand.
+  for (const [quote, person] of [
+    ["Synthetic carousel quotation one, for automated tests only.", "Test Person One"],
+    [
+      "Synthetic carousel quotation two, longer than the first so the band keeps the taller card's height while it changes.",
+      "Test Person Two",
+    ],
+  ])
+    seed(
+      "testimonial",
+      {
+        quote,
+        person_name: person,
+        person_title: "Test role",
+        organization_id: org.id,
+        organization_name: org.draft.name,
+        permission: { quote_approved: true, evidence: "Test fixture" },
+      },
+      ["ziwa"],
+    );
   seed(
     "metric",
     {

@@ -320,7 +320,8 @@ export function PagesManager({ slug, user, initial }: { slug: string; user: Admi
                   {canEdit && (
                     <GripVertical aria-hidden className="size-5 shrink-0 cursor-grab text-subtle" />
                   )}
-                  <div className="min-w-0 flex-1">
+                  {/* At least 12rem, so on phones the status pills wrap below the title instead of covering it. */}
+                  <div className="min-w-[min(12rem,100%)] flex-1">
                     <Link
                       href={`/admin/sites/${slug}/pages/${id}`}
                       className="font-medium text-text hover:underline"

@@ -11,6 +11,7 @@ import {
   TrustedBy,
   bandProps,
   orderBySlug,
+  type TestimonialsDisplay,
 } from "@figbud/site-kit";
 import { type Locale, localeInfo, localizePath } from "@figbud/i18n";
 import { Container, Eyebrow, Reveal, RevealGroup, buttonClasses, cn, revealOrder } from "@figbud/ui";
@@ -270,9 +271,12 @@ export function CustomerProofSection({
   tone,
   results,
   display,
+  testimonials,
   showMetrics = true,
 }: SectionProps & {
   proof: PublicProof;
+  /** FigBud Global's published testimonial display (P10-R4); unset: the grid, as before. */
+  testimonials?: TestimonialsDisplay | null;
   /** The Results band's display and the website display defaults (P10-R1). */
   results?: ResultsDisplay | null;
   display?: DisplayDefaults | null;
@@ -291,7 +295,11 @@ export function CustomerProofSection({
           display={results}
           defaults={display}
         />
-        <Testimonials testimonials={proof.testimonials} labels={dict.home.proof.testimonials} />
+        <Testimonials
+          testimonials={proof.testimonials}
+          labels={dict.home.proof.testimonials}
+          display={testimonials}
+        />
       </Container>
     </div>
   );

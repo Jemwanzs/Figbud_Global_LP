@@ -3,6 +3,7 @@ import { Quote } from "lucide-react";
 
 import { MEDIA_PATH } from "./blocks";
 import { ProofLogo } from "./proof-logo";
+import { TestimonialCarousel } from "./testimonial-carousel";
 
 /*
  * Customers & proof (P10-T1..T3): what websites receive from
@@ -155,84 +156,148 @@ export function TrustedBy({
   );
 }
 
-/** Customer testimonials: cards in a grid, a swipeable row on phones. */
+export type TestimonialsLayout = "auto" | "card" | "carousel" | "grid";
+
+/** A website's testimonial band (Studio → a website → Results & success story → Testimonials, P10-R4). */
+export interface TestimonialsDisplay {
+  layout?: TestimonialsLayout;
+  /** Compact unless set. */
+  spacing?: "compact" | "standard" | "spacious" | null;
+}
+
+/** One approved testimonial, as approved: the quotation, the person, their organisation and logo. */
+function TestimonialCard({ t, compact }: { t: PublicTestimonial; compact: boolean }) {
+  const avatar = t.photo ?? t.organization_logo;
+  const who = [t.person_title, t.organization_name].filter(Boolean).join(", ");
+  return (
+    <figure
+      data-testimonial=""
+      className={cn(
+        "relative flex h-full flex-col rounded-[var(--radius-panel)] border border-line bg-surface",
+        compact ? "p-5 shadow-[0_18px_40px_-28px_rgb(0_0_0/0.35)] sm:p-7" : "p-6 sm:p-8",
+      )}
+    >
+      <span
+        aria-hidden
+        className="absolute inset-x-0 top-0 h-1 rounded-t-[var(--radius-panel)] bg-gradient-to-r from-product via-product/40 to-transparent rtl:bg-gradient-to-l"
+      />
+      <Quote aria-hidden className={cn("text-product-text opacity-70", compact ? "size-6" : "size-7")} />
+      <blockquote
+        className={cn("flex-1 text-[1.0625rem] leading-relaxed text-text", compact ? "mt-3" : "mt-4")}
+      >
+        <p>{t.quote}</p>
+      </blockquote>
+      <figcaption
+        className={cn("flex items-center gap-3 border-t border-line", compact ? "mt-5 pt-4" : "mt-6 pt-5")}
+      >
+        {avatar && (
+          <span
+            className={cn(
+              "flex size-11 shrink-0 items-center justify-center overflow-hidden border border-line bg-white",
+              t.photo ? "rounded-full" : "rounded-xl p-1.5",
+            )}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element -- media library files, served as uploaded */}
+            <img
+              src={src(avatar)}
+              alt=""
+              loading="lazy"
+              decoding="async"
+              className={t.photo ? "size-full object-cover" : "max-h-full max-w-full object-contain"}
+            />
+          </span>
+        )}
+        <span className="min-w-0">
+          <span className="block font-medium text-text">{t.person_name ?? t.organization_name}</span>
+          {t.person_name && who && <span className="block text-sm text-muted">{who}</span>}
+          {(t.industry || t.country) && (
+            <span className="block text-xs text-subtle">
+              {[t.industry, t.country].filter(Boolean).join(" · ")}
+            </span>
+          )}
+        </span>
+      </figcaption>
+    </figure>
+  );
+}
+
+/**
+ * Customer testimonials. With a website's display (P10-R4, owner's brief,
+ * 20 Nov 2026): one centred card for one testimonial, a carousel moved by
+ * hand for more (or the layout chosen), in a compact band whose height
+ * follows its content. Without one: cards in a grid, a swipeable row on
+ * phones, as before (FigBud Global until it publishes its own).
+ */
 export function Testimonials({
   testimonials,
   labels,
   className,
+  display,
 }: {
   testimonials: PublicTestimonial[];
   labels: { eyebrow?: string; title: string; lead?: string; list: string };
   className?: string;
+  display?: TestimonialsDisplay | null;
 }) {
   if (!testimonials.length) return null;
+  const chosen = display ? (display.layout ?? "auto") : "grid";
+  const layout = chosen === "auto" ? (testimonials.length === 1 ? "card" : "carousel") : chosen;
+  // One testimonial can't be a carousel: it shows as a card.
+  const shown = layout === "carousel" && testimonials.length === 1 ? "card" : layout;
+  const compact = Boolean(display);
   return (
-    <section aria-labelledby="testimonials-title" className={className}>
+    <section
+      aria-labelledby="testimonials-title"
+      className={className}
+      data-testimonials={shown}
+      data-testimonials-spacing={display ? (display.spacing ?? "compact") : undefined}
+    >
       <Heading id="testimonials-title" eyebrow={labels.eyebrow} title={labels.title} lead={labels.lead} />
-      <ul
-        aria-label={labels.list}
-        className="-mx-5 mt-12 flex snap-x snap-mandatory scroll-px-5 [scrollbar-width:none] gap-4 overflow-x-auto px-5 pb-2 md:mx-0 md:grid md:snap-none md:grid-cols-[repeat(auto-fit,minmax(18rem,26rem))] md:justify-center md:gap-6 md:overflow-visible md:px-0"
-      >
-        {testimonials.map((t, i) => {
-          const avatar = t.photo ?? t.organization_logo;
-          const who = [t.person_title, t.organization_name].filter(Boolean).join(", ");
-          return (
+      {shown === "carousel" ? (
+        <div className="mt-8">
+          <TestimonialCarousel
+            label={labels.list}
+            names={testimonials.map((t) => t.person_name ?? t.organization_name ?? "")}
+            slides={testimonials.map((t) => (
+              <TestimonialCard key={t.id} t={t} compact />
+            ))}
+          />
+        </div>
+      ) : shown === "card" ? (
+        <ul aria-label={labels.list} className="mx-auto mt-8 grid max-w-[46rem] gap-5">
+          {testimonials.map((t) => (
+            <li key={t.id} data-product={t.product ?? undefined}>
+              <RevealGroup className="h-full">
+                <div className="fb-reveal-item h-full">
+                  <TestimonialCard t={t} compact />
+                </div>
+              </RevealGroup>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <ul
+          aria-label={labels.list}
+          className={cn(
+            "-mx-5 flex snap-x snap-mandatory scroll-px-5 [scrollbar-width:none] gap-4 overflow-x-auto px-5 pb-2 md:mx-0 md:grid md:snap-none md:grid-cols-[repeat(auto-fit,minmax(18rem,26rem))] md:justify-center md:gap-6 md:overflow-visible md:px-0",
+            compact ? "mt-8" : "mt-12",
+          )}
+        >
+          {testimonials.map((t, i) => (
             <li
               key={t.id}
               data-product={t.product ?? undefined}
               className="w-[85%] shrink-0 snap-start md:w-auto"
             >
               <RevealGroup className="h-full">
-                <figure
-                  style={revealOrder(i % 3)}
-                  className="fb-reveal-item relative flex h-full flex-col rounded-[var(--radius-panel)] border border-line bg-surface p-6 sm:p-8"
-                >
-                  <span
-                    aria-hidden
-                    className="absolute inset-x-0 top-0 h-1 rounded-t-[var(--radius-panel)] bg-gradient-to-r from-product via-product/40 to-transparent rtl:bg-gradient-to-l"
-                  />
-                  <Quote aria-hidden className="size-7 text-product-text opacity-70" />
-                  <blockquote className="mt-4 flex-1 text-[1.0625rem] leading-relaxed text-text">
-                    <p>{t.quote}</p>
-                  </blockquote>
-                  <figcaption className="mt-6 flex items-center gap-3 border-t border-line pt-5">
-                    {avatar && (
-                      <span
-                        className={cn(
-                          "flex size-11 shrink-0 items-center justify-center overflow-hidden border border-line bg-white",
-                          t.photo ? "rounded-full" : "rounded-xl p-1.5",
-                        )}
-                      >
-                        {/* eslint-disable-next-line @next/next/no-img-element -- media library files, served as uploaded */}
-                        <img
-                          src={src(avatar)}
-                          alt=""
-                          loading="lazy"
-                          decoding="async"
-                          className={
-                            t.photo ? "size-full object-cover" : "max-h-full max-w-full object-contain"
-                          }
-                        />
-                      </span>
-                    )}
-                    <span className="min-w-0">
-                      <span className="block font-medium text-text">
-                        {t.person_name ?? t.organization_name}
-                      </span>
-                      {t.person_name && who && <span className="block text-sm text-muted">{who}</span>}
-                      {(t.industry || t.country) && (
-                        <span className="block text-xs text-subtle">
-                          {[t.industry, t.country].filter(Boolean).join(" · ")}
-                        </span>
-                      )}
-                    </span>
-                  </figcaption>
-                </figure>
+                <div style={revealOrder(i % 3)} className="fb-reveal-item h-full">
+                  <TestimonialCard t={t} compact={compact} />
+                </div>
               </RevealGroup>
             </li>
-          );
-        })}
-      </ul>
+          ))}
+        </ul>
+      )}
     </section>
   );
 }

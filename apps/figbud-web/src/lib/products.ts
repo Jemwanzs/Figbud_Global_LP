@@ -154,6 +154,7 @@ export async function getCorporateResults() {
     results: settings?.results ?? null,
     story: settings?.success_story?.enabled ? settings.success_story : null,
     display: settings?.display ?? null,
+    testimonials: settings?.testimonials ?? null,
   };
 }
 

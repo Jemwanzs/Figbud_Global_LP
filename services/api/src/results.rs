@@ -12,6 +12,11 @@
 //!   figures in which order, motion, and whether it replaces the Results band
 //!   so the same figures don't show twice. Published versions are kept for
 //!   rollback.
+//! - `TestimonialsDisplay` (owner's brief, 20 Nov 2026, P10-R4): how the
+//!   website's approved testimonials are laid out (one centred card, a
+//!   carousel moved by hand, or a grid; by default a card for one and a
+//!   carousel for more) and the band's spacing. The testimonials themselves
+//!   stay in Customers & proof, with their consent and publishing.
 //! - `DisplayDefaults`: set once on FigBud Global (Global settings → Website
 //!   display) and inherited by every website that hasn't set its own; a
 //!   change there never touches a website's content, colours or choices.
@@ -305,9 +310,43 @@ pub fn check_story(e: &mut Vec<FieldError>, s: &mut SuccessStory, field: &'stati
     }
 }
 
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum TestimonialsLayout {
+    /// One centred card for one testimonial, a carousel for more.
+    #[default]
+    Auto,
+    /// Centred cards, one under another.
+    Card,
+    /// One at a time, moved by hand (never rotating by itself).
+    Carousel,
+    /// Side by side.
+    Grid,
+}
+
+/// The testimonial band's layout and spacing (P10-R4).
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Default)]
+#[serde(default, deny_unknown_fields)]
+pub struct TestimonialsDisplay {
+    pub layout: TestimonialsLayout,
+    /// Compact unless set (the owner's brief: content-driven height).
+    pub spacing: Option<crate::pages::blocks::Spacing>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn testimonials_display_defaults_to_an_automatic_compact_band() {
+        let d: TestimonialsDisplay = serde_json::from_str("{}").unwrap();
+        assert_eq!(d.layout, TestimonialsLayout::Auto);
+        assert_eq!(d.spacing, None);
+        let d: TestimonialsDisplay =
+            serde_json::from_str(r#"{"layout":"carousel","spacing":"spacious"}"#).unwrap();
+        assert_eq!(d.layout, TestimonialsLayout::Carousel);
+        assert!(serde_json::from_str::<TestimonialsDisplay>(r#"{"layout":"wall"}"#).is_err());
+    }
 
     #[test]
     fn results_and_stories_are_checked() {

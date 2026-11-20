@@ -10,6 +10,7 @@ import type { EnquiryFormConfig } from "./enquiry";
 
 import type { StudioTheme } from "./site-theme";
 import type { DeviceExperience } from "./device-experience";
+import type { TestimonialsDisplay } from "./proof";
 import type { DisplayDefaults, ResultsDisplay, SuccessStoryConfig } from "./results";
 import type { SiteSeo } from "./seo";
 
@@ -99,6 +100,10 @@ export interface WebsiteSettings {
   results?: ResultsDisplay | null;
   /** Saved in the Studio, not published; only the Studio ever receives it. */
   results_draft?: ResultsDisplay | null;
+  /** The testimonial band's layout and spacing (P10-R4); unset: automatic and compact. */
+  testimonials?: TestimonialsDisplay | null;
+  /** Saved in the Studio, not published. */
+  testimonials_draft?: TestimonialsDisplay | null;
   /** "Our Success Story" (P10-R2); websites receive it only while it's on. */
   success_story?: SuccessStoryConfig | null;
   /** Saved in the Studio, not published. */

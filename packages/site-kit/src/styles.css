@@ -1158,12 +1158,17 @@ body:has(main [data-section="call_to_action"]:last-child) footer {
   stroke: var(--product);
   stroke-width: 0.35;
   stroke-dasharray: 1;
-  stroke-dashoffset: calc(1 - clamp(0, (var(--story-progress, 0) - var(--path-start, 0.12)) * 5, 1));
+  stroke-dashoffset: 0;
+  transition:
+    stroke-dashoffset var(--motion-slow) var(--motion-ease),
+    opacity var(--motion-base) var(--motion-ease-standard);
 }
-[data-step="2"] .fb-story-path,
-[data-step="3"] .fb-story-path {
+/* Drawn in as the story comes into view (P14-W9), faded once the tools settle. */
+[data-paths="waiting"] .fb-story-path {
+  stroke-dashoffset: 1;
+}
+[data-paths="faded"] .fb-story-path {
   opacity: 0;
-  transition: opacity var(--motion-base) var(--motion-ease-standard);
 }
 .fb-story-unfold {
   transform-origin: 50% 0;
@@ -1588,4 +1593,30 @@ body:has(main [data-section="call_to_action"]:last-child) footer {
 }
 [data-spacing="spacious"]:not(.fb-tone-full) {
   padding-block: 2rem;
+}
+
+/* The testimonial band (P10-R4, owner's brief, 20 Nov 2026): its height
+   follows its content, with about 32-40 px of space above and below on
+   phones and 48-64 px on wide screens; as the page's last band it meets the
+   footer without the page's closing space. */
+.fb-tone-full:has(> [data-testimonials-spacing="compact"]) {
+  padding-block: clamp(2rem, 5cqi, 4rem);
+}
+.fb-tone-full:has(> [data-testimonials-spacing="spacious"]) {
+  padding-block: clamp(4.5rem, 11cqi, 8.5rem);
+}
+/* Last on the page: on the page's own surface, the closing space is the
+   compact one; on a band, the band's own space is enough. */
+[data-page-content]:has(> [data-proof]:last-child > :last-child > [data-testimonials-spacing="compact"]) {
+  padding-bottom: clamp(2rem, 5vw, 4rem);
+}
+[data-page-content]:has(
+  > [data-proof]:last-child > .fb-tone-full:last-child > [data-testimonials-spacing="compact"]
+) {
+  padding-bottom: 0;
+}
+[data-page-content]
+  > [data-proof]
+  > .fb-tone-full:last-child:has(> [data-testimonials-spacing="compact"])::before {
+  bottom: 0;
 }

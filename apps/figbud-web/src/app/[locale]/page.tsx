@@ -63,7 +63,7 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
     getSectionThemes(),
   ]);
   // Results & achievements and Our Success Story (P10-R1/R2).
-  const { results, story, display } = await getCorporateResults();
+  const { results, story, display, testimonials } = await getCorporateResults();
   const shownStory =
     story && story.metric_ids.some((id) => proof.metrics.some((m) => m.id === id)) ? story : null;
   const resultsAfterHero = results?.placement === "after_hero";
@@ -153,6 +153,7 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
           proof={proof}
           results={results}
           display={display}
+          testimonials={testimonials}
           showMetrics={metricsInProof}
         />
       </Suspense>
