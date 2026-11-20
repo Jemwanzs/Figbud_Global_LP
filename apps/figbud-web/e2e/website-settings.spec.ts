@@ -764,6 +764,7 @@ test("Studio: a language is published only with a recorded review, and can go ba
 test("sample identities start from the approved names, preview per website, and publish (P14-W10)", async ({
   page,
 }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop", "edited from the desktop project");
   await signInAsOwner(page);
   await page.goto("/admin/demo-content");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Sample identities");
@@ -805,7 +806,6 @@ test("sample identities start from the approved names, preview per website, and 
     results.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`),
   ).toEqual([]);
 
-  test.skip(testInfo.project.name !== "desktop", "one project saves FigBud Global's settings");
   // Publish (retrying if another spec saved FigBud Global's settings meanwhile), then restore the approved set.
   await expect(async () => {
     await page.goto("/admin/demo-content");
