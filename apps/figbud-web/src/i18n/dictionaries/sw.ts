@@ -7,7 +7,7 @@ const sw: DeepPartial<Dictionary> = {
   meta: {
     title: "FigBud Global — Programu za biashara zilizojengwa kwa utata",
     description:
-      "FigBud Global hujenga mifumo ya biashara inayoweza kusanidiwa kwa watu, mikopo na matumizi: ZiraHR, Jasiri LMS, Expense Now na Ziwa LMS.",
+      "FigBud Global hujenga mifumo ya biashara inayoweza kusanidiwa kwa watu, mikopo na matumizi: ZiraHR, Jasiri LMS, Expense Now na Master Lender.",
   },
   common: {
     skipToContent: interfaceCopy.sw.skipToContent,

@@ -348,7 +348,13 @@ async fn create_enquiry(
         // Empty while no recipients are configured: the worker resolves them
         // from the enquiry when it delivers, so held notifications reach the team.
         let team = email::team_recipients(email_config, &enquiry);
-        let notification = templates::team_notification(&enquiry, &reference);
+        // The product as its website is published (Websites → Manage sites); the built-in name otherwise.
+        let product_name: String = sqlx::query_scalar("SELECT name FROM sites WHERE slug = $1")
+            .bind(enquiry.product.as_str())
+            .fetch_optional(&mut *tx)
+            .await?
+            .unwrap_or_else(|| enquiry.product.display_name().to_string());
+        let notification = templates::team_notification_named(&enquiry, &reference, &product_name);
         outbox::enqueue(&mut tx, id, &team, Some(&enquiry.email), &notification).await?;
 
         if email_config.send_acknowledgements {
@@ -360,7 +366,8 @@ async fn create_enquiry(
             .fetch_one(&mut *tx)
             .await?;
             let language = if published { enquiry.locale.as_str() } else { "en" };
-            let acknowledgement = templates::visitor_acknowledgement(&enquiry, &reference, language);
+            let acknowledgement =
+                templates::visitor_acknowledgement_named(&enquiry, &reference, language, &product_name);
             let to = [enquiry.email.clone()];
             outbox::enqueue(
                 &mut tx,

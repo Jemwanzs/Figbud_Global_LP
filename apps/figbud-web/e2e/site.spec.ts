@@ -33,8 +33,8 @@ test.describe("homepage", () => {
     }).toPass();
     await expect(jasiri).toBeFocused();
     await page.keyboard.press("End");
-    // Registry order: Ziwa LMS follows Expense Now.
-    await expect(page.getByRole("tab", { name: /Ziwa LMS/ })).toHaveAttribute("aria-selected", "true");
+    // Registry order: Master Lender follows Expense Now.
+    await expect(page.getByRole("tab", { name: /Master Lender/ })).toHaveAttribute("aria-selected", "true");
     await expect(page.getByRole("tabpanel").getByRole("link", { name: /Join the waitlist/ })).toBeVisible();
   });
 
@@ -42,8 +42,8 @@ test.describe("homepage", () => {
     await page.goto("/en#platforms");
     const tabs = page.getByRole("tablist");
     const logo = (name: RegExp) => tabs.getByRole("tab", { name }).locator('img[src^="/brand/assets/"]');
-    // Symbols for ZiraHR, Expense Now and Ziwa LMS; Jasiri's official logo carries its name.
-    for (const name of [/ZiraHR/, /Expense Now/, /Ziwa LMS/, /Jasiri LMS/])
+    // Symbols for ZiraHR, Expense Now and Master Lender; Jasiri's official logo carries its name.
+    for (const name of [/ZiraHR/, /Expense Now/, /Master Lender/, /Jasiri LMS/])
       await expect(logo(name).filter({ visible: true }).first()).toBeVisible();
     await expect(
       tabs
@@ -52,9 +52,9 @@ test.describe("homepage", () => {
         .first(),
     ).toBeVisible();
     // The panel follows the tab, with the same logo.
-    await tabs.getByRole("tab", { name: /Ziwa LMS/ }).click();
+    await tabs.getByRole("tab", { name: /Master Lender/ }).click();
     const panel = page.getByRole("tabpanel");
-    await expect(panel.getByRole("heading", { name: "Ziwa LMS" })).toBeVisible();
+    await expect(panel.getByRole("heading", { name: "Master Lender" })).toBeVisible();
     await expect(panel.locator('img[src^="/brand/assets/"]').filter({ visible: true }).first()).toBeVisible();
     // On phones the tabs scroll sideways inside their row; the page never does.
     expect(
@@ -144,7 +144,7 @@ test.describe("motion and product discovery (UI-MO1, UI-MO2)", () => {
     await expect(jump.getByRole("link")).toHaveCount(4);
     await expect(page.locator("#zirahr")).toContainText("Featured platform");
     await expect(page.locator("#zirahr")).toContainText("Illustrative product activity");
-    await jump.getByRole("link", { name: "Ziwa LMS" }).click();
+    await jump.getByRole("link", { name: "Master Lender" }).click();
     await expect(page).toHaveURL(/#ziwa$/);
     // The card comes into view (on phones it is taller than the screen).
     await expect(page.locator("#ziwa").getByRole("heading", { level: 2 })).toBeInViewport();
@@ -860,4 +860,34 @@ test("site search finds pages, products and articles from the header, and isn't 
   // The header still fits a phone with the search button in it.
   await page.setViewportSize({ width: 360, height: 780 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(0);
+});
+
+test("eyebrow dashes sit on their label's centreline, as one unit, at a steady size (owner's brief, 20 Nov 2026)", async ({
+  page,
+}) => {
+  await page.goto("/en/about");
+  const eyebrows = page.locator("[data-eyebrow]");
+  expect(await eyebrows.count()).toBeGreaterThan(2);
+  const measured = await eyebrows.evaluateAll((all) =>
+    all.map((el) => {
+      const dash = el.querySelector("[data-eyebrow-dash]")!.getBoundingClientRect();
+      const label = el.querySelector("[data-eyebrow-dash] + span")!.getBoundingClientRect();
+      return {
+        offset: Math.abs(dash.top + dash.height / 2 - (label.top + label.height / 2)),
+        gap: label.left - dash.right,
+        width: dash.width,
+        height: dash.height,
+        oneLine: Math.abs(dash.top - label.top) < label.height,
+      };
+    }),
+  );
+  const wide = page.viewportSize()!.width >= 640;
+  for (const m of measured) {
+    expect(m.offset).toBeLessThanOrEqual(1.5);
+    expect(m.height).toBe(2);
+    expect(m.width).toBe(wide ? 32 : 24);
+    expect(m.gap).toBeGreaterThanOrEqual(wide ? 11.5 : 9.5);
+    expect(m.gap).toBeLessThanOrEqual(wide ? 12.5 : 10.5);
+    expect(m.oneLine).toBe(true);
+  }
 });

@@ -158,6 +158,11 @@ export async function getCorporateResults() {
   };
 }
 
+/** The published sample identities (P14-W10, Studio → Marketing → Sample identities); unset: the approved defaults. */
+export async function getDemoIdentities() {
+  return (await getListedSites())?.find((s) => s.slug === "figbud")?.settings?.demo_identities ?? null;
+}
+
 /** FigBud Global's published enquiry form settings (Studio → FigBud Global → Enquiry form, UI-EF3). */
 export async function getCorporateEnquiryForm(): Promise<EnquiryFormConfig | null> {
   return (await getListedSites())?.find((s) => s.slug === "figbud")?.settings?.enquiry_form ?? null;

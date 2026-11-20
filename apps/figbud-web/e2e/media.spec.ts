@@ -6,7 +6,7 @@ import path from "node:path";
 import { type Page, expect, test } from "@playwright/test";
 import { themeSettled } from "./theme-settled";
 
-// Media library (P7-D2) against e2e/mock-api.mjs: Ziwa LMS has a seeded
+// Media library (P7-D2) against e2e/mock-api.mjs: Master Lender has a seeded
 // image on its published Platform page.
 
 test.describe.configure({ timeout: 60_000 });
@@ -51,9 +51,9 @@ test("upload with alt text, use it on a page, and see where it's used", async ({
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Media");
 
   // The seeded image is in use, so it can't be archived.
-  const seeded = page.getByRole("listitem", { name: "Ziwa team" });
+  const seeded = page.getByRole("listitem", { name: "Master Lender team" });
   await expect(seeded).toContainText("Platform (published)");
-  await expect(seeded.getByRole("button", { name: "Archive Ziwa team" })).toBeDisabled();
+  await expect(seeded.getByRole("button", { name: "Archive Master Lender team" })).toBeDisabled();
 
   // Alt text is required before uploading.
   const form = page.getByRole("region", { name: "Upload an image" });
@@ -85,7 +85,10 @@ test("upload with alt text, use it on a page, and see where it's used", async ({
   const sections = page.getByRole("list", { name: "Sections" });
   await sections.getByRole("button", { name: /^Image/ }).click();
   const picker = page.getByRole("radiogroup", { name: "Image", exact: true });
-  await expect(picker.getByRole("radio", { name: "Ziwa team" })).toHaveAttribute("aria-checked", "true");
+  await expect(picker.getByRole("radio", { name: "Master Lender team" })).toHaveAttribute(
+    "aria-checked",
+    "true",
+  );
   await picker.getByRole("radio", { name: label }).click();
   const preview = page.getByRole("region", { name: "Live preview" });
   await expect(

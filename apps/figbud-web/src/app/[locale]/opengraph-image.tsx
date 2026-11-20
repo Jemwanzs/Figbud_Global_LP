@@ -1,4 +1,6 @@
-import { publicProducts, themeBackground } from "@figbud/brand";
+import { themeBackground } from "@figbud/brand";
+
+import { getPublicProducts } from "@/lib/products";
 import { ImageResponse } from "next/og";
 
 import { getSocialImage } from "@/lib/products";
@@ -9,6 +11,8 @@ export const contentType = "image/png";
 
 /** The sharing image uploaded in the Studio (Branding), else this generated card. */
 export default async function OpengraphImage() {
+  // Names as published (Websites → Manage sites).
+  const catalogue = await getPublicProducts();
   const uploaded = await getSocialImage();
   if (uploaded) {
     return new Response(uploaded.slice().buffer, {
@@ -49,7 +53,7 @@ export default async function OpengraphImage() {
       </div>
       <div style={{ display: "flex", gap: 28, fontSize: 26, color: "#94a3b8" }}>
         {/* Every product in the registry, so a new product is never left out. */}
-        {publicProducts.map((product, i) => (
+        {catalogue.map((product, i) => (
           <span key={product.slug} style={{ display: "flex", gap: 28 }}>
             {i > 0 && <span>·</span>}
             <span>{product.name}</span>

@@ -1,4 +1,4 @@
-import { type ProductSlug, themeColorViewport } from "@figbud/brand";
+import { type ProductSlug, themeColorViewport, publicSegment } from "@figbud/brand";
 import {
   CampaignOverlays,
   CampaignProvider,
@@ -9,6 +9,7 @@ import {
   resolveNavPreviews,
   siteThemeCss,
   verificationMeta,
+  DemoPeopleProvider,
 } from "@figbud/site-kit";
 import type { EnquiryProduct } from "@figbud/site-kit/enquiry";
 import { themeInitScript } from "@figbud/ui";
@@ -122,6 +123,7 @@ export default async function SiteLayout({ children, params }: LayoutProps<"/[si
   const pages = await getPages(slug);
   const privacy = await getPrivacySettings();
   const campaigns = await getLiveCampaigns(slug);
+  const identities = (await getListedSites()).find((s) => s.slug === "figbud")?.settings?.demo_identities;
   // The menu: the Studio's own links, or the published pages marked for navigation.
   const navigation = site.settings?.navigation;
   // Each website's own hover previews (UI-NAV2); none until it writes some.
@@ -182,7 +184,7 @@ export default async function SiteLayout({ children, params }: LayoutProps<"/[si
             campaigns={campaigns}
             apiOrigin={publicApiOrigin}
             enquiryUrl={enquiryHref(site, { ownDomain, pages })}
-            pathPrefix={ownDomain ? "" : `/${slug}`}
+            pathPrefix={ownDomain ? "" : `/${publicSegment(slug)}`}
             brand={site.brand}
             product={KNOWN.includes(slug) ? slug : "figbud"}
           >
@@ -218,7 +220,10 @@ export default async function SiteLayout({ children, params }: LayoutProps<"/[si
               className="mx-auto block w-full max-w-[92rem] px-5 pt-4 sm:px-8 md:px-10 lg:px-16"
             />
             <main id="main" tabIndex={-1} className="flex-1 overflow-x-clip outline-none">
-              {children}
+              {/* The sample identities illustrations use (P14-W10), as FigBud Global publishes them. */}
+              <DemoPeopleProvider identities={identities} slug={slug}>
+                {children}
+              </DemoPeopleProvider>
             </main>
             <CampaignSlot
               placement="footer"

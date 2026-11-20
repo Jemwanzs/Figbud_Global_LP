@@ -376,6 +376,32 @@ export function BrandStudio({
                 20–48 px. Footers and cards scale from this; logos keep their proportions.
               </p>
             </div>
+            {/* Owner's brief, 20 Nov 2026 (Master Lender): a renamed product keeps its artwork. */}
+            <div className="mt-6">
+              <label htmlFor={`${uid}-header-logo`} className="block text-sm font-medium text-text">
+                Header shows
+              </label>
+              <select
+                id={`${uid}-header-logo`}
+                value={config.header_logo ?? "auto"}
+                disabled={!canEdit}
+                onChange={(e) =>
+                  change({ ...config, header_logo: e.target.value as BrandConfig["header_logo"] })
+                }
+                className="mt-1.5 min-h-11 w-full rounded-xl border border-line-strong bg-surface px-3 text-sm text-text"
+              >
+                <option value="auto">
+                  Automatic: the full logo, or the symbol and name if the logo shows another name
+                </option>
+                <option value="logo">The full logo</option>
+                <option value="symbol_and_name">The symbol and the website&apos;s name</option>
+              </select>
+              <p className="mt-1 text-xs text-subtle">
+                The name comes from Websites → Manage sites. Logo files are never changed; a logo whose
+                artwork carries an earlier name (its text alternative says which) shows as its symbol beside
+                the current name.
+              </p>
+            </div>
           </section>
 
           <section aria-labelledby={`${uid}-library`} className="fb-panel rounded-[var(--radius-panel)] p-6">

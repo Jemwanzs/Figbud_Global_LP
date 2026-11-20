@@ -7,7 +7,7 @@ const fr: DeepPartial<Dictionary> = {
   meta: {
     title: "FigBud Global — Des logiciels d'entreprise conçus pour la complexité",
     description:
-      "FigBud Global conçoit des plateformes d'entreprise configurables pour les personnes, le crédit et les dépenses : ZiraHR, Jasiri LMS, Expense Now et Ziwa LMS.",
+      "FigBud Global conçoit des plateformes d'entreprise configurables pour les personnes, le crédit et les dépenses : ZiraHR, Jasiri LMS, Expense Now et Master Lender.",
   },
   common: {
     skipToContent: interfaceCopy.fr.skipToContent,

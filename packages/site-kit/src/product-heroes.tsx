@@ -20,6 +20,7 @@ import {
   useStages,
   useTween,
 } from "./hero-kit";
+import { DemoName } from "./demo-people";
 
 /*
  * ZiraHR's hero collection (P12-H4). The product website and the Studio
@@ -138,10 +139,11 @@ const card =
 
 /* ------------------------------------------------------------ 01 Workforce */
 
+// Who: the first three sample identities, in order (P14-W10).
 const LEAVE = [
-  { who: "Amani W.", what: "Annual leave · 5 days", state: "Awaiting manager" },
-  { who: "Brian O.", what: "Sick leave · 1 day", state: "Approved" },
-  { who: "Chebet K.", what: "Study leave · 3 days", state: "Approved" },
+  { what: "Annual leave · 5 days", state: "Awaiting manager" },
+  { what: "Sick leave · 1 day", state: "Approved" },
+  { what: "Study leave · 3 days", state: "Approved" },
 ];
 const DEPARTMENTS = [
   { name: "Operations", value: 148 },
@@ -251,13 +253,10 @@ function WorkforceHero(props: ProductHeroProps) {
           >
             <p className="text-xs text-subtle">Leave requests</p>
             <ul className="mt-2 space-y-2">
-              {LEAVE.map((l) => (
-                <li key={l.who} className="flex items-center gap-2.5">
+              {LEAVE.map((l, i) => (
+                <li key={l.what} className="flex items-center gap-2.5">
                   <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-product-soft text-[0.65rem] font-semibold text-product-text">
-                    {l.who
-                      .split(" ")
-                      .map((p) => p[0])
-                      .join("")}
+                    <DemoName index={i} form="initials" />
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-xs text-text">{l.what}</span>
@@ -635,7 +634,7 @@ function Sheet({ title, tag, children }: { title: string; tag: string; children:
   );
 }
 
-function Row({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
+function Row({ label, value, strong }: { label: string; value: ReactNode; strong?: boolean }) {
   return (
     <div
       className={cn(
@@ -672,16 +671,18 @@ const CHAPTERS: { key: string; title: string; meta: string; sheet: ReactNode }[]
       <Sheet title="Employee record" tag="Core HR">
         <div className="flex items-center gap-3">
           <span className="grid size-11 place-items-center rounded-full bg-product text-sm font-semibold text-product-ink">
-            AW
+            <DemoName form="initials" />
           </span>
           <div>
-            <p className="font-medium text-text">Amani Wanjiru</p>
+            <p className="font-medium text-text">
+              <DemoName />
+            </p>
             <p className="text-muted">Operations · Nairobi branch</p>
           </div>
         </div>
         <div className="mt-4">
           <Row label="Contract" value="Permanent" />
-          <Row label="Reports to" value="Brian Otieno" />
+          <Row label="Reports to" value={<DemoName index={1} />} />
           <Row label="Documents" value="6 of 6 on file" />
         </div>
       </Sheet>

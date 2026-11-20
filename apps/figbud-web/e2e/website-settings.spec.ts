@@ -2,7 +2,7 @@ import AxeBuilder from "@axe-core/playwright";
 import { randomBytes } from "node:crypto";
 
 import { type Page, expect, test } from "@playwright/test";
-import { themeSettled } from "./theme-settled";
+import { scrolledToTop, themeSettled } from "./theme-settled";
 import { answer } from "./confirm-dialog";
 
 // The Studio tests below save the same settings documents, so they take turns
@@ -10,7 +10,7 @@ import { answer } from "./confirm-dialog";
 test.describe.configure({ mode: "serial" });
 
 // Navigation, footer & forms per website (P7-E2). In the mock API, Jasiri LMS
-// isn't taking enquiries (a fixture); the Studio test edits Ziwa LMS's menu.
+// isn't taking enquiries (a fixture); the Studio test edits Master Lender's menu.
 
 test("a product closed to enquiries says so on the contact form and can't be chosen", async ({ page }) => {
   await page.goto("/en/contact?kind=demo_request&product=jasiri");
@@ -44,7 +44,9 @@ test("if a product closes while the form is open, the API's refusal is explained
   await page.getByRole("button", { name: "Continue" }).click();
   await page.getByRole("checkbox").check();
   await page.getByRole("button", { name: "Send enquiry" }).click();
-  await expect(page.getByText("Ziwa LMS isn't taking enquiries right now.", { exact: false })).toBeVisible();
+  await expect(
+    page.getByText("Master Lender isn't taking enquiries right now.", { exact: false }),
+  ).toBeVisible();
 });
 
 async function signInAsOwner(page: Page) {
@@ -755,4 +757,73 @@ test("Studio: a language is published only with a recorded review, and can go ba
   await fr.getByRole("button", { name: "Back to draft" }).click();
   await answer(page, "Back to draft");
   await expect(fr).toContainText("Draft · not indexed");
+});
+
+// Sample identities (P14-W10) are saved with FigBud Global's settings, so this
+// test takes its turn with the others here.
+test("sample identities start from the approved names, preview per website, and publish (P14-W10)", async ({
+  page,
+}, testInfo) => {
+  await signInAsOwner(page);
+  await page.goto("/admin/demo-content");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Sample identities");
+  const studio = page.locator("[data-identities-studio]");
+  // The approved names, in the approved rotation.
+  const names = studio.getByRole("list", { name: "Sample identities" }).getByLabel("Display name");
+  await expect(names).toHaveCount(6);
+  for (const [i, name] of [
+    "Libbie Sonia",
+    "Bright",
+    "James Bright",
+    "Titus",
+    "Derick",
+    "Fortune Bright",
+  ].entries())
+    await expect(names.nth(i)).toHaveValue(name);
+  const preview = studio.locator("[data-identities-preview]");
+  await expect(preview.locator("[data-preview-lead]")).toHaveText("Libbie Sonia");
+  await expect(preview).toContainText("Libbie S. · Annual leave");
+
+  // A website's lead comes first in its illustrations; others keep the list's order.
+  await studio.getByLabel("ZiraHR", { exact: true }).selectOption("titus");
+  await studio.getByLabel("Website", { exact: true }).selectOption("zirahr");
+  await expect(preview.locator("[data-preview-lead]")).toHaveText("Titus");
+  await studio.getByLabel("Website", { exact: true }).selectOption("figbud");
+  await expect(preview.locator("[data-preview-lead]")).toHaveText("Libbie Sonia");
+
+  // Reordering and deactivating show at once in the preview.
+  await studio.getByRole("button", { name: "Move Bright down" }).click();
+  await expect(names.nth(2)).toHaveValue("Bright");
+  await studio.locator('[data-identity="derick"]').getByLabel("Active").uncheck();
+  await expect(preview).not.toContainText("Derick");
+
+  const results = await new AxeBuilder({ page: await themeSettled(await scrolledToTop(page)) })
+    .include("[data-identities-studio]")
+    .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
+    .analyze();
+  expect(
+    results.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`),
+  ).toEqual([]);
+
+  test.skip(testInfo.project.name !== "desktop", "one project saves FigBud Global's settings");
+  // Publish (retrying if another spec saved FigBud Global's settings meanwhile), then restore the approved set.
+  await expect(async () => {
+    await page.goto("/admin/demo-content");
+    await studio.getByLabel("ZiraHR", { exact: true }).selectOption("titus");
+    await studio.getByRole("button", { name: "Publish", exact: true }).click();
+    await expect(studio.getByRole("status").filter({ hasText: "Published." })).toBeVisible({
+      timeout: 3_000,
+    });
+  }).toPass({ timeout: 30_000 });
+  await expect(studio.locator("[data-identities-status]")).toContainText("Published");
+  await studio.getByText("Published versions").click();
+  await expect(studio.getByRole("button", { name: "Load to restore" }).first()).toBeVisible();
+  await expect(async () => {
+    await page.goto("/admin/demo-content");
+    await studio.getByLabel("ZiraHR", { exact: true }).selectOption("");
+    await studio.getByRole("button", { name: "Publish", exact: true }).click();
+    await expect(studio.getByRole("status").filter({ hasText: "Published." })).toBeVisible({
+      timeout: 3_000,
+    });
+  }).toPass({ timeout: 30_000 });
 });

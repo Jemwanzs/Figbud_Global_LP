@@ -7,6 +7,7 @@ import { type CSSProperties, type KeyboardEvent, type ReactNode, useSyncExternal
 import { DemoControl, useAutoDemo } from "./auto-demo";
 import { Meter, Rows, Ticks, useScrollStory } from "./scroll-story";
 import { ZIRAHR_MODULES, type ZiraModuleKey } from "./zirahr-modules";
+import { DemoName } from "./demo-people";
 
 /*
  * "Choose a module" as a guided tour (owner's brief, 11 Nov 2026), for this
@@ -52,9 +53,14 @@ function moduleKey(title: string): ZiraModuleKey | null {
 }
 
 /** Compact demonstrations, one per module; the same sample employee as the stories. */
-const PREVIEWS: Record<ZiraModuleKey, { title: string; body: ReactNode }> = {
+const PREVIEWS: Record<ZiraModuleKey, { title: ReactNode; body: ReactNode }> = {
   core_hr: {
-    title: "Amani W. · Employee 360",
+    // The lead sample identity (P14-W10), as in the stories.
+    title: (
+      <>
+        <DemoName /> · Employee 360
+      </>
+    ),
     body: (
       <Rows
         rows={[
@@ -140,7 +146,7 @@ const PREVIEWS: Record<ZiraModuleKey, { title: string; body: ReactNode }> = {
                 i === 2 ? "bg-product font-medium text-product-ink" : "bg-surface text-muted",
               )}
             >
-              {i === 2 ? "Amani W." : "Candidate"}
+              {i === 2 ? <DemoName form="short" /> : "Candidate"}
             </p>
           </div>
         ))}

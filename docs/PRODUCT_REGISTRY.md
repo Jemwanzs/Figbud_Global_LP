@@ -8,7 +8,7 @@ The websites FigBud runs, in their public order. The live source of truth is the
 | 2 | ZiraHR | `zirahr` | product | HR & Workforce | hr | Active | `NEXT_PUBLIC_ZIRAHR_URL` (site built, not deployed yet) |
 | 3 | Jasiri LMS | `jasiri` | product | Lending & Credit | lending | Active | `NEXT_PUBLIC_JASIRI_URL` (site not built yet) |
 | 4 | Expense Now | `expense_now` | product | Finance & Payments | finance | Coming soon | `NEXT_PUBLIC_EXPENSE_NOW_URL` |
-| 5 | Ziwa LMS | `ziwa` | product | Lending & Credit | lending | Coming soon | `NEXT_PUBLIC_ZIWA_URL` |
+| 5 | Master Lender (formerly Ziwa LMS) | `ziwa` | product | Lending & Credit | lending | Coming soon | `NEXT_PUBLIC_ZIWA_URL` |
 
 Rules that apply to every website:
 
@@ -19,7 +19,10 @@ Rules that apply to every website:
 - **Africa expansion map:** each product website has a "Show on the Africa expansion map" setting (Admin → Websites → settings, `sites.show_on_map`, on by default). The corporate homepage map shows listed products with it on, using their published symbol (or full logo, or built-in icon), status and destination. The routes stay labelled as illustrative expansion architecture, not current operations.
 - **Each website has its own brand profile, enquiry routing (`EMAIL_RECIPIENTS_<PRODUCT>`) and content.** Nothing is shared between products' customer data. The marketing API holds website data only.
 
-## Ziwa LMS (added 24 October 2026)
+## Master Lender, formerly Ziwa LMS (added 24 October 2026; renamed 20 November 2026)
+
+**Renamed Master Lender** (owner's brief, 20 Nov 2026), never with "LMS". The same product and website record: slug `ziwa` (the internal identifier, kept for enquiries, media, settings, environment variables and history), logos and favicons unchanged. Its public address is `/master-lender`; `/ziwa/…` forwards there permanently (308), page and query kept. Its name comes from one place, the website record (Studio → Websites → Manage sites): websites, the corporate menu, footer, cards, structured data, sharing image, copy in every language, enquiry forms and emails all read the published name. Its logo artwork still reads "Ziwa LMS", so headers show its symbol beside the name (Brand → Header shows). The text below is the original brief, kept for history.
+
 
 **Status:** listed as **coming soon** (waitlist), pending confirmation of its commercial launch readiness (Q19). Its logo was approved on 28 Oct 2026 and is published (BRAND_ASSETS.md §3b).
 

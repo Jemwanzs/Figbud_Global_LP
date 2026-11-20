@@ -38,7 +38,7 @@ test("search preview, sharing image, hiding from search engines and old addresse
 
   // The result preview follows the search title as it's typed.
   const preview = page.getByLabel("Search result preview");
-  await expect(preview).toContainText("Ziwa LMS › platform");
+  await expect(preview).toContainText("Master Lender › platform");
   await expect(async () => {
     await page.getByLabel("Search title (optional)").fill("Ziwa lending platform");
     await expect(preview).toContainText("Ziwa lending platform", { timeout: 1_000 });
@@ -46,7 +46,7 @@ test("search preview, sharing image, hiding from search engines and old addresse
 
   // Its own sharing image, from the media library.
   await expect(page.getByLabel("Sharing image")).toHaveValue(/[0-9a-f-]{36}/);
-  await expect(page.getByLabel("Sharing image").locator("option:checked")).toHaveText("Ziwa team");
+  await expect(page.getByLabel("Sharing image").locator("option:checked")).toHaveText("Master Lender team");
 
   // Kept out of search engines (part of the draft).
   await page.getByRole("checkbox", { name: /Hide from search engines/ }).check();

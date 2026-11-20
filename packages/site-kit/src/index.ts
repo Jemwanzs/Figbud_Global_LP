@@ -53,3 +53,12 @@ export * from "./numbered-story";
 export type { TourItem } from "./module-tour";
 export * from "./guided-demo";
 export * from "./guided-steps";
+export {
+  DEFAULT_DEMO_IDENTITIES,
+  type DemoIdentities,
+  type DemoIdentity,
+  type DemoPerson,
+  demoPeople,
+  toPerson,
+} from "./demo-identities";
+export { DemoAvatar, DemoName, DemoPeopleProvider, useDemoPeople } from "./demo-people";

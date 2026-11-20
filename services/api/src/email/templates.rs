@@ -91,7 +91,12 @@ pub fn password_changed(name: &str) -> RenderedEmail {
 }
 
 pub fn team_notification(enquiry: &Enquiry, reference: &str) -> RenderedEmail {
-    let product = enquiry.product.display_name();
+    team_notification_named(enquiry, reference, enquiry.product.display_name())
+}
+
+/// As `team_notification`, naming the product as its website is published
+/// (Websites → Manage sites), so a renamed product is never called by its old name.
+pub fn team_notification_named(enquiry: &Enquiry, reference: &str, product: &str) -> RenderedEmail {
     let who = match &enquiry.company {
         Some(company) => format!("{} ({company})", enquiry.name),
         None => enquiry.name.clone(),
@@ -151,9 +156,19 @@ pub fn team_notification(enquiry: &Enquiry, reference: &str) -> RenderedEmail {
 /// The visitor's acknowledgement, in `language` (a published language code,
 /// else English: see `acknowledgement_text`).
 pub fn visitor_acknowledgement(enquiry: &Enquiry, reference: &str, language: &str) -> RenderedEmail {
+    visitor_acknowledgement_named(enquiry, reference, language, enquiry.product.display_name())
+}
+
+/// As `visitor_acknowledgement`, naming the product as its website is published.
+pub fn visitor_acknowledgement_named(
+    enquiry: &Enquiry,
+    reference: &str,
+    language: &str,
+    product: &str,
+) -> RenderedEmail {
     let words = acknowledgement_text::text(language);
     let first_name = enquiry.name.split_whitespace().next().unwrap_or(&enquiry.name);
-    let [subject, headline, next_steps] = words.for_enquiry(enquiry.kind, enquiry.product);
+    let [subject, headline, next_steps] = words.for_enquiry(enquiry.kind, enquiry.product, product);
     let greeting = |name: &str| words.greeting.replace("{name}", name);
     // Our wording, escaped, around the reference in bold.
     let reference_html = words
@@ -271,6 +286,19 @@ mod tests {
         assert!(email.html.contains("Hello &lt;b&gt;team&lt;/b&gt;"));
         assert!(email.subject.starts_with("[ZiraHR] Demo request from"));
         assert!(email.text.contains("Reference: FBG-2610-ABCDEF"));
+    }
+
+    #[test]
+    fn emails_name_the_product_as_published() {
+        let e = enquiry(EnquiryKind::Waitlist, Product::Ziwa);
+        let ack = visitor_acknowledgement_named(&e, "FBG-1", "en", "Renamed Product");
+        assert_eq!(ack.subject, "You're on the Renamed Product waitlist");
+        let team = team_notification_named(&e, "FBG-1", "Renamed Product");
+        assert!(team.subject.starts_with("[Renamed Product]"));
+        assert_eq!(
+            visitor_acknowledgement(&e, "FBG-1", "en").subject,
+            "You're on the Master Lender waitlist"
+        );
     }
 
     #[test]

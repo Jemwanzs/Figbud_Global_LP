@@ -72,7 +72,7 @@ test("create, publish and version shared content, and use it on pages", async ({
   // An item in use lists its pages and can't be archived.
   await page.goto("/admin/content");
   await page.getByRole("link", { name: "Data promise" }).click();
-  await expect(page.getByRole("region", { name: "Used on" })).toContainText("Ziwa LMS · Security");
+  await expect(page.getByRole("region", { name: "Used on" })).toContainText("Master Lender · Security");
   await expect(page.getByRole("button", { name: "Archive" })).toBeDisabled();
 
   // In the page builder, the Shared content section shows the published item.

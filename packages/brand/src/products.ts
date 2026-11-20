@@ -25,6 +25,12 @@ export interface Product {
   devPort: number;
   /** Environment variable that overrides the product website origin. */
   originEnv: string;
+  /**
+   * The website's public address segment when it differs from the slug
+   * (`/master-lender` for the product formerly Ziwa LMS). The slug stays the
+   * internal identifier; the old address redirects permanently.
+   */
+  publicPath?: string;
 }
 
 export const products: readonly Product[] = [
@@ -55,7 +61,9 @@ export const products: readonly Product[] = [
   {
     // Second lending product on the shared lending website foundation (docs/PRODUCT_REGISTRY.md).
     slug: "ziwa",
-    name: "Ziwa LMS",
+    // Renamed Master Lender (owner's brief, 20 Nov 2026); the slug stays as the internal identifier.
+    name: "Master Lender",
+    publicPath: "master-lender",
     status: "coming_soon",
     proposedOrigin: "https://ziwa.figbudglobal.com",
     devPort: 3004,
@@ -127,3 +135,16 @@ export const productSites: Record<ProductSlug, { nav: ProductNavItem[] }> = {
     ],
   },
 };
+
+/** A website's public address segment: its `publicPath`, else its slug (any website, product or not). */
+export function publicSegment(slug: string): string {
+  return products.find((p) => p.slug === slug)?.publicPath ?? slug;
+}
+
+/** The website slug for a public address segment, and whether that segment is a legacy one to redirect. */
+export function segmentSite(segment: string): { slug: string; legacy: boolean } {
+  const renamed = products.find((p) => p.publicPath === segment);
+  if (renamed) return { slug: renamed.slug, legacy: false };
+  const moved = products.find((p) => p.slug === segment && p.publicPath);
+  return { slug: segment, legacy: Boolean(moved) };
+}

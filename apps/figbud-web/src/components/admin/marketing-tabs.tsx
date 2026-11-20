@@ -6,6 +6,8 @@ const TABS = [
   { href: "/admin/proof?kind=organization", key: "organization", label: "Trusted By" },
   { href: "/admin/proof?kind=testimonial", key: "testimonial", label: "Testimonials" },
   { href: "/admin/proof?kind=metric", key: "metric", label: "Success metrics" },
+  // Demo content (P14-W10): the fictional people illustrations use.
+  { href: "/admin/demo-content", key: "identities", label: "Sample identities" },
 ] as const;
 
 /** Content & Marketing sections, shared by their list pages. */

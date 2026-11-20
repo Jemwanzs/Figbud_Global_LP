@@ -16,6 +16,8 @@ export interface BrandConfig {
   social_image: string | null;
   colors: { primary: string; secondary: string; accent: string };
   logo_height: number;
+  /** What the website's header shows; "auto" when unset. */
+  header_logo?: "auto" | "logo" | "symbol_and_name";
 }
 
 export interface Placement {

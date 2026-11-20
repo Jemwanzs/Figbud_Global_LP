@@ -13,7 +13,7 @@ const en = {
     siteName: "FigBud Global",
     title: "FigBud Global — Enterprise software built for complexity",
     description:
-      "Configurable enterprise platforms for people, lending and spend: ZiraHR, Jasiri LMS, Expense Now and Ziwa LMS. Built in Kenya, designed for Africa.",
+      "Configurable enterprise platforms for people, lending and spend: ZiraHR, Jasiri LMS, Expense Now and Master Lender. Built in Kenya, designed for Africa.",
   },
   common: {
     skipToContent: interfaceCopy.en.skipToContent,
@@ -129,7 +129,7 @@ const en = {
       category: "Lending operations",
       tagline: "Lending that flows with your business.",
       summary:
-        "From application to repayment, Ziwa brings your lending operations together in one intelligent, configurable platform.",
+        "From application to repayment, Master Lender brings your lending operations together in one intelligent, configurable platform.",
       highlights: [
         "One guided journey from onboarding to repayment",
         "Products, fees and repayment schedules you configure",
@@ -146,7 +146,7 @@ const en = {
       pillars: ["Built in Kenya", "Multilingual & multicurrency by design", "Secure by architecture"],
       visual: {
         label:
-          "The FigBud ecosystem: ZiraHR, Jasiri LMS, Expense Now and Ziwa LMS connected through one core.",
+          "The FigBud ecosystem: ZiraHR, Jasiri LMS, Expense Now and Master Lender connected through one core.",
         core: "FigBud core",
         coreDetail: "Identity · Workflows · Data",
         explore: "Explore {product}",
@@ -362,7 +362,7 @@ const en = {
   pages: {
     products: {
       title: "Products",
-      description: "Explore the FigBud ecosystem: ZiraHR, Jasiri LMS, Expense Now and Ziwa LMS.",
+      description: "Explore the FigBud ecosystem: ZiraHR, Jasiri LMS, Expense Now and Master Lender.",
       lead: "Configurable enterprise platforms for people, lending and spend. Each product has its own dedicated website.",
       jumpLabel: "Products on this page",
       featured: "Featured platform",
@@ -426,7 +426,8 @@ const en = {
     },
     contact: {
       title: "Contact",
-      description: "Talk to FigBud Global about ZiraHR, Jasiri LMS, Expense Now, Ziwa LMS or partnerships.",
+      description:
+        "Talk to FigBud Global about ZiraHR, Jasiri LMS, Expense Now, Master Lender or partnerships.",
       lead: "Tell us about your organisation and what you're looking for. The right team will get back to you.",
       eyebrow: "Let's talk",
       nextTitle: "What happens next",

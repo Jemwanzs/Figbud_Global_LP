@@ -1,4 +1,4 @@
-import { publicProducts } from "@figbud/brand";
+import { type Product, publicProducts } from "@figbud/brand";
 import { type Locale, localizePath } from "@figbud/i18n";
 import { FigBudWordmark } from "@figbud/ui";
 import {
@@ -33,9 +33,12 @@ export async function SiteFooter({
   dict,
   brand,
   settings,
+  catalogue = publicProducts,
 }: {
   locale: Locale;
   dict: Dictionary;
+  /** The products with their published names and stages (Websites → Manage sites). */
+  catalogue?: readonly Product[];
   /** The published FigBud Global brand profile, if any. */
   brand?: BrandProfile | null;
   /** Studio → FigBud Global → Footer, as published. */
@@ -70,7 +73,7 @@ export async function SiteFooter({
     : [];
   const products: FooterColumnSpec = {
     title: footer.productsTitle,
-    links: publicProducts.map((product) => {
+    links: catalogue.map((product) => {
       const link = productLink(product.slug, locale);
       return {
         label: product.name,

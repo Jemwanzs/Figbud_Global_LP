@@ -111,7 +111,7 @@ test("a product website inherits FigBud Global's website display until it sets i
   await expect(page.getByLabel("Figures", { exact: true })).toHaveValue("compact");
   // No figures are published for Ziwa: the story says where they come from.
   await page.getByRole("tab", { name: "Our Success Story" }).click();
-  await expect(page.getByText("No figures for Ziwa LMS yet.")).toBeVisible();
+  await expect(page.getByText("No figures for Master Lender yet.")).toBeVisible();
 });
 
 test("Our Success Story's figures are added, edited, duplicated, limited and deleted in place", async ({
@@ -119,11 +119,11 @@ test("Our Success Story's figures are added, edited, duplicated, limited and del
 }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop", "one project changes the shared figures");
   await signInAsOwner(page);
-  // Ziwa LMS: no figures yet, so this test's figures are the only ones there.
+  // Master Lender: no figures yet, so this test's figures are the only ones there.
   await page.goto("/admin/sites/ziwa/results");
   await page.getByRole("tab", { name: "Our Success Story" }).click();
   const manager = page.locator("[data-story-figures]");
-  await expect(manager).toContainText("No figures for Ziwa LMS yet.");
+  await expect(manager).toContainText("No figures for Master Lender yet.");
   await manager.getByRole("button", { name: "Add figure" }).click();
   const editor = manager.locator("[data-figure-editor]");
   await expect(editor).toBeVisible();
@@ -161,5 +161,5 @@ test("Our Success Story's figures are added, edited, duplicated, limited and del
     await manager.getByRole("button", { name: `Delete ${name}`, exact: true }).click();
     await expect(manager.getByText(name, { exact: true })).toHaveCount(0);
   }
-  await expect(manager).toContainText("No figures for Ziwa LMS yet.");
+  await expect(manager).toContainText("No figures for Master Lender yet.");
 });

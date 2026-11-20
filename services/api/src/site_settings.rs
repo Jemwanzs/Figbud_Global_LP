@@ -616,6 +616,13 @@ pub struct WebsiteSettings {
     /// Published success stories, newest first, for rollback. Kept by the
     /// API: what an editor sends is ignored.
     pub story_history: Vec<results::StoryVersion>,
+    /// Sample identities (P14-W10): the fictional people every website's
+    /// illustrations use. FigBud Global only; unset: the approved defaults.
+    pub demo_identities: Option<crate::demo_identities::DemoIdentities>,
+    /// Saved in the Studio but not published.
+    pub demo_identities_draft: Option<crate::demo_identities::DemoIdentities>,
+    /// Published sets, newest first, for rollback (kept by the API).
+    pub demo_identities_history: Vec<crate::demo_identities::IdentitiesVersion>,
     /// The testimonial band's layout and spacing (P10-R4); unset: automatic
     /// and compact.
     pub testimonials: Option<results::TestimonialsDisplay>,
@@ -858,6 +865,21 @@ impl WebsiteSettings {
                 results::check_story(&mut e, s, field);
             }
         }
+        for (d, field) in [
+            (&mut self.demo_identities, "demo_identities"),
+            (&mut self.demo_identities_draft, "demo_identities_draft"),
+        ] {
+            if let Some(d) = d {
+                if !corporate {
+                    e.push(FieldError {
+                        field,
+                        code: "corporate",
+                        message: "Sample identities are managed on FigBud Global.",
+                    });
+                }
+                crate::demo_identities::check(&mut e, d, field);
+            }
+        }
         for (d, field) in [(&self.devices, "devices"), (&self.devices_draft, "devices_draft")] {
             if let Some(d) = d {
                 crate::devices::check(&mut e, d, field);
@@ -895,6 +917,7 @@ impl WebsiteSettings {
             "success_story": self.success_story.as_ref().filter(|s| s.enabled),
             "display": self.display,
             "devices": self.devices.as_ref().filter(|d| d.enabled),
+            "demo_identities": self.demo_identities.as_ref().map(crate::demo_identities::public),
         })
     }
 }
@@ -1002,6 +1025,15 @@ async fn update(
     // Likewise a success story (P10-R2) and device settings (P14-W8).
     next.story_history = site.settings.story_history.clone();
     next.devices_history = site.settings.devices_history.clone();
+    next.demo_identities_history = site.settings.demo_identities_history.clone();
+    let identities_published = next.demo_identities != site.settings.demo_identities;
+    if identities_published && let Some(d) = &next.demo_identities {
+        crate::demo_identities::remember(
+            &mut next.demo_identities_history,
+            d,
+            Some(session.user.name.clone()),
+        );
+    }
     let devices_published = next.devices != site.settings.devices;
     if devices_published && let Some(d) = &next.devices {
         crate::devices::remember(&mut next.devices_history, d, Some(session.user.name.clone()));
@@ -1104,6 +1136,10 @@ async fn update(
         _ if theme_published => "site.theme_published",
         _ if story_published => "site.success_story_published",
         _ if devices_published => "site.devices_published",
+        _ if identities_published => "site.demo_identities_published",
+        _ if next.demo_identities_draft != site.settings.demo_identities_draft => {
+            "site.demo_identities_draft_saved"
+        }
         _ if next.devices_draft != site.settings.devices_draft => "site.devices_draft_saved",
         _ if next.results != site.settings.results => "site.results_published",
         _ if next.testimonials != site.settings.testimonials => "site.testimonials_published",

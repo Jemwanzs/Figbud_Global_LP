@@ -26,6 +26,7 @@ import {
   useScrollStory,
 } from "./scroll-story";
 import { ZIRAHR_MODULES } from "./zirahr-modules";
+import { useDemoPeople } from "./demo-people";
 
 /*
  * Interactive product demonstrations for product website pages (P14-W), chosen
@@ -989,12 +990,13 @@ const isWeekend = (day: number) => {
   const weekday = (DECEMBER_START + day - 1) % 7;
   return weekday === 0 || weekday === 6;
 };
-const TEAM = [
-  { name: "Wanjiru K.", type: "Annual", from: 21, to: 31 },
-  { name: "Otieno P.", type: "Annual", from: 14, to: 18 },
-  { name: "Achieng L.", type: "Sick", from: 2, to: 4 },
-  { name: "Mutua J.", type: "Annual", from: 16, to: 22 },
-  { name: "Njeri M.", type: "Study", from: 7, to: 8 },
+// Who: the first five sample identities, in order (P14-W10).
+const LEAVE_PLAN = [
+  { type: "Annual", from: 21, to: 31 },
+  { type: "Annual", from: 14, to: 18 },
+  { type: "Sick", from: 2, to: 4 },
+  { type: "Annual", from: 16, to: 22 },
+  { type: "Study", from: 7, to: 8 },
 ];
 const countedDays = (from: number, to: number) => {
   let count = 0;
@@ -1005,6 +1007,8 @@ const WEEKDAY = ["S", "M", "T", "W", "T", "F", "S"];
 
 /** Who's out, at a glance. Choose someone to see what's counted and who overlaps. */
 function TeamCalendar() {
+  const people = useDemoPeople();
+  const TEAM = LEAVE_PLAN.map((plan, i) => ({ ...plan, name: people[i]!.short }));
   const demo = useDemo<HTMLDivElement>(TEAM.map(() => 3200));
   const { index, choose: setIndex } = demo;
   const person = TEAM[index]!;

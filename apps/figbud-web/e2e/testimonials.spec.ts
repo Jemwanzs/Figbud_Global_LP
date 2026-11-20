@@ -3,7 +3,7 @@ import { randomBytes } from "node:crypto";
 import { type Page, expect, test } from "@playwright/test";
 
 // The testimonial band's display in the Studio (P10-R4), against
-// e2e/mock-api.mjs: Ziwa LMS has two published synthetic testimonials and
+// e2e/mock-api.mjs: Master Lender has two published synthetic testimonials and
 // ZiraHR one; saving happens on a new website, so no other spec is affected.
 
 test.describe.configure({ timeout: 90_000 });

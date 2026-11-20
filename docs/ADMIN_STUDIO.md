@@ -553,6 +553,18 @@ Page builder → a demonstration section → **Guide it with scrolling** (on by 
 - **Shown first:** the visitor's own device (by screen width) or a chosen one. **Frames:** realistic or minimal. **Tablet:** landscape or portrait. **Browser address** in the bar. **Fade** between devices (0.3–0.45 s).
 - Also as its own section: Page builder → Add section → **Device showcase** (heading, description, the same device settings), anywhere on a page.
 - Live pages inside the frames aren't offered: the websites refuse to be framed, to protect visitors from clickjacking.
+## Product names and logos (P14-W11, 20 Nov 2026)
+
+- A product's name lives in one place: Websites → **Manage sites** (the website record). Publishing it there renames the product everywhere: its website, the corporate menu, footer, cards and copy in every language, enquiry forms and emails. Brand names are never translated.
+- Brand → **Header shows**: Automatic (the full logo, unless its artwork names the product differently, then the symbol beside the name), Full logo, or Symbol and name. Logo files are never changed.
+- Master Lender (formerly Ziwa LMS) is served at `/master-lender`; old `/ziwa` links forward.
+## Sample identities (P14-W10, 20 Nov 2026)
+
+- Content & Marketing → **Sample identities** (also a tab beside Testimonials): the fictional people every website's illustrations use (profiles, leave lists, approvals, calendars).
+- Each identity: display name, first name, initials, an optional fictional role, Active. Reorder with the arrows (illustrations use them in order); identities never published can be removed, published ones are deactivated so a restore can bring them back.
+- **Lead identity per website:** who comes first in that website's illustrations.
+- Preview per website (with the draft), Save draft, Publish, Discard draft, Published versions → Load to restore. Saved with FigBud Global's settings; the websites follow within minutes.
+- Only fictional content: real customers, users, testimonials and records never come from here.
 ## Testimonial band (P10-R4, 20 Nov 2026)
 
 - Websites → a website → Results & success story → **Testimonials**: **Layout** (Automatic: a card for one, a carousel for more; Compact card; Carousel; Grid) and **Spacing** (Compact by default, Standard, Spacious). Preview with the website's published testimonials at desktop, tablet and phone width and in the other theme; Save draft, Publish, Discard draft.

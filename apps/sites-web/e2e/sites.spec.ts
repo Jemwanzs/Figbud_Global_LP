@@ -3,43 +3,51 @@ import { type Page, expect, test } from "@playwright/test";
 import { themeSettled } from "./theme-settled";
 
 // The product-site renderer (D16): websites, pages and brands from the
-// registry, through the mock API (synthetic Ziwa LMS pages).
+// registry, through the mock API (synthetic Master Lender pages).
 
 test("a published home page renders with the website's brand, navigation and call to action", async ({
   page,
 }) => {
   const response = await page.goto("/ziwa");
   expect(response?.status()).toBe(200);
-  await expect(page).toHaveTitle("Ziwa LMS — Lending that flows with your business");
+  await expect(page).toHaveTitle("Master Lender — Lending that flows with your business");
   await expect(page.locator("html")).toHaveAttribute("lang", "en");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Every loan. A smoother journey.");
   await expect(page.locator("[data-product]").first()).toHaveAttribute("data-product", "ziwa");
 
-  const nav = page.getByRole("navigation", { name: "Ziwa LMS navigation" });
-  await expect(nav.getByRole("link", { name: "Platform" })).toHaveAttribute("href", "/ziwa/platform");
+  const nav = page.getByRole("navigation", { name: "Master Lender navigation" });
+  await expect(nav.getByRole("link", { name: "Platform" })).toHaveAttribute(
+    "href",
+    "/master-lender/platform",
+  );
   // Coming soon: the call to action is the corporate waitlist for this product.
   await expect(page.getByRole("banner").getByRole("link", { name: "Join the waitlist" })).toHaveAttribute(
     "href",
     /\/en\/contact\?kind=waitlist&product=ziwa$/,
   );
   // Block links: site paths get the website prefix; /contact without a contact page goes to the enquiry form.
-  await expect(page.getByRole("link", { name: "Explore Ziwa" })).toHaveAttribute("href", "/ziwa/platform");
+  await expect(page.getByRole("link", { name: "Explore Master Lender" })).toHaveAttribute(
+    "href",
+    "/master-lender/platform",
+  );
   await expect(page.getByRole("main").getByRole("link", { name: "Request a demo" })).toHaveAttribute(
     "href",
     /\/en\/contact\?kind=waitlist&product=ziwa$/,
   );
   // Markdown arrives sanitised from the API.
-  await page.getByText("Is Ziwa available today?").click();
+  await page.getByText("Is Master Lender available today?").click();
   await expect(page.locator("strong", { hasText: "coming soon" })).toBeVisible();
-  await expect(page.getByRole("contentinfo")).toContainText("Ziwa LMS is a product of FigBud Global.");
+  await expect(page.getByRole("contentinfo")).toContainText("Master Lender is a product of FigBud Global.");
 });
 
 test("inner pages render, and unknown addresses are real 404s", async ({ page }) => {
   await page.goto("/ziwa/platform");
-  await expect(page).toHaveTitle("Platform · Ziwa LMS");
+  await expect(page).toHaveTitle("Platform · Master Lender");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("One platform for lending operations");
   await expect(
-    page.getByRole("navigation", { name: "Ziwa LMS navigation" }).getByRole("link", { name: "Platform" }),
+    page
+      .getByRole("navigation", { name: "Master Lender navigation" })
+      .getByRole("link", { name: "Platform" }),
   ).toHaveAttribute("aria-current", "page");
   await expect(page.locator("strong", { hasText: "one record" })).toBeVisible();
 
@@ -61,7 +69,7 @@ test("a listed website without a published home page shows an honest holding pag
 test("a website's published Brand & Theme Studio colours apply to it alone, in both themes", async ({
   page,
 }) => {
-  // Expense Now has a published theme in the mock API; Ziwa LMS doesn't.
+  // Expense Now has a published theme in the mock API; Master Lender doesn't.
   await page.goto("/expense_now");
   await expect(page.locator("style[data-site-theme]")).toHaveCount(1);
   const bodyColours = () =>
@@ -87,7 +95,7 @@ test("a website's published Brand & Theme Studio colours apply to it alone, in b
 test("not indexed outside production; the shared root goes to FigBud Global", async ({ page, request }) => {
   await page.goto("/ziwa");
   await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", /noindex/);
-  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", /\/ziwa$/);
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", /\/master-lender$/);
   expect(await (await request.get("/robots.txt")).text()).toContain("Disallow: /");
   const root = await request.get("/", { maxRedirects: 0 });
   expect(root.status()).toBe(307);
@@ -106,9 +114,33 @@ test("fits phones and is accessible", async ({ page }) => {
   expect(results.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target).join(" ")}`)).toEqual([]);
 });
 
+test("Master Lender, formerly Ziwa LMS: its new address, the old one forwarding, and its name beside its symbol", async ({
+  page,
+  request,
+}) => {
+  // Owner's brief, 20 Nov 2026. The old address forwards permanently, with the page and query kept.
+  for (const [from, to] of [
+    ["/ziwa", "/master-lender"],
+    ["/ziwa/platform?ref=x", "/master-lender/platform?ref=x"],
+  ]) {
+    const response = await request.get(from, { maxRedirects: 0 });
+    expect(response.status(), from).toBe(308);
+    expect(response.headers()["location"]).toBe(to);
+  }
+  await page.goto("/ziwa/platform");
+  await expect(page).toHaveURL(/\/master-lender\/platform$/);
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", /\/master-lender\/platform$/);
+  // The logo's artwork still carries the old name, so the header shows the symbol beside the new name.
+  const home = page.getByRole("banner").getByRole("link", { name: "Master Lender" }).first();
+  await expect(home).toBeVisible();
+  await expect(home).toContainText("Master Lender");
+  await expect(page.locator("main")).not.toContainText(/Ziwa/);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(0);
+});
+
 test("the website's own favicons, touch icon and app manifest", async ({ page, request }) => {
   await page.goto("/ziwa");
-  // The approved Ziwa LMS logo in the header.
+  // The approved Master Lender logo in the header.
   // Whichever of its two variants suits the theme in use.
   await expect(
     page.getByRole("banner").locator('img[src^="/brand/assets/"]').filter({ visible: true }).first(),
@@ -130,7 +162,11 @@ test("the website's own favicons, touch icon and app manifest", async ({ page, r
   const manifestHref = await page.locator('link[rel="manifest"]').getAttribute("href");
   expect(manifestHref).toBe("/manifest.webmanifest?site=ziwa");
   const manifest = await (await request.get(manifestHref!)).json();
-  expect(manifest).toMatchObject({ name: "Ziwa LMS", start_url: "/ziwa", theme_color: "#fb7a1a" });
+  expect(manifest).toMatchObject({
+    name: "Master Lender",
+    start_url: "/master-lender",
+    theme_color: "#fb7a1a",
+  });
   expect(manifest.icons.map((i: { sizes: string }) => i.sizes)).toEqual(["192x192", "512x512"]);
   expect((await request.get("/manifest.webmanifest?site=nope")).status()).toBe(404);
 });
@@ -152,7 +188,7 @@ test("ZiraHR is served from the page imported into the Studio", async ({ page })
 
 test("navigation and offline pages follow the Studio's visibility settings", async ({ page }) => {
   await page.goto("/ziwa");
-  const nav = page.getByRole("navigation", { name: "Ziwa LMS navigation" });
+  const nav = page.getByRole("navigation", { name: "Master Lender navigation" });
   await expect(nav.getByRole("link", { name: "Platform" })).toBeVisible();
   // Left out of the navigation, still reachable at its address.
   await expect(nav.getByRole("link", { name: "Resources" })).toHaveCount(0);
@@ -506,7 +542,7 @@ test("Trusted By and testimonials alternate with the page, in the website's colo
 test("several testimonials share one compact carousel, moved by hand, never by itself (P10-R4)", async ({
   page,
 }) => {
-  // Mock fixture: two synthetic testimonials published for Ziwa LMS alone.
+  // Mock fixture: two synthetic testimonials published for Master Lender alone.
   await page.goto("/ziwa");
   const carousel = page.getByRole("region", { name: "Customer testimonials" });
   await carousel.scrollIntoViewIfNeeded();
@@ -549,7 +585,7 @@ test("several testimonials share one compact carousel, moved by hand, never by i
 
 test.describe("pages in other languages (P7-L2b)", () => {
   // Mock fixture (MOCK_TRANSLATED_ZIWA): Arabic reviewed and switched on for
-  // Ziwa LMS, with its Platform page translated; nothing else translated.
+  // Master Lender, with its Platform page translated; nothing else translated.
   test("a translated page has its own address, language, direction and alternates", async ({ page }) => {
     await page.goto("/ziwa/ar/platform");
     await expect(page.locator("html")).toHaveAttribute("lang", "ar");
@@ -560,19 +596,28 @@ test.describe("pages in other languages (P7-L2b)", () => {
     );
     // Search engines learn each language's address.
     const alternate = (lang: string) => page.locator(`link[rel="alternate"][hreflang="${lang}"]`);
-    await expect(alternate("ar")).toHaveAttribute("href", /\/ziwa\/ar\/platform$/);
-    await expect(alternate("en")).toHaveAttribute("href", /\/ziwa\/platform$/);
-    await expect(alternate("x-default")).toHaveAttribute("href", /\/ziwa\/platform$/);
-    await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", /\/ziwa\/ar\/platform$/);
+    await expect(alternate("ar")).toHaveAttribute("href", /\/master-lender\/ar\/platform$/);
+    await expect(alternate("en")).toHaveAttribute("href", /\/master-lender\/platform$/);
+    await expect(alternate("x-default")).toHaveAttribute("href", /\/master-lender\/platform$/);
+    await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
+      "href",
+      /\/master-lender\/ar\/platform$/,
+    );
     // The menu follows the page's language where a translation exists; the selector too.
     const header = page.getByRole("banner");
-    await expect(header.getByRole("link", { name: "المنصة" })).toHaveAttribute("href", "/ziwa/ar/platform");
+    await expect(header.getByRole("link", { name: "المنصة" })).toHaveAttribute(
+      "href",
+      "/master-lender/ar/platform",
+    );
     const selector = header.getByRole("button", { name: /^AR/ });
     await expect(async () => {
       await selector.click();
       await expect(header.getByRole("link", { name: /English/ })).toBeVisible({ timeout: 1_000 });
     }).toPass();
-    await expect(header.getByRole("link", { name: /English/ })).toHaveAttribute("href", "/ziwa/platform");
+    await expect(header.getByRole("link", { name: /English/ })).toHaveAttribute(
+      "href",
+      "/master-lender/platform",
+    );
     await expect(header.getByRole("link", { name: /العربية/ })).toHaveAttribute("aria-current", "true");
     const results = await new AxeBuilder({ page: await themeSettled(page) })
       .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
@@ -594,7 +639,10 @@ test.describe("pages in other languages (P7-L2b)", () => {
       }).toPass();
     await page.goto("/ziwa/platform");
     await open();
-    await expect(header.getByRole("link", { name: /العربية/ })).toHaveAttribute("href", "/ziwa/ar/platform");
+    await expect(header.getByRole("link", { name: /العربية/ })).toHaveAttribute(
+      "href",
+      "/master-lender/ar/platform",
+    );
     // Security isn't translated (nor is the home page): English only there.
     await page.goto("/ziwa/security");
     await open();
@@ -606,7 +654,7 @@ test.describe("pages in other languages (P7-L2b)", () => {
     request,
   }) => {
     await page.goto("/ziwa/ar/security");
-    await expect(page).toHaveURL(/\/ziwa\/security$/);
+    await expect(page).toHaveURL(/\/master-lender\/security$/);
     await expect(page.locator("html")).toHaveAttribute("lang", "en");
     // ZiraHR hasn't switched Arabic on: /zirahr/ar/platform is no page at all.
     expect((await request.get("/zirahr/ar/platform")).status()).toBe(404);
@@ -617,7 +665,7 @@ test.describe("pages in other languages (P7-L2b)", () => {
 test("images from the media library render responsively with their alt text", async ({ page, request }) => {
   // Mock fixture: Ziwa's published Platform page has a library image.
   await page.goto("/ziwa/platform");
-  const image = page.getByRole("img", { name: "The Ziwa LMS team planning a loan product" });
+  const image = page.getByRole("img", { name: "The Master Lender team planning a loan product" });
   await expect(image).toBeVisible();
   await expect(page.locator("figcaption")).toHaveText("Planning a loan product");
   const src = await image.getAttribute("src");
@@ -637,7 +685,7 @@ test("images from the media library render responsively with their alt text", as
 test("each website shares with a card generated from its brand", async ({ page, request }) => {
   await page.goto("/ziwa");
   const og = await page.locator('meta[property="og:image"]').getAttribute("content");
-  expect(og).toMatch(/\/ziwa\/opengraph-image/);
+  expect(og).toMatch(/\/master-lender\/opengraph-image/);
   await expect(page.locator('meta[name="twitter:card"]')).toHaveAttribute("content", "summary_large_image");
   await expect(page.locator('meta[property="og:image:width"]')).toHaveAttribute("content", "1200");
   const image = await request.get(new URL(og!).pathname);
@@ -654,20 +702,20 @@ test("a moved page's old address forwards permanently, and pages can share their
   request,
 }) => {
   // Mock fixtures: /lending-platform was Ziwa's Platform page, which has its own sharing image.
-  const moved = await request.get("/ziwa/lending-platform", { maxRedirects: 0 });
+  const moved = await request.get("/master-lender/lending-platform", { maxRedirects: 0 });
   expect(moved.status()).toBe(308);
-  expect(moved.headers()["location"]).toBe("/ziwa/platform");
+  expect(moved.headers()["location"]).toBe("/master-lender/platform");
   await page.goto("/ziwa/lending-platform");
-  await expect(page).toHaveURL(/\/ziwa\/platform$/);
+  await expect(page).toHaveURL(/\/master-lender\/platform$/);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("One platform for lending operations");
   const og = await page.locator('meta[property="og:image"]').getAttribute("content");
   expect(og).toMatch(/\/media\/[0-9a-f-]{36}\?w=1440$/);
   await expect(page.locator('meta[property="og:image:alt"]')).toHaveAttribute(
     "content",
-    "The Ziwa LMS team planning a loan product",
+    "The Master Lender team planning a loan product",
   );
   // Addresses that never existed are still real 404s.
-  expect((await request.get("/ziwa/never-existed", { maxRedirects: 0 })).status()).toBe(404);
+  expect((await request.get("/master-lender/never-existed", { maxRedirects: 0 })).status()).toBe(404);
 });
 
 test("shared content from the library renders like any section, in the page's own style", async ({
@@ -800,7 +848,7 @@ test("a product website shows its own hover previews, never FigBud Global's word
 }) => {
   test.skip(isMobile, "hover needs a mouse");
   await page.goto("/ziwa");
-  const nav = page.getByRole("navigation", { name: "Ziwa LMS navigation" });
+  const nav = page.getByRole("navigation", { name: "Master Lender navigation" });
   const platform = nav.getByRole("link", { name: "Platform" });
   await expect(platform).toHaveAttribute("aria-describedby", /.+/, { timeout: 20_000 });
   await platform.hover();
@@ -816,7 +864,7 @@ test("a product website shows its own hover previews, never FigBud Global's word
   const others = nav.getByRole("link").filter({ hasNotText: "Platform" });
   if (await others.count()) await expect(others.first()).not.toHaveAttribute("aria-describedby", /.+/);
   await platform.click();
-  await expect(page).toHaveURL(/\/ziwa\/platform$/);
+  await expect(page).toHaveURL(/\/master-lender\/platform$/);
 });
 
 /**
@@ -1106,6 +1154,10 @@ test.describe("ZiraHR: payroll calculator and demonstrations (P14)", () => {
     await expect(steps).toHaveCount(3);
     await expect(steps.first()).toContainText("ZiraHR draws it together.");
     await expect(story).not.toContainText("HR usually lives in too many places.");
+    // The record belongs to the lead sample identity (P14-W10), with its role.
+    await expect(story.locator(".fb-story-unfold")).toContainText("Libbie Sonia");
+    await expect(story.locator(".fb-story-unfold")).toContainText("Finance · accounts lead");
+    await expect(page.locator("main")).not.toContainText(/Amani|Wanjiru|Otieno|Chebet|Achieng|Njeri|Mutua/);
     await expect(story.getByRole("button", { name: /^Step \d:/ })).toHaveCount(3);
     // Right under its heading and introduction: no blank band before the panel.
     const lead = page.locator("section").filter({ has: story }).locator("p").first();
@@ -1502,12 +1554,12 @@ test.describe("ZiraHR: payroll calculator and demonstrations (P14)", () => {
 
     // The calendar: weekends and public holidays aren't counted (December 2026).
     const people = page.getByRole("tablist", { name: "Team members" }).getByRole("tab");
-    await expect(page.getByTestId("calendar-summary")).toContainText("Wanjiru K.: 8 days counted");
+    await expect(page.getByTestId("calendar-summary")).toContainText("Libbie S.: 8 days counted");
     await people.first().focus();
     await page.keyboard.press("ArrowDown");
     await expect(people.nth(1)).toBeFocused();
-    await expect(page.getByTestId("calendar-summary")).toContainText("Otieno P.: 5 days counted");
-    await expect(page.getByTestId("calendar-summary")).toContainText("Overlaps with Mutua J.");
+    await expect(page.getByTestId("calendar-summary")).toContainText("Bright: 5 days counted");
+    await expect(page.getByTestId("calendar-summary")).toContainText("Overlaps with Titus");
 
     await expect(page.getByRole("heading", { name: "Annual P9 forms" })).toBeVisible();
     expect(await scan(page)).toEqual([]);
@@ -2122,7 +2174,7 @@ test("ZiraHR: Start Now opens the workspace request in place, for ZiraHR (P8-M8)
 test("a translated page's surroundings follow its language: skip link, cookie preferences, main button (P7-L3)", async ({
   page,
 }) => {
-  // Mock fixture (MOCK_TRANSLATED_ZIWA): Arabic is reviewed and switched on for Ziwa LMS.
+  // Mock fixture (MOCK_TRANSLATED_ZIWA): Arabic is reviewed and switched on for Master Lender.
   await page.goto("/ziwa/ar/platform");
   await expect(page.locator('a[href="#main"]')).toHaveText("انتقل إلى المحتوى");
   // The cookie preferences (opened from the footer) are in Arabic too.

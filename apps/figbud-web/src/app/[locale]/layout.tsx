@@ -1,4 +1,4 @@
-import { company, publicProducts, themeColorViewport } from "@figbud/brand";
+import { company, themeColorViewport } from "@figbud/brand";
 import { isLocale, localeInfo, locales, localizePath } from "@figbud/i18n";
 import {
   CampaignOverlays,
@@ -28,6 +28,7 @@ import {
   getFooterSettings,
   getLiveCampaigns,
   getNavPreviews,
+  getPublicProducts,
 } from "@/lib/products";
 import { allowIndexing, apiOrigin, siteOrigin } from "@/lib/site";
 
@@ -101,6 +102,8 @@ export default async function LocaleLayout({ children, params }: LayoutProps<"/[
   const dict = await getDictionary(locale);
   const info = localeInfo[locale];
   const brands = await getBrands();
+  // Products as published (names and stages from Websites → Manage sites), for the menu, footer and search engines.
+  const catalogue = await getPublicProducts();
   const campaigns = await getLiveCampaigns("figbud");
   const seo = await getCorporateSeo();
   const studio = await getPrivacySettings();
@@ -117,7 +120,7 @@ export default async function LocaleLayout({ children, params }: LayoutProps<"/[
     url: siteOrigin,
     logo: `${siteOrigin}/apple-icon.png`,
     slogan: company.tagline,
-    brand: publicProducts.map((p) => ({ "@type": "Brand", name: p.name })),
+    brand: catalogue.map((p) => ({ "@type": "Brand", name: p.name })),
     // Verified official profiles from the Studio.
     ...(seo?.same_as?.length ? { sameAs: seo.same_as } : {}),
   };
@@ -158,6 +161,7 @@ export default async function LocaleLayout({ children, params }: LayoutProps<"/[
               common={dict.common}
               products={dict.products}
               brands={brands}
+              catalogue={catalogue}
               previews={await getNavPreviews(locale, dict.common.navPreviews)}
               languages={(await figbudLanguages()).enabled}
               reviewed={await publishedLocales()}
@@ -185,6 +189,7 @@ export default async function LocaleLayout({ children, params }: LayoutProps<"/[
               dict={dict}
               brand={brands.figbud}
               settings={await getFooterSettings()}
+              catalogue={catalogue}
             />
             <CookieConsent
               settings={privacy}

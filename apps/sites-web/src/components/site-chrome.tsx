@@ -5,7 +5,7 @@ import { CookieConsent, type PrivacySettings } from "@figbud/site-kit";
 import { usePathname } from "next/navigation";
 import type { ComponentProps } from "react";
 
-import { splitLocale } from "@/lib/addresses";
+import { pageSegments, splitLocale } from "@/lib/addresses";
 
 /**
  * The page's language, from its address (`/zirahr/sw/platform`, P7-L2b), for
@@ -16,12 +16,7 @@ export function usePageLocale(
   languages: readonly Locale[],
 ): Locale {
   const pathname = usePathname();
-  // Own-domain requests are rewritten internally; read the visible address.
-  const current = pathname.replace(/^\/~[^/]+/, "") || "/";
-  const segments = (site.ownDomain ? current : current.replace(new RegExp(`^/${site.slug}(?=/|$)`), ""))
-    .split("/")
-    .filter(Boolean);
-  return splitLocale(segments, languages).locale as Locale;
+  return splitLocale(pageSegments(pathname, site.slug, site.ownDomain), languages).locale as Locale;
 }
 
 /** "Skip to content" in the page's language. */

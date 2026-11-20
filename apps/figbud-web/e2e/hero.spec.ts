@@ -77,18 +77,18 @@ test("the hero fits small screens without horizontal scrolling", async ({ page }
   }
 });
 
-test("Ziwa LMS appears across the corporate site as coming soon", async ({ page }) => {
+test("Master Lender appears across the corporate site as coming soon", async ({ page }) => {
   await page.goto("/en");
-  const node = hero(page).getByRole("link", { name: /Ziwa LMS/ });
+  const node = hero(page).getByRole("link", { name: /Master Lender/ });
   await expect(node).toHaveAttribute("href", "/en/contact?kind=waitlist&product=ziwa");
   await expect(node).toContainText("Coming soon");
-  // The final Ziwa LMS symbol (29 Oct 2026), from its published brand.
+  // The final Master Lender symbol (29 Oct 2026), from its published brand.
   await expect(node.locator('img[src^="/brand/assets/"]').filter({ visible: true }).first()).toBeVisible();
 
   await page.goto("/en/products");
   const card = page.locator("#ziwa");
   // The heading is the approved logo, named for screen readers.
-  await expect(card.getByRole("heading", { level: 2 })).toHaveAccessibleName("Ziwa LMS");
+  await expect(card.getByRole("heading", { level: 2 })).toHaveAccessibleName("Master Lender");
   await expect(
     card
       .getByRole("heading", { level: 2 })

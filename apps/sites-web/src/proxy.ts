@@ -1,3 +1,4 @@
+import { publicSegment, segmentSite } from "@figbud/brand";
 import { type NextRequest, NextResponse } from "next/server";
 
 /**
@@ -63,15 +64,30 @@ export async function proxy(request: NextRequest) {
   const host = (request.headers.get("host") ?? "").split(":")[0]!.toLowerCase();
   const slug = (await hostMap()).get(host);
 
-  // A moved page's old address forwards permanently (308) to where it lives now.
   const [, first = "", ...rest] = pathname.split("/");
-  const site = slug ?? first;
+  // A renamed website (Master Lender, formerly Ziwa LMS: owner's brief, 20 Nov
+  // 2026): its old address forwards permanently (308) to the new one, the
+  // same page and query, so links and bookmarks keep working.
+  const segment = slug ? null : segmentSite(first);
+  if (segment?.legacy) {
+    const url = request.nextUrl.clone();
+    url.pathname = `/${publicSegment(segment.slug)}${rest.length ? `/${rest.join("/")}` : ""}`;
+    return NextResponse.redirect(url, 308);
+  }
+  // A moved page's old address forwards permanently (308) to where it lives now.
+  const site = slug ?? segment!.slug;
   const path = slug ? pathname.replace(/\/$/, "") || "/" : `/${rest.join("/")}`.replace(/\/$/, "") || "/";
   const to = path !== "/" ? (await redirectMap()).get(`${site}:${path}`) : undefined;
   if (to) {
     const url = request.nextUrl.clone();
-    url.pathname = slug ? to : `/${site}${to === "/" ? "" : to}`;
+    url.pathname = slug ? to : `/${publicSegment(site)}${to === "/" ? "" : to}`;
     return NextResponse.redirect(url, 308);
+  }
+  // The new address serves the website under its internal slug.
+  if (segment && segment.slug !== first) {
+    const url = request.nextUrl.clone();
+    url.pathname = `/${segment.slug}${rest.length ? `/${rest.join("/")}` : ""}`;
+    return NextResponse.rewrite(url);
   }
 
   if (slug) {

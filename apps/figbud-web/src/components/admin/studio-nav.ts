@@ -107,6 +107,7 @@ export function studioNav(
         { href: "/admin/marketing", label: "Campaigns & promotions" },
         { href: "/admin/insights", label: "Insights" },
         { href: "/admin/proof", label: "Customer proof" },
+        { href: "/admin/demo-content", label: "Sample identities" },
         { href: "/admin/seo", label: "SEO" },
       ],
     },
@@ -197,6 +198,8 @@ export function areaOf(href: string): StudioArea | null {
   if (path.startsWith("/admin/insights")) return "content";
   if (path.startsWith("/admin/marketing")) return "campaigns";
   if (path.startsWith("/admin/proof")) return "proof";
+  // Saved with FigBud Global's settings.
+  if (path.startsWith("/admin/demo-content")) return "website_settings";
   if (path.startsWith("/admin/seo")) return "seo";
   if (path.startsWith("/admin/enquiries")) return "enquiries";
   if (path.startsWith("/admin/approvals")) return "publishing";

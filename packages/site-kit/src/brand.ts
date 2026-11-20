@@ -9,6 +9,7 @@ import type { SiteLanguages } from "@figbud/i18n";
 import type { EnquiryFormConfig } from "./enquiry";
 
 import type { StudioTheme } from "./site-theme";
+import type { DemoIdentities } from "./demo-identities";
 import type { DeviceExperience } from "./device-experience";
 import type { TestimonialsDisplay } from "./proof";
 import type { DisplayDefaults, ResultsDisplay, SuccessStoryConfig } from "./results";
@@ -37,6 +38,8 @@ export interface BrandProfile {
   social_image: BrandAsset | null;
   colors: { primary: string; secondary: string; accent: string };
   logo_height: number;
+  /** What the website's header shows (Brand → Header); "auto" when unset. */
+  header_logo?: "auto" | "logo" | "symbol_and_name";
 }
 
 /** A navigation or footer link: a page path on the website ("/platform") or an https:// address. */
@@ -112,6 +115,12 @@ export interface WebsiteSettings {
   story_history?: { published_at: string; by?: string | null; story: SuccessStoryConfig }[];
   /** Website display: FigBud Global's defaults, or this website's own (P10-R1). */
   display?: DisplayDefaults | null;
+  /** Sample identities (P14-W10), on FigBud Global: active people in order and each website's lead. */
+  demo_identities?: DemoIdentities | null;
+  /** Saved in the Studio, not published. */
+  demo_identities_draft?: DemoIdentities | null;
+  /** Published sets, newest first (Studio only). */
+  demo_identities_history?: { published_at: string; by?: string | null; identities: DemoIdentities }[];
   /** Device experience (P14-W8); websites receive it only once published and on. */
   devices?: DeviceExperience | null;
   /** Saved in the Studio, not published; only the Studio ever receives it. */
@@ -296,6 +305,26 @@ export const BRAND_ASSET_PATH = "/brand/assets/";
 
 export const hasLogo = (pair?: BrandPair | null): pair is BrandPair =>
   Boolean(pair?.on_dark || pair?.on_light);
+
+/**
+ * Whether a website's header shows its full logo (owner's brief, 20 Nov
+ * 2026): as chosen in Brand → Header; automatically, unless the logo's
+ * artwork names the product differently from its published name (as its
+ * text alternative records, e.g. "Ziwa LMS" for Master Lender), so a renamed
+ * product shows its symbol and new name with no artwork changed. Without a
+ * symbol, the logo stays (there is nothing else to show).
+ */
+export function headerShowsLogo(brand: BrandProfile | null | undefined, name: string): boolean {
+  if (!hasLogo(brand?.logos.horizontal)) return false;
+  if (!hasLogo(brand.logos.symbol)) return true;
+  const mode = brand.header_logo ?? "auto";
+  if (mode !== "auto") return mode === "logo";
+  const words = (s: string) => s.toLowerCase().replace(/\s+/g, " ").trim();
+  const alts = [brand.logos.horizontal.on_light?.alt, brand.logos.horizontal.on_dark?.alt].filter(
+    (a): a is string => Boolean(a?.trim()),
+  );
+  return !alts.length || alts.some((alt) => words(alt).includes(words(name)));
+}
 
 /** `src` and `srcSet` for showing `asset` at `cssWidth` pixels: the smallest copy that stays sharp. */
 export function brandImageSources(

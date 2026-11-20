@@ -22,7 +22,7 @@ export const enquiryFormCopy = {
     zirahr: "ZiraHR",
     jasiri: "Jasiri LMS",
     expense_now: "Expense Now",
-    ziwa: "Ziwa LMS",
+    ziwa: "Master Lender",
   },
   name: "Full name",
   email: "Work email",

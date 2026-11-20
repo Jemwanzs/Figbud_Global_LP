@@ -7,7 +7,7 @@ const zh: DeepPartial<Dictionary> = {
   meta: {
     title: "FigBud Global — 为复杂业务打造的企业软件",
     description:
-      "FigBud Global 构建可配置的企业平台，覆盖人力、信贷与支出管理：ZiraHR、Jasiri LMS、Expense Now 与 Ziwa LMS。",
+      "FigBud Global 构建可配置的企业平台，覆盖人力、信贷与支出管理：ZiraHR、Jasiri LMS、Expense Now 与 Master Lender。",
   },
   common: {
     skipToContent: interfaceCopy.zh.skipToContent,

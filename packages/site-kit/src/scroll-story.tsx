@@ -20,6 +20,7 @@ import { type CSSProperties, type ReactNode, useEffect, useRef, useState } from 
 
 import { useScrollStory } from "./scroll-engine";
 import { ZIRAHR_MODULES, ZIRAHR_SELF_SERVICE } from "./zirahr-modules";
+import { DemoName } from "./demo-people";
 
 // The scroll engine lives on its own (P2-18), so demonstrations that only
 // need it don't load the stories; re-exported for existing imports.
@@ -278,8 +279,13 @@ function ScatteredStage({ step, onScreen, mark }: { step: number; onScreen: bool
             <UserRound className="size-4 @lg:size-5" />
           </span>
           <div className="min-w-0 flex-1">
-            <p className="truncate font-semibold">Amani W.</p>
-            <p className="truncate text-xs text-muted">Finance · accounts lead</p>
+            {/* The lead sample identity (P14-W10). */}
+            <p className="truncate font-semibold">
+              <DemoName />
+            </p>
+            <p className="truncate text-xs text-muted">
+              <DemoName form="role" fallback="Finance · accounts lead" />
+            </p>
           </div>
           <span className="shrink-0 rounded-full bg-product-soft px-2 py-0.5 text-[0.65rem] font-medium text-product-text @lg:text-xs">
             One record
@@ -476,7 +482,7 @@ const JOURNEY: { stage: string; title: string; card: ReactNode }[] = [
                 i === 2 ? "bg-product font-medium text-product-ink" : "bg-surface text-muted",
               )}
             >
-              {i === 2 ? "Amani W." : "Candidate"}
+              {i === 2 ? <DemoName form="short" /> : "Candidate"}
             </p>
           </div>
         ))}
@@ -577,7 +583,7 @@ function JourneyStage({ step }: { step: number }) {
             <p className="text-xs font-medium tracking-wide text-product-text uppercase">{item.stage}</p>
             <p className="mt-1 font-semibold">{item.title}</p>
             <p className="mt-0.5 hidden text-xs text-muted @lg:block">
-              Amani W. · the same record throughout
+              <DemoName /> · the same record throughout
             </p>
             {item.card}
           </div>

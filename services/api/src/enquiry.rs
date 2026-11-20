@@ -116,7 +116,8 @@ impl Product {
             Self::Zirahr => "ZiraHR",
             Self::Jasiri => "Jasiri LMS",
             Self::ExpenseNow => "Expense Now",
-            Self::Ziwa => "Ziwa LMS",
+            // Renamed Master Lender (owner's brief, 20 Nov 2026); emails use the published name (`routes.rs`).
+            Self::Ziwa => "Master Lender",
         }
     }
 }

@@ -12,7 +12,7 @@ import {
   heroPace,
   useHeroMotion,
 } from "@figbud/site-kit";
-import { Container, StatusBadge, cn } from "@figbud/ui";
+import { Container, StatusBadge, cn, SectionEyebrow } from "@figbud/ui";
 import { ArrowRight, ArrowUpRight, Check } from "lucide-react";
 import Link from "next/link";
 import { type CSSProperties, useId } from "react";
@@ -130,10 +130,9 @@ export function PlatformHero({
         )}
       >
         <div className={cn("lg:col-span-6", config.align === "center" && "text-center lg:text-start")}>
-          <p className="fb-rise flex items-center gap-3 text-sm font-semibold tracking-[0.14em] text-[var(--ph-accent)] uppercase max-lg:justify-center lg:justify-start">
-            <span aria-hidden className="h-px w-10 bg-[var(--ph-accent)]" />
+          <SectionEyebrow className="fb-rise font-semibold text-[var(--ph-accent)] max-lg:mx-auto max-lg:flex max-lg:w-fit sm:text-sm">
             {text.eyebrow}
-          </p>
+          </SectionEyebrow>
           {/* The LCP element: rendered at once, never animated in. */}
           <h1
             id="hero-title"

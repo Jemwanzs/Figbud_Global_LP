@@ -1,6 +1,6 @@
 "use client";
 
-import { BrandLogo } from "@figbud/site-kit";
+import { BrandLogo, type BrandProfile, headerShowsLogo } from "@figbud/site-kit";
 import { cn } from "@figbud/ui";
 import { Monitor, Smartphone } from "lucide-react";
 import { type CSSProperties, useState } from "react";
@@ -101,15 +101,33 @@ export function BrandPreview({
               <span className="truncate text-xs text-muted">{name}</span>
             </div>
             {/* Header */}
-            <div className="flex items-center gap-4 border-b border-line px-4 py-3">
-              <BrandLogo
-                pair={horizontal}
-                height={device === "mobile" ? Math.min(config.logo_height, 28) : config.logo_height}
-                maxWidth={device === "mobile" ? 150 : 220}
-                alt={name}
-                basePath={ADMIN_ASSET_PATH}
-                fallback={<span className="font-semibold">{name}</span>}
-              />
+            <div className="flex items-center gap-4 border-b border-line px-4 py-3" data-header-preview="">
+              {/* As the website's header decides (Header shows). */}
+              {headerShowsLogo(
+                { logos: { horizontal, symbol }, header_logo: config.header_logo } as BrandProfile,
+                name,
+              ) ? (
+                <BrandLogo
+                  pair={horizontal}
+                  height={device === "mobile" ? Math.min(config.logo_height, 28) : config.logo_height}
+                  maxWidth={device === "mobile" ? 150 : 220}
+                  alt={name}
+                  basePath={ADMIN_ASSET_PATH}
+                  fallback={<span className="font-semibold">{name}</span>}
+                />
+              ) : (
+                <span className="flex items-center gap-2.5" data-header-symbol="">
+                  <BrandLogo
+                    pair={symbol}
+                    height={28}
+                    maxWidth={28}
+                    alt=""
+                    basePath={ADMIN_ASSET_PATH}
+                    fallback={<span className="size-7 rounded-lg bg-[var(--product)]" />}
+                  />
+                  <span className="text-[1.05rem] font-semibold tracking-tight text-text">{name}</span>
+                </span>
+              )}
 
               <span
                 className={cn(

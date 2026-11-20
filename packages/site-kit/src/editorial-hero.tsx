@@ -1,6 +1,6 @@
 "use client";
 
-import { cn } from "@figbud/ui";
+import { cn, SectionEyebrow } from "@figbud/ui";
 import type { CSSProperties, ReactNode } from "react";
 
 import { type HeroConfig, heroHeight, heroPace, useHeroMotion, useOnScreen, useStages } from "./hero-kit";
@@ -78,10 +78,12 @@ export function EditorialHero({
       </div>
       <div className="mx-auto max-w-[92rem] px-5 pt-page-top pb-section-sm sm:px-8 md:px-10 lg:px-16">
         {identity && <div className="mb-6 flex">{identity}</div>}
-        <p className="flex items-center gap-3 text-xs font-medium tracking-[0.2em] text-product-text uppercase">
-          <span aria-hidden className="fb-ed-rule h-px w-10 origin-left bg-product rtl:origin-right" />
+        <SectionEyebrow
+          className="text-product-text"
+          dashClassName="fb-ed-rule origin-left bg-product rtl:origin-right"
+        >
           {eyebrow}
-        </p>
+        </SectionEyebrow>
         <h1
           id={id}
           className="mt-5 max-w-[18ch] font-display text-[clamp(2.6rem,1.4rem+5vw,6.25rem)] leading-[0.98] font-semibold tracking-[-0.03em] text-balance text-text"

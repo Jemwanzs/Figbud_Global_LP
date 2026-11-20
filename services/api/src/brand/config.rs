@@ -50,6 +50,21 @@ pub struct Colors {
     pub accent: String,
 }
 
+/// What a website's header shows (owner's brief, 20 Nov 2026, Master Lender).
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum HeaderLogo {
+    /// The full logo, unless its artwork names the product differently from
+    /// its published name (its text alternative says so); then the symbol and
+    /// the published name.
+    #[default]
+    Auto,
+    /// The full logo.
+    Logo,
+    /// The symbol beside the published name.
+    SymbolAndName,
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct BrandConfig {
@@ -64,6 +79,8 @@ pub struct BrandConfig {
     pub colors: Colors,
     /// Header logo height in CSS pixels; other placements scale from it.
     pub logo_height: u8,
+    #[serde(default)]
+    pub header_logo: HeaderLogo,
 }
 
 /// Where an asset is used, for the library's "used in" list.
@@ -100,6 +117,7 @@ impl BrandConfig {
                 accent: accent.into(),
             },
             logo_height: 32,
+            header_logo: HeaderLogo::Auto,
         }
     }
 

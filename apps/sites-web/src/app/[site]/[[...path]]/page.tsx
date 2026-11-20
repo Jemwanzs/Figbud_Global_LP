@@ -1,4 +1,4 @@
-import type { ProductSlug } from "@figbud/brand";
+import { type ProductSlug, publicSegment } from "@figbud/brand";
 import {
   BrandLogo,
   CampaignSlot,
@@ -136,6 +136,17 @@ export async function generateMetadata(
   if (!page) return path === "" ? { robots: { index: false, follow: true } } : {};
   const canonical = canonicalUrl(site, ownDomain, path, locale);
   const languages = await languageAlternates(site, ownDomain, path);
+  // The website's generated sharing images are routed by its slug; a renamed
+  // website (Master Lender) shares them from its public address instead.
+  const resolved = await parent;
+  const publicPrefix = (url: unknown) =>
+    ownDomain ? url : String(url).replace(`/${site.slug}/`, `/${publicSegment(site.slug)}/`);
+  const rename = <T,>(images: T[] | undefined) =>
+    images?.map((image) =>
+      image && typeof image === "object" && "url" in image
+        ? { ...image, url: publicPrefix((image as { url: unknown }).url) }
+        : publicPrefix(image),
+    ) as T[] | undefined;
   const description =
     page.seo_description || site.seo?.default_description || site.description || site.tagline || undefined;
   return {
@@ -154,11 +165,11 @@ export async function generateMetadata(
       description,
       images: page.seo_image
         ? [{ url: `/media/${page.seo_image.id}?w=1440`, alt: page.seo_image.alt }]
-        : (await parent).openGraph?.images,
+        : rename(resolved.openGraph?.images),
     },
-    ...(page.seo_image
-      ? { twitter: { card: "summary_large_image", images: [`/media/${page.seo_image.id}?w=1440`] } }
-      : {}),
+    twitter: page.seo_image
+      ? { card: "summary_large_image", images: [`/media/${page.seo_image.id}?w=1440`] }
+      : { card: "summary_large_image", images: rename(resolved.twitter?.images) },
     // Kept out of search engines in the Studio (the page, or the whole website).
     ...(page.seo_noindex || site.seo?.indexing === false ? { robots: { index: false, follow: true } } : {}),
   };

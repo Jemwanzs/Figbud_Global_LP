@@ -39,7 +39,8 @@ Guidelines:
 - **Source:** GitHub `main`, repo root.
 - **Build:** `npm run build --workspace=sites-web`.
 - **Start:** `npm run start --workspace=sites-web`.
-- **Health check:** any listed website, e.g. `/ziwa`.
+- **Health check:** any listed website, e.g. `/zirahr` (`/ziwa` now forwards to `/master-lender`, 20 Nov 2026).
+- **Master Lender address:** `NEXT_PUBLIC_ZIWA_URL` on figbud-web may still end in `/ziwa`; that link forwards (308), and setting it to `…/master-lender` saves the hop (build-time, so a redeploy follows).
 - **Watch paths:** `/apps/sites-web/**`, `/packages/**`, `/package.json`, `/package-lock.json`.
 - **Variables:** `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_SITE_URL` (its Railway URL), `NEXT_PUBLIC_FIGBUD_URL` (the corporate site), `NEXT_PUBLIC_ALLOW_INDEXING` (`false` until the real domain). `API_INTERNAL_URL` is optional and unset for now, so server calls use the public API address.
 - **Elsewhere:** the renderer's origin is in the API's `CORS_ALLOWED_ORIGINS`, and `NEXT_PUBLIC_ZIRAHR_URL` on `figbud-web` points at `/zirahr`. It's read at build time, so changing it needs a web rebuild.

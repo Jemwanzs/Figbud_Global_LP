@@ -547,7 +547,7 @@ const sites = [
     5,
     "ziwa",
     "product",
-    "Ziwa LMS",
+    "Master Lender",
     "Lending that flows with your business.",
     "lending_credit",
     "lending",
@@ -686,7 +686,7 @@ sites[4].settings.nav_previews = {
       enabled: true,
       icon: "layers",
       headline: "One platform for lending operations.",
-      description: "See how Ziwa LMS fits together.",
+      description: "See how Master Lender fits together.",
     },
   ],
 };
@@ -720,6 +720,8 @@ const publicSites = () =>
                 "enquiry_form_draft",
                 "devices_draft",
                 "devices_history",
+                "demo_identities_draft",
+                "demo_identities_history",
               ].includes(k),
           )
           .map(([k, v]) => [k, k === "devices" && !v?.enabled ? null : v]),
@@ -2118,16 +2120,16 @@ function seedPublishedPage(slug, path, title, document, visibility = {}) {
   });
 }
 seedPublishedPage("ziwa", "", "Home", {
-  seo_title: "Ziwa LMS — Lending that flows with your business",
+  seo_title: "Master Lender — Lending that flows with your business",
   seo_description: "From application to repayment, one configurable lending platform.",
   sections: [
     {
       id: "hero",
       type: "hero",
-      eyebrow: "Ziwa LMS",
+      eyebrow: "Master Lender",
       heading: "Every loan. A smoother journey.",
-      lead: "From application to repayment, Ziwa brings your lending operations together in one intelligent, configurable platform.",
-      primary: { label: "Explore Ziwa", href: "/platform" },
+      lead: "From application to repayment, Master Lender brings your lending operations together in one intelligent, configurable platform.",
+      primary: { label: "Explore Master Lender", href: "/platform" },
       secondary: { label: "Request a demo", href: "/contact" },
     },
     {
@@ -2146,7 +2148,10 @@ seedPublishedPage("ziwa", "", "Home", {
       type: "faq",
       heading: "Questions",
       items: [
-        { question: "Is Ziwa available today?", answer: "Ziwa is **coming soon**. Join the waitlist." },
+        {
+          question: "Is Master Lender available today?",
+          answer: "Master Lender is **coming soon**. Join the waitlist.",
+        },
       ],
     },
   ],
@@ -2155,8 +2160,8 @@ const [, ziwaTeam] = storeMedia(
   "ziwa",
   readFileSync(new URL("figbud-app-icon-official.png", SEED_DIR)),
   "image/png",
-  "Ziwa team",
-  "The Ziwa LMS team planning a loan product",
+  "Master Lender team",
+  "The Master Lender team planning a loan product",
   "Seed",
 );
 seedPublishedPage("ziwa", "platform", "Platform", {
@@ -2214,7 +2219,7 @@ seedPublishedPage(
   "Security",
   {
     sections: [
-      { id: "s-hero", type: "hero", heading: "Security at Ziwa" },
+      { id: "s-hero", type: "hero", heading: "Security at Master Lender" },
       { id: "s-promise", type: "shared", shared_id: dataPromise.id, tone: "soft" },
     ],
   },
@@ -2226,7 +2231,7 @@ seedPublishedPage(
   "ziwa",
   "resources",
   "Resources",
-  { sections: [{ id: "r-hero", type: "hero", heading: "Ziwa resources" }] },
+  { sections: [{ id: "r-hero", type: "hero", heading: "Master Lender resources" }] },
   { show_in_nav: false },
 );
 seedPublishedPage(
@@ -5592,6 +5597,16 @@ function siteSettingsRoutes(slug, req, body, user, send) {
       { published_at: new Date().toISOString(), by: user.name, story: clone(next.success_story) },
       ...next.story_history,
     ].slice(0, 10);
+  // Sample identities (demo_identities.rs): FigBud Global only; published sets are remembered (last 10).
+  next.demo_identities_history = clone(site.settings.demo_identities_history ?? []);
+  if (
+    JSON.stringify(next.demo_identities ?? null) !== JSON.stringify(site.settings.demo_identities ?? null) &&
+    next.demo_identities
+  )
+    next.demo_identities_history = [
+      { published_at: new Date().toISOString(), by: user.name, identities: clone(next.demo_identities) },
+      ...next.demo_identities_history,
+    ].slice(0, 10);
   // Device experience (devices.rs): published versions are remembered (last 10).
   next.devices_history = clone(site.settings.devices_history ?? []);
   if (JSON.stringify(next.devices ?? null) !== JSON.stringify(site.settings.devices ?? null) && next.devices)
@@ -5600,6 +5615,21 @@ function siteSettingsRoutes(slug, req, body, user, send) {
       ...next.devices_history,
     ].slice(0, 10);
   const fields = [];
+  for (const field of ["demo_identities", "demo_identities_draft"]) {
+    const d = next[field];
+    if (!d) continue;
+    if (site.kind !== "corporate")
+      fields.push({ field, code: "corporate", message: "Sample identities are managed on FigBud Global." });
+    const ids = (d.people ?? []).map((p) => p.id);
+    if (
+      !ids.length ||
+      new Set(ids).size !== ids.length ||
+      (d.people ?? []).some((p) => !String(p.name ?? "").trim())
+    )
+      fields.push({ field, code: "name", message: "Names need 1 to 40 characters." });
+    else if (!(d.people ?? []).some((p) => p.active !== false))
+      fields.push({ field, code: "active", message: "Keep at least one sample identity active." });
+  }
   for (const field of ["devices", "devices_draft"]) {
     const d = next[field];
     if (!d) continue;

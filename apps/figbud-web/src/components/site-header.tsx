@@ -1,6 +1,6 @@
 "use client";
 
-import { publicProducts } from "@figbud/brand";
+import { type Product, publicProducts } from "@figbud/brand";
 import { LOCALE_COOKIE, type Locale, localeInfo, localizePath, locales, stripLocale } from "@figbud/i18n";
 import { FigBudWordmark, InverseTheme, StatusBadge, ThemeToggle, buttonClasses, cn } from "@figbud/ui";
 import { ArrowRight, ArrowUpRight, ChevronDown, Menu, Search, X } from "lucide-react";
@@ -35,6 +35,8 @@ type HeaderProps = {
   languages?: readonly Locale[];
   /** Languages published with a recorded review; the others say "In review". */
   reviewed?: readonly string[];
+  /** The products with their published names and stages (Websites → Manage sites); the registry otherwise. */
+  catalogue?: readonly Product[];
 };
 
 const navItems = [
@@ -53,6 +55,7 @@ export function SiteHeader({
   previews = {},
   languages = locales,
   reviewed,
+  catalogue = publicProducts,
 }: HeaderProps) {
   const pathname = usePathname();
   const current = stripLocale(pathname);
@@ -98,6 +101,7 @@ export function SiteHeader({
                     common={common}
                     products={products}
                     brands={brands}
+                    catalogue={catalogue}
                     active={isActive(item.path)}
                   />
                 </li>
@@ -158,6 +162,7 @@ export function SiteHeader({
             common={common}
             products={products}
             brands={brands}
+            catalogue={catalogue}
             isActive={isActive}
             previews={previews}
             languages={languages}
@@ -168,7 +173,14 @@ export function SiteHeader({
   );
 }
 
-function ProductsMenu({ locale, common, products, brands, active }: HeaderProps & { active: boolean }) {
+function ProductsMenu({
+  locale,
+  common,
+  products,
+  brands,
+  active,
+  catalogue = publicProducts,
+}: HeaderProps & { active: boolean }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const panelId = useId();
@@ -219,7 +231,7 @@ function ProductsMenu({ locale, common, products, brands, active }: HeaderProps 
             {common.productsMenu.title}
           </p>
           <ul>
-            {publicProducts.map((product) => {
+            {catalogue.map((product) => {
               const link = productLink(product.slug, locale);
               const copy = products[product.slug];
               return (
@@ -301,6 +313,7 @@ function MobileMenu({
   isActive,
   previews = {},
   languages = locales,
+  catalogue = publicProducts,
 }: HeaderProps & { pathname: string; isActive: (path: string) => boolean }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const open = () => dialogRef.current?.showModal();
@@ -369,7 +382,7 @@ function MobileMenu({
               {common.productsMenu.title}
             </h2>
             <ul className="mt-3 space-y-2">
-              {publicProducts.map((product) => {
+              {catalogue.map((product) => {
                 const link = productLink(product.slug, locale);
                 return (
                   <li key={product.slug} data-product={product.slug}>

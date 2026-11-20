@@ -9,7 +9,7 @@ import {
   NavPreview,
   type NavPreviewContent,
   ProductIdentity,
-  hasLogo,
+  headerShowsLogo,
   useDismiss,
 } from "@figbud/site-kit";
 import { InverseTheme, ThemeToggle, buttonClasses, cn } from "@figbud/ui";
@@ -17,7 +17,7 @@ import { ArrowRight, Calculator, ChevronDown, LayoutGrid, Plug, Tags, Waypoints 
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 
-import { languageHref, pageHref, splitLocale } from "@/lib/addresses";
+import { languageHref, pageHref, splitLocale, pageSegments } from "@/lib/addresses";
 import type { PlatformMenuEntry } from "@/lib/platform-menu";
 
 export interface NavLink {
@@ -106,12 +106,15 @@ export function SiteHeader({
   }, []);
   // Own-domain requests are rewritten internally; compare the visible address.
   const current = pathname.replace(/^\/~[^/]+/, "") || "/";
-  const isActive = (href: string) => href === current || href === pathname;
+  // Compared after the website's segment, so a renamed website's new and old
+  // addresses (and the internal one) match the same page.
+  const here = pageSegments(pathname, site.slug, site.ownDomain).join("/");
+  const isActive = (href: string) =>
+    href === current ||
+    href === pathname ||
+    (href.startsWith("/") && pageSegments(href.split("#")[0]!, site.slug, site.ownDomain).join("/") === here);
   // The page's language, from its address (`/zirahr/sw/platform`, P7-L2b).
-  const segments = (site.ownDomain ? current : current.replace(new RegExp(`^/${site.slug}(?=/|$)`), ""))
-    .split("/")
-    .filter(Boolean);
-  const { locale, path } = splitLocale(segments, languages);
+  const { locale, path } = splitLocale(pageSegments(pathname, site.slug, site.ownDomain), languages);
   const words = interfaceCopy[locale as Locale] ?? interfaceCopy.en;
   // Each language's version of this page, where one exists.
   const offered = languages.filter((l) => languageHref(site.slug, site.ownDomain, translations, path, l));
@@ -158,7 +161,8 @@ export function SiteHeader({
     >
       <div className="mx-auto flex max-w-[92rem] flex-wrap items-center gap-x-6 gap-y-2 px-5 py-3 sm:px-8 md:px-10 lg:px-16">
         <a href={homeHref} className="flex min-h-11 items-center gap-3 rounded-lg">
-          {hasLogo(brand?.logos.horizontal) ? (
+          {/* The full logo, or the symbol and published name when the artwork names it otherwise. */}
+          {brand && headerShowsLogo(brand, name) ? (
             <BrandLogo pair={brand.logos.horizontal} height={28} maxWidth={180} alt={name} />
           ) : slug ? (
             <ProductIdentity

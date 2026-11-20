@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  pageSegments,
   languageHref,
   pageUrls,
   splitLocale,
@@ -23,8 +24,8 @@ describe("site addresses", () => {
   });
 
   it("writes page addresses for both modes", () => {
-    expect(pageHref("ziwa", false, "")).toBe("/ziwa");
-    expect(pageHref("ziwa", false, "solutions/banks")).toBe("/ziwa/solutions/banks");
+    expect(pageHref("ziwa", false, "")).toBe("/master-lender");
+    expect(pageHref("ziwa", false, "solutions/banks")).toBe("/master-lender/solutions/banks");
     expect(pageHref("ziwa", true, "")).toBe("/");
     expect(pageHref("ziwa", true, "platform")).toBe("/platform");
   });
@@ -32,7 +33,7 @@ describe("site addresses", () => {
   it("uses the website's own domain for canonical URLs when served there", () => {
     expect(canonicalUrl(ziwa, true, "platform")).toBe("https://ziwa.example.com/platform");
     expect(canonicalUrl(ziwa, true, "")).toBe("https://ziwa.example.com");
-    expect(canonicalUrl(ziwa, false, "platform")).toBe(`${rendererOrigin}/ziwa/platform`);
+    expect(canonicalUrl(ziwa, false, "platform")).toBe(`${rendererOrigin}/master-lender/platform`);
   });
 
   it("sends calls to action to the corporate enquiry form", () => {
@@ -44,9 +45,9 @@ describe("site addresses", () => {
 
   it("resolves block links for where the website is served", () => {
     const prefixed = hrefResolver(ziwa, false, [{ path: "" }, { path: "platform" }]);
-    expect(prefixed("/platform")).toBe("/ziwa/platform");
-    expect(prefixed("/platform?tab=risk#limits")).toBe("/ziwa/platform?tab=risk#limits");
-    expect(prefixed("/")).toBe("/ziwa");
+    expect(prefixed("/platform")).toBe("/master-lender/platform");
+    expect(prefixed("/platform?tab=risk#limits")).toBe("/master-lender/platform?tab=risk#limits");
+    expect(prefixed("/")).toBe("/master-lender");
     expect(prefixed("https://figbud.example/x")).toBe("https://figbud.example/x");
     expect(prefixed("/contact")).toMatch(/\/en\/contact\?kind=waitlist&product=ziwa$/);
     const own = hrefResolver(ziwa, true, [{ path: "contact" }]);
@@ -57,9 +58,9 @@ describe("site addresses", () => {
   });
 
   it("sends Studio links to this website's pages, or to their https address", () => {
-    expect(siteLinkHref("ziwa", false, "/platform")).toBe("/ziwa/platform");
+    expect(siteLinkHref("ziwa", false, "/platform")).toBe("/master-lender/platform");
     expect(siteLinkHref("ziwa", true, "/platform")).toBe("/platform");
-    expect(siteLinkHref("ziwa", false, "/")).toBe("/ziwa");
+    expect(siteLinkHref("ziwa", false, "/")).toBe("/master-lender");
     expect(siteLinkHref("ziwa", false, "https://docs.example.com")).toBe("https://docs.example.com");
   });
 
@@ -92,7 +93,9 @@ describe("site addresses", () => {
       "https://ziwa.example.com/platform",
       "https://ziwa.example.com/sw/platform",
     ]);
-    expect(pageUrls(ziwa, false, { path: "about" }, ["en", "sw"])).toEqual([`${rendererOrigin}/ziwa/about`]);
+    expect(pageUrls(ziwa, false, { path: "about" }, ["en", "sw"])).toEqual([
+      `${rendererOrigin}/master-lender/about`,
+    ]);
   });
 
   it("keeps links on a translated page in its language where the target is translated", () => {
@@ -101,5 +104,14 @@ describe("site addresses", () => {
     const resolve = hrefResolver(site, false, pages, "sw");
     expect(resolve("/platform#modules")).toBe("/zirahr/sw/platform#modules");
     expect(resolve("/about")).toBe("/zirahr/about");
+  });
+});
+
+describe("page segments", () => {
+  it("reads a renamed website's new and old addresses, and its own domain", () => {
+    expect(pageSegments("/master-lender/ar/platform", "ziwa", false)).toEqual(["ar", "platform"]);
+    expect(pageSegments("/ziwa/platform", "ziwa", false)).toEqual(["platform"]);
+    expect(pageSegments("/zirahr", "zirahr", false)).toEqual([]);
+    expect(pageSegments("/~ziwa/sw/about", "ziwa", true)).toEqual(["sw", "about"]);
   });
 });

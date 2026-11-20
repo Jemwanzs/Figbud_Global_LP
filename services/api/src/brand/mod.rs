@@ -133,6 +133,7 @@ pub fn resolve(config: &BrandConfig, assets: &HashMap<Uuid, AssetMeta>, base: &s
         "social_image": asset(config.social_image),
         "colors": config.colors,
         "logo_height": config.logo_height,
+        "header_logo": config.header_logo,
     })
 }
 

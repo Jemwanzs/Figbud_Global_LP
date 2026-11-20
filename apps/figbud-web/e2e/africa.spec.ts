@@ -27,7 +27,7 @@ test("Nairobi shows the FigBud origin, and every listed product links onwards", 
     .filter({ visible: true });
   await expect(links).toHaveCount(4);
   await expect(links.filter({ hasText: /ZiraHR/ })).toHaveAttribute("href", "/en/products#zirahr");
-  await expect(links.filter({ hasText: /Ziwa LMS/ })).toHaveAttribute(
+  await expect(links.filter({ hasText: /Master Lender/ })).toHaveAttribute(
     "href",
     "/en/contact?kind=waitlist&product=ziwa",
   );

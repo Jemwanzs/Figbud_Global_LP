@@ -1,3 +1,4 @@
+import { publicSegment } from "@figbud/brand";
 import type { ListedSite } from "@figbud/site-kit";
 
 /**
@@ -51,10 +52,21 @@ export function parseSiteParam(param: string): { slug: string; ownDomain: boolea
  * (P7-L2b). English, the language every page is written in, has no prefix.
  */
 export const pageHref = (slug: string, ownDomain: boolean, path: string, locale?: string) =>
-  `${ownDomain ? "" : `/${slug}`}${locale && locale !== "en" ? `/${locale}` : ""}/${path}`.replace(
+  `${ownDomain ? "" : `/${publicSegment(slug)}`}${locale && locale !== "en" ? `/${locale}` : ""}/${path}`.replace(
     /\/$/,
     "",
   ) || "/";
+
+/**
+ * The segments after the website in a visible address: `/master-lender/ar/platform`
+ * (or the old `/ziwa/…`, or `/ar/platform` on the website's own domain) gives
+ * `["ar", "platform"]`. Own-domain requests are rewritten internally to `/~slug`.
+ */
+export function pageSegments(pathname: string, slug: string, ownDomain: boolean): string[] {
+  const current = pathname.replace(/^\/~[^/]+/, "") || "/";
+  const prefix = new RegExp(`^/(${slug}|${publicSegment(slug)})(?=/|$)`);
+  return (ownDomain ? current : current.replace(prefix, "")).split("/").filter(Boolean);
+}
 
 /**
  * The language and page path of an address's segments after the website:

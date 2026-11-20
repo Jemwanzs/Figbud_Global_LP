@@ -285,7 +285,7 @@ pub fn text(code: &str) -> &'static Text {
 
 impl Text {
     /// (subject, headline, next steps) for an enquiry, with the product's name in place.
-    pub fn for_enquiry(&self, kind: EnquiryKind, product: Product) -> [String; 3] {
+    pub fn for_enquiry(&self, kind: EnquiryKind, product: Product, name: &str) -> [String; 3] {
         let parts = match (kind, product) {
             (EnquiryKind::Referral, _) => &self.referral,
             (EnquiryKind::Waitlist, _) => &self.waitlist,
@@ -296,6 +296,6 @@ impl Text {
             (EnquiryKind::Sales | EnquiryKind::Contact, Product::Figbud) => &self.contact_figbud,
             (EnquiryKind::Sales | EnquiryKind::Contact, _) => &self.contact_product,
         };
-        parts.map(|p| p.replace("{product}", product.display_name()))
+        parts.map(|p| p.replace("{product}", name))
     }
 }

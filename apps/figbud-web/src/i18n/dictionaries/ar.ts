@@ -7,7 +7,7 @@ const ar: DeepPartial<Dictionary> = {
   meta: {
     title: "FigBud Global — برمجيات مؤسسية مصممة للتعقيد",
     description:
-      "تبني FigBud Global منصات مؤسسية قابلة للتهيئة للموارد البشرية والإقراض والنفقات: ZiraHR وJasiri LMS وExpense Now وZiwa LMS.",
+      "تبني FigBud Global منصات مؤسسية قابلة للتهيئة للموارد البشرية والإقراض والنفقات: ZiraHR وJasiri LMS وExpense Now وMaster Lender.",
   },
   common: {
     skipToContent: interfaceCopy.ar.skipToContent,

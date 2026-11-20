@@ -1,11 +1,11 @@
 import { themeColorViewport } from "@figbud/brand";
-import { brandIcons } from "@figbud/site-kit";
+import { DemoPeopleProvider, brandIcons } from "@figbud/site-kit";
 import { DialogProvider, themeInitScript } from "@figbud/ui";
 import type { Metadata, Viewport } from "next";
 import { Outfit } from "next/font/google";
 import type { ReactNode } from "react";
 
-import { getBrands } from "@/lib/products";
+import { getBrands, getDemoIdentities } from "@/lib/products";
 
 import "../globals.css";
 
@@ -24,7 +24,9 @@ export const viewport: Viewport = {
   themeColor: themeColorViewport,
 };
 
-export default function AdminLayout({ children }: { children: ReactNode }) {
+export default async function AdminLayout({ children }: { children: ReactNode }) {
+  // Previews show the published sample identities (P14-W10); the Sample identities page previews its draft.
+  const identities = await getDemoIdentities();
   return (
     // `data-studio`: the Studio's own warm palette (tokens in @figbud/brand).
     <html lang="en" data-theme="dark" data-studio="" suppressHydrationWarning className={outfit.variable}>
@@ -33,7 +35,9 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
       </head>
       <body className="min-h-dvh">
         {/* In-app confirmations and notifications for every Studio page (no browser popups). */}
-        <DialogProvider>{children}</DialogProvider>
+        <DialogProvider>
+          <DemoPeopleProvider identities={identities}>{children}</DemoPeopleProvider>
+        </DialogProvider>
       </body>
     </html>
   );

@@ -851,3 +851,38 @@ async fn testimonial_display_is_drafted_and_published_per_website() {
     .unwrap();
     assert_eq!(audited, 1);
 }
+
+#[tokio::test]
+async fn sample_identities_are_managed_on_figbud_global_only() {
+    // P14-W10 (owner's brief, 20 Nov 2026): a product website can't set its own.
+    let Some(pool) = database().await else { return };
+    let url = std::env::var("TEST_DATABASE_URL").unwrap();
+    let app = app_with(pool.clone(), config(&url));
+    let run = Uuid::now_v7().simple().to_string();
+    let slug = format!("idty_{}", &run[run.len() - 10..]);
+    sqlx::query(
+        "INSERT INTO sites (id, slug, kind, name, category, template, status, position)
+         VALUES ($1, $2, 'product', 'Identity Site', 'hr_workforce', 'hr', 'active', 95)",
+    )
+    .bind(Uuid::now_v7())
+    .bind(&slug)
+    .execute(&pool)
+    .await
+    .unwrap();
+    let uri = format!("/v1/admin/sites/{slug}/settings");
+    let reviewer = admin(&pool, "reviewer").await;
+    let (_, read) = call(&app, "GET", &uri, Some(&reviewer), None).await;
+    let mut settings = read["settings"].clone();
+    settings["demo_identities_draft"] =
+        json!({ "people": [{ "id": "libbie", "name": "Libbie Sonia" }], "leads": {} });
+    let (status, body) = call(
+        &app,
+        "POST",
+        &uri,
+        Some(&reviewer),
+        Some(json!({ "settings": settings, "version": read["version"] })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY, "{body}");
+    assert!(body.to_string().contains("FigBud Global"));
+}

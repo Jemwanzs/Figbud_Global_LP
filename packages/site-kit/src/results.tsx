@@ -1,4 +1,12 @@
-import { CountUp, type Figure, type FigureNotation, RevealGroup, cn, revealOrder } from "@figbud/ui";
+import {
+  CountUp,
+  type Figure,
+  type FigureNotation,
+  RevealGroup,
+  cn,
+  revealOrder,
+  SectionEyebrow,
+} from "@figbud/ui";
 import {
   Award,
   BadgeCheck,
@@ -503,10 +511,7 @@ export function SuccessStory({
         )}
       >
         <div className={cn(story.layout !== "split" && "max-w-3xl")}>
-          <p className="flex items-center gap-3 text-xs font-medium tracking-[0.18em] text-[var(--story-accent)] uppercase">
-            <span aria-hidden className="h-px w-8 bg-current" />
-            {story.eyebrow}
-          </p>
+          <SectionEyebrow className="text-[var(--story-accent)]">{story.eyebrow}</SectionEyebrow>
           <h2 id="success-story-title" className="mt-4 font-display text-headline font-semibold text-balance">
             {story.headline}
           </h2>
