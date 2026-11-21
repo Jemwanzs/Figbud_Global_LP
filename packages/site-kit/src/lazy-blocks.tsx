@@ -1,25 +1,22 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { type ComponentType, Suspense, lazy } from "react";
+import { type ComponentType, lazy } from "react";
 
 /**
  * Like `dynamic`, without its preload hint. For the forms and the Coming
  * Soon page, Turbopack's loadable manifest named a chunk it never wrote
  * (Next 16.4), so every page with one asked for a missing file: a 404 and a
  * console error (Lighthouse best practices 96, 21 Nov 2026). `React.lazy`
- * server-renders the same HTML and splits the code the same way (the
- * browser's own `import()`); the server HTML stays in place until the code
- * arrives.
+ * splits the code the same way (the browser's own `import()`). No Suspense
+ * boundary of its own: the server waits for the code and writes the HTML in
+ * place (a boundary here streamed it in later and moved the page: layout
+ * shift 0.37), and the browser keeps that HTML until the code arrives.
  */
 function lazyBlock<P extends object>(load: () => Promise<ComponentType<P>>) {
   const Lazy = lazy(() => load().then((component) => ({ default: component })));
   function LazyBlock(props: P) {
-    return (
-      <Suspense fallback={null}>
-        <Lazy {...props} />
-      </Suspense>
-    );
+    return <Lazy {...props} />;
   }
   return LazyBlock;
 }
