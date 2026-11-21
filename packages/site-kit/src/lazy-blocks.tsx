@@ -1,6 +1,28 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { type ComponentType, Suspense, lazy } from "react";
+
+/**
+ * Like `dynamic`, without its preload hint. For the forms and the Coming
+ * Soon page, Turbopack's loadable manifest named a chunk it never wrote
+ * (Next 16.4), so every page with one asked for a missing file: a 404 and a
+ * console error (Lighthouse best practices 96, 21 Nov 2026). `React.lazy`
+ * server-renders the same HTML and splits the code the same way (the
+ * browser's own `import()`); the server HTML stays in place until the code
+ * arrives.
+ */
+function lazyBlock<P extends object>(load: () => Promise<ComponentType<P>>) {
+  const Lazy = lazy(() => load().then((component) => ({ default: component })));
+  function LazyBlock(props: P) {
+    return (
+      <Suspense fallback={null}>
+        <Lazy {...props} />
+      </Suspense>
+    );
+  }
+  return LazyBlock;
+}
 
 /*
  * Blocks only some pages show, loaded only where they appear (P2-18). The
@@ -9,10 +31,10 @@ import dynamic from "next/dynamic";
  * calculator. Server-rendered as before: their HTML is in the page, and
  * their code arrives only on pages that render them.
  */
-export const LazyEnquiryForm = dynamic(() => import("./enquiry-form").then((m) => m.EnquiryForm));
-export const LazyReferralForm = dynamic(() => import("./referral-form").then((m) => m.ReferralForm));
+export const LazyEnquiryForm = lazyBlock(() => import("./enquiry-form").then((m) => m.EnquiryForm));
+export const LazyReferralForm = lazyBlock(() => import("./referral-form").then((m) => m.ReferralForm));
 export const LazyPublicPricing = dynamic(() => import("./public-pricing").then((m) => m.PublicPricing));
-export const LazyComingSoon = dynamic(() => import("./coming-soon").then((m) => m.ComingSoon));
+export const LazyComingSoon = lazyBlock(() => import("./coming-soon").then((m) => m.ComingSoon));
 // The product demonstrations (every kind, with the scroll stories) and the
 // module tour: only pages that show one download them (P2-18).
 export const LazyProductDemo = dynamic(() => import("./product-demos").then((m) => m.ProductDemo));

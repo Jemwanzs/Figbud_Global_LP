@@ -2306,3 +2306,29 @@ test("a section's look reaches the website: dark in either theme, revealed and s
     expect(results.violations.map((v) => v.id)).toEqual([]);
   }
 });
+
+test("no page asks for a file that doesn't exist: scripts, styles, fonts or preloads (P2-18)", async ({
+  page,
+}) => {
+  // 21 Nov 2026: the forms' and Coming Soon's preload hints named a script chunk that was never built.
+  const failed: string[] = [];
+  page.on("response", (response) => {
+    if (response.url().includes("/_next/") && response.status() >= 400)
+      failed.push(`${response.status()} ${response.url()}`);
+  });
+  const errors: string[] = [];
+  page.on("console", (message) => {
+    // Only the app's own files: other requests (a consent record, a cancelled fetch) aren't this test's concern.
+    if (
+      message.type() === "error" &&
+      /Failed to load resource/.test(message.text()) &&
+      message.location().url.includes("/_next/")
+    )
+      errors.push(`${message.text()} ${message.location().url}`);
+  });
+  for (const path of ["/zirahr", "/zirahr/platform", "/zirahr/contact", "/master-lender", "/expense_now"]) {
+    await page.goto(path, { waitUntil: "networkidle" });
+  }
+  expect(failed).toEqual([]);
+  expect(errors).toEqual([]);
+});
